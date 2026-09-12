@@ -1,129 +1,54 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Tech Topics — an archive for architecture and SRE" />
-    <title>Tech Topics — Editorial Archive</title>
+    <meta name="description" content="Tech Topics — arquivo de artigos sobre arquitetura de sistemas, engenharia de software e sistemas distribuídos." />
+    <title>Tech Topics — Arquivo de artigos</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&family=PT+Sans+Narrow:wght@400;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <a class="skip-link" href="#recent-posts">Ir para os artigos</a>
     <header class="site-header">
       <div class="header-inner">
-        <div class="header-top">
-          <a class="brand" href="#top" aria-label="Tech Topics home">Tech Topics</a>
-          <div class="header-actions">
-            <button class="icon-button search-trigger" aria-label="Search" title="Search">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="5.8"></circle><path d="m15.3 15.3 4.2 4.2"></path></svg>
-            </button>
-            <a class="social-icon" href="#" aria-label="Facebook">f</a>
-            <a class="social-icon" href="#" aria-label="Twitter">t</a>
-            <a class="social-icon" href="#" aria-label="Pinterest">p</a>
-            <span class="cart-label">Cart</span>
-            <a class="document-link" href="#recent-posts">Archive</a>
-            <button class="menu-toggle" aria-label="Open menu" aria-expanded="false">
-              <span></span><span></span><span></span>
-            </button>
-          </div>
-        </div>
-        <nav class="main-nav" aria-label="Primary navigation">
-          <a href="#top">Home</a>
-          <a href="#about">About</a>
-          <a href="#recent-posts">Archive</a>
-          <a href="#contact">Contact us</a>
-        </nav>
+        <a class="brand" href="index.html" aria-label="Tech Topics — página inicial">Tech Topics</a>
+        <a class="header-link" href="https://github.com/joaovpimenta/tech-topics">Repositório</a>
       </div>
     </header>
 
     <main id="top" class="page-shell">
-      <section class="feature-grid" aria-label="Featured stories">
-        <article class="lead-story">
-          <a id="lead-link" class="lead-image image-link" href="article.html" aria-label="Read article">
-            <img id="lead-image" src="assets/four-golden-signals-cover.jpg" alt="Article cover" />
-          </a>
-          <div class="story-copy">
-            <h1><a id="lead-title" href="article.html">Loading article…</a></h1>
-            <p id="lead-excerpt" class="excerpt">Loading the archive…</p>
-            <div class="byline">Tech Topics <span>in</span> <span id="lead-category">Archive</span></div>
-            <div id="lead-meta" class="post-meta"></div>
-            <a class="outline-button" href="#recent-posts">View archive</a>
+      <header class="archive-intro">
+        <span class="eyebrow">Engenharia de software</span>
+        <h1>Arquitetura de sistemas, um conceito por vez.</h1>
+        <p>Artigos para entender sistemas distribuídos, observabilidade e resiliência — dos fundamentos à prática.</p>
+      </header>
+
+      <section class="archive-section" id="recent-posts" aria-labelledby="archive-heading">
+        <div class="archive-toolbar">
+          <div>
+            <h2 id="archive-heading">Todos os artigos</h2>
+            <p id="article-count" class="post-meta" aria-live="polite">Carregando o arquivo…</p>
           </div>
-        </article>
-
-        <div class="quick-stories" id="posts" aria-label="More featured stories"></div>
-
-        <aside class="editor-picks">
-          <div class="section-heading"><h2>Editor’s Picked</h2></div>
-          <div id="editor-list"></div>
-          <a class="view-more" href="#recent-posts">View all</a>
-        </aside>
-      </section>
-
-      <section class="content-grid">
-        <div class="content-main">
-          <section class="spotlight" aria-label="Spotlight story">
-            <div class="spotlight-copy">
-              <span class="eyebrow">Featured story</span>
-              <h2 id="spotlight-title">Loading article…</h2>
-              <p id="spotlight-excerpt">Loading the archive…</p>
-              <div class="byline">Tech Topics <span>in</span> <span id="spotlight-category">Archive</span></div>
-              <div id="spotlight-meta" class="post-meta"></div>
-            </div>
-            <a id="spotlight-link" class="spotlight-image image-link" href="article.html"><img id="spotlight-image" src="assets/four-golden-signals-cover.jpg" alt="Article cover" /></a>
-            <div class="slider-controls">
-              <button id="previous-slide" aria-label="Previous spotlight">‹</button>
-              <button id="next-slide" aria-label="Next spotlight">›</button>
-            </div>
-          </section>
-
-          <section class="today-section" id="about">
-            <div class="section-heading section-heading-row">
-              <h2>Today Highlight</h2>
-              <button class="text-link" data-filter="all">View More</button>
-            </div>
-            <div class="highlight-grid" id="highlight-list"></div>
-          </section>
-
-          <section class="recent-section" id="recent-posts">
-            <div class="section-heading"><h2>Archive</h2></div>
-            <div class="recent-list" id="recent-list"></div>
-            <div class="pagination"><span>All articles</span></div>
-          </section>
+          <div class="archive-search">
+            <label for="search-input">Buscar no arquivo</label>
+            <input id="search-input" type="search" placeholder="Assunto ou palavra-chave" autocomplete="off" />
+          </div>
         </div>
-
-        <aside class="right-rail">
-          <section class="rail-section trending-section">
-            <div class="section-heading"><h2>Trending</h2></div>
-            <a id="trending-link" class="trending-image image-link" href="article.html"><img id="trending-image" src="assets/four-golden-signals-cover.jpg" alt="Article cover" /></a>
-            <h3><a id="trending-title" href="article.html">Loading article…</a></h3>
-            <div class="byline">Tech Topics <span>in</span> <span id="trending-category">Archive</span></div>
-            <div id="trending-meta" class="post-meta"></div>
-            <a class="view-more" href="#recent-posts">View in archive</a>
-          </section>
-        </aside>
+        <p id="archive-status" class="archive-status" role="status" hidden></p>
+        <div class="recent-list" id="recent-list" aria-busy="true"></div>
+        <p id="empty-state" class="empty-state" hidden>Nenhum artigo encontrado. Tente outro termo.</p>
+        <noscript><p>Ative o JavaScript para carregar os artigos deste arquivo.</p></noscript>
       </section>
     </main>
 
-    <footer class="site-footer" id="contact">
+    <footer class="site-footer">
       <div class="footer-inner">
-        <p>© 2026 Tech Topics. All rights reserved.</p>
-        <div class="footer-socials"><a class="social-icon" href="#" aria-label="Facebook">f</a><a class="social-icon" href="#" aria-label="Twitter">t</a><a class="social-icon" href="#" aria-label="Pinterest">p</a></div>
+        <p>Tech Topics · Arquivo de arquitetura e engenharia de software</p>
       </div>
     </footer>
-
-    <div class="search-modal" aria-hidden="true">
-      <div class="search-panel" role="dialog" aria-modal="true" aria-labelledby="search-title">
-        <button class="modal-close" aria-label="Close search">×</button>
-        <span class="eyebrow">Search the journal</span>
-        <h2 id="search-title">What are you curious about?</h2>
-        <input id="search-input" type="search" placeholder="Type to search..." autocomplete="off" />
-        <div class="search-results" id="search-results"></div>
-      </div>
-    </div>
-
     <script src="app.js"></script>
   </body>
 </html>

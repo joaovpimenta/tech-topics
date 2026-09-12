@@ -3,47 +3,37 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta id="article-description" name="description" content="Tech Topics article" />
-    <title id="article-title">Tech Topics</title>
+    <meta id="article-description" name="description" content="Artigo do arquivo Tech Topics." />
+    <title>Tech Topics</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&family=PT+Sans+Narrow:wght@400;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body class="article-page">
+    <a class="skip-link" href="#article-root">Ir para o artigo</a>
     <header class="site-header">
       <div class="header-inner">
-        <div class="header-top">
-          <a class="brand" href="index.html" aria-label="Tech Topics home">Tech Topics</a>
-          <div class="header-actions">
-            <a class="document-link" href="index.html#recent-posts">Archive</a>
-            <a class="social-icon" href="index.html" aria-label="Back to Tech Topics">←</a>
-          </div>
-        </div>
-        <nav class="main-nav" aria-label="Primary navigation">
-          <a href="index.html">Home</a>
-          <a href="index.html#about">About</a>
-          <a href="index.html#recent-posts">Archive</a>
-          <a href="index.html#contact">Contact us</a>
-        </nav>
+        <a class="brand" href="index.html" aria-label="Tech Topics — página inicial">Tech Topics</a>
+        <a class="header-link" href="index.html#recent-posts">← Todos os artigos</a>
       </div>
     </header>
 
     <main class="article-shell" id="article-root">
       <header class="article-header">
-        <span class="eyebrow" id="article-category">Loading article</span>
-        <h1 id="article-heading">Loading article…</h1>
-        <p class="dek" id="article-dek">Loading article content…</p>
+        <span class="eyebrow" id="article-category">Carregando artigo</span>
+        <h1 id="article-heading">Carregando artigo…</h1>
+        <p class="dek" id="article-dek"></p>
         <div class="article-meta" id="article-meta"></div>
       </header>
-      <div class="article-hero"><img id="article-image" src="assets/four-golden-signals-cover.jpg" alt="Article cover" /></div>
-      <article class="article-body" id="article-body"><p>Loading article content…</p></article>
+      <div class="article-hero" hidden><img id="article-image" alt="" /></div>
+      <article class="article-body" id="article-body"><p>Carregando o conteúdo…</p></article>
+      <noscript><p>Ative o JavaScript para carregar o conteúdo deste artigo.</p></noscript>
     </main>
 
-    <footer class="site-footer" id="contact">
+    <footer class="site-footer">
       <div class="footer-inner">
-        <p>© 2026 Tech Topics. All rights reserved.</p>
-        <a class="article-back" href="index.html">Back to Tech Topics</a>
+        <p>Tech Topics · Arquivo de arquitetura e engenharia de software</p>
       </div>
     </footer>
     <script src="article.js"></script>
