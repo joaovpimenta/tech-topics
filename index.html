@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Daily — an editorial journal for curious readers" />
+    <title>Daily — Editorial Journal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&family=PT+Sans+Narrow:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="header-inner">
+        <div class="header-top">
+          <a class="brand" href="#top" aria-label="Daily home">Daily</a>
+          <div class="header-actions">
+            <button class="icon-button search-trigger" aria-label="Search" title="Search">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="5.8"></circle><path d="m15.3 15.3 4.2 4.2"></path></svg>
+            </button>
+            <a class="social-icon" href="#" aria-label="Facebook">f</a>
+            <a class="social-icon" href="#" aria-label="Twitter">t</a>
+            <a class="social-icon" href="#" aria-label="Pinterest">p</a>
+            <span class="cart-label">Cart</span>
+            <a class="document-link" href="#recent-posts">Archive</a>
+            <button class="menu-toggle" aria-label="Open menu" aria-expanded="false">
+              <span></span><span></span><span></span>
+            </button>
+          </div>
+        </div>
+        <nav class="main-nav" aria-label="Primary navigation">
+          <a href="#top">Home</a>
+          <a href="#about">About</a>
+          <a href="#posts">Archive</a>
+          <a href="#pages">Pages</a>
+          <a href="#archive">Archive</a>
+          <a href="#shopping">Shopping</a>
+          <a href="#living">Living</a>
+          <a href="#politics">Politics</a>
+          <a href="#lifestyle">Lifestyle</a>
+          <a href="#travel">Travel</a>
+          <a href="#contact">Contact us</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top" class="page-shell">
+      <section class="feature-grid" aria-label="Featured stories">
+        <article class="lead-story">
+          <a class="lead-image image-link" href="#article-books" aria-label="Read The ten most important books to expand your brain">
+            <img src="https://merinda.alithemes.net/wp-content/uploads/2019/02/img-11-alith-resize-500x350.jpg" alt="Illustration of a pug and a rabbit" />
+          </a>
+          <div class="story-copy">
+            <h1><a href="#article-books">The ten most important books to expand your brain</a></h1>
+            <p class="excerpt">osh jaguar ostrich quail one excited dear hello and bound[1] and the and bland moral misheard roadrunner flapped lynx far that and jeepers giggled...</p>
+            <div class="byline">Ryan Mark <span>in</span> Living , Politics</div>
+            <div class="post-meta">Feb 6 <i>·</i> 3 mins read <span class="star">★</span></div>
+            <a class="outline-button" href="#posts">View all featured</a>
+          </div>
+        </article>
+
+        <div class="quick-stories" id="posts" aria-label="More featured stories"></div>
+
+        <aside class="editor-picks">
+          <div class="section-heading"><h2>Editor’s Picked</h2></div>
+          <div id="editor-list"></div>
+          <a class="view-more" href="#recent-posts">View all</a>
+        </aside>
+      </section>
+
+      <section class="content-grid">
+        <div class="content-main">
+          <section class="spotlight" aria-label="Spotlight story">
+            <div class="spotlight-copy">
+              <span class="eyebrow">Featured story</span>
+              <h2 id="spotlight-title">This headline could save your life</h2>
+              <p id="spotlight-excerpt">Frail far and far mercifully according up threw much one that unicorn instead one however ecstatic over falcon arose inside aside inside led dear affecting...</p>
+              <div class="byline">Ryan Mark <span>in</span> Lifestyle</div>
+              <div class="post-meta">Jan 24 <i>·</i> 2 mins read <span class="star">★</span></div>
+            </div>
+            <a class="spotlight-image image-link" href="#article-spotlight"><img id="spotlight-image" src="https://merinda.alithemes.net/wp-content/uploads/2019/01/nemo-img-7.jpg" alt="A surreal cup pouring into a pastel landscape" /></a>
+            <div class="slider-controls">
+              <button id="previous-slide" aria-label="Previous spotlight">‹</button>
+              <button id="next-slide" aria-label="Next spotlight">›</button>
+            </div>
+          </section>
+
+          <section class="today-section" id="about">
+            <div class="section-heading section-heading-row">
+              <h2>Today Highlight</h2>
+              <button class="text-link" data-filter="all">View More</button>
+            </div>
+            <div class="highlight-grid" id="highlight-list"></div>
+          </section>
+
+          <section class="recent-section" id="recent-posts">
+            <div class="section-heading"><h2>Archive</h2></div>
+            <div class="recent-list" id="recent-list"></div>
+            <div class="pagination"><a class="active" href="#recent-posts">1</a><a href="#recent-posts">2</a><a href="#recent-posts">Next</a></div>
+          </section>
+        </div>
+
+        <aside class="right-rail">
+          <section class="rail-section trending-section">
+            <div class="section-heading"><h2>Trending</h2></div>
+            <a class="trending-image image-link" href="#article-automated"><img src="https://merinda.alithemes.net/wp-content/uploads/2019/01/nemo-img-1.jpg" alt="Colorful blue living room" /></a>
+            <h3><a href="#article-automated">Fully Automated Luxury Communism Isn’t Our Future</a></h3>
+            <div class="byline">Ryan Mark <span>in</span> Trending</div>
+            <div class="post-meta">Feb 4 <i>·</i> 2 mins read <span class="star">★</span></div>
+            <a class="view-more" href="#recent-posts">All trending</a>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <footer class="site-footer" id="contact">
+      <div class="footer-inner">
+        <p>© 2026 Daily. All rights reserved.</p>
+        <div class="footer-socials"><a class="social-icon" href="#" aria-label="Facebook">f</a><a class="social-icon" href="#" aria-label="Twitter">t</a><a class="social-icon" href="#" aria-label="Pinterest">p</a></div>
+      </div>
+    </footer>
+
+    <div class="search-modal" aria-hidden="true">
+      <div class="search-panel" role="dialog" aria-modal="true" aria-labelledby="search-title">
+        <button class="modal-close" aria-label="Close search">×</button>
+        <span class="eyebrow">Search the journal</span>
+        <h2 id="search-title">What are you curious about?</h2>
+        <input id="search-input" type="search" placeholder="Type to search..." autocomplete="off" />
+        <div class="search-results" id="search-results"></div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
