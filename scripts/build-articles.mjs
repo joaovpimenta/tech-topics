@@ -8,20 +8,22 @@ const files = (await readdir(articlesDir)).filter(file => file.endsWith(".json")
 
 if (!files.length) throw new Error("No article JSON files found in content/articles");
 
-const manifest = [];
+const records = [];
 const slugs = new Set();
 for (const file of files) {
   const filePath = path.join(articlesDir, file);
   const article = JSON.parse(await readFile(filePath, "utf8"));
-  const required = ["slug", "title", "category", "date", "read", "image", "excerpt", "bodyHtml"];
+  const required = ["slug", "title", "category", "date", "publishedAt", "read", "image", "excerpt", "bodyHtml"];
   const missing = required.filter(field => !article[field]);
   if (missing.length) throw new Error(`${file}: missing ${missing.join(", ")}`);
   if (slugs.has(article.slug)) throw new Error(`Duplicate article slug: ${article.slug}`);
   slugs.add(article.slug);
   const imagePath = path.join(root, article.image);
   await access(imagePath);
-  manifest.push({ slug: article.slug, path: `content/articles/${file}` });
+  records.push({ slug: article.slug, path: `content/articles/${file}`, publishedAt: article.publishedAt });
 }
 
+records.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+const manifest = records.map(({ slug, path }) => ({ slug, path }));
 await writeFile(path.join(articlesDir, "index.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 console.log(`Built article manifest with ${manifest.length} article(s).`);

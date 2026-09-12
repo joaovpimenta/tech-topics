@@ -12,7 +12,7 @@ The site is a static multi-article archive. Each article lives in `content/artic
 
 ## Article contract
 
-Every article JSON must include `slug`, `language`, `title`, `category`, `date`, `read`, `image`, `alt`, `dek`, `excerpt` and `bodyHtml`. The `image` path must point to a committed local cover generated for that article. Use a unique URL-safe slug and never overwrite an existing article when adding a new topic.
+Every article JSON must include `slug`, `language`, `title`, `category`, `date`, `publishedAt` (ISO `YYYY-MM-DD`), `read`, `image`, `alt`, `dek`, `excerpt` and `bodyHtml`. The `image` path must point to a committed local cover generated for that article. Use a unique URL-safe slug and never overwrite an existing article when adding a new topic. Articles are ordered newest first during the build.
 
 ## Local preview
 
