@@ -2,6 +2,10 @@ import { readdir, readFile, access, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const run = promisify(execFile);
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const articlesDir = path.join(root, "content", "articles");
@@ -26,11 +30,16 @@ for (const file of files) {
   const imagePath = path.join(root, article.image);
   await access(imagePath);
   covers.add(article.image);
-  records.push({ slug: article.slug, path: `content/articles/${file}`, publishedAt: article.publishedAt });
+  let addedAt = "";
+  try {
+    const history = await run("git", ["log", "--diff-filter=A", "--format=%cI", "--", `content/articles/${file}`], { cwd: root });
+    addedAt = history.stdout.trim().split("\n").filter(Boolean).at(-1) || "";
+  } catch (error) { /* Local copies without Git still sort by publication date. */ }
+  records.push({ slug: article.slug, path: `content/articles/${file}`, publishedAt: article.publishedAt, addedAt });
 }
 
-records.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || a.slug.localeCompare(b.slug));
-const manifest = records.map(({ slug, path }) => ({ slug, path }));
+records.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || (Date.parse(b.addedAt) || 0) - (Date.parse(a.addedAt) || 0) || a.slug.localeCompare(b.slug));
+const manifest = records.map(({ slug, path, addedAt }) => ({ slug, path, addedAt }));
 await writeFile(path.join(articlesDir, "index.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 console.log(`Built article manifest with ${manifest.length} article(s).`);
 

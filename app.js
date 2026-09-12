@@ -65,10 +65,11 @@ async function loadArticles() {
       if (!articleResponse.ok) throw new Error(`Artigo indisponível: ${entry.slug}`);
       const article = await articleResponse.json();
       if (article.slug !== entry.slug) throw new Error("Slug diferente do manifesto");
+      article.addedAt = entry.addedAt || "";
       return article;
     }));
     articles.splice(0, articles.length, ...results.filter(result => result.status === "fulfilled").map(result => result.value));
-    articles.sort((a, b) => String(b.publishedAt || "").localeCompare(String(a.publishedAt || "")) || a.slug.localeCompare(b.slug));
+    articles.sort((a, b) => String(b.publishedAt || "").localeCompare(String(a.publishedAt || "")) || (Date.parse(b.addedAt) || 0) - (Date.parse(a.addedAt) || 0) || a.slug.localeCompare(b.slug));
     renderArchive();
     const failures = results.filter(result => result.status === "rejected").length;
     if (failures) {

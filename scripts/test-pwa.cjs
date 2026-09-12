@@ -53,15 +53,16 @@ async function testOrdering() {
   const document = { createElement: element, querySelector(selector) { if (!nodes.has(selector)) nodes.set(selector, element()); return nodes.get(selector); } };
   const records = [
     { slug: "old", publishedAt: "2026-09-10", title: "Antigo" },
-    { slug: "new", publishedAt: "2026-09-12", title: "Novo" },
+    { slug: "new", publishedAt: "2026-09-12", title: "Novo", addedAt: "2026-09-12T09:00:00Z" },
+    { slug: "newest", publishedAt: "2026-09-12", title: "Mais novo no mesmo dia", addedAt: "2026-09-12T12:00:00Z" },
     { slug: "middle", publishedAt: "2026-09-11", title: "Intermediário" }
   ];
   vm.runInNewContext(readFileSync("app.js", "utf8"), { document, Intl,
-    fetch: async path => ({ ok: true, json: async () => path.includes("index.json") ? records.map(article => ({ slug: article.slug, path: article.slug })) : records.find(article => article.slug === path) })
+    fetch: async path => ({ ok: true, json: async () => path.includes("index.json") ? records.map(article => ({ slug: article.slug, path: article.slug, addedAt: article.addedAt })) : records.find(article => article.slug === path) })
   });
   await new Promise(setImmediate);
   const urls = nodes.get("#recent-list").children.map(card => card.children[0].href);
-  assert.deepEqual(urls, ["article.html?slug=new", "article.html?slug=middle", "article.html?slug=old"]);
+  assert.deepEqual(urls, ["article.html?slug=newest", "article.html?slug=new", "article.html?slug=middle", "article.html?slug=old"]);
 }
 
 (async () => {

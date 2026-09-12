@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Check out Tech Topics
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Build article manifest
         run: |
           node scripts/build-articles.mjs
