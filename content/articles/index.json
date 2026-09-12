@@ -2,5 +2,9 @@
   {
     "slug": "four-golden-signals",
     "path": "content/articles/four-golden-signals.json"
+  },
+  {
+    "slug": "transactional-outbox",
+    "path": "content/articles/transactional-outbox.json"
   }
 ]
