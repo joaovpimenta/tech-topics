@@ -1,79 +1,20 @@
 const imageBase = "https://merinda.alithemes.net/wp-content/uploads/";
+const goldenSignals = {
+  title: "Four Golden Signals — Guia Interativo",
+  image: `${imageBase}2019/01/nemo-img-7.jpg`,
+  category: "Arquitetura, SRE",
+  date: "Updated today",
+  read: "Interactive guide",
+  excerpt: "Um guia interativo de arquitetura e SRE sobre Latência, Tráfego, Erros e Saturação, com simuladores, PromQL, SLOs e error budget."
+};
 
-const stories = [
-  {
-    title: "Coffee vs. beer: which drink makes you more creative?",
-    image: `${imageBase}2019/01/nemo-img-6.jpg`,
-    category: "Living , Politics",
-    date: "Feb 6",
-    read: "2 mins read",
-    excerpt: "Among emphatic normal cowered busted athletically some noticeably while and inside near towards unexpected much..."
-  },
-  {
-    title: "Fully Automated Luxury Communism Isn’t Our Future",
-    image: `${imageBase}2019/01/nemo-img-1.jpg`,
-    category: "Trending",
-    date: "Feb 4",
-    read: "2 mins read",
-    excerpt: "Froze hey more frog oyster far hound climbed that inappreciably the vital unicorn wrong because and jaguar..."
-  },
-  {
-    title: "The highlight quote for this week",
-    image: `${imageBase}2019/02/nemo-img-12.jpg`,
-    category: "Living",
-    date: "Feb 4",
-    read: "1 min read",
-    excerpt: "Haltered pill the forceful the ouch compactly dear and hit unbound so ouch clumsily forbidding fish..."
-  },
-  {
-    title: "The future of wine: No Corks, No Vintages",
-    image: `${imageBase}2019/01/nemo-img-2.jpg`,
-    category: "Politics , Travel",
-    date: "Jan 28",
-    read: "2 mins read",
-    excerpt: "In but toucan komodo alas more up jeez dog loaded ravingly porcupine exuberant fortuitous unstinting..."
-  },
-  {
-    title: "Scientists Are Working on a Pill for Loneliness",
-    image: `${imageBase}2019/01/nemo-img-7.jpg`,
-    category: "Lifestyle",
-    date: "Jan 24",
-    read: "2 mins read",
-    excerpt: "Macaw well goodness however saucy carelessly taut far smelled dear kiwi drew badger towards oh..."
-  },
-  {
-    title: "Shallow work and physician burnout",
-    image: `${imageBase}2019/01/nemo-img-3.png`,
-    category: "Travel",
-    date: "Jan 24",
-    read: "2 mins read",
-    excerpt: "Forgave criminal anteater parrot much fallible goodness hence fluent ahead much waked some thus..."
-  },
-  {
-    title: "The Power of Flexibility",
-    image: `${imageBase}2019/01/nemo-img-8.jpg`,
-    category: "Living",
-    date: "Jan 24",
-    read: "2 mins read",
-    excerpt: "Close magnanimous reindeer before more wow arose plainly or this gull circa before much far and after..."
-  },
-  {
-    title: "This headline could save your life",
-    image: `${imageBase}2019/01/nemo-img-7.jpg`,
-    category: "Lifestyle",
-    date: "Jan 24",
-    read: "2 mins read",
-    excerpt: "Frail far and far mercifully according up threw much one that unicorn instead one however ecstatic over falcon..."
-  }
-];
+const stories = [goldenSignals];
 
 const spotlightSlides = [
-  { title: "This headline could save your life", image: `${imageBase}2019/01/nemo-img-7.jpg`, excerpt: stories[7].excerpt },
-  { title: "The future of small spaces is surprisingly colorful", image: `${imageBase}2019/01/nemo-img-4.jpg`, excerpt: "A little room can still hold a big idea when every object earns its place and every color gets a chance to speak..." },
-  { title: "How to make an ordinary day feel new", image: `${imageBase}2019/01/nemo-img-8.jpg`, excerpt: "Close magnanimous reindeer before more wow arose plainly or this gull circa before much far and after winked..." }
+  { title: goldenSignals.title, image: goldenSignals.image, excerpt: "Explore Latency, Traffic, Errors and Saturation with an interactive architecture guide, PromQL examples, SLOs and error-budget thinking." }
 ];
 
-const meta = story => `<div class="byline">Ryan Mark <span>in</span> ${story.category}</div><div class="post-meta">${story.date} <i>·</i> ${story.read} <span class="star">★</span></div>`;
+const meta = story => `<div class="byline">Daily <span>in</span> ${story.category}</div><div class="post-meta">${story.date} <i>·</i> ${story.read} <span class="star">★</span></div>`;
 
 function renderArchive() {
 document.querySelector(".quick-stories").innerHTML = stories.slice(0, 4).map(story => `
