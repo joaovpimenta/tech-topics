@@ -45,7 +45,7 @@ console.log(`Built article manifest with ${manifest.length} article(s).`);
 
 // Regenerate the imported worker version on every content or application change.
 // Relative URLs keep the PWA inside the GitHub Pages repository subdirectory.
-const precacheFiles = ["index.html", "article.html", "styles.css", "app.js", "article.js", "pwa.js", "manifest.webmanifest",
+const precacheFiles = ["index.html", "article.html", "styles.css", "app.js", "article.js", "fgs-simulator.js", "pwa.js", "manifest.webmanifest",
   "assets/app-icon.svg", "assets/app-icon-180.png", "assets/app-icon-192.png", "assets/app-icon-512.png",
   "content/articles/index.json", ...manifest.map(entry => entry.path), ...covers].sort();
 const hash = createHash("sha256");

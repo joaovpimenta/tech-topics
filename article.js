@@ -18,6 +18,7 @@ function showArticle(article) {
   image.alt = article.alt || article.title;
   document.querySelector(".article-hero").hidden = false;
   document.querySelector("#article-body").innerHTML = article.bodyHtml;
+  document.dispatchEvent(new Event("tech-topics:article-ready"));
 }
 
 async function loadArticle() {
