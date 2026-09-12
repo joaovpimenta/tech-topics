@@ -1,4 +1,4 @@
-# Daily
+# Tech Topics
 
 A responsive editorial journal built as a static site for GitHub Pages.
 

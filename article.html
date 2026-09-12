@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Four Golden Signals — um guia de arquitetura e SRE no Tech Topics." />
+    <title>Four Golden Signals — Tech Topics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&family=PT+Sans+Narrow:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="article-page">
+    <header class="site-header">
+      <div class="header-inner">
+        <div class="header-top">
+          <a class="brand" href="index.html" aria-label="Tech Topics home">Tech Topics</a>
+          <div class="header-actions">
+            <a class="document-link" href="index.html#recent-posts">Archive</a>
+            <a class="social-icon" href="index.html" aria-label="Back to Tech Topics">←</a>
+          </div>
+        </div>
+        <nav class="main-nav" aria-label="Primary navigation">
+          <a href="index.html">Home</a>
+          <a href="index.html#about">About</a>
+          <a href="index.html#recent-posts">Archive</a>
+          <a href="index.html#contact">Contact us</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="article-shell">
+      <header class="article-header">
+        <span class="eyebrow">Arquitetura · SRE</span>
+        <h1>Four Golden Signals — Guia Interativo</h1>
+        <p class="dek">Uma introdução prática aos quatro sinais que ajudam a enxergar a saúde de um sistema: Latência, Tráfego, Erros e Saturação.</p>
+        <div class="article-meta">Tech Topics · Updated today · Interactive guide</div>
+      </header>
+
+      <div class="article-hero"><img src="assets/four-golden-signals-cover.jpg" alt="Abstract illustration of the Four Golden Signals" /></div>
+
+      <article class="article-body">
+        <p>Os Four Golden Signals são uma forma simples de começar a observar um serviço sem se perder em centenas de métricas. Juntos, eles mostram quanto trabalho o sistema recebe, quanto tempo leva para responder, quando algo falha e quão perto está do limite.</p>
+
+        <div class="signal-grid">
+          <section class="signal-card"><h3>Latency</h3><p>Quanto tempo uma requisição leva para ser processada. Separe latência de sucesso e de erro para evitar que falhas rápidas escondam uma experiência ruim.</p></section>
+          <section class="signal-card"><h3>Traffic</h3><p>A demanda que chega ao sistema: requisições por segundo, mensagens, sessões ou qualquer unidade que represente trabalho real.</p></section>
+          <section class="signal-card"><h3>Errors</h3><p>A taxa de respostas que falham, incluindo erros explícitos e respostas válidas que não atendem ao contrato esperado.</p></section>
+          <section class="signal-card"><h3>Saturation</h3><p>O quanto um recurso está ocupado ou próximo de seu limite: CPU, memória, conexões, filas, disco ou dependências externas.</p></section>
+        </div>
+
+        <h2>Como ler os sinais juntos</h2>
+        <p>Um aumento de tráfego pode elevar a latência e, em seguida, a taxa de erros. Se a saturação também sobe, há evidência de que o sistema está se aproximando de um limite. Essa sequência ajuda a separar sintomas de causa provável durante um incidente.</p>
+        <div class="article-callout"><p><strong>Regra prática:</strong> observe percentis de latência, acompanhe a taxa de erros junto do volume de tráfego e alerte para saturação antes do recurso chegar a 100%.</p></div>
+
+        <h2>Exemplos de PromQL</h2>
+        <h3>Latência no percentil 95</h3>
+        <pre class="code-block"><code>histogram_quantile(0.95,
+  sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+)</code></pre>
+        <h3>Taxa de erros</h3>
+        <pre class="code-block"><code>sum(rate(http_requests_total{status=~"5.."}[5m]))
+/
+sum(rate(http_requests_total[5m]))</code></pre>
+
+        <h2>RED, USE e os sinais dourados</h2>
+        <p>RED organiza serviços por Rate, Errors e Duration. USE observa recursos por Utilization, Saturation e Errors. Os Four Golden Signals funcionam como uma visão complementar: são uma camada de entrada para decidir quais dimensões aprofundar com RED ou USE.</p>
+
+        <h2>SLO e error budget</h2>
+        <p>Os sinais ficam mais úteis quando ligados a um objetivo. Um SLO de disponibilidade ou latência define o que significa “bom”; o error budget transforma a distância até esse objetivo em uma margem operacional para mudanças e experimentos.</p>
+
+        <h2>Checklist rápido</h2>
+        <ul>
+          <li>O tráfego mudou ou o problema apareceu sem aumento de demanda?</li>
+          <li>A latência piorou para todos ou apenas para uma rota, região ou dependência?</li>
+          <li>Os erros são do serviço, do cliente ou de uma integração externa?</li>
+          <li>Qual recurso está mais próximo da saturação?</li>
+          <li>O impacto já está consumindo o error budget do SLO?</li>
+        </ul>
+
+        <a class="article-back" href="index.html#recent-posts">← Voltar para o arquivo</a>
+      </article>
+    </main>
+
+    <footer class="site-footer" id="contact">
+      <div class="footer-inner">
+        <p>© 2026 Tech Topics. All rights reserved.</p>
+        <a class="article-back" href="index.html">Back to Tech Topics</a>
+      </div>
+    </footer>
+  </body>
+</html>

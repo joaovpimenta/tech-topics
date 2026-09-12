@@ -1,7 +1,7 @@
 const imageBase = "https://merinda.alithemes.net/wp-content/uploads/";
 const goldenSignals = {
   title: "Four Golden Signals — Guia Interativo",
-  image: `${imageBase}2019/01/nemo-img-7.jpg`,
+  image: "assets/four-golden-signals-cover.jpg",
   category: "Arquitetura, SRE",
   date: "Updated today",
   read: "Interactive guide",
@@ -14,31 +14,31 @@ const spotlightSlides = [
   { title: goldenSignals.title, image: goldenSignals.image, excerpt: "Explore Latency, Traffic, Errors and Saturation with an interactive architecture guide, PromQL examples, SLOs and error-budget thinking." }
 ];
 
-const meta = story => `<div class="byline">Daily <span>in</span> ${story.category}</div><div class="post-meta">${story.date} <i>·</i> ${story.read} <span class="star">★</span></div>`;
+const meta = story => `<div class="byline">Tech Topics <span>in</span> ${story.category}</div><div class="post-meta">${story.date} <i>·</i> ${story.read} <span class="star">★</span></div>`;
 
 function renderArchive() {
 document.querySelector(".quick-stories").innerHTML = stories.slice(0, 4).map(story => `
   <article class="quick-story">
-    <a class="thumb image-link" href="#recent-posts"><img src="${story.image}" alt="${story.title}" /></a>
-    <div><h3><a href="#recent-posts">${story.title}</a></h3>${meta(story)}</div>
+    <a class="thumb image-link" href="article.html"><img src="${story.image}" alt="${story.title}" /></a>
+    <div><h3><a href="article.html">${story.title}</a></h3>${meta(story)}</div>
   </article>`).join("");
 
 document.querySelector("#editor-list").innerHTML = stories.slice(0, 4).map((story, index) => `
   <article class="editor-item">
     <div class="editor-number">0${index + 1}</div>
-    <div><h3><a href="#recent-posts">${story.title}</a></h3>${meta(story)}</div>
+    <div><h3><a href="article.html">${story.title}</a></h3>${meta(story)}</div>
   </article>`).join("");
 
 document.querySelector("#highlight-list").innerHTML = stories.slice(0, 4).map(story => `
   <article class="highlight-card">
-    <a class="highlight-image image-link" href="#recent-posts"><img src="${story.image}" alt="${story.title}" /></a>
-    <div class="highlight-copy"><h3><a href="#recent-posts">${story.title}</a></h3><p>${story.excerpt}</p>${meta(story)}</div>
+    <a class="highlight-image image-link" href="article.html"><img src="${story.image}" alt="${story.title}" /></a>
+    <div class="highlight-copy"><h3><a href="article.html">${story.title}</a></h3><p>${story.excerpt}</p>${meta(story)}</div>
   </article>`).join("");
 
 document.querySelector("#recent-list").innerHTML = stories.map(story => `
   <article class="recent-item">
-    <div class="recent-copy"><span class="eyebrow">Picked by editor</span><h3><a href="#article">${story.title}</a></h3><p>${story.excerpt}</p>${meta(story)}</div>
-    <a class="recent-image image-link" href="#article"><img src="${story.image}" alt="${story.title}" /></a>
+    <div class="recent-copy"><span class="eyebrow">Picked by editor</span><h3><a href="article.html">${story.title}</a></h3><p>${story.excerpt}</p>${meta(story)}</div>
+    <a class="recent-image image-link" href="article.html"><img src="${story.image}" alt="${story.title}" /></a>
   </article>`).join("");
 }
 
@@ -101,5 +101,5 @@ document.addEventListener("keydown", event => { if (event.key === "Escape") setS
 searchInput.addEventListener("input", event => {
   const query = event.target.value.toLowerCase().trim();
   const matches = query ? stories.filter(story => `${story.title} ${story.category}`.toLowerCase().includes(query)).slice(0, 5) : [];
-  searchResults.innerHTML = matches.map(story => `<a class="search-result" href="#recent-posts"><strong>${story.title}</strong><small>${story.category} · ${story.date}</small></a>`).join("") || (query ? `<p class="post-meta">No stories found. Try another phrase.</p>` : "");
+  searchResults.innerHTML = matches.map(story => `<a class="search-result" href="article.html"><strong>${story.title}</strong><small>${story.category} · ${story.date}</small></a>`).join("") || (query ? `<p class="post-meta">No stories found. Try another phrase.</p>` : "");
 });
