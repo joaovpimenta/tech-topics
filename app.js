@@ -68,6 +68,7 @@ async function loadArticles() {
       return article;
     }));
     articles.splice(0, articles.length, ...results.filter(result => result.status === "fulfilled").map(result => result.value));
+    articles.sort((a, b) => String(b.publishedAt || "").localeCompare(String(a.publishedAt || "")) || a.slug.localeCompare(b.slug));
     renderArchive();
     const failures = results.filter(result => result.status === "rejected").length;
     if (failures) {

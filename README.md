@@ -2,6 +2,14 @@
 
 A responsive editorial journal built as a static site for GitHub Pages.
 
+## Installable app (PWA)
+
+The manifest uses repository-relative URLs and standalone display. On Android Chrome, use **Install app** when offered, or the browser menu. On iPhone, use Safari → Share → **Add to Home Screen**. Installation depends on browser/platform support; this is not an App Store release.
+
+The service worker downloads the app shell, article JSON files and covers after the first online visit. Once caching completes, they can be opened offline; embedded external resources still require a connection. Local article visuals are cached when requested under service-worker control. The network is preferred so new publications are not hidden by the cache. The build automatically versions the cache; no manual PWA update is needed for each article. Offline availability depends on the browser retaining site storage.
+
+Articles are sorted by valid `publishedAt` dates, newest first, both during the build and in the browser. Adding an article never replaces older articles.
+
 ## GitHub Pages setup
 
 1. Create or open a GitHub repository and push this project to the `main` branch.
@@ -17,6 +25,8 @@ Every article JSON must include `slug`, `language`, `title`, `category`, `date`,
 ## Local preview
 
 ```bash
+node scripts/build-articles.mjs
+node scripts/test-pwa.cjs
 python3 -m http.server 4173
 ```
 

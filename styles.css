@@ -23,6 +23,8 @@ a:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid
 .header-inner { min-height: 85px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .brand { font-family: var(--serif); font-size: 28px; font-weight: 700; letter-spacing: -1px; }
 .header-link { font-size: 14px; color: var(--muted); }
+.header-actions { display: flex; align-items: center; gap: 16px; }
+.install-app { cursor: pointer; background: none; border: 1px solid var(--line); border-radius: 3px; padding: 7px 10px; }
 .header-link:hover, .recent-copy h3 a:hover { color: var(--accent); }
 .page-shell { padding: 58px 0 90px; }
 .archive-intro { max-width: 700px; margin-bottom: 50px; }
@@ -78,6 +80,7 @@ a:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid
   .header-inner { min-height: 74px; gap: 12px; }
   .brand { font-size: 25px; }
   .header-link { font-size: 13px; }
+  .header-actions { gap: 8px; }
   .page-shell, .article-shell { padding-top: 36px; }
   .archive-intro { margin-bottom: 32px; }
   .archive-intro > p { font-size: 16px; }
