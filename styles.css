@@ -82,6 +82,7 @@ a:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid
 .fgs-guide .fgs-visual-scroll:focus-visible, .fgs-guide .fgs-table-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .fgs-guide .fgs-formula { background: #f5f8f6; padding: 18px 20px; margin: 20px 0; font-size: 17px; line-height: 1.8; overflow-x: auto; }
 .fgs-guide table { border-collapse: collapse; min-width: 620px; width: 100%; font-family: var(--sans); font-size: 15px; line-height: 1.6; margin: 0 0 24px; }
+.fgs-guide > table { display: block; max-width: 100%; overflow-x: auto; }
 .fgs-guide caption { text-align: left; font-size: 14px; color: var(--muted); margin-bottom: 12px; }
 .fgs-guide th, .fgs-guide td { padding: 13px 15px; text-align: left; vertical-align: top; border: 1px solid var(--line); }
 .fgs-guide th { background: #f5f8f6; }
