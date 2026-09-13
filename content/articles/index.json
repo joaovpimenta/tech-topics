@@ -1,10 +1,17 @@
 [
   {
-    "slug": "four-golden-signals",
-    "path": "content/articles/four-golden-signals.json"
+    "slug": "leases-e-fencing-tokens",
+    "path": "content/articles/leases-e-fencing-tokens.json",
+    "addedAt": ""
   },
   {
     "slug": "transactional-outbox",
-    "path": "content/articles/transactional-outbox.json"
+    "path": "content/articles/transactional-outbox.json",
+    "addedAt": "2026-09-12T10:14:42-03:00"
+  },
+  {
+    "slug": "four-golden-signals",
+    "path": "content/articles/four-golden-signals.json",
+    "addedAt": "2026-09-12T00:54:29-03:00"
   }
 ]
