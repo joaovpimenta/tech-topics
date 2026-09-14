@@ -1,8 +1,13 @@
 [
   {
+    "slug": "quoruns-de-leitura-e-escrita",
+    "path": "content/articles/quoruns-de-leitura-e-escrita.json",
+    "addedAt": ""
+  },
+  {
     "slug": "leases-e-fencing-tokens",
     "path": "content/articles/leases-e-fencing-tokens.json",
-    "addedAt": ""
+    "addedAt": "2026-09-13T08:35:21-03:00"
   },
   {
     "slug": "transactional-outbox",

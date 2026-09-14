@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 500" role="img" aria-labelledby="title desc">
+  <title id="title">Interseção entre quóruns de escrita e leitura</title>
+  <desc id="desc">Cinco réplicas. O quórum de escrita contém A, B e C; o quórum de leitura contém C, D e E. A réplica C pertence aos dois conjuntos.</desc>
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="5" flood-opacity=".13"/></filter>
+  </defs>
+  <rect width="820" height="500" rx="22" fill="#f5f8f6"/>
+  <text x="410" y="46" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#173b32">N = 5 · W = 3 · R = 3</text>
+  <ellipse cx="302" cy="255" rx="228" ry="164" fill="#d8eadf" fill-opacity=".78" stroke="#277d69" stroke-width="3"/>
+  <ellipse cx="518" cy="255" rx="228" ry="164" fill="#f1dfbd" fill-opacity=".72" stroke="#9b6a24" stroke-width="3"/>
+  <text x="184" y="112" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#1e6656">Escrita W = 3</text>
+  <text x="536" y="112" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#7b511c">Leitura R = 3</text>
+  <g filter="url(#shadow)" font-family="Arial,sans-serif" text-anchor="middle">
+    <g><circle cx="195" cy="225" r="47" fill="#fff" stroke="#277d69" stroke-width="3"/><text x="195" y="233" font-size="25" font-weight="700" fill="#173b32">A</text><text x="195" y="295" font-size="16" fill="#355c52">v2</text></g>
+    <g><circle cx="282" cy="333" r="47" fill="#fff" stroke="#277d69" stroke-width="3"/><text x="282" y="341" font-size="25" font-weight="700" fill="#173b32">B</text><text x="282" y="403" font-size="16" fill="#355c52">v2</text></g>
+    <g><circle cx="410" cy="235" r="54" fill="#173b32" stroke="#d7b56d" stroke-width="5"/><text x="410" y="243" font-size="26" font-weight="700" fill="#fff">C</text><text x="410" y="311" font-size="16" font-weight="700" fill="#173b32">interseção · v2</text></g>
+    <g><circle cx="538" cy="333" r="47" fill="#fff" stroke="#9b6a24" stroke-width="3"/><text x="538" y="341" font-size="25" font-weight="700" fill="#5e401b">D</text><text x="538" y="403" font-size="16" fill="#73572e">v1</text></g>
+    <g><circle cx="625" cy="225" r="47" fill="#fff" stroke="#9b6a24" stroke-width="3"/><text x="625" y="233" font-size="25" font-weight="700" fill="#5e401b">E</text><text x="625" y="295" font-size="16" fill="#73572e">v1</text></g>
+  </g>
+  <text x="410" y="462" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" fill="#3d4b47">|W ∩ R| ≥ W + R − N = 1</text>
+</svg>

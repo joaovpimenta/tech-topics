@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-labelledby="title desc">
+  <title id="title">Probabilidade de obter quórum com cinco réplicas</title>
+  <desc id="desc">Gráfico calculado supondo cinco réplicas independentes, cada uma disponível em 95 por cento. A disponibilidade da operação cai de quase 100 por cento para quórum 1 até 77,38 por cento para quórum 5.</desc>
+  <rect width="900" height="560" rx="22" fill="#f5f8f6"/>
+  <g font-family="Arial,sans-serif" fill="#253a34">
+    <text x="42" y="42" font-size="23" font-weight="700">Disponibilidade da operação por tamanho do quórum</text>
+    <text x="42" y="72" font-size="16">N = 5 · disponibilidade individual p = 95% · falhas independentes</text>
+    <g stroke="#bdc9c4" stroke-width="1"><path d="M105 104H850"/><path d="M105 194H850"/><path d="M105 284H850"/><path d="M105 374H850"/><path d="M105 464H850"/></g>
+    <g font-size="15" text-anchor="end"><text x="94" y="109">100%</text><text x="94" y="199">75%</text><text x="94" y="289">50%</text><text x="94" y="379">25%</text><text x="94" y="469">0%</text></g>
+    <path d="M105 104V464H850" fill="none" stroke="#52645e" stroke-width="2"/>
+    <g fill="#277d69"><rect x="145" y="104.0" width="92" height="360.0" rx="5"/><rect x="285" y="104.0" width="92" height="360.0" rx="5"/><rect x="425" y="104.4" width="92" height="359.6" rx="5"/><rect x="565" y="112.1" width="92" height="351.9" rx="5"/></g>
+    <rect x="705" y="185.4" width="92" height="278.6" rx="5" fill="#9b6a24"/>
+    <g font-size="15" text-anchor="middle" font-weight="700"><text x="191" y="96">99,99997%</text><text x="331" y="96">99,997%</text><text x="471" y="96">99,884%</text><text x="611" y="104">97,741%</text><text x="751" y="177">77,378%</text></g>
+    <g font-size="18" text-anchor="middle"><text x="191" y="496">q = 1</text><text x="331" y="496">q = 2</text><text x="471" y="496">q = 3</text><text x="611" y="496">q = 4</text><text x="751" y="496">q = 5</text></g>
+    <text x="475" y="536" text-anchor="middle" font-size="16">Tamanho exigido do quórum q (réplicas)</text>
+    <text x="24" y="285" transform="rotate(-90 24 285)" text-anchor="middle" font-size="16">Probabilidade de sucesso (%)</text>
+  </g>
+</svg>
