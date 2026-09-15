@@ -65,39 +65,10 @@ Não prometa simuladores, gráficos, exemplos ou recursos que não estejam realm
 
 ## Composição visual
 
-Os artigos devem ser visualmente ricos quando isso melhorar a compreensão. Planeje os visuais junto com o texto.
+Os artigos devem ser visualmente ricos quando isso melhorar a compreensão. Planeje os visuais junto com o texto e prefira recursos que expliquem relações difíceis de entender somente por prosa.
 
-Use, conforme apropriado:
+Não imponha uma quantidade artificial de imagens ou diagramas e não use recursos visuais apenas para preencher espaço.
 
-- diagramas de arquitetura, fluxo ou sequência;
-- gráficos de comportamento, desempenho ou comparação;
-- infográficos e esquemas explicativos;
-- imagens geradas para conceitos, cenários e analogias;
-- visualizações de estados, falhas e recuperação;
-- simulações ou representações passo a passo.
+Toda a direção de estilo para capas e ilustrações conceituais, incluindo o template base do prompt de geração, está em `docs/VISUAL_STYLE.md`. Antes de gerar qualquer imagem, siga esse documento.
 
-Prefira recursos que expliquem relações difíceis de entender somente por prosa. Não imponha uma quantidade artificial e não use imagens apenas para preencher espaço.
-
-Use SVG, HTML e CSS para diagramas, gráficos e fórmulas que exigem precisão. Use geração de imagens para capas e ilustrações conceituais, não para números, eixos, fórmulas ou diagramas técnicos exatos.
-
-Todo gráfico deve identificar eixos, unidades e legendas. Informe se os dados são reais, calculados ou apenas ilustrativos. Nunca apresente dados inventados como medições reais.
-
-Inclua legendas explicativas, texto alternativo e descrição textual equivalente quando necessário. Garanta legibilidade no celular, contraste adequado e compreensão sem depender apenas de cores.
-
-Use `<figure>` e `<figcaption>` quando apropriado. Imagens e SVGs no corpo devem ser responsivos e preservar proporção, sem cortes que escondam informação.
-
-## Imagens geradas
-
-Gere obrigatoriamente uma capa original para cada novo artigo, com composição horizontal, estética editorial consistente e relação direta com o assunto.
-
-A capa:
-
-- não deve conter logos, marcas, watermark ou texto legível;
-- não deve reutilizar capas anteriores;
-- deve ser salva otimizada para web em `assets/<slug>-cover.jpg`.
-
-Quando uma ilustração adicional ajudar a compreensão, gere-a e salve-a com nome único, por exemplo `assets/<slug>-cenario-de-falha.jpg`.
-
-Todas as imagens devem ser arquivos locais incluídos no commit. Nunca deixe referências a caminhos temporários ou URLs de download que possam expirar.
-
-Se geração de imagens estiver indisponível, informe o impedimento e não declare que uma imagem foi gerada nem publique referências a arquivos inexistentes.
+Diagramas, gráficos, fórmulas e outros elementos que exigem precisão também devem obedecer às regras técnicas e de acessibilidade definidas em `docs/VISUAL_STYLE.md` e `docs/ARTICLE_FORMAT.md`.
