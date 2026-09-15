@@ -1,6 +1,192 @@
 const params = new URLSearchParams(window.location.search);
 const requestedSlug = params.get("slug");
 
+const speechControls = document.querySelector("#article-audio");
+const speechButton = document.querySelector("#listen-article");
+const speechStopButton = document.querySelector("#stop-listening");
+const speechStatus = document.querySelector("#listen-status");
+const speechSupported = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+
+let speechQueue = [];
+let speechIndex = 0;
+let speechState = "idle";
+let speechSession = 0;
+
+function preferredPortugueseVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  return voices.find(voice => voice.lang.toLowerCase() === "pt-br")
+    || voices.find(voice => voice.lang.toLowerCase().startsWith("pt-br"))
+    || voices.find(voice => voice.lang.toLowerCase().startsWith("pt"))
+    || null;
+}
+
+function splitSpeechText(text, maxLength = 240) {
+  const clean = text.replace(/\s+/g, " ").trim();
+  if (!clean) return [];
+  const sentences = clean.match(/[^.!?;:]+[.!?;:]?|.+$/g) || [clean];
+  const chunks = [];
+
+  for (const sentence of sentences) {
+    const part = sentence.trim();
+    if (!part) continue;
+    if (part.length <= maxLength) {
+      chunks.push(part);
+      continue;
+    }
+
+    let current = "";
+    for (const word of part.split(/\s+/)) {
+      const candidate = current ? `${current} ${word}` : word;
+      if (candidate.length > maxLength && current) {
+        chunks.push(current);
+        current = word;
+      } else {
+        current = candidate;
+      }
+    }
+    if (current) chunks.push(current);
+  }
+
+  return chunks;
+}
+
+function articleSpeechQueue() {
+  const parts = [
+    document.querySelector("#article-heading")?.textContent,
+    document.querySelector("#article-dek")?.textContent
+  ].filter(Boolean);
+
+  document.querySelectorAll("#article-body h2, #article-body h3, #article-body p, #article-body li, #article-body figcaption, #article-body th, #article-body td, #article-body .article-callout")
+    .forEach(node => {
+      if (node.closest("pre, code, .fgs-toc, .fgs-simulator")) return;
+      if (node.matches(".article-callout") && node.querySelector("p")) return;
+      const text = node.textContent.replace(/\s+/g, " ").trim();
+      if (text) parts.push(text);
+    });
+
+  return parts.flatMap(part => splitSpeechText(part));
+}
+
+function updateSpeechControls(message = "") {
+  if (!speechSupported || !speechControls) return;
+
+  speechControls.hidden = false;
+  speechStopButton.hidden = speechState === "idle";
+
+  if (speechState === "speaking") {
+    speechButton.textContent = "Pausar";
+    speechButton.setAttribute("aria-pressed", "true");
+    speechButton.setAttribute("aria-label", "Pausar leitura do artigo");
+  } else if (speechState === "paused") {
+    speechButton.textContent = "Continuar";
+    speechButton.setAttribute("aria-pressed", "true");
+    speechButton.setAttribute("aria-label", "Continuar leitura do artigo");
+  } else {
+    speechButton.textContent = "Ouvir artigo";
+    speechButton.setAttribute("aria-pressed", "false");
+    speechButton.setAttribute("aria-label", "Ouvir artigo em português brasileiro");
+  }
+
+  speechStatus.textContent = message;
+}
+
+function finishSpeech(message = "Leitura concluída.") {
+  speechQueue = [];
+  speechIndex = 0;
+  speechState = "idle";
+  updateSpeechControls(message);
+}
+
+function stopSpeech(message = "") {
+  speechSession += 1;
+  window.speechSynthesis.cancel();
+  finishSpeech(message);
+}
+
+function speakNext(session) {
+  if (session !== speechSession || speechState === "idle") return;
+  if (speechIndex >= speechQueue.length) {
+    finishSpeech();
+    return;
+  }
+
+  const utterance = new SpeechSynthesisUtterance(speechQueue[speechIndex]);
+  utterance.lang = "pt-BR";
+  utterance.rate = 1;
+  utterance.pitch = 1;
+  const voice = preferredPortugueseVoice();
+  if (voice) utterance.voice = voice;
+
+  utterance.onend = () => {
+    if (session !== speechSession) return;
+    speechIndex += 1;
+    speakNext(session);
+  };
+
+  utterance.onerror = event => {
+    if (session !== speechSession || event.error === "canceled" || event.error === "interrupted") return;
+    speechSession += 1;
+    window.speechSynthesis.cancel();
+    finishSpeech("Não foi possível continuar a leitura neste navegador.");
+  };
+
+  window.speechSynthesis.speak(utterance);
+}
+
+function startSpeech() {
+  speechQueue = articleSpeechQueue();
+  if (!speechQueue.length) {
+    updateSpeechControls("Não há texto disponível para leitura.");
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+  speechSession += 1;
+  speechIndex = 0;
+  speechState = "speaking";
+  updateSpeechControls("Lendo em voz alta em português do Brasil.");
+  speakNext(speechSession);
+}
+
+function setupSpeechControls() {
+  if (!speechControls) return;
+
+  if (!speechSupported) {
+    speechControls.hidden = false;
+    speechButton.hidden = true;
+    speechStopButton.hidden = true;
+    speechStatus.textContent = "Leitura em voz alta não é compatível com este navegador.";
+    return;
+  }
+
+  updateSpeechControls();
+}
+
+speechButton?.addEventListener("click", () => {
+  if (!speechSupported) return;
+
+  if (speechState === "speaking") {
+    window.speechSynthesis.pause();
+    speechState = "paused";
+    updateSpeechControls("Leitura pausada.");
+    return;
+  }
+
+  if (speechState === "paused") {
+    window.speechSynthesis.resume();
+    speechState = "speaking";
+    updateSpeechControls("Lendo em voz alta em português do Brasil.");
+    return;
+  }
+
+  startSpeech();
+});
+
+speechStopButton?.addEventListener("click", () => stopSpeech("Leitura interrompida."));
+window.addEventListener("pagehide", () => {
+  if (speechSupported) stopSpeech();
+});
+
 function showArticle(article) {
   document.documentElement.lang = article.language || "pt-BR";
   document.title = `${article.title} — Tech Topics`;
@@ -18,6 +204,7 @@ function showArticle(article) {
   image.alt = article.alt || article.title;
   document.querySelector(".article-hero").hidden = false;
   document.querySelector("#article-body").innerHTML = article.bodyHtml;
+  setupSpeechControls();
   document.dispatchEvent(new Event("tech-topics:article-ready"));
 }
 
@@ -35,6 +222,7 @@ async function loadArticle() {
     document.querySelector("#article-category").textContent = "Arquivo";
     document.querySelector("#article-heading").textContent = "Artigo indisponível";
     document.querySelector(".article-hero").hidden = true;
+    document.querySelector("#article-audio").hidden = true;
     document.querySelector("#article-body").innerHTML = "<p>Não foi possível carregar este artigo. Volte ao arquivo e tente novamente.</p><p><a class=\"article-back\" href=\"index.html#recent-posts\">← Todos os artigos</a></p>";
   }
 }
