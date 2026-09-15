@@ -15,6 +15,17 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
+    <style>
+      .article-audio { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 24px; }
+      .listen-button, .listen-stop { cursor: pointer; border-radius: 3px; padding: 9px 13px; font-weight: 600; }
+      .listen-button { border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+      .listen-stop { border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+      .listen-button:hover { filter: brightness(.94); }
+      .listen-stop:hover { border-color: var(--muted); }
+      .listen-button:focus-visible, .listen-stop:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+      .listen-status { color: var(--muted); font-size: 13px; }
+      @media (max-width: 520px) { .listen-status { flex-basis: 100%; } }
+    </style>
   </head>
   <body class="article-page">
     <a class="skip-link" href="#article-root">Ir para o artigo</a>
@@ -31,6 +42,11 @@
         <h1 id="article-heading">Carregando artigo…</h1>
         <p class="dek" id="article-dek"></p>
         <div class="article-meta" id="article-meta"></div>
+        <div class="article-audio" id="article-audio" hidden>
+          <button class="listen-button" id="listen-article" type="button" aria-pressed="false">Ouvir artigo</button>
+          <button class="listen-stop" id="stop-listening" type="button" hidden>Parar</button>
+          <span class="listen-status" id="listen-status" role="status" aria-live="polite"></span>
+        </div>
       </header>
       <div class="article-hero" hidden><img id="article-image" alt="" /></div>
       <article class="article-body" id="article-body"><p>Carregando o conteúdo…</p></article>
