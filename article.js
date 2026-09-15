@@ -1,16 +1,19 @@
 const params = new URLSearchParams(window.location.search);
 const requestedSlug = params.get("slug");
 
-const speechControls = document.querySelector("#article-audio");
+const articleActions = document.querySelector("#article-actions");
 const speechButton = document.querySelector("#listen-article");
 const speechStopButton = document.querySelector("#stop-listening");
 const speechStatus = document.querySelector("#listen-status");
+const shareButton = document.querySelector("#share-article");
+const shareStatus = document.querySelector("#share-status");
 const speechSupported = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
 
 let speechQueue = [];
 let speechIndex = 0;
 let speechState = "idle";
 let speechSession = 0;
+let shareData = null;
 
 function preferredPortugueseVoice() {
   const voices = window.speechSynthesis.getVoices();
@@ -68,10 +71,19 @@ function articleSpeechQueue() {
 }
 
 function updateSpeechControls(message = "") {
-  if (!speechSupported || !speechControls) return;
+  if (!articleActions) return;
 
-  speechControls.hidden = false;
+  articleActions.hidden = false;
   speechStopButton.hidden = speechState === "idle";
+
+  if (!speechSupported) {
+    speechButton.hidden = true;
+    speechStopButton.hidden = true;
+    speechStatus.textContent = "Leitura em voz alta não é compatível com este navegador.";
+    return;
+  }
+
+  speechButton.hidden = false;
 
   if (speechState === "speaking") {
     speechButton.textContent = "Pausar";
@@ -149,17 +161,39 @@ function startSpeech() {
 }
 
 function setupSpeechControls() {
-  if (!speechControls) return;
+  updateSpeechControls();
+}
 
-  if (!speechSupported) {
-    speechControls.hidden = false;
-    speechButton.hidden = true;
-    speechStopButton.hidden = true;
-    speechStatus.textContent = "Leitura em voz alta não é compatível com este navegador.";
+async function copyShareLink(url) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(url);
     return;
   }
 
-  updateSpeechControls();
+  const textarea = document.createElement("textarea");
+  textarea.value = url;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  if (!copied) throw new Error("Falha ao copiar link");
+}
+
+function setupShareControls(article) {
+  if (!articleActions || !shareButton) return;
+
+  articleActions.hidden = false;
+  shareData = {
+    title: `${article.title} — Tech Topics`,
+    text: article.dek || article.excerpt || article.title,
+    url: window.location.href
+  };
+  shareButton.hidden = false;
+  shareButton.setAttribute("aria-label", `Compartilhar artigo: ${article.title}`);
+  shareStatus.textContent = "";
 }
 
 speechButton?.addEventListener("click", () => {
@@ -183,6 +217,32 @@ speechButton?.addEventListener("click", () => {
 });
 
 speechStopButton?.addEventListener("click", () => stopSpeech("Leitura interrompida."));
+
+shareButton?.addEventListener("click", async () => {
+  if (!shareData) return;
+  shareStatus.textContent = "";
+
+  try {
+    if (navigator.share) {
+      await navigator.share(shareData);
+      shareStatus.textContent = "Artigo compartilhado.";
+      return;
+    }
+
+    await copyShareLink(shareData.url);
+    shareStatus.textContent = "Link copiado.";
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+
+    try {
+      await copyShareLink(shareData.url);
+      shareStatus.textContent = "Link copiado.";
+    } catch (copyError) {
+      shareStatus.textContent = "Não foi possível compartilhar este artigo.";
+    }
+  }
+});
+
 window.addEventListener("pagehide", () => {
   if (speechSupported) stopSpeech();
 });
@@ -205,6 +265,7 @@ function showArticle(article) {
   document.querySelector(".article-hero").hidden = false;
   document.querySelector("#article-body").innerHTML = article.bodyHtml;
   setupSpeechControls();
+  setupShareControls(article);
   document.dispatchEvent(new Event("tech-topics:article-ready"));
 }
 
@@ -222,7 +283,7 @@ async function loadArticle() {
     document.querySelector("#article-category").textContent = "Arquivo";
     document.querySelector("#article-heading").textContent = "Artigo indisponível";
     document.querySelector(".article-hero").hidden = true;
-    document.querySelector("#article-audio").hidden = true;
+    document.querySelector("#article-actions").hidden = true;
     document.querySelector("#article-body").innerHTML = "<p>Não foi possível carregar este artigo. Volte ao arquivo e tente novamente.</p><p><a class=\"article-back\" href=\"index.html#recent-posts\">← Todos os artigos</a></p>";
   }
 }
