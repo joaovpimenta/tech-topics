@@ -1,6 +1,34 @@
 const params = new URLSearchParams(window.location.search);
 const requestedSlug = params.get("slug");
 
+const coverOverrides = {
+  "retries-backoff-jitter": {
+    src: "assets/retries-backoff-jitter-cover.svg",
+    alt: "Três entregadores aparecem em tentativas sucessivas e cada vez mais espaçadas diante de uma porta de acesso; círculos e uma seta tracejados destacam a sequência."
+  },
+  "quoruns-de-leitura-e-escrita": {
+    src: "assets/quoruns-de-leitura-e-escrita-cover.svg",
+    alt: "Cinco caixas de arquivo sobre uma mesa; dois conjuntos tracejados se sobrepõem na caixa central, destacada como ponto comum entre os grupos."
+  },
+  "leases-e-fencing-tokens": {
+    src: "assets/leases-e-fencing-tokens-cover.svg",
+    alt: "Duas pessoas com credenciais de gerações diferentes diante de um controle de acesso; a credencial mais recente é destacada no leitor enquanto a antiga fica atrás."
+  },
+  "transactional-outbox": {
+    src: "assets/transactional-outbox-cover.svg",
+    alt: "Uma pessoa registra um pacote em uma bandeja protegida antes de um mensageiro seguir até um veículo; marcações tracejadas destacam o pacote, a caixa de saída e o caminho de entrega."
+  },
+  "four-golden-signals": {
+    src: "assets/four-golden-signals-cover.svg",
+    alt: "Fila de pessoas diante de um balcão, um pacote com problema e uma estante cheia; quatro marcações tracejadas destacam demanda, espera, falha e saturação."
+  }
+};
+
+const coverFor = article => coverOverrides[article.slug] || {
+  src: article.image,
+  alt: article.alt || article.title
+};
+
 const articleActions = document.querySelector("#article-actions");
 const speechButton = document.querySelector("#listen-article");
 const speechStopButton = document.querySelector("#stop-listening");
@@ -260,8 +288,9 @@ function showArticle(article) {
   if (/\d/.test(article.read || "")) details.push(article.read);
   document.querySelector("#article-meta").textContent = details.filter(Boolean).join(" · ");
   const image = document.querySelector("#article-image");
-  image.src = article.image;
-  image.alt = article.alt || article.title;
+  const cover = coverFor(article);
+  image.src = cover.src;
+  image.alt = cover.alt;
   document.querySelector(".article-hero").hidden = false;
   document.querySelector("#article-body").innerHTML = article.bodyHtml;
   setupSpeechControls();
