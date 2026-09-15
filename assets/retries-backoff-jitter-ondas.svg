@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-labelledby="title desc">
+  <title id="title">Ondas de retry sem jitter e distribuição com full jitter</title>
+  <desc id="desc">Simulação determinística com mil clientes e três retries. Sem jitter, mil tentativas se concentram em 1, 3 e 7 segundos. Com full jitter, as três mil tentativas se distribuem por janelas de meio segundo, com contagens 593, 702, 297, 321, 284, 179, 108, 141, 111, 112, 84, 46, 19, 3 e 0.</desc>
+  <rect width="900" height="560" rx="22" fill="#f5f8f6"/>
+  <g font-family="Arial,sans-serif" fill="#243a34">
+    <text x="42" y="42" font-size="23" font-weight="700">Mil clientes voltam juntos — ou espalhados</text>
+    <text x="42" y="72" font-size="16">3 retries · base 1 s · fator 2 · janelas de 500 ms</text>
+    <g stroke="#c2cdc8" stroke-width="1"><path d="M92 112H826"/><path d="M92 192H826"/><path d="M92 272H826"/><path d="M92 352H826"/><path d="M92 432H826"/></g>
+    <path d="M92 112V432H826" fill="none" stroke="#52645e" stroke-width="2"/>
+    <g font-size="14" text-anchor="end"><text x="82" y="117">1.000</text><text x="82" y="197">750</text><text x="82" y="277">500</text><text x="82" y="357">250</text><text x="82" y="437">0</text></g>
+    <g fill="#2c8772" fill-opacity=".82">
+      <rect x="99" y="242.2" width="34" height="189.8" rx="3"/><rect x="147" y="207.4" width="34" height="224.6" rx="3"/><rect x="195" y="337.0" width="34" height="95.0" rx="3"/><rect x="243" y="329.3" width="34" height="102.7" rx="3"/><rect x="291" y="341.1" width="34" height="90.9" rx="3"/><rect x="339" y="374.7" width="34" height="57.3" rx="3"/><rect x="387" y="397.4" width="34" height="34.6" rx="3"/><rect x="435" y="386.9" width="34" height="45.1" rx="3"/><rect x="483" y="396.5" width="34" height="35.5" rx="3"/><rect x="531" y="396.2" width="34" height="35.8" rx="3"/><rect x="579" y="405.1" width="34" height="26.9" rx="3"/><rect x="627" y="417.3" width="34" height="14.7" rx="3"/><rect x="675" y="425.9" width="34" height="6.1" rx="3"/><rect x="723" y="431.0" width="34" height="1.0" rx="3"/>
+    </g>
+    <g stroke="#a14f34" stroke-width="4"><path d="M92 432H188L212 112L236 432H380L404 112L428 432H764L788 112L812 432" fill="none"/></g>
+    <g fill="#a14f34"><circle cx="212" cy="112" r="6"/><circle cx="404" cy="112" r="6"/><circle cx="788" cy="112" r="6"/></g>
+    <g font-size="14" text-anchor="middle"><text x="116" y="458">0</text><text x="212" y="458">1</text><text x="308" y="458">2</text><text x="404" y="458">3</text><text x="500" y="458">4</text><text x="596" y="458">5</text><text x="692" y="458">6</text><text x="788" y="458">7</text></g>
+    <text x="452" y="488" text-anchor="middle" font-size="16">Tempo desde a falha inicial (s)</text>
+    <text x="24" y="272" transform="rotate(-90 24 272)" text-anchor="middle" font-size="16">Tentativas por janela de 500 ms</text>
+    <rect x="112" y="512" width="22" height="14" rx="2" fill="#2c8772"/><text x="143" y="524" font-size="15">Full jitter (simulação com seed fixa)</text>
+    <path d="M500 519H534" stroke="#a14f34" stroke-width="4"/><text x="544" y="524" font-size="15">Sem jitter (cálculo exato)</text>
+  </g>
+</svg>
