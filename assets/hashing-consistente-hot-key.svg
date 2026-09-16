@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-labelledby="title desc">
-  <title id="title">Distribuição uniforme de chaves não impede hotspot de tráfego</title>
+  <title id="title">Distribuição uniforme de chaves não impede um ponto quente de tráfego</title>
   <desc id="desc">Quatro nós guardam 25 por cento das chaves cada, mas o nó B recebe 70 por cento das requisições porque contém uma chave muito popular.</desc>
   <defs><pattern id="qps" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="10" height="10" fill="#b8783f"/><rect width="3" height="10" fill="#8f432f"/></pattern></defs>
   <rect width="900" height="560" rx="24" fill="#f5f8f6"/>
