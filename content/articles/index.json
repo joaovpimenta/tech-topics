@@ -1,5 +1,10 @@
 [
   {
+    "slug": "hashing-consistente",
+    "path": "content/articles/hashing-consistente.json",
+    "addedAt": ""
+  },
+  {
     "slug": "retries-backoff-jitter",
     "path": "content/articles/retries-backoff-jitter.json",
     "addedAt": "2026-09-15T08:33:06-03:00"

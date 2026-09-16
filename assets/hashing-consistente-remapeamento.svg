@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 540" role="img" aria-labelledby="title desc">
+  <title id="title">Percentual de chaves remapeadas ao adicionar um quarto nó</title>
+  <desc id="desc">Em uma simulação determinística com vinte mil chaves, módulo move 74,31 por cento e um anel com 256 nós virtuais por nó move 26,14 por cento.</desc>
+  <rect width="900" height="540" rx="24" fill="#f5f8f6"/>
+  <text x="48" y="55" font-family="Arial,sans-serif" font-size="26" font-weight="700" fill="#213c35">Adicionar um nó: quanto precisa mudar?</text>
+  <text x="48" y="84" font-family="Arial,sans-serif" font-size="15" fill="#596b66">20.000 chaves · 3 → 4 nós · SHA-256 · simulação com semente implícita nas chaves</text>
+  <g stroke="#c7d1cd" stroke-width="1"><path d="M145 420H830"/><path d="M145 340H830"/><path d="M145 260H830"/><path d="M145 180H830"/><path d="M145 100H830"/></g>
+  <g font-family="Arial,sans-serif" font-size="14" fill="#596b66" text-anchor="end"><text x="132" y="425">0%</text><text x="132" y="345">20%</text><text x="132" y="265">40%</text><text x="132" y="185">60%</text><text x="132" y="105">80%</text></g>
+  <text x="31" y="286" transform="rotate(-90 31 286)" font-family="Arial,sans-serif" font-size="15" fill="#213c35">Chaves remapeadas (%)</text>
+  <rect x="250" y="122.8" width="180" height="297.2" rx="8" fill="#a8563d"/>
+  <rect x="570" y="315.4" width="180" height="104.6" rx="8" fill="#247d6b"/>
+  <g font-family="Arial,sans-serif" text-anchor="middle"><text x="340" y="108" font-size="25" font-weight="700" fill="#8f432f">74,31%</text><text x="660" y="300" font-size="25" font-weight="700" fill="#196554">26,14%</text><text x="340" y="458" font-size="18" font-weight="700" fill="#213c35">hash(key) mod N</text><text x="660" y="458" font-size="18" font-weight="700" fill="#213c35">anel + 256 vnodes/nó</text></g>
+  <g font-family="Arial,sans-serif" font-size="14" fill="#596b66"><rect x="190" y="490" width="520" height="32" rx="8" fill="#fff" stroke="#c4d2cc"/><text x="450" y="511" text-anchor="middle">Dados calculados por hashing-consistente-experimento.py; não são benchmark.</text></g>
+</svg>

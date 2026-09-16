@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650" role="img" aria-labelledby="title desc">
+  <title id="title">Busca de uma chave no anel de hashing consistente</title>
+  <desc id="desc">Uma chave é convertida no token 146 e percorre o anel no sentido horário até o primeiro token de nó, D no token 168.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#247d6b"/></marker></defs>
+  <rect width="900" height="650" rx="24" fill="#f5f8f6"/>
+  <text x="48" y="56" font-family="Arial,sans-serif" font-size="26" font-weight="700" fill="#213c35">A chave caminha até o primeiro token no sentido horário</text>
+  <text x="48" y="86" font-family="Arial,sans-serif" font-size="15" fill="#596b66">Espaço didático de 0 a 255 · posições escolhidas para explicar o lookup</text>
+  <circle cx="450" cy="350" r="218" fill="none" stroke="#c9d8d2" stroke-width="34"/>
+  <path d="M450 132 A218 218 0 0 1 653 271" fill="none" stroke="#247d6b" stroke-width="8" stroke-dasharray="12 10" marker-end="url(#arrow)"/>
+  <g font-family="Arial,sans-serif" text-anchor="middle">
+    <g><circle cx="604" cy="196" r="31" fill="#247d6b"/><text x="604" y="203" font-size="21" font-weight="700" fill="white">A</text><text x="650" y="175" font-size="15" fill="#213c35">32</text></g>
+    <g><circle cx="238" cy="298" r="31" fill="#247d6b"/><text x="238" y="305" font-size="21" font-weight="700" fill="white">B</text><text x="202" y="270" font-size="15" fill="#213c35">112</text></g>
+    <g><circle cx="450" cy="568" r="31" fill="#247d6b"/><text x="450" y="575" font-size="21" font-weight="700" fill="white">C</text><text x="450" y="620" font-size="15" fill="#213c35">208</text></g>
+    <g><circle cx="662" cy="402" r="34" fill="#b8783f"/><text x="662" y="409" font-size="21" font-weight="700" fill="white">D</text><text x="713" y="407" font-size="15" fill="#213c35">168</text></g>
+  </g>
+  <g><circle cx="611" cy="350" r="15" fill="#fff" stroke="#111" stroke-width="5"/><path d="M611 335v30M596 350h30" stroke="#111" stroke-width="4"/><text x="612" y="318" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#111">chave → 146</text></g>
+  <path d="M625 339 A58 58 0 0 1 660 365" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="8 7" marker-end="url(#arrow)"/>
+  <g font-family="Arial,sans-serif"><rect x="68" y="500" width="278" height="92" rx="14" fill="#fff" stroke="#c4d2cc"/><text x="92" y="533" font-size="17" font-weight="700" fill="#213c35">Regra de ownership</text><text x="92" y="561" font-size="15" fill="#596b66">hash(chave) = 146</text><text x="92" y="584" font-size="15" fill="#596b66">próximo token = 168 → nó D</text></g>
+</svg>
