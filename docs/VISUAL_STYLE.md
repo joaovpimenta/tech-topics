@@ -1,454 +1,253 @@
 # Direção visual do Tech Topics
 
-Este documento é a fonte de verdade para a geração de capas e ilustrações conceituais do Tech Topics.
+Este documento é a fonte de verdade para capas e ilustrações conceituais do Tech Topics.
 
-Antes de gerar qualquer imagem para um artigo, leia este arquivo por completo. Regras permanentes de estilo visual devem ser alteradas aqui, e não duplicadas em prompts de tarefas agendadas.
+A prioridade é **consistência com as capas já publicadas**, não apenas obedecer palavras como “aquarela” ou “editorial”. Antes de gerar uma nova capa, use as referências canônicas abaixo para calibrar composição, paleta, nível de detalhe e marcações.
 
-## Global visual language
+## Referências canônicas
 
-A identidade visual do Tech Topics deve permanecer coerente entre artigos sem transformar todas as capas em variações da mesma composição.
+As capas abaixo definem o estilo visual atual do projeto:
 
-A direção visual padrão do projeto é:
+- `assets/four-golden-signals-cover.svg`
+- `assets/transactional-outbox-cover.svg`
+- `assets/leases-e-fencing-tokens-cover.svg`
+- `assets/quoruns-de-leitura-e-escrita-cover.svg`
+- `assets/retries-backoff-jitter-cover.svg`
 
-- **Formato:** banner editorial horizontal.
-- **Natureza da imagem:** alegoria visual simples para um conceito técnico.
-- **Estilo base:** pintura em aquarela contemporânea.
-- **Camada editorial:** marcações pretas, grossas e tracejadas aplicadas sobre a pintura depois da cena estar visualmente resolvida.
-- **Tom geral:** sofisticado, leve, silencioso, observável e editorial.
-- **Estratégia de explicação:** comunicar tecnologia pela situação, ação e relação entre elementos, não por símbolos tecnológicos genéricos.
+Ao criar uma nova capa, **inspecione pelo menos duas dessas referências antes de montar o prompt**. Copie a gramática visual, não a cena.
 
-### Parâmetros de estilo
+Essas referências são mais importantes do que descrições genéricas como “watercolor illustration”. Se houver conflito entre uma interpretação do prompt e a aparência dessas capas, siga as referências.
 
-- **Tratamento:** aquarela sobre papel, com textura de papel visível, pigmentos ligeiramente irregulares, bordas suaves, pequenas variações de transparência e pinceladas discretas.
-- **Paleta predominante:** branco quebrado, cinza azulado, verde oliva suave, bege, azul acinzentado e pequenos acentos quentes de luz natural.
-- **Iluminação:** natural e calma.
-- **Contraste:** suave na pintura; forte somente nas marcações editoriais pretas.
-- **Textura e materiais:** aparência artesanal, sem acabamento digital plástico.
-- **Profundidade / perspectiva:** composição cinematográfica simples e legível.
-- **Densidade visual:** baixa a moderada, com bastante espaço negativo.
-- **Uso de pessoas:** preferencialmente de 1 a 3 personagens no máximo.
-- **Objetos principais:** preferencialmente de 2 a 5 elementos importantes.
-- **Preferência conceitual:** priorizar cenas físicas, cotidianas, reais e contemporâneas em vez de abstrações tecnológicas.
+## O que caracteriza o estilo
 
-### Princípios obrigatórios
+### 1. Base pictórica
 
-- A imagem deve ter relação direta com o assunto do artigo.
-- Represente o conceito técnico através de uma alegoria visual simples ambientada em uma situação real e contemporânea.
-- A cena deve parecer uma pintura que poderia existir independentemente do artigo.
-- Não transforme diagramas técnicos em desenhos figurativos.
-- Escolha situações cotidianas cuja dinâmica física seja análoga ao conceito técnico.
-- A metáfora deve funcionar visualmente mesmo para alguém que não conhece computação.
-- A imagem deve funcionar primeiro como pintura e somente depois como explicação técnica.
-- Preserve bastante espaço negativo e poucos elementos principais.
-- Não use texto legível dentro da imagem.
-- Não use logos, marcas ou watermarks.
-- Não reutilize capas anteriores.
-- Não represente números, fórmulas, gráficos ou diagramas técnicos exatos por geração de imagem.
-- Não apresente como medição real aquilo que for meramente ilustrativo.
-- Preserve clareza visual em tamanhos reduzidos e em telas de celular.
+A imagem deve parecer uma **aquarela editorial contemporânea, gráfica e contida**, não uma pintura aquarelada detalhista.
 
-Evite imagens genéricas de tecnologia e clichês como código flutuando, circuitos, cérebros digitais, hologramas, números binários, símbolos de cloud computing, dashboards, interfaces, estética cyberpunk, neon ou ficção científica quando esses elementos não forem parte literal da cena.
+Características obrigatórias:
 
-## Conceito narrativo
+- fundo de papel em branco quebrado quente;
+- grandes manchas translúcidas e formas simples;
+- pigmentos suaves e dessaturados;
+- textura de papel perceptível, porém discreta;
+- bordas levemente irregulares e macias;
+- pouca microtextura;
+- pouco contorno interno;
+- objetos e pessoas reconhecíveis por massas, silhuetas e poucos detalhes;
+- luz natural difusa;
+- contraste baixo ou médio na pintura;
+- atmosfera calma, limpa e silenciosa.
 
-Antes de gerar uma imagem, determine:
+A aquarela deve parecer **editorial e arquitetônica**, não romântica, botânica, infantil ou expressionista.
 
-- o **conceito de engenharia de software** a explicar;
-- uma **alegoria visual em uma frase**;
-- a situação cotidiana que melhor reproduz fisicamente a dinâmica do conceito;
-- o instante específico em que causa e consequência podem ser percebidas no mesmo quadro.
+### 2. Paleta canônica
 
-Exemplos de raciocínio:
+Use predominantemente:
 
-- controle de concorrência → pessoas tentando acessar o mesmo recurso;
-- quorum → diferentes fontes confirmando uma decisão;
-- retries → repetição de tentativas ao longo do tempo;
-- fencing token → credencial mais recente invalidando uma credencial antiga;
-- transactional outbox → item registrado em um local seguro antes de ser despachado.
+- papel / fundo: `#f5f1e8` e tons próximos;
+- azul acinzentado: `#a5b9c0`, `#6e8e9b`;
+- verde oliva suave: `#83936c`, `#6d8b76`;
+- bege / madeira clara: `#c3a87d`, `#c2aa82`;
+- ferrugem suave para pequenos acentos: `#b56d4f`, `#b47152`;
+- cinza grafite para objetos estruturais: `#4f514e`.
 
-A tecnologia deve ser comunicada pela **situação**, não por símbolos tecnológicos.
+Não use cores saturadas como protagonistas. Não use neon. Não use fundos escuros.
 
-## Cena
+### 3. Composição
 
-Construa uma única cena, simples e observável.
+- banner horizontal panorâmico, aproximadamente **2.6:1**;
+- uma única cena contínua;
+- câmera em altura humana ou levemente elevada;
+- composição simples e cinematográfica;
+- bastante espaço negativo;
+- 1 a 3 pessoas no máximo;
+- 2 a 5 objetos conceitualmente importantes;
+- detalhes ambientais apenas para situar a cena;
+- elementos principais afastados das bordas para sobreviver a crop responsivo;
+- leitura clara quando a imagem estiver pequena.
 
-Ambientes adequados incluem, conforme o tema:
+A cena deve parecer plausível mesmo sem conhecer o artigo.
 
-- entrada de prédio corporativo;
-- estacionamento;
-- biblioteca contemporânea;
-- depósito logístico;
-- estação de metrô;
-- aeroporto;
-- centro de distribuição;
-- escritório moderno;
-- laboratório;
-- portaria;
-- rua residencial;
-- centro urbano;
-- terminal de transporte.
+### 4. Alegoria física
 
-Use preferencialmente de 1 a 3 personagens e de 2 a 5 objetos importantes. Evite excesso de pessoas, equipamentos, arquitetura, sinalização ou objetos decorativos.
+Explique tecnologia por uma situação física contemporânea, não por símbolos de tecnologia.
 
-## Correspondência conceitual
+Boas famílias de metáfora:
 
-Antes de gerar a imagem, defina explicitamente a correspondência entre os componentes técnicos e os elementos visuais da cena:
+- acesso e autorização;
+- filas e espera;
+- entrega e transporte;
+- armazenamento e despacho;
+- pessoas disputando ou compartilhando um recurso;
+- arquivos, caixas, credenciais, portas, catracas, balcões, depósitos, bibliotecas, estações e centros logísticos;
+- repetição, distância, ordem, seleção, bloqueio, passagem ou interseção visível no espaço.
 
-- **elemento visual A** representa **componente técnico A**;
-- **elemento visual B** representa **componente técnico B**;
-- **elemento visual C** representa **componente técnico C**;
-- **ação ou relação** representa **comportamento do sistema**.
+A dinâmica física deve ser análoga ao mecanismo técnico.
 
-Essas relações são instruções para a geração e **não devem aparecer como texto na imagem**.
+### 5. Camada editorial preta
 
-A cena deve comunicar principalmente por posição, ação, distância, repetição, bloqueio, passagem, espera, seleção ou movimento.
+Depois da cena funcionar como pintura, aplique uma segunda linguagem visual, claramente separada da aquarela.
 
-## Momento narrativo
+Use:
 
-Escolha um instante específico em que o mecanismo principal possa ser compreendido. Sempre que possível, capture causa e consequência no mesmo quadro.
+- traço preto quase puro;
+- espessura visual forte e consistente;
+- círculos ou elipses grandes feitos à mão;
+- linhas e setas tracejadas;
+- dashes relativamente longos e espaçados;
+- no máximo **2 a 4 marcações principais**;
+- pequenos traços radiais somente quando ajudam a chamar atenção para um ponto.
 
-Exemplos:
+As marcações devem parecer feitas por um editor com caneta preta grossa sobre uma reprodução impressa da aquarela.
 
-- uma pessoa possui acesso enquanto outra credencial antiga é recusada;
-- três arquivos são consultados e apenas dois participam da decisão;
-- um entregador parte enquanto outros esperam intervalos progressivamente maiores;
-- uma mensagem permanece armazenada enquanto o transporte externo está indisponível.
-
-## Linguagem visual da pintura
-
-A imagem base deve ser uma **pintura em aquarela contemporânea**.
-
-Características:
-
-- aquarela sobre papel;
-- textura de papel visível;
-- pigmentos ligeiramente irregulares;
-- bordas suaves;
-- pequenas variações de transparência;
-- pinceladas discretas;
-- aparência artesanal;
-- iluminação natural;
-- atmosfera calma;
-- composição editorial;
-- arquitetura e objetos contemporâneos;
-- personagens realistas, porém simplificados;
-- detalhes suficientes para reconhecer a situação, sem hiper-realismo.
-
-A pintura deve parecer sofisticada, leve e silenciosa.
-
-Não utilize aparência de cartoon, ilustração infantil, render 3D ou concept art de videogame.
-
-## Camada editorial de highlight
-
-Sobre a pintura original, aplique uma segunda linguagem visual claramente diferente, como se um editor tivesse desenhado observações diretamente sobre a obra depois de pronta.
-
-Essa camada **não deve parecer parte da aquarela**.
-
-Use somente:
-
-- linhas pretas;
-- traço grosso;
-- contorno tracejado preto;
-- círculos ou formas tracejadas ao redor dos elementos importantes;
-- pequenas setas pretas tracejadas quando necessário;
-- pequenos traços radiais para chamar atenção;
-- sombra externa preta suave;
-- glow escuro discreto ao redor do traço para destacar a anotação da pintura.
-
-O highlight deve ser óbvio e imediatamente perceptível. O preto deve contrastar claramente com a aquarela clara. O contorno tracejado deve possuir espessura visual consistente e parecer uma marcação editorial feita à mão.
-
-Destaque apenas os componentes fundamentais da metáfora. Use preferencialmente **2 a 4 highlights principais** e evite destacar tudo.
-
-## Relações entre elementos
-
-Quando o conceito envolver fluxo, sequência, causalidade ou dependência, utilize uma linha tracejada preta ou seta editorial conectando os objetos destacados.
-
-Exemplos:
-
-- A → B;
-- A → B → C;
-- A tenta acessar B, mas é bloqueado;
-- A, B e C convergem para D;
-- a mesma entidade aparece em três posições sucessivas.
-
-As linhas devem complementar a alegoria, não transformar a imagem em fluxograma.
-
-## Hierarquia visual
-
-A imagem deve funcionar primeiro como pintura e somente depois como explicação técnica.
-
-Prioridade visual:
-
-1. cena e composição;
-2. ação humana ou objeto principal;
-3. highlights editoriais;
-4. relações indicadas pelas linhas tracejadas;
-5. detalhes ambientais.
-
-O espectador deve primeiro enxergar uma cena cotidiana e, em seguida, perceber que determinados elementos foram deliberadamente destacados.
-
-## Capas
-
-Cada novo artigo deve ter uma capa original.
-
-Requisitos:
-
-- formato horizontal panorâmico, aproximadamente entre **2.4:1 e 2.8:1**;
-- composição cinematográfica simples;
-- relação direta com o conceito central do artigo;
-- principais elementos posicionados no terço central e lateral da imagem;
-- elementos importantes afastados das bordas para permitir crop responsivo;
-- uma única cena;
-- sem moldura;
-- sem infográfico;
-- sem painel dividido;
-- sem múltiplas cenas;
-- sem título;
-- sem legenda;
-- sem números;
-- sem explicações;
-- sem caixas de texto;
-- sem labels;
-- sem palavras visíveis na imagem;
-- sem logos, marcas ou watermarks;
-- sem reaproveitar capas anteriores;
-- salvar uma versão otimizada para web em `assets/<slug>-cover.jpg`;
-- o arquivo deve estar presente no commit que publica o artigo.
-
-A capa deve funcionar como uma síntese visual do conceito, não como um diagrama técnico.
-
-## Cover image prompt template
-
-Use este template como base obrigatória para o prompt de geração de capa. Preencha os campos específicos do artigo sem alterar as regras permanentes definidas neste documento.
-
-```text
-Crie uma ilustração horizontal para banner editorial de um artigo sobre engenharia de software.
-
-## 1. Conceito narrativo
-
-Represente o conceito técnico **[CONCEITO DE ENGENHARIA DE SOFTWARE]** através de uma alegoria visual simples ambientada em uma situação real e contemporânea.
-
-A cena deve parecer uma pintura que poderia existir independentemente do artigo. Não deve parecer um diagrama técnico transformado em desenho.
-
-Escolha uma situação cotidiana cuja dinâmica física seja análoga ao conceito técnico.
-
-Metáfora principal:
-
-**[DESCREVA A ALEGORIA EM UMA FRASE]**
-
-A metáfora deve funcionar visualmente mesmo para alguém que não conhece computação.
-
-## 2. Cena
-
-Construa uma única cena, simples e observável.
-
-Ambiente:
-
-**[AMBIENTE CONTEMPORÂNEO OU MODERNO]**
-
-Personagens:
-
-**[1 A 3 PERSONAGENS NO MÁXIMO]**
-
-Objetos principais:
-
-**[2 A 5 OBJETOS IMPORTANTES]**
-
-Evite excesso de pessoas, equipamentos, arquitetura, sinalização ou objetos decorativos.
-
-A composição deve possuir bastante espaço negativo.
-
-## 3. Correspondência conceitual
-
-Cada elemento importante da cena representa um componente do sistema:
-
-- **[ELEMENTO VISUAL A]** representa **[COMPONENTE TÉCNICO A]**
-- **[ELEMENTO VISUAL B]** representa **[COMPONENTE TÉCNICO B]**
-- **[ELEMENTO VISUAL C]** representa **[COMPONENTE TÉCNICO C]**
-- **[AÇÃO OU RELAÇÃO]** representa **[COMPORTAMENTO DO SISTEMA]**
-
-Essas relações não devem aparecer como texto na imagem.
-
-A cena deve comunicar principalmente por posição, ação, distância, repetição, bloqueio, passagem, espera, seleção ou movimento.
-
-## 4. Momento narrativo
-
-Escolha um instante específico em que o mecanismo principal possa ser compreendido.
-
-Momento:
-
-**[DESCREVA O INSTANTE EXATO DA CENA]**
-
-A cena deve capturar causa e consequência no mesmo quadro sempre que possível.
-
-## 5. Linguagem visual da pintura
-
-A imagem base deve ser uma **pintura em aquarela contemporânea**.
-
-Características:
-
-- aquarela sobre papel;
-- textura de papel visível;
-- pigmentos ligeiramente irregulares;
-- bordas suaves;
-- pequenas variações de transparência;
-- pinceladas discretas;
-- aparência artesanal;
-- iluminação natural;
-- atmosfera calma;
-- composição editorial;
-- arquitetura e objetos contemporâneos;
-- personagens realistas, porém simplificados;
-- detalhes suficientes para reconhecer a situação, sem hiper-realismo.
-
-Paleta predominante:
-
-- branco quebrado;
-- cinza azulado;
-- verde oliva suave;
-- bege;
-- azul acinzentado;
-- pequenos acentos quentes de luz natural.
-
-A pintura deve parecer sofisticada, leve e silenciosa.
-
-Não utilizar aparência de cartoon, ilustração infantil, render 3D ou concept art de videogame.
-
-## 6. Camada editorial de highlight
-
-Sobre a pintura original, aplique uma segunda linguagem visual claramente diferente, como se um editor tivesse desenhado observações diretamente sobre a obra depois de pronta.
-
-Essa camada NÃO deve parecer parte da aquarela.
-
-Use somente:
-
-- linhas pretas;
-- traço grosso;
-- contorno tracejado preto;
-- círculos ou formas tracejadas ao redor dos elementos importantes;
-- pequenas setas pretas tracejadas quando necessário;
-- pequenos traços radiais para chamar atenção;
-- sombra externa preta suave;
-- glow escuro discreto ao redor do traço para destacar a anotação da pintura.
-
-O highlight deve ser **óbvio e imediatamente perceptível**.
-
-O preto deve contrastar claramente com a aquarela clara.
-
-O contorno tracejado deve possuir espessura visual consistente e parecer uma marcação editorial feita à mão.
-
-A anotação deve destacar somente os componentes fundamentais da metáfora:
-
-**[ELEMENTOS QUE DEVEM RECEBER HIGHLIGHT]**
-
-Máximo recomendado: **2 a 4 highlights principais**.
-
-Evite destacar tudo.
-
-## 7. Relações entre elementos
-
-Quando o conceito envolver fluxo, sequência, causalidade ou dependência, utilize uma linha tracejada preta ou seta editorial conectando os objetos destacados.
-
-Representar:
-
-**[RELAÇÃO VISUAL ENTRE OS COMPONENTES]**
-
-As linhas devem complementar a alegoria, não transformar a imagem em um fluxograma.
-
-## 8. Hierarquia visual
-
-A imagem deve funcionar primeiro como pintura e somente depois como explicação técnica.
-
-Prioridade visual:
-
-1. cena e composição;
-2. ação humana ou objeto principal;
-3. highlights editoriais;
-4. relações indicadas pelas linhas tracejadas;
-5. detalhes ambientais.
-
-O espectador deve primeiro enxergar uma cena cotidiana e, em seguida, perceber que determinados elementos foram deliberadamente destacados.
-
-## 9. Composição para banner
-
-Formato horizontal panorâmico, aproximadamente **2.4:1 a 2.8:1**.
-
-Composição cinematográfica simples.
-
-Manter os principais elementos no terço central e lateral da imagem.
-
-Evitar elementos importantes muito próximos das bordas.
-
-Permitir crop responsivo sem destruir a metáfora.
-
-Não criar moldura.
-Não criar infográfico.
-Não criar painel dividido.
-Não criar múltiplas cenas.
-Não adicionar título.
-Não adicionar legenda.
-Não adicionar números.
-Não adicionar explicações.
-Não adicionar caixas de texto.
-Não adicionar labels.
-Não adicionar palavras visíveis na imagem.
-
-## 10. Restrições estéticas
-
-Evitar:
-
-- diagramas;
-- dashboards;
-- interfaces;
-- telas de computador como elemento explicativo principal;
-- símbolos de cloud computing;
-- ícones tecnológicos genéricos;
-- circuitos;
+Não use texto nas marcações. Não use legendas, números ou labels.
+
+## O que NÃO fazer
+
+Evite explicitamente:
+
+- colagem ou grade de várias cenas;
+- painéis divididos;
+- storyboard;
+- infográfico;
+- fluxograma;
+- cards;
+- diagramas técnicos disfarçados de ilustração;
+- ícones de cloud, banco de dados, servidores ou redes;
+- telas, dashboards ou interfaces como recurso explicativo principal;
 - código flutuando;
 - números binários;
+- circuitos;
+- cérebros digitais;
 - hologramas;
-- estética cyberpunk;
+- sci-fi;
+- cyberpunk;
 - neon;
-- ficção científica;
-- personagens caricatos;
-- excesso de elementos;
-- excesso de highlights;
-- metáforas excessivamente literais;
-- texto explicativo.
+- render 3D;
+- aparência vetorial limpa demais;
+- cartoon;
+- ilustração infantil;
+- line art dominante;
+- hiper-realismo fotográfico;
+- excesso de objetos decorativos;
+- texto legível;
+- título dentro da imagem;
+- moldura;
+- logos, marcas ou watermark.
 
-A tecnologia deve ser comunicada pela **situação**, não por símbolos tecnológicos.
+Também evite “aquarela” com excesso de pinceladas, flores, manchas dramáticas, fundos muito artísticos ou textura pesada. O estilo do Tech Topics é mais próximo de uma **ilustração editorial arquitetônica minimalista em aquarela**.
 
-## 11. Resultado desejado
+## Processo obrigatório antes do prompt
 
-O resultado deve parecer:
+Antes de pedir a geração da imagem, faça este trabalho fora do prompt:
 
-> uma aquarela editorial contemporânea encontrada em uma revista ou livro, reutilizada como alegoria para explicar um conceito de engenharia de software, sobre a qual alguém posteriormente marcou alguns elementos importantes com um traço editorial preto, grosso e tracejado.
+1. Resuma o mecanismo técnico em uma frase.
+2. Escolha uma alegoria física simples.
+3. Defina um único instante observável da cena.
+4. Identifique de 2 a 4 elementos que receberão marcação preta.
+5. Defina uma relação visual principal: aproximação, sequência, interseção, bloqueio, passagem, espera ou despacho.
+6. Inspecione pelo menos duas capas canônicas e confirme que a nova cena terá densidade e paleta semelhantes.
 
-A imagem deve permanecer interessante mesmo sem conhecer o artigo.
+Não envie ao gerador um ensaio explicando o raciocínio. O prompt final deve ser curto, visual e concreto.
 
-A relação com engenharia de software deve surgir da interpretação da cena, não de texto presente na imagem.
+## Style anchor obrigatório
+
+O trecho abaixo deve aparecer **quase literalmente** em todo prompt de capa. Ele é a âncora principal de consistência visual:
+
+```text
+Wide 2.6:1 editorial banner. Contemporary restrained watercolor on warm off-white textured paper, with large translucent washes, soft irregular edges, simplified realistic people and objects, low-to-medium detail, muted desaturated blue-gray, olive, beige and soft rust palette, diffuse natural daylight, generous negative space, calm modern architectural atmosphere. The scene must read as a single plausible real-world moment, not as an infographic.
+
+Overlay exactly 2 to 4 bold hand-drawn black dashed editorial annotations on top of the finished watercolor: large dashed circles or ellipses around the key objects and, only when necessary, one thick dashed arrow connecting them. The black marks must look like an editor drew them later with a broad black pen and must be visually separate from the watercolor.
+
+No readable text, no labels, no captions, no numbers, no collage, no multi-panel layout, no storyboard, no UI, no dashboard, no tech icons, no floating code, no circuit imagery, no neon, no sci-fi, no 3D render, no cartoon, no photorealism.
 ```
 
-O gerador pode adaptar composição, objetos, ambiente e metáfora ao assunto do artigo, mas não deve substituir ou ignorar a direção visual global definida neste arquivo.
+## Template de prompt de capa
+
+Use este formato. Mantenha-o conciso.
+
+```text
+Create one wide editorial cover image for an article about [CONCEITO].
+
+Scene: [UMA ÚNICA CENA FÍSICA E CONTEMPORÂNEA, EM 1–3 FRASES].
+
+Narrative moment: [O INSTANTE EXATO EM QUE A RELAÇÃO ENTRE OS ELEMENTOS É VISÍVEL].
+
+Key objects to emphasize: [2 A 4 ELEMENTOS].
+
+Editorial annotation: [DIGA QUAIS ELEMENTOS RECEBEM CÍRCULO TRACEJADO E, SE NECESSÁRIO, QUAL ÚNICA RELAÇÃO RECEBE SETA TRACEJADA].
+
+Wide 2.6:1 editorial banner. Contemporary restrained watercolor on warm off-white textured paper, with large translucent washes, soft irregular edges, simplified realistic people and objects, low-to-medium detail, muted desaturated blue-gray, olive, beige and soft rust palette, diffuse natural daylight, generous negative space, calm modern architectural atmosphere. The scene must read as a single plausible real-world moment, not as an infographic.
+
+Overlay exactly 2 to 4 bold hand-drawn black dashed editorial annotations on top of the finished watercolor: large dashed circles or ellipses around the key objects and, only when necessary, one thick dashed arrow connecting them. The black marks must look like an editor drew them later with a broad black pen and must be visually separate from the watercolor.
+
+No readable text, no labels, no captions, no numbers, no collage, no multi-panel layout, no storyboard, no UI, no dashboard, no tech icons, no floating code, no circuit imagery, no neon, no sci-fi, no 3D render, no cartoon, no photorealism.
+```
+
+## Exemplo calibrado
+
+Para um artigo sobre fencing tokens:
+
+```text
+Create one wide editorial cover image for an article about fencing tokens in distributed systems.
+
+Scene: a calm modern glass building entrance. One person is using a current access card at a dark card reader beside a turnstile while another person waits behind holding an older card. The architecture is bright, sparse and contemporary, with a little greenery and no signage.
+
+Narrative moment: the newer credential is being accepted at the reader while the older credential remains visibly behind and out of authority.
+
+Key objects to emphasize: the older card, the newer card at the reader, and the reader itself.
+
+Editorial annotation: one large black dashed circle around the older card, one around the reader/newer card, and one thick dashed curved arrow from the old-card area toward the reader. Add only a few short black emphasis strokes near the reader.
+
+Wide 2.6:1 editorial banner. Contemporary restrained watercolor on warm off-white textured paper, with large translucent washes, soft irregular edges, simplified realistic people and objects, low-to-medium detail, muted desaturated blue-gray, olive, beige and soft rust palette, diffuse natural daylight, generous negative space, calm modern architectural atmosphere. The scene must read as a single plausible real-world moment, not as an infographic.
+
+Overlay exactly 2 to 4 bold hand-drawn black dashed editorial annotations on top of the finished watercolor: large dashed circles or ellipses around the key objects and, only when necessary, one thick dashed arrow connecting them. The black marks must look like an editor drew them later with a broad black pen and must be visually separate from the watercolor.
+
+No readable text, no labels, no captions, no numbers, no collage, no multi-panel layout, no storyboard, no UI, no dashboard, no tech icons, no floating code, no circuit imagery, no neon, no sci-fi, no 3D render, no cartoon, no photorealism.
+```
+
+## Critérios de aceitação da capa
+
+Antes de publicar, rejeite a imagem se qualquer uma destas condições falhar:
+
+- parece uma única cena cotidiana, não um infográfico;
+- a pintura é clara, dessaturada e minimalista;
+- há espaço negativo suficiente;
+- os objetos principais são reconhecíveis sem excesso de detalhe;
+- as marcações pretas são grossas, tracejadas e claramente sobrepostas à pintura;
+- existem no máximo 2 a 4 highlights importantes;
+- não existe texto legível nem estrutura de painel;
+- a metáfora continua compreensível em tamanho reduzido;
+- a imagem está visualmente próxima das capas canônicas do repositório.
+
+Se a primeira geração não cumprir o estilo, **não tente corrigir adicionando mais parágrafos ao prompt**. Faça uma nova tentativa simplificando a cena e reforçando apenas o style anchor e as negativas.
+
+Se duas tentativas continuarem fora da direção, use uma capa determinística baseada na mesma gramática visual das referências canônicas, em vez de publicar uma imagem inconsistente.
+
+## Capas e arquivos
+
+Cada artigo deve ter uma capa original, sem reaproveitar cenas anteriores.
+
+Para geração raster, salve a versão web em:
+
+`assets/<slug>-cover.jpg`
+
+Se for necessário usar uma capa vetorial determinística para preservar o estilo, use:
+
+`assets/<slug>-cover.svg`
+
+O campo `image` do artigo deve apontar para o arquivo realmente publicado. Nunca referencie arquivo temporário ou URL externa que possa expirar.
 
 ## Ilustrações conceituais no corpo
 
-Use geração de imagens quando uma cena, analogia ou representação conceitual ajudar a explicar algo que seria difícil de transmitir apenas por prosa.
+Use a mesma linguagem visual quando uma cena ou analogia ajudar a explicar um conceito sem exigir precisão métrica.
 
-As ilustrações conceituais devem seguir a mesma linguagem visual base das capas quando isso fizer sentido, mas podem ser mais simples e focadas em apenas um aspecto do conceito.
+Essas imagens podem ser mais simples que a capa, mas devem manter:
 
-Exemplos adequados:
-
-- cenário de falha;
-- metáfora física de contenção, fluxo, isolamento ou recuperação;
-- comparação conceitual entre estados;
-- cena explicativa sem exigência de precisão métrica.
-
-Salve cada ilustração como arquivo local com nome único, por exemplo:
-
-`assets/<slug>-cenario-de-falha.jpg`
-
-Todas as imagens devem estar incluídas no commit. Não use caminhos temporários nem URLs que possam expirar.
+- paleta dessaturada;
+- aquarela editorial contida;
+- poucos elementos;
+- marcações pretas somente quando acrescentarem explicação.
 
 ## Diagramas, gráficos e fórmulas
 
@@ -457,34 +256,41 @@ Não use geração de imagens para elementos que exigem precisão.
 Use SVG, HTML e CSS para:
 
 - diagramas de arquitetura;
-- diagramas de fluxo ou sequência;
+- fluxos e sequências;
 - gráficos com eixos;
 - visualizações quantitativas;
 - fórmulas;
 - estados e transições;
-- comparações que dependam de valores exatos.
+- comparações dependentes de valores exatos.
 
-Todo gráfico deve identificar eixos, unidades e legendas. Informe se os dados são reais, calculados ou meramente ilustrativos. Nunca apresente dados inventados como medições reais.
+Todo gráfico deve identificar eixos, unidades e legendas quando aplicável. Informe se os dados são reais, calculados ou ilustrativos.
 
-## Acessibilidade e composição
+## Acessibilidade
 
-- Use `<figure>` e `<figcaption>` quando apropriado.
-- Forneça texto alternativo descritivo.
-- Inclua descrição textual equivalente quando o visual contiver informação importante que não esteja presente no texto.
-- Garanta contraste suficiente e compreensão sem depender apenas de cores.
-- Imagens e SVGs no corpo devem ser responsivos e preservar proporção sem cortes que escondam informação.
+- forneça texto alternativo descritivo;
+- use `<figure>` e `<figcaption>` quando apropriado;
+- não dependa apenas de cor para transmitir informação;
+- preserve legibilidade e proporção em telas pequenas;
+- quando o visual carregar informação não repetida no texto, inclua descrição textual equivalente.
 
 ## Falha de geração
 
 Se a geração de imagens estiver indisponível:
 
-- informe o impedimento;
-- não declare que uma imagem foi gerada;
-- não publique referências a arquivos inexistentes;
-- não substitua a imagem por uma URL temporária ou externa apenas para concluir a tarefa.
+- não declare que a imagem foi gerada;
+- não publique referência a arquivo inexistente;
+- não use URL temporária como substituição;
+- prefira uma capa determinística coerente com as referências canônicas.
 
 ## Como alterar o estilo no futuro
 
-Para mudar a direção visual das próximas publicações, edite primeiro `Global visual language`, `Parâmetros de estilo` e, quando necessário, o `Cover image prompt template` deste arquivo.
+Mudanças permanentes devem começar neste arquivo.
 
-Não é necessário alterar o prompt da tarefa agendada para mudanças permanentes de estilo. O prompt específico de cada artigo deve acrescentar apenas o tema, o conceito técnico, a alegoria, a cena e as correspondências visuais próprias daquele artigo.
+Ao alterar a direção visual, atualize nesta ordem:
+
+1. referências canônicas;
+2. `O que caracteriza o estilo`;
+3. `Style anchor obrigatório`;
+4. template e critérios de aceitação.
+
+Prompts específicos de artigos devem acrescentar apenas conceito, cena, momento narrativo e objetos destacados.
