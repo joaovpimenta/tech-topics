@@ -29,7 +29,7 @@ jobs:
             leases-e-fencing-tokens \
             transactional-outbox
           do
-            cat .tmp-covers8/${slug}.part* | base64 --decode > assets/${slug}-cover.jpg
+            cat .tmp-covers16b/${slug}.part* | base64 --decode > assets/${slug}-cover.jpg
           done
 
           python -m pip install --disable-pip-version-check pillow
@@ -51,10 +51,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf .tmp-covers .tmp-covers8
+          rm -rf .tmp-covers .tmp-covers8 .tmp-covers16b
           rm .github/workflows/assemble-covers.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets .tmp-covers .tmp-covers8 .github/workflows/assemble-covers.yml
+          git add assets .tmp-covers .tmp-covers8 .tmp-covers16b .github/workflows/assemble-covers.yml
           git commit -m "Update article cover artwork"
           git push origin HEAD:cover-upload-20260917
