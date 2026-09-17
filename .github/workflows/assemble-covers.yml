@@ -1,0 +1,62 @@
+name: Assemble article covers
+
+on:
+  push:
+    branches:
+      - cover-upload-20260917
+    paths:
+      - .tmp-covers/READY
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+
+      - name: Assemble generated cover images
+        shell: bash
+        run: |
+          set -euo pipefail
+          for slug in \
+            four-golden-signals \
+            hashing-consistente \
+            retries-backoff-jitter \
+            quoruns-de-leitura-e-escrita \
+            leases-e-fencing-tokens \
+            transactional-outbox
+          do
+            cat .tmp-covers/${slug}.part* | base64 --decode > assets/${slug}-cover.jpg
+          done
+
+          python - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          for path in Path('assets').glob('*-cover.jpg'):
+              if path.stem.replace('-cover','') in {
+                  'four-golden-signals',
+                  'hashing-consistente',
+                  'retries-backoff-jitter',
+                  'quoruns-de-leitura-e-escrita',
+                  'leases-e-fencing-tokens',
+                  'transactional-outbox',
+              }:
+                  im = Image.open(path)
+                  assert im.size == (1040, 400), (path, im.size)
+                  im.verify()
+          PY
+
+      - name: Commit covers and remove upload staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp-covers
+          rm .github/workflows/assemble-covers.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets .tmp-covers .github/workflows/assemble-covers.yml
+          git commit -m "Update article cover artwork"
+          git push origin HEAD:cover-upload-20260917
