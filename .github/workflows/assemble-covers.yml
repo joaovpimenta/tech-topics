@@ -21,31 +21,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          cat .tmp-covers/four-golden-signals.part* | base64 --decode > assets/four-golden-signals-cover.jpg
           for slug in \
-            four-golden-signals \
             hashing-consistente \
             retries-backoff-jitter \
             quoruns-de-leitura-e-escrita \
             leases-e-fencing-tokens \
             transactional-outbox
           do
-            cat .tmp-covers/${slug}.part* | base64 --decode > assets/${slug}-cover.jpg
+            cat .tmp-covers8/${slug}.part* | base64 --decode > assets/${slug}-cover.jpg
           done
 
           python -m pip install --disable-pip-version-check pillow
           python - <<'PY'
           from PIL import Image
           from pathlib import Path
-          for path in Path('assets').glob('*-cover.jpg'):
-              if path.stem.replace('-cover','') in {
-                  'four-golden-signals',
-                  'hashing-consistente',
-                  'retries-backoff-jitter',
-                  'quoruns-de-leitura-e-escrita',
-                  'leases-e-fencing-tokens',
-                  'transactional-outbox',
-              }:
-                  im = Image.open(path)
+          expected = {
+              'four-golden-signals', 'hashing-consistente', 'retries-backoff-jitter',
+              'quoruns-de-leitura-e-escrita', 'leases-e-fencing-tokens', 'transactional-outbox'
+          }
+          for slug in expected:
+              path = Path('assets') / f'{slug}-cover.jpg'
+              with Image.open(path) as im:
                   assert im.size == (1040, 400), (path, im.size)
                   im.verify()
           PY
@@ -54,10 +51,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf .tmp-covers
+          rm -rf .tmp-covers .tmp-covers8
           rm .github/workflows/assemble-covers.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets .tmp-covers .github/workflows/assemble-covers.yml
+          git add assets .tmp-covers .tmp-covers8 .github/workflows/assemble-covers.yml
           git commit -m "Update article cover artwork"
           git push origin HEAD:cover-upload-20260917
