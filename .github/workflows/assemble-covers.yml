@@ -32,6 +32,7 @@ jobs:
             cat .tmp-covers/${slug}.part* | base64 --decode > assets/${slug}-cover.jpg
           done
 
+          python -m pip install --disable-pip-version-check pillow
           python - <<'PY'
           from PIL import Image
           from pathlib import Path
