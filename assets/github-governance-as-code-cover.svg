@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Governance as Code no GitHub</title>
+  <desc id="desc">Diagrama editorial com um repositório central de governança no topo, um contrato de CI ao centro e três repositórios consumidores na base.</desc>
+  <rect width="1200" height="630" fill="#f6f3ed"/>
+  <g fill="none" stroke="#171717" stroke-width="4">
+    <rect x="360" y="70" width="480" height="120" rx="20"/>
+    <rect x="430" y="260" width="340" height="100" rx="18"/>
+    <rect x="80" y="455" width="280" height="100" rx="18"/>
+    <rect x="460" y="455" width="280" height="100" rx="18"/>
+    <rect x="840" y="455" width="280" height="100" rx="18"/>
+    <path d="M600 190v70"/>
+    <path d="M600 360v45"/>
+    <path d="M600 405H220v50"/>
+    <path d="M600 405v50"/>
+    <path d="M600 405h380v50"/>
+  </g>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#171717" text-anchor="middle">
+    <text x="600" y="118" font-size="30" font-weight="700">ORG/.github</text>
+    <text x="600" y="158" font-size="20">rulesets · workflows · policies</text>
+    <text x="600" y="307" font-size="27" font-weight="700">CI contract</text>
+    <text x="600" y="338" font-size="18">required hooks + central orchestration</text>
+    <text x="220" y="505" font-size="25" font-weight="700">repo A</text>
+    <text x="220" y="535" font-size="17">implements</text>
+    <text x="600" y="505" font-size="25" font-weight="700">repo B</text>
+    <text x="600" y="535" font-size="17">implements</text>
+    <text x="980" y="505" font-size="25" font-weight="700">repo C</text>
+    <text x="980" y="535" font-size="17">implements</text>
+  </g>
+  <text x="60" y="54" font-family="system-ui, sans-serif" font-size="18" fill="#171717">TECH TOPICS · GOVERNANÇA DE ENGENHARIA</text>
+</svg>
