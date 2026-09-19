@@ -1,8 +1,13 @@
 [
   {
+    "slug": "github-governance-as-code",
+    "path": "content/articles/github-governance-as-code.json",
+    "addedAt": "2026-09-18T19:58:45-03:00"
+  },
+  {
     "slug": "hashing-consistente",
     "path": "content/articles/hashing-consistente.json",
-    "addedAt": "2026-09-16T10:16:30Z"
+    "addedAt": "2026-09-16T07:16:30-03:00"
   },
   {
     "slug": "retries-backoff-jitter",
