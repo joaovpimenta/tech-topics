@@ -42,6 +42,12 @@ Use este contrato:
 }
 ```
 
+### Regra visual da capa
+
+O campo `image` deve apontar sempre para `assets/<slug>-cover.jpg`, uma pintura em aquarela editorial visível sobre papel texturizado, conforme `docs/VISUAL_STYLE.md`. A palavra “aquarela” no prompt ou a aplicação de um filtro não basta: capas com aparência vetorial flat, formas geométricas, 3D ou fotográfica devem ser rejeitadas.
+
+Não use SVG, HTML ou CSS como capa. Esses formatos ficam reservados a diagramas, gráficos, fórmulas e outros visuais técnicos que precisam de precisão. Ilustrações conceituais inseridas no corpo do artigo seguem a mesma exigência de aquarela da capa; apenas visuais técnicos de precisão ficam fora dela.
+
 Use a data real da execução. Não use rótulos permanentes como “hoje”.
 
 As classes compartilhadas disponíveis incluem `signal-grid`, `signal-card`, `article-callout`, `code-block` e `article-back`.

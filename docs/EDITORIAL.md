@@ -71,4 +71,8 @@ Não imponha uma quantidade artificial de imagens ou diagramas e não use recurs
 
 Toda a direção de estilo para capas e ilustrações conceituais, incluindo o template base do prompt de geração, está em `docs/VISUAL_STYLE.md`. Antes de gerar qualquer imagem, siga esse documento.
 
+A aquarela editorial é um requisito permanente, não um adjetivo opcional do prompt: toda capa e toda ilustração conceitual deve parecer uma pintura real em aquarela sobre papel texturizado. Paleta suave, filtros de textura, transparências ou um arquivo SVG não são suficientes se o resultado parecer vetor flat, formas geométricas ou composição digital limpa. Rejeite e regenere qualquer imagem que não preserve essa aparência.
+
+SVG, HTML e CSS continuam permitidos para diagramas, gráficos, fórmulas e outros visuais de precisão; essa exceção não se aplica a capas nem a ilustrações conceituais.
+
 Diagramas, gráficos, fórmulas e outros elementos que exigem precisão também devem obedecer às regras técnicas e de acessibilidade definidas em `docs/VISUAL_STYLE.md` e `docs/ARTICLE_FORMAT.md`.

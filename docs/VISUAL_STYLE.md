@@ -2,27 +2,38 @@
 
 Este documento é a fonte de verdade para capas e ilustrações conceituais do Tech Topics.
 
+A regra abaixo é permanente e não pode ser relaxada por tema, formato ou urgência: toda capa e toda ilustração conceitual deve ser uma pintura em aquarela editorial visível sobre papel texturizado. O style anchor deste documento é obrigatório em todos os prompts de capa. Uma arte vetorial com filtros, transparências ou paleta de aquarela não cumpre o requisito se continuar parecendo vetor flat.
+
 A prioridade é **consistência com as capas já publicadas**, não apenas obedecer palavras como “aquarela” ou “editorial”. Antes de gerar uma nova capa, use as referências canônicas abaixo para calibrar composição, paleta, nível de detalhe e marcações.
 
 ## Referências canônicas
 
-As capas abaixo definem o estilo visual atual do projeto:
+As capas raster abaixo definem o estilo visual atual do projeto. Elas são as referências canônicas porque mostram a pintura publicada, não apenas uma descrição ou um filtro aplicado:
 
-- `assets/four-golden-signals-cover.svg`
-- `assets/transactional-outbox-cover.svg`
-- `assets/leases-e-fencing-tokens-cover.svg`
-- `assets/quoruns-de-leitura-e-escrita-cover.svg`
-- `assets/retries-backoff-jitter-cover.svg`
+- `assets/four-golden-signals-cover.jpg`
+- `assets/hashing-consistente-cover.jpg`
+- `assets/transactional-outbox-cover.jpg`
+- `assets/leases-e-fencing-tokens-cover.jpg`
+- `assets/quoruns-de-leitura-e-escrita-cover.jpg`
+- `assets/retries-backoff-jitter-cover.jpg`
 
 Ao criar uma nova capa, **inspecione pelo menos duas dessas referências antes de montar o prompt**. Copie a gramática visual, não a cena.
 
 Essas referências são mais importantes do que descrições genéricas como “watercolor illustration”. Se houver conflito entre uma interpretação do prompt e a aparência dessas capas, siga as referências.
 
+## Regra permanente: a imagem precisa ser pintura em aquarela
+
+Para satisfazer esta direção visual, a imagem precisa apresentar sinais visíveis de pintura: manchas e camadas de pigmento translúcido, variação orgânica de cobertura, bordas macias e irregulares, textura de papel e pequenas imperfeições de pincel. A cena deve continuar reconhecível, mas não pode parecer construída apenas com formas geométricas, traços uniformes ou superfícies digitais lisas.
+
+Esta regra vale para todas as capas e ilustrações conceituais, mesmo quando o arquivo final for produzido por uma ferramenta diferente ou quando o assunto for técnico. O formato do arquivo não define o estilo: um SVG com filtros de ruído, gradientes ou opacidade continua sendo uma arte vetorial se não houver aparência pictórica convincente.
+
+Use `assets/<slug>-cover.jpg` para capas. Não publique uma capa em SVG, HTML ou CSS. Esses formatos são permitidos somente para diagramas, gráficos, fórmulas e outros visuais de precisão descritos mais adiante neste documento.
+
 ## O que caracteriza o estilo
 
 ### 1. Base pictórica
 
-A imagem deve parecer uma **aquarela editorial contemporânea, gráfica e contida**, não uma pintura aquarelada detalhista.
+A imagem deve parecer uma **pintura em aquarela editorial contemporânea, gráfica e contida**, não uma aquarela hiper detalhista ou fotográfica.
 
 Características obrigatórias:
 
@@ -125,6 +136,9 @@ Evite explicitamente:
 - neon;
 - render 3D;
 - aparência vetorial limpa demais;
+- capa em SVG, vetor flat ou composição feita apenas de formas geométricas;
+- filtros de textura que apenas simulam aquarela sem pintura visível;
+- imagem que só usa a paleta correta, mas não apresenta manchas, pigmento, papel e bordas de aquarela;
 - cartoon;
 - ilustração infantil;
 - line art dominante;
@@ -147,6 +161,7 @@ Antes de pedir a geração da imagem, faça este trabalho fora do prompt:
 4. Identifique de 2 a 4 elementos que receberão marcação preta.
 5. Defina uma relação visual principal: aproximação, sequência, interseção, bloqueio, passagem, espera ou despacho.
 6. Inspecione pelo menos duas capas canônicas e confirme que a nova cena terá densidade e paleta semelhantes.
+7. Confirme que a saída precisa parecer uma pintura em aquarela de fato, e não apenas uma ilustração vetorial com palavras ou filtros de aquarela.
 
 Não envie ao gerador um ensaio explicando o raciocínio. O prompt final deve ser curto, visual e concreto.
 
@@ -155,7 +170,7 @@ Não envie ao gerador um ensaio explicando o raciocínio. O prompt final deve se
 O trecho abaixo deve aparecer **quase literalmente** em todo prompt de capa. Ele é a âncora principal de consistência visual:
 
 ```text
-Wide 2.6:1 editorial banner. Contemporary restrained watercolor on warm off-white textured paper, with large translucent washes, soft irregular edges, simplified realistic people and objects, low-to-medium detail, muted desaturated blue-gray, olive, beige and soft rust palette, diffuse natural daylight, generous negative space, calm modern architectural atmosphere. The scene must read as a single plausible real-world moment, not as an infographic.
+Wide 2.6:1 editorial banner. Contemporary restrained, visibly hand-painted watercolor on warm off-white textured paper, with large translucent washes, soft irregular edges, simplified realistic people and objects, low-to-medium detail, muted desaturated blue-gray, olive, beige and soft rust palette, diffuse natural daylight, generous negative space, calm modern architectural atmosphere. The scene must read as a single plausible real-world moment, not as an infographic.
 
 Overlay exactly 2 to 4 bold hand-drawn black dashed editorial annotations on top of the finished watercolor: large dashed circles or ellipses around the key objects and, only when necessary, one thick dashed arrow connecting them. The black marks must look like an editor drew them later with a broad black pen and must be visually separate from the watercolor.
 
@@ -177,7 +192,7 @@ Key objects to emphasize: [2 A 4 ELEMENTOS].
 
 Editorial annotation: [DIGA QUAIS ELEMENTOS RECEBEM CÍRCULO TRACEJADO E, SE NECESSÁRIO, QUAL ÚNICA RELAÇÃO RECEBE SETA TRACEJADA].
 
-Wide 2.6:1 editorial banner. Contemporary restrained watercolor on warm off-white textured paper, with large translucent washes, soft irregular edges, simplified realistic people and objects, low-to-medium detail, muted desaturated blue-gray, olive, beige and soft rust palette, diffuse natural daylight, generous negative space, calm modern architectural atmosphere. The scene must read as a single plausible real-world moment, not as an infographic.
+Wide 2.6:1 editorial banner. Contemporary restrained, visibly hand-painted watercolor on warm off-white textured paper, with large translucent washes, soft irregular edges, simplified realistic people and objects, low-to-medium detail, muted desaturated blue-gray, olive, beige and soft rust palette, diffuse natural daylight, generous negative space, calm modern architectural atmosphere. The scene must read as a single plausible real-world moment, not as an infographic.
 
 Overlay exactly 2 to 4 bold hand-drawn black dashed editorial annotations on top of the finished watercolor: large dashed circles or ellipses around the key objects and, only when necessary, one thick dashed arrow connecting them. The black marks must look like an editor drew them later with a broad black pen and must be visually separate from the watercolor.
 
@@ -199,7 +214,7 @@ Key objects to emphasize: the older card, the newer card at the reader, and the 
 
 Editorial annotation: one large black dashed circle around the older card, one around the reader/newer card, and one thick dashed curved arrow from the old-card area toward the reader. Add only a few short black emphasis strokes near the reader.
 
-Wide 2.6:1 editorial banner. Contemporary restrained watercolor on warm off-white textured paper, with large translucent washes, soft irregular edges, simplified realistic people and objects, low-to-medium detail, muted desaturated blue-gray, olive, beige and soft rust palette, diffuse natural daylight, generous negative space, calm modern architectural atmosphere. The scene must read as a single plausible real-world moment, not as an infographic.
+Wide 2.6:1 editorial banner. Contemporary restrained, visibly hand-painted watercolor on warm off-white textured paper, with large translucent washes, soft irregular edges, simplified realistic people and objects, low-to-medium detail, muted desaturated blue-gray, olive, beige and soft rust palette, diffuse natural daylight, generous negative space, calm modern architectural atmosphere. The scene must read as a single plausible real-world moment, not as an infographic.
 
 Overlay exactly 2 to 4 bold hand-drawn black dashed editorial annotations on top of the finished watercolor: large dashed circles or ellipses around the key objects and, only when necessary, one thick dashed arrow connecting them. The black marks must look like an editor drew them later with a broad black pen and must be visually separate from the watercolor.
 
@@ -212,6 +227,7 @@ Antes de publicar, rejeite a imagem se qualquer uma destas condições falhar:
 
 - parece uma única cena cotidiana, não um infográfico;
 - a pintura é clara, dessaturada e minimalista;
+- há textura, manchas e variação orgânica de pigmento suficientes para a imagem parecer uma pintura em aquarela;
 - há espaço negativo suficiente;
 - os objetos principais são reconhecíveis sem excesso de detalhe;
 - as marcações pretas são grossas, tracejadas e claramente sobrepostas à pintura;
@@ -219,6 +235,7 @@ Antes de publicar, rejeite a imagem se qualquer uma destas condições falhar:
 - não existe texto legível nem estrutura de painel;
 - a metáfora continua compreensível em tamanho reduzido;
 - a imagem está visualmente próxima das capas canônicas do repositório.
+- a imagem não parece vetor flat, render 3D, fotografia ou uma simulação de aquarela feita apenas por filtro.
 
 Se a primeira geração não cumprir o estilo, **não tente corrigir adicionando mais parágrafos ao prompt**. Faça uma nova tentativa simplificando a cena e reforçando apenas o style anchor e as negativas.
 
@@ -232,9 +249,7 @@ Para geração raster, salve a versão web em:
 
 `assets/<slug>-cover.jpg`
 
-Se for necessário usar uma capa vetorial determinística para preservar o estilo, use:
-
-`assets/<slug>-cover.svg`
+Não use capa vetorial determinística como substituição. Se a geração raster falhar, regenere simplificando a cena ou interrompa a publicação até obter uma pintura em aquarela que cumpra os critérios; não publique um SVG flat apenas porque ele contém filtros, manchas ou transparências.
 
 O campo `image` do artigo deve apontar para o arquivo realmente publicado. Nunca referencie arquivo temporário ou URL externa que possa expirar.
 
@@ -246,6 +261,7 @@ Essas imagens podem ser mais simples que a capa, mas devem manter:
 
 - paleta dessaturada;
 - aquarela editorial contida;
+- aparência visível de pintura em papel, com manchas, pigmento e bordas orgânicas;
 - poucos elementos;
 - marcações pretas somente quando acrescentarem explicação.
 
@@ -294,3 +310,5 @@ Ao alterar a direção visual, atualize nesta ordem:
 4. template e critérios de aceitação.
 
 Prompts específicos de artigos devem acrescentar apenas conceito, cena, momento narrativo e objetos destacados.
+
+A exigência de pintura em aquarela e a separação entre imagens pictóricas e visuais técnicos não pode ser removida sem atualizar também os critérios de aceitação e as validações de publicação.

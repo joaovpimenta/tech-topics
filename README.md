@@ -22,6 +22,8 @@ The site is a static multi-article archive. Each article lives in `content/artic
 
 Every article JSON must include `slug`, `language`, `title`, `category`, `date`, `publishedAt` (ISO `YYYY-MM-DD`), `read`, `image`, `alt`, `dek`, `excerpt` and `bodyHtml`. The `image` path must point to a committed local cover generated for that article. Use a unique URL-safe slug and never overwrite an existing article when adding a new topic. Articles are ordered newest first during the build.
 
+Every cover must be a visibly painted editorial watercolor on textured paper, following `docs/VISUAL_STYLE.md`. Use `assets/<slug>-cover.jpg` for covers; SVG, HTML and CSS are reserved for precise diagrams and charts, not substitutes for a watercolor cover.
+
 ## Local preview
 
 ```bash

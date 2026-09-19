@@ -26,6 +26,9 @@ Confirme, no mínimo:
 - ausência de `<script>`, handlers inline e URLs `javascript:` no conteúdo;
 - marcação de idioma conforme `docs/TTS.md`;
 - ausência de referências a arquivos temporários ou URLs de download expirável.
+- cada campo `image` aponta para `assets/<slug>-cover.jpg`, sem capa SVG;
+- cada capa e ilustração conceitual foi revisada como pintura em aquarela editorial visível, e não apenas como vetor ou filtro que simula aquarela;
+- o mapeamento entre artigo, slug e capa é um-para-um, sem deixar a capa de um artigo apontar para outra cena.
 
 Execute também:
 
@@ -63,6 +66,7 @@ Antes de publicar, revise o diff e confirme que:
 - nenhum asset anterior foi modificado ou removido sem necessidade;
 - apenas arquivos esperados fazem parte da mudança;
 - arquivos gerados correspondem ao estado atual do conteúdo.
+- nenhuma capa nova foi publicada sem passar pelo critério permanente de aquarela de `docs/VISUAL_STYLE.md`.
 
 ## Publicação
 
