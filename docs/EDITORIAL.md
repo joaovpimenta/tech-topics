@@ -63,6 +63,21 @@ Termine com:
 
 Não prometa simuladores, gráficos, exemplos ou recursos que não estejam realmente presentes.
 
+## Primeiro parágrafo obrigatório: diálogo-metáfora
+
+Todo artigo novo deve começar, dentro do campo bodyHtml, com um único parágrafo introdutório em formato de diálogo-metáfora. Esse parágrafo é obrigatório e deve seguir estas regras:
+
+- apresente uma situação cotidiana, física e observável que funcione como alegoria para o conceito técnico;
+- escreva como uma conversa curta, com pelo menos duas falas ou turnos de interlocução, usando aspas ou identificadores de fala;
+- não use travessão para marcar as falas;
+- não há uma abertura fixa: “Sabe quando” pode ser usado, mas não é obrigatório;
+- depois da cena, conecte explicitamente a situação ao conceito do artigo e antecipe o problema que será explicado;
+- preserve nomes técnicos consagrados em inglês quando essa for a forma correta, sem traduzi-los artificialmente, como em “Four Golden Signals”;
+- mantenha a abertura em um único elemento <p>, antes de qualquer outro parágrafo, heading, figura ou bloco técnico;
+- evite começar com uma definição abstrata, uma lista de termos ou uma descrição genérica do tema.
+
+A metáfora deve ser específica o suficiente para orientar também a capa. Depois de escrever o primeiro parágrafo, extraia dele o cenário físico, os personagens ou objetos, a ação central e a relação visual que precisam aparecer no banner. Se a cena não puder ser representada visualmente, reescreva o parágrafo antes de gerar a imagem.
+
 ## Composição visual
 
 Os artigos devem ser visualmente ricos quando isso melhorar a compreensão. Planeje os visuais junto com o texto e prefira recursos que expliquem relações difíceis de entender somente por prosa.
