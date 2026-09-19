@@ -1,0 +1,72 @@
+name: Assemble article covers
+
+on:
+  push:
+    branches:
+      - publish-cover-refresh-20260919
+    paths:
+      - .tmp-covers/READY
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+
+      - name: Assemble generated covers
+        shell: bash
+        run: |
+          set -euo pipefail
+          declare -A SHA
+          SHA[four-golden-signals]=936aa528a49eb072519578d35b0aef8237f760e6eb126e29227cdbeaed2c2f5f
+          SHA[hashing-consistente]=acf3e46298386644126887a73abcc2bfa07a697794d361bbedd16019861eb7af
+          SHA[leases-e-fencing-tokens]=bfa777d279785919efaae779ae485d6caa2d1a2374fdc87e006c33e25e24c5c4
+          SHA[quoruns-de-leitura-e-escrita]=def4d7556dfbcf48b76a12986608fc10773ebdc1d778b9d82dd9ba7482786d1d
+          SHA[retries-backoff-jitter]=ae89865e59c69289d0b0cf5097a9f9697a04c2891c2181ff49d9530e21cef4be
+          SHA[transactional-outbox]=c769ad76926cde3d7459b62594bd19727a6550192593cb3713b3d9a291af690f
+
+          for slug in \
+            four-golden-signals \
+            hashing-consistente \
+            retries-backoff-jitter \
+            quoruns-de-leitura-e-escrita \
+            leases-e-fencing-tokens \
+            transactional-outbox
+          do
+            cat .tmp-covers/${slug}.part* | base64 --decode > assets/${slug}-cover.jpg
+            echo "${SHA[$slug]}  assets/${slug}-cover.jpg" | sha256sum --check
+          done
+
+          python - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          slugs = {
+              'four-golden-signals',
+              'hashing-consistente',
+              'retries-backoff-jitter',
+              'quoruns-de-leitura-e-escrita',
+              'leases-e-fencing-tokens',
+              'transactional-outbox',
+          }
+          for slug in slugs:
+              path = Path('assets') / f'{slug}-cover.jpg'
+              with Image.open(path) as im:
+                  assert im.size == (1040, 400), (path, im.size)
+                  assert im.format == 'JPEG', (path, im.format)
+          PY
+
+      - name: Commit covers
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp-covers
+          rm .github/workflows/assemble-covers-20260919.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets content/articles .tmp-covers .github/workflows/assemble-covers-20260919.yml
+          git commit -m "Refresh article cover artwork"
+          git push origin HEAD:publish-cover-refresh-20260919
