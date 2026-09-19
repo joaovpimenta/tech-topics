@@ -153,18 +153,22 @@ Também evite “aquarela” com excesso de pinceladas, flores, manchas dramáti
 
 ## Processo obrigatório antes do prompt
 
+A capa deve representar a cena do primeiro parágrafo introdutório do artigo. O parágrafo é a fonte narrativa da imagem; o título, o dek e o nome do conceito não podem substituí-lo.
+
 Antes de pedir a geração da imagem, faça este trabalho fora do prompt:
 
-1. Resuma o mecanismo técnico em uma frase.
-2. Escolha uma alegoria física simples.
-3. Defina um único instante observável da cena.
-4. Identifique de 2 a 4 elementos que receberão marcação preta.
-5. Defina uma relação visual principal: aproximação, sequência, interseção, bloqueio, passagem, espera ou despacho.
-6. Inspecione pelo menos duas capas canônicas e confirme que a nova cena terá densidade e paleta semelhantes.
-7. Confirme que a saída precisa parecer uma pintura em aquarela de fato, e não apenas uma ilustração vetorial com palavras ou filtros de aquarela.
+1. Leia o primeiro parágrafo final do artigo e trate-o como a narrativa canônica da capa.
+2. Extraia da abertura o cenário físico, os personagens ou objetos, a ação central e o problema visível.
+3. Confirme que a abertura contém uma metáfora concreta que pode ser mostrada em uma única cena.
+4. Resuma o mecanismo técnico em uma frase, sem trocar a alegoria escolhida por outra.
+5. Defina um único instante observável em que a relação descrita no parágrafo fique clara.
+6. Identifique de 2 a 4 elementos da própria cena que receberão marcação preta.
+7. Defina uma relação visual principal: aproximação, sequência, interseção, bloqueio, passagem, espera ou despacho.
+8. Inspecione pelo menos duas capas canônicas e confirme que a nova cena terá densidade e paleta semelhantes.
+9. Confirme que a saída precisa parecer uma pintura em aquarela de fato, e não apenas uma ilustração vetorial com palavras ou filtros de aquarela.
+10. Se o banner representar outra metáfora, um símbolo genérico ou uma cena que não aparece na abertura, volte ao texto e corrija a composição antes de gerar a imagem.
 
 Não envie ao gerador um ensaio explicando o raciocínio. O prompt final deve ser curto, visual e concreto.
-
 ## Style anchor obrigatório
 
 O trecho abaixo deve aparecer **quase literalmente** em todo prompt de capa. Ele é a âncora principal de consistência visual:
@@ -184,7 +188,9 @@ Use este formato. Mantenha-o conciso.
 ```text
 Create one wide editorial cover image for an article about [CONCEITO].
 
-Scene: [UMA ÚNICA CENA FÍSICA E CONTEMPORÂNEA, EM 1–3 FRASES].
+Opening paragraph source: [RESUMA A CENA E A TENSÃO DO PRIMEIRO PARÁGRAFO; NÃO INVENTE OUTRA METÁFORA].
+
+Scene: [REPRESENTE FIELMENTE ESSA CENA FÍSICA EM 1–3 FRASES].
 
 Narrative moment: [O INSTANTE EXATO EM QUE A RELAÇÃO ENTRE OS ELEMENTOS É VISÍVEL].
 
@@ -234,6 +240,8 @@ Antes de publicar, rejeite a imagem se qualquer uma destas condições falhar:
 - existem no máximo 2 a 4 highlights importantes;
 - não existe texto legível nem estrutura de painel;
 - a metáfora continua compreensível em tamanho reduzido;
+- a cena, os objetos e a relação principal correspondem ao primeiro parágrafo do artigo;
+- a capa representa a metáfora da abertura, e não uma ilustração genérica do título ou do conceito;
 - a imagem está visualmente próxima das capas canônicas do repositório.
 - a imagem não parece vetor flat, render 3D, fotografia ou uma simulação de aquarela feita apenas por filtro.
 
@@ -309,6 +317,6 @@ Ao alterar a direção visual, atualize nesta ordem:
 3. `Style anchor obrigatório`;
 4. template e critérios de aceitação.
 
-Prompts específicos de artigos devem acrescentar apenas conceito, cena, momento narrativo e objetos destacados.
+Prompts específicos de artigos devem derivar a cena, o momento narrativo e os objetos destacados do primeiro parágrafo; o banner não pode introduzir uma metáfora diferente.
 
 A exigência de pintura em aquarela e a separação entre imagens pictóricas e visuais técnicos não pode ser removida sem atualizar também os critérios de aceitação e as validações de publicação.
