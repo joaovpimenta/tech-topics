@@ -6,7 +6,7 @@
   "date": "18 de setembro de 2026",
   "publishedAt": "2026-09-18",
   "read": "24 min de leitura",
-  "image": "assets/github-governance-as-code-cover.svg",
+  "image": "assets/github-governance-as-code-cover.jpg",
   "alt": "Cena editorial em aquarela com uma mesa central distribuindo pastas padronizadas para estações de trabalho, representando governança central aplicada a vários repositórios.",
   "dek": "Como transformar Issues, Projects, templates e Actions em um sistema de gestão multi-repositório que converge para padrões sem depender de manutenção manual.",
   "excerpt": "Um guia para governança como código no GitHub: taxonomia, Issue Forms, reusable workflows, reconciler, Projects, dependências, retrofit histórico e enforcement progressivo.",
