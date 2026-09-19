@@ -50,6 +50,10 @@ Não use SVG, HTML ou CSS como capa. Esses formatos ficam reservados a diagramas
 
 Use a data real da execução. Não use rótulos permanentes como “hoje”.
 
+### Primeiro parágrafo introdutório
+
+O campo bodyHtml deve começar com exatamente um elemento <p> que funcione como diálogo-metáfora. Ele deve apresentar uma cena cotidiana e observável em pelo menos dois turnos de conversa, conectar a situação ao conceito técnico e servir como fonte narrativa para a capa do artigo. Não use travessão para marcar falas; aspas ou identificadores curtos de fala são permitidos. A expressão “Sabe quando” é opcional. Preserve nomes técnicos consagrados em inglês quando necessário.
+
 As classes compartilhadas disponíveis incluem `signal-grid`, `signal-card`, `article-callout`, `code-block` e `article-back`.
 
 Não altere manualmente `content/articles/index.json`. Não insira o novo artigo como conteúdo fixo em `index.html`, `app.js` ou `article.html`.
