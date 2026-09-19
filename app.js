@@ -9,23 +9,23 @@ const normalize = text => String(text || "").normalize("NFD").replace(/[\u0300-\
 
 const coverOverrides = {
   "retries-backoff-jitter": {
-    src: "assets/retries-backoff-jitter-cover.svg",
+    src: "assets/retries-backoff-jitter-cover.jpg",
     alt: "Três entregadores aparecem em tentativas sucessivas e cada vez mais espaçadas diante de uma porta de acesso; círculos e uma seta tracejados destacam a sequência."
   },
   "quoruns-de-leitura-e-escrita": {
-    src: "assets/quoruns-de-leitura-e-escrita-cover.svg",
+    src: "assets/quoruns-de-leitura-e-escrita-cover.jpg",
     alt: "Cinco caixas de arquivo sobre uma mesa; dois conjuntos tracejados se sobrepõem na caixa central, destacada como ponto comum entre os grupos."
   },
   "leases-e-fencing-tokens": {
-    src: "assets/leases-e-fencing-tokens-cover.svg",
+    src: "assets/leases-e-fencing-tokens-cover.jpg",
     alt: "Duas pessoas com credenciais de gerações diferentes diante de um controle de acesso; a credencial mais recente é destacada no leitor enquanto a antiga fica atrás."
   },
   "transactional-outbox": {
-    src: "assets/transactional-outbox-cover.svg",
+    src: "assets/transactional-outbox-cover.jpg",
     alt: "Uma pessoa registra um pacote em uma bandeja protegida antes de um mensageiro seguir até um veículo; marcações tracejadas destacam o pacote, a caixa de saída e o caminho de entrega."
   },
   "four-golden-signals": {
-    src: "assets/four-golden-signals-cover.svg",
+    src: "assets/four-golden-signals-cover.jpg",
     alt: "Fila de pessoas diante de um balcão, um pacote com problema e uma estante cheia; quatro marcações tracejadas destacam demanda, espera, falha e saturação."
   }
 };
