@@ -27,13 +27,7 @@ Every cover must be a visibly painted editorial watercolor on textured paper, fo
 ## Local preview
 
 ```bash
-node scripts/build-articles.mjs
-node scripts/lint-articles.mjs
-node --check app.js
-node --check article.js
-node scripts/test-pwa.cjs
-node scripts/test-fgs.cjs
-node scripts/test-diagrams.cjs
+node scripts/validate-site.mjs
 python3 -m http.server 4173
 ```
 
@@ -41,3 +35,6 @@ Then open `http://localhost:4173`.
 
 
 A validação determinística dos artigos roda localmente e na GitHub Action de Pull Requests. Ela cobre o contrato JSON, a estrutura da abertura, segurança do HTML, assets, Mermaid, tabelas roláveis e regras básicas de responsividade.
+
+
+`node scripts/validate-site.mjs` é o comando único usado localmente, na validação de Pull Requests e antes do deploy. Ele evita que os workflows mantenham listas diferentes de verificações.

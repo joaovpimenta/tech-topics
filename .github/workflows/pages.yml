@@ -7,8 +7,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -18,6 +16,8 @@ jobs:
   validate:
     name: Validate before deploy
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Check out Tech Topics
         uses: actions/checkout@v4
@@ -27,45 +27,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Build article manifest
-        run: node scripts/build-articles.mjs
-      - name: Run deterministic content lint
-        run: node scripts/lint-articles.mjs
-      - name: Check JavaScript syntax
-        run: |
-          node --check app.js
-          node --check article.js
-          node --check fgs-simulator.js
-          node --check mermaid-theme.js
-      - name: Run application tests
-        run: |
-          node scripts/test-pwa.cjs
-          node scripts/test-fgs.cjs
-          node scripts/test-diagrams.cjs
+      - name: Run all validation gates
+        run: node scripts/validate-site.mjs
+      - name: Upload validated site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
   deploy:
     name: Deploy GitHub Pages
     needs: validate
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Check out Tech Topics
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Rebuild generated site data
-        run: node scripts/build-articles.mjs
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-      - name: Upload site artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-      - name: Deploy to GitHub Pages
+      - name: Deploy validated artifact to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

@@ -117,3 +117,10 @@ Antes de publicar, execute também `node scripts/test-diagrams.cjs`. A verifica�
 A workflow `Validate Tech Topics` executa em Pull Requests e em pushes para `main`. Ela roda o build, o lint determinístico, a verificação de sintaxe JavaScript e os testes funcionais antes que a publicação seja considerada válida. A workflow de Pages possui uma etapa de validação equivalente e só executa o deploy depois que ela passa.
 
 O lint automatiza regras estruturais e de segurança. Rigor factual, qualidade da metáfora, correspondência entre abertura e capa e aparência de aquarela continuam sendo critérios editoriais que precisam de revisão humana ou visual.
+
+
+## Comando único de validação
+
+Execute `node scripts/validate-site.mjs` para rodar o build, o lint editorial determinístico, as verificações de sintaxe JavaScript e os testes funcionais em uma única sequência. A mesma sequência é usada pelas workflows de Pull Request e de GitHub Pages.
+
+O workflow de Pages publica o artefato gerado e validado pelo job anterior, sem reconstruí-lo durante o deploy.

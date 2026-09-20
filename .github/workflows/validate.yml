@@ -1,18 +1,7 @@
 name: Validate Tech Topics
 
 on:
-  pull_request:
-    paths:
-      - "**.html"
-      - "**.css"
-      - "**.js"
-      - "**.mjs"
-      - "**.cjs"
-      - "**.json"
-      - "docs/**"
-      - ".github/workflows/**"
-  push:
-    branches: ["main"]
+  pull_request: {}
   workflow_dispatch:
 
 permissions:
@@ -35,18 +24,5 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Build article manifest
-        run: node scripts/build-articles.mjs
-      - name: Run deterministic content lint
-        run: node scripts/lint-articles.mjs
-      - name: Check JavaScript syntax
-        run: |
-          node --check app.js
-          node --check article.js
-          node --check fgs-simulator.js
-          node --check mermaid-theme.js
-      - name: Run application tests
-        run: |
-          node scripts/test-pwa.cjs
-          node scripts/test-fgs.cjs
-          node scripts/test-diagrams.cjs
+      - name: Run all validation gates
+        run: node scripts/validate-site.mjs
