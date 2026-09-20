@@ -24,6 +24,7 @@ Confirme, no mínimo:
 - os assets específicos de cada artigo ficam em `assets/<slug>/`; a raiz `assets/` contém apenas recursos compartilhados;
 - validade dos JSONs;
 - funcionamento dos links externos relevantes;
+- tabelas largas envolvidas em contêineres próprios de rolagem horizontal, sem overflow horizontal no documento;
 - ausência de `<script>`, handlers inline e URLs `javascript:` no conteúdo;
 - marcação de idioma conforme `docs/TTS.md`;
 - ausência de referências a arquivos temporários ou URLs de download expirável.
@@ -54,6 +55,7 @@ Verifique em desktop e celular:
 - gráficos corretos;
 - ausência de conteúdo cortado;
 - responsividade;
+- em telas pequenas, a página não cria scroll horizontal; apenas tabelas, código, fórmulas e diagramas largos podem rolar dentro do próprio componente;
 - texto alternativo e legendas apropriados;
 - página exibindo o artigo solicitado, não um fallback.
 
