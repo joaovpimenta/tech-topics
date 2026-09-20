@@ -33,3 +33,8 @@ Esses documentos são a fonte de verdade para geração e publicação de conte�
 - Trate o repositório como fonte de verdade para formato, build, validação e publicação.
 - Antes de concluir, execute as verificações obrigatórias definidas em `docs/PUBLISHING.md`.
 - Uma tarefa só está concluída quando as validações obrigatórias passaram e o estado da publicação foi verificado.
+
+
+## Validação automatizada
+
+A qualidade estrutural dos artigos é validada por `scripts/lint-articles.mjs` e pelos testes do projeto. A workflow `Validate Tech Topics` roda em Pull Requests e na `main`; não considere um artigo pronto enquanto essa validação não passar. Regras subjetivas, como rigor factual, qualidade da metáfora e aparência de aquarela, continuam exigindo revisão editorial ou visual humana.
