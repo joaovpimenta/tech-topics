@@ -32,7 +32,7 @@ for (const file of articleFiles) {
   if (article.bodyHtml.includes("<svg") || article.bodyHtml.includes(".svg")) failures.push(`${file}: SVG visual reference remains`);
   const diagrams = article.bodyHtml.split('data-mermaid="true"').length - 1;
   const sources = article.bodyHtml.split('class="mermaid-source"').length - 1;
-  const tables = article.bodyHtml.match(/<table\\b/g)?.length || 0;
+  const tables = article.bodyHtml.match(/<table\b/g)?.length || 0;
   const tableScrollRegions = article.bodyHtml.match(/class="(?:article-table-scroll|fgs-table-scroll)"/g)?.length || 0;
   if (!diagrams || diagrams !== sources) failures.push(`${file}: Mermaid source/fallback count mismatch`);
   if (tables !== tableScrollRegions) failures.push(`${file}: tables must use a local horizontal-scroll container`);
