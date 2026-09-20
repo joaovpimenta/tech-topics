@@ -5,7 +5,11 @@ const article = JSON.parse(fs.readFileSync("content/articles/four-golden-signals
 assert.equal(article.slug, "four-golden-signals");
 assert.equal(article.publishedAt, "2026-09-12");
 assert(fs.existsSync(article.image));
-assert.equal((article.bodyHtml.match(/<figure>/g) || []).length, 3);
+assert.equal((article.bodyHtml.match(/<figure\b/g) || []).length, 3);
+assert.equal((article.bodyHtml.match(/data-mermaid="true"/g) || []).length, 3);
+assert.equal((article.bodyHtml.match(/class="mermaid-source"/g) || []).length, 3);
+assert(!article.bodyHtml.includes("<svg"));
+assert(!article.bodyHtml.includes(".svg"));
 assert(!article.bodyHtml.includes("<script"));
 const ids = [...article.bodyHtml.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
 assert.equal(ids.length, new Set(ids).size);
@@ -22,4 +26,4 @@ for (const [arrival, expected] of [[50, "20 ms"], [90, "100 ms"], [95, "200 ms"]
 vm.runInNewContext(fs.readFileSync("fgs-simulator.js", "utf8"), { Intl, document: { querySelector() { return null; }, addEventListener() {} } });
 assert.equal((90 * 100 + 10 * 1500) / 100, 240);
 assert.equal(12 + 20 - 5, 27);
-console.log("PASS: FGS structure, anchors, visual IDs, simulator values and no-op on other articles.");
+console.log("PASS: FGS structure, Mermaid diagrams, anchors, simulator values and no-op on other articles.");
