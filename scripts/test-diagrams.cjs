@@ -45,7 +45,7 @@ if (failures.length) {
   process.exit(1);
 }
 console.log(`Validated ${total} Mermaid diagram(s) and removed technical SVG references.`);
-
+}
 
 main().catch(error => {
   console.error(error);
