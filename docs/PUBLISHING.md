@@ -93,3 +93,16 @@ Ao concluir uma publicação de artigo, informe brevemente:
 - limitações relevantes;
 - SHA do commit;
 - status do deploy.
+
+
+## Validação de diagramas Mermaid
+
+Antes de publicar, execute também `node scripts/test-diagrams.cjs`. A verificação deve confirmar que:
+
+- todo artigo tem pelo menos um diagrama Mermaid quando houver visual técnico;
+- não há `<svg>` inline nem referência a `.svg` no `bodyHtml`;
+- cada diagrama tem fonte Mermaid e fallback correspondente;
+- não há SVG técnico em `assets/<slug>/`;
+- o carregador compartilhado inclui `mermaid-theme.js`;
+- capas JPG, favicon e ícones continuam referenciados corretamente.
+

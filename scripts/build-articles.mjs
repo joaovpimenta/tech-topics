@@ -22,6 +22,8 @@ for (const file of files) {
   const required = ["slug", "title", "category", "date", "publishedAt", "read", "image", "excerpt", "bodyHtml"];
   const missing = required.filter(field => !article[field]);
   if (missing.length) throw new Error(`${file}: missing ${missing.join(", ")}`);
+  if (article.bodyHtml.includes("<svg") || article.bodyHtml.includes(".svg")) throw new Error(`${file}: technical visuals must use Mermaid, not SVG`);
+  if (!article.bodyHtml.includes('data-mermaid="true"')) throw new Error(`${file}: expected at least one Mermaid diagram`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(article.publishedAt) || Number.isNaN(Date.parse(article.publishedAt)) || new Date(article.publishedAt).toISOString().slice(0, 10) !== article.publishedAt) {
     throw new Error(`${file}: publishedAt must be a valid ISO YYYY-MM-DD date`);
   }
@@ -45,7 +47,7 @@ console.log(`Built article manifest with ${manifest.length} article(s).`);
 
 // Regenerate the imported worker version on every content or application change.
 // Relative URLs keep the PWA inside the GitHub Pages repository subdirectory.
-const precacheFiles = ["index.html", "article.html", "styles.css", "app.js", "article.js", "fgs-simulator.js", "pwa.js", "manifest.webmanifest", "favicon.svg",
+const precacheFiles = ["index.html", "article.html", "styles.css", "app.js", "article.js", "mermaid-theme.js", "fgs-simulator.js", "pwa.js", "manifest.webmanifest", "favicon.svg",
   "assets/app-icon.svg", "assets/app-icon-180.png", "assets/app-icon-192.png", "assets/app-icon-512.png",
   "content/articles/index.json", ...manifest.map(entry => entry.path), ...covers].sort();
 const hash = createHash("sha256");

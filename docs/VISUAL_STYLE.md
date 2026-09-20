@@ -1,5 +1,7 @@
 # Direção visual do Tech Topics
 
+Capas e ilustrações conceituais seguem a linguagem pictórica abaixo. Diagramas técnicos seguem a seção Mermaid mais adiante.
+
 Este documento é a fonte de verdade para capas e ilustrações conceituais do Tech Topics.
 
 A regra abaixo é permanente e não pode ser relaxada por tema, formato ou urgência: toda capa e toda ilustração conceitual deve ser uma pintura em aquarela editorial visível sobre papel texturizado. O style anchor deste documento é obrigatório em todos os prompts de capa. Uma arte vetorial com filtros, transparências ou paleta de aquarela não cumpre o requisito se continuar parecendo vetor flat.
@@ -277,19 +279,32 @@ Essas imagens podem ser mais simples que a capa, mas devem manter:
 
 ## Diagramas, gráficos e fórmulas
 
-Não use geração de imagens para elementos que exigem precisão.
+Diagramas técnicos do Tech Topics devem usar **Mermaid** como fonte e renderização padrão. O tema obrigatório é **Floresta semântica**, com fundo claro, verdes dessaturados, bege para apoio, bordas verde-oliva e contraste suficiente para leitura.
 
-Use SVG, HTML e CSS para:
+Use Mermaid para:
 
-- diagramas de arquitetura;
-- fluxos e sequências;
-- gráficos com eixos;
-- visualizações quantitativas;
-- fórmulas;
+- diagramas de arquitetura e fluxo;
+- sequências e interações;
 - estados e transições;
-- comparações dependentes de valores exatos.
+- entidades e relações;
+- cronogramas, jornadas e timelines;
+- gráficos compatíveis com a sintaxe Mermaid;
+- dependências, requisitos, branches e relações de domínio.
 
-Todo gráfico deve identificar eixos, unidades e legendas quando aplicável. Informe se os dados são reais, calculados ou ilustrativos.
+Regras:
+
+- mantenha o código do diagrama dentro do artigo, em um bloco `mermaid-source`;
+- não crie, gere ou versione SVG para diagramas;
+- não use uma ilustração pictórica para representar dados exatos;
+- mantenha a explicação textual dos valores, unidades, hipóteses e limitações fora do diagrama;
+- use `<figcaption>` para orientar a leitura;
+- forneça `data-mermaid-label` descritivo;
+- preserve o fallback que exibe o código quando a biblioteca não puder ser carregada;
+- prefira relações simples e legíveis a diagramas superlotados;
+- use subgrafos, cores e formas somente quando carregarem semântica;
+- confirme a renderização em desktop e telas estreitas.
+
+SVG continua permitido somente para o favicon e ícones compartilhados já existentes. Nenhum novo SVG técnico deve entrar em `assets/<slug>/`.
 
 ## Acessibilidade
 

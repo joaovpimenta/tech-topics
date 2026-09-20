@@ -37,6 +37,49 @@ const shareButton = document.querySelector("#share-article");
 const shareStatus = document.querySelector("#share-status");
 const speechSupported = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
 
+async function renderMermaidDiagrams() {
+  const containers = [...document.querySelectorAll('[data-mermaid="true"]')];
+  if (!containers.length) return;
+
+  try {
+    const mermaidConfig = window.TechTopicsMermaid;
+    if (!mermaidConfig) throw new Error("Configuração Mermaid indisponível");
+    const module = await import(mermaidConfig.moduleUrl);
+    const mermaid = module.default;
+    mermaid.initialize(mermaidConfig.config);
+
+    for (const [index, container] of containers.entries()) {
+      const source = container.querySelector(".mermaid-source");
+      const code = source?.textContent?.trim();
+      if (!code) continue;
+      try {
+        const rendered = await mermaid.render(`techTopicsDiagram${Date.now()}${index}`, code);
+        const wrapper = document.createElement("div");
+        wrapper.innerHTML = rendered.svg;
+        const svg = wrapper.querySelector("svg");
+        if (!svg) throw new Error("Mermaid não retornou SVG");
+        svg.setAttribute("role", "img");
+        svg.setAttribute("aria-label", container.dataset.mermaidLabel || "Diagrama técnico");
+        container.replaceChildren(svg);
+      } catch (error) {
+        container.classList.add("mermaid-error");
+        const message = document.createElement("p");
+        message.className = "mermaid-error-message";
+        message.textContent = "Não foi possível renderizar este diagrama agora. O código permanece disponível abaixo.";
+        container.append(message);
+      }
+    }
+  } catch (error) {
+    containers.forEach(container => {
+      container.classList.add("mermaid-error");
+      const message = document.createElement("p");
+      message.className = "mermaid-error-message";
+      message.textContent = "Mermaid não está disponível. O código permanece disponível abaixo.";
+      container.append(message);
+    });
+  }
+}
+
 let speechQueue = [];
 let speechIndex = 0;
 let speechState = "idle";
@@ -275,7 +318,7 @@ window.addEventListener("pagehide", () => {
   if (speechSupported) stopSpeech();
 });
 
-function showArticle(article) {
+async function showArticle(article) {
   document.documentElement.lang = article.language || "pt-BR";
   document.title = `${article.title} — Tech Topics`;
   document.querySelector("#article-description").content = article.excerpt;
@@ -293,6 +336,7 @@ function showArticle(article) {
   image.alt = cover.alt;
   document.querySelector(".article-hero").hidden = false;
   document.querySelector("#article-body").innerHTML = article.bodyHtml;
+  await renderMermaidDiagrams();
   setupSpeechControls();
   setupShareControls(article);
   document.dispatchEvent(new Event("tech-topics:article-ready"));
@@ -307,7 +351,7 @@ async function loadArticle() {
     if (!entry) throw new Error("Artigo não encontrado");
     const articleResponse = await fetch(entry.path, { cache: "no-store" });
     if (!articleResponse.ok) throw new Error("Artigo indisponível");
-    showArticle(await articleResponse.json());
+    await showArticle(await articleResponse.json());
   } catch (error) {
     document.querySelector("#article-category").textContent = "Arquivo";
     document.querySelector("#article-heading").textContent = "Artigo indisponível";

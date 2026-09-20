@@ -88,6 +88,11 @@ Toda a direção de estilo para capas e ilustrações conceituais, incluindo o t
 
 A aquarela editorial é um requisito permanente, não um adjetivo opcional do prompt: toda capa e toda ilustração conceitual deve parecer uma pintura real em aquarela sobre papel texturizado. Paleta suave, filtros de textura, transparências ou um arquivo SVG não são suficientes se o resultado parecer vetor flat, formas geométricas ou composição digital limpa. Rejeite e regenere qualquer imagem que não preserve essa aparência.
 
-SVG, HTML e CSS continuam permitidos para diagramas, gráficos, fórmulas e outros visuais de precisão; essa exceção não se aplica a capas nem a ilustrações conceituais.
+Mermaid é o padrão para diagramas, fluxos, sequências, estados, relações e gráficos técnicos compatíveis. Não crie nem versione SVG para diagramas. HTML e CSS continuam permitidos para fórmulas, simuladores e interfaces de apoio; SVG fica reservado ao favicon e aos ícones compartilhados.
 
 Diagramas, gráficos, fórmulas e outros elementos que exigem precisão também devem obedecer às regras técnicas e de acessibilidade definidas em `docs/VISUAL_STYLE.md` e `docs/ARTICLE_FORMAT.md`.
+
+
+## Padrão técnico para diagramas
+
+Todo visual técnico novo deve começar como código Mermaid dentro do `bodyHtml`, usar o tema **Floresta semântica** e conter legenda, descrição acessível e fallback do código. Antes de publicar, confirme que não há referência a SVG de diagrama, que o fluxo ou dado essencial também está explicado em texto e que o diagrama permanece legível em telas pequenas.

@@ -122,3 +122,48 @@ a:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }
+
+.mermaid-figure { margin: 32px 0; }
+.mermaid-diagram {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  overflow-x: auto;
+  border: 1px solid #c7d8cf;
+  border-radius: 6px;
+  padding: 20px;
+  background: #f5f8f6;
+}
+.mermaid-diagram svg {
+  display: block;
+  width: min(100%, 900px);
+  min-width: 540px;
+  height: auto;
+  margin: 0 auto;
+}
+.mermaid-source {
+  width: 100%;
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  color: #173b32;
+  font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.mermaid-fallback {
+  margin-top: 10px;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 13px;
+}
+.mermaid-fallback summary { cursor: pointer; }
+.mermaid-error {
+  display: block;
+  border-color: #b56d4f;
+  background: #fff7f2;
+}
+.mermaid-error-message {
+  margin: 0 0 12px;
+  color: #8b4423;
+  font-family: var(--sans);
+  font-size: 14px;
+}

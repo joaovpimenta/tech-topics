@@ -21,7 +21,7 @@ Esses documentos são a fonte de verdade para geração e publicação de conte�
 - O conteúdo deve ser tecnicamente rigoroso, didático e fundamentado em fontes confiáveis.
 - Antes de gerar capas ou ilustrações conceituais, siga `docs/VISUAL_STYLE.md`.
 - Toda capa e toda ilustração conceitual deve ser uma pintura em aquarela editorial visível, seguindo integralmente o style anchor de `docs/VISUAL_STYLE.md`. Essa é uma regra permanente: o formato do arquivo, filtros ou formas planas não transformam uma arte vetorial em aquarela.
-- Use JPG raster para capas e ilustrações conceituais. Reserve SVG, HTML e CSS para diagramas, gráficos, fórmulas e outros visuais que exigem precisão, conforme `docs/VISUAL_STYLE.md`.
+- Use JPG raster para capas e ilustrações conceituais. Use blocos Mermaid para diagramas técnicos e gráficos estruturais. Reserve SVG para favicon e ícones compartilhados; não crie ou versione SVGs de diagramas.
 - Siga as regras de acessibilidade, composição visual e text-to-speech documentadas.
 - Não declare recursos, interações, imagens, simuladores ou arquivos que não existam de fato.
 - Não altere o carregador compartilhado ou a arquitetura comum do site sem instrução explícita quando a tarefa for apenas criar um artigo.

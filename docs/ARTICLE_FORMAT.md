@@ -6,16 +6,41 @@ O site renderiza o campo `bodyHtml` dos artigos como HTML.
 
 Scripts inseridos nesse campo não são executados. Portanto:
 
-- use SVG, imagens e gráficos estáticos diretamente no conteúdo;
-- utilize elementos nativos como `<details>` para interações simples;
-- não insira `<script>`;
+- use a estrutura `<figure class="mermaid-figure">` com `data-mermaid="true"` para diagramas;
+- mantenha o código-fonte dentro de `<pre class="mermaid-source">`;
+- use Mermaid para fluxos, sequências, estados, relações, cronogramas e gráficos compatíveis;
+- não crie nem versione SVG para diagramas técnicos;
+- não insira `<script>` no `bodyHtml`;
 - não use handlers inline como `onclick`;
 - não use URLs `javascript:`;
-- não dependa de Mermaid, MathJax ou bibliotecas que não estejam instaladas;
-- apresente simulações em estados ou etapas estáticas quando não houver suporte interativo;
-- não anuncie interatividade sem testar seu funcionamento.
+- mantenha uma legenda e uma descrição acessível para cada visual;
+- preserve um fallback que permita consultar o código Mermaid quando a biblioteca não estiver disponível.
+
 
 Se uma simulação exigir JavaScript adicional e o projeto não tiver suporte apropriado, registre a limitação. Não altere o carregador compartilhado apenas para acomodar um artigo sem instrução explícita.
+
+## Diagramas Mermaid
+
+Diagramas técnicos devem ser escritos como Mermaid e renderizados pelo carregador compartilhado do artigo. O tema obrigatório é **Floresta semântica**, definido em `mermaid-theme.js`.
+
+Estrutura mínima:
+
+```html
+<figure class="mermaid-figure">
+  <div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Descrição acessível">
+    <pre class="mermaid-source">flowchart LR
+  A[Origem] --> B[Destino]</pre>
+  </div>
+  <figcaption>Explique o que o leitor deve observar.</figcaption>
+  <details class="mermaid-fallback">
+    <summary>Ver o código Mermaid</summary>
+    <pre class="code-block">flowchart LR
+  A[Origem] --> B[Destino]</pre>
+  </details>
+</figure>
+```
+
+Não coloque SVG inline ou caminhos `.svg` no corpo dos artigos. SVG continua reservado aos ícones e ao favicon compartilhados. O diagrama deve ter uma explicação textual equivalente quando carregar informação essencial, e a legenda deve dizer se os valores são reais, calculados ou ilustrativos.
 
 ## Contrato do artigo
 
@@ -79,6 +104,6 @@ Não use essa marcação de forma indiscriminada; ela deve indicar uma mudança 
 
 - Toda imagem relevante deve ter `alt` adequado.
 - Use `<figure>` e `<figcaption>` quando houver legenda ou contexto interpretativo.
-- SVGs e gráficos devem ser legíveis em telas pequenas.
+- Diagramas Mermaid e gráficos devem ser legíveis em telas pequenas, com rolagem horizontal controlada quando necessário.
 - Não dependa apenas de cor para transmitir significado.
 - Quando um visual contiver informação essencial, forneça também uma explicação textual equivalente.
