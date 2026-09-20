@@ -1,22 +1,30 @@
-name: Build and deploy Tech Topics to GitHub Pages
+name: Validate Tech Topics
 
 on:
+  pull_request:
+    paths:
+      - "**.html"
+      - "**.css"
+      - "**.js"
+      - "**.mjs"
+      - "**.cjs"
+      - "**.json"
+      - "docs/**"
+      - ".github/workflows/**"
   push:
     branches: ["main"]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: validate-\${{ github.workflow }}-\${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   validate:
-    name: Validate before deploy
+    name: Content and application lint
     runs-on: ubuntu-latest
     steps:
       - name: Check out Tech Topics
@@ -42,30 +50,3 @@ jobs:
           node scripts/test-pwa.cjs
           node scripts/test-fgs.cjs
           node scripts/test-diagrams.cjs
-  deploy:
-    name: Deploy GitHub Pages
-    needs: validate
-    environment:
-      name: github-pages
-      url: \${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out Tech Topics
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Rebuild generated site data
-        run: node scripts/build-articles.mjs
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-      - name: Upload site artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4

@@ -97,3 +97,10 @@ Diagramas, gráficos, fórmulas e outros elementos que exigem precisão também 
 ## Padrão técnico para diagramas
 
 Todo visual técnico novo deve começar como código Mermaid dentro do `bodyHtml`, usar o tema **Floresta semântica** e conter legenda, descrição acessível e fallback do código. Antes de publicar, confirme que não há referência a SVG de diagrama, que o fluxo ou dado essencial também está explicado em texto e que o diagrama permanece legível em telas pequenas.
+
+
+## Regras automatizadas
+
+As regras objetivas deste documento devem ser refletidas em `scripts/lint-articles.mjs` e executadas pela workflow de validação. O lint deve bloquear publicação quando houver contrato JSON incompleto, slug inconsistente, capa ausente ou incorreta, asset local inexistente, HTML inseguro, abertura fora do formato, tabela sem rolagem local, diagrama Mermaid sem fallback, referência fragmentada ou URL proibida.
+
+A qualidade da pesquisa, a ausência de repetição semântica, a qualidade da metáfora, a relação entre metáfora e capa e a aparência de pintura em aquarela não são reduzíveis a uma expressão regular confiável; continuam como revisão editorial ou visual explícita.
