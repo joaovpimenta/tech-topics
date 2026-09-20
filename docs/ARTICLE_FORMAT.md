@@ -89,7 +89,7 @@ Use a data real da execução. Não use rótulos permanentes como “hoje”.
 
 ### Primeiro parágrafo introdutório
 
-O campo bodyHtml deve começar com exatamente um elemento <p> que funcione como diálogo-metáfora. Ele deve apresentar uma cena cotidiana e observável em pelo menos dois turnos de conversa, que podem ser representados por uma pergunta curta entre aspas seguida de uma resposta narrativa em prosa. A cena deve conectar o cotidiano ao conceito técnico e servir como fonte narrativa para a capa do artigo. Não use travessão para marcar falas. Use aspas com parcimônia: prefira um único bloco curto de fala e não coloque cada frase, nem a explicação inteira, entre aspas. A expressão “Sabe quando” é opcional. Preserve nomes técnicos consagrados em inglês quando necessário.
+O campo bodyHtml deve começar com exatamente um elemento <p> que funcione como diálogo-metáfora. Ele deve apresentar uma cena cotidiana e observável em uma conversa natural, com uma pergunta, reação ou contraponto incorporado à própria prosa. A cena deve conectar o cotidiano ao conceito técnico e servir como fonte narrativa para a capa do artigo. Não use aspas, travessão ou identificadores para marcar falas: a conversa deve aparecer naturalmente no texto. A expressão “Sabe quando” é opcional. Preserve nomes técnicos consagrados em inglês quando necessário.
 
 As classes compartilhadas disponíveis incluem `signal-grid`, `signal-card`, `article-callout`, `code-block` e `article-back`.
 

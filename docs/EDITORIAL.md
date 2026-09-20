@@ -68,9 +68,8 @@ Não prometa simuladores, gráficos, exemplos ou recursos que não estejam realm
 Todo artigo novo deve começar, dentro do campo bodyHtml, com um único parágrafo introdutório em formato de diálogo-metáfora. Esse parágrafo é obrigatório e deve seguir estas regras:
 
 - apresente uma situação cotidiana, física e observável que funcione como alegoria para o conceito técnico;
-- escreva como uma conversa curta, com pelo menos duas falas ou turnos de interlocução; uma pergunta ou observação pode aparecer entre aspas e a resposta deve seguir em prosa;
-- use aspas com parcimônia, preferindo um único bloco curto de fala; não envolva cada frase nem a explicação inteira do parágrafo em aspas;
-- não use travessão para marcar as falas;
+- escreva como uma conversa curta, com pelo menos dois movimentos de interlocução, incorporando pergunta, reação ou contraponto diretamente à prosa;
+- não use aspas, travessão ou identificadores para marcar as falas; o diálogo deve ser percebido pelo ritmo da situação e pela resposta ao problema apresentado;
 - não há uma abertura fixa: “Sabe quando” pode ser usado, mas não é obrigatório;
 - depois da cena, conecte explicitamente a situação ao conceito do artigo e antecipe o problema que será explicado;
 - preserve nomes técnicos consagrados em inglês quando essa for a forma correta, sem traduzi-los artificialmente, como em “Four Golden Signals”;
