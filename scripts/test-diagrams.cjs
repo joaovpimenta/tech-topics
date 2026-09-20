@@ -1,6 +1,7 @@
 const { readdir, readFile, access } = require("node:fs/promises");
 const path = require("node:path");
 
+async function main() {
 const root = path.resolve(__dirname, "..");
 const articlesDir = path.join(root, "content", "articles");
 const assetsDir = path.join(root, "assets");
@@ -44,3 +45,9 @@ if (failures.length) {
   process.exit(1);
 }
 console.log(`Validated ${total} Mermaid diagram(s) and removed technical SVG references.`);
+
+
+main().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
