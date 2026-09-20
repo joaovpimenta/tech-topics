@@ -21,12 +21,13 @@ Confirme, no mínimo:
 - correspondência entre slug e nome do arquivo;
 - ausência de slugs e tópicos repetidos;
 - existência da capa e de todos os assets locais usados no corpo;
+- os assets específicos de cada artigo ficam em `assets/<slug>/`; a raiz `assets/` contém apenas recursos compartilhados;
 - validade dos JSONs;
 - funcionamento dos links externos relevantes;
 - ausência de `<script>`, handlers inline e URLs `javascript:` no conteúdo;
 - marcação de idioma conforme `docs/TTS.md`;
 - ausência de referências a arquivos temporários ou URLs de download expirável.
-- cada campo `image` aponta para `assets/<slug>-cover.jpg`, sem capa SVG;
+- cada campo `image` aponta para `assets/<slug>/<slug>-cover.jpg`, sem capa SVG;
 - cada capa e ilustração conceitual foi revisada como pintura em aquarela editorial visível, e não apenas como vetor ou filtro que simula aquarela;
 - o mapeamento entre artigo, slug e capa é um-para-um, sem deixar a capa de um artigo apontar para outra cena.
 

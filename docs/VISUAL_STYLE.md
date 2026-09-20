@@ -27,7 +27,7 @@ Para satisfazer esta direção visual, a imagem precisa apresentar sinais visív
 
 Esta regra vale para todas as capas e ilustrações conceituais, mesmo quando o arquivo final for produzido por uma ferramenta diferente ou quando o assunto for técnico. O formato do arquivo não define o estilo: um SVG com filtros de ruído, gradientes ou opacidade continua sendo uma arte vetorial se não houver aparência pictórica convincente.
 
-Use `assets/<slug>-cover.jpg` para capas. Não publique uma capa em SVG, HTML ou CSS. Esses formatos são permitidos somente para diagramas, gráficos, fórmulas e outros visuais de precisão descritos mais adiante neste documento.
+Use `assets/<slug>/<slug>-cover.jpg` para capas. Não publique uma capa em SVG, HTML ou CSS. Esses formatos são permitidos somente para diagramas, gráficos, fórmulas e outros visuais de precisão descritos mais adiante neste documento.
 
 ## O que caracteriza o estilo
 
@@ -251,11 +251,13 @@ Se duas tentativas continuarem fora da direção, use uma capa determinística b
 
 ## Capas e arquivos
 
+Todos os assets específicos de um artigo devem ficar em `assets/<slug>/`, incluindo a capa JPG, as ilustrações SVG e os experimentos Python. A raiz `assets/` deve conter apenas recursos compartilhados. Capas SVG não são permitidas; SVG continua reservado a diagramas e outros visuais técnicos de precisão.
+
 Cada artigo deve ter uma capa original, sem reaproveitar cenas anteriores.
 
 Para geração raster, salve a versão web em:
 
-`assets/<slug>-cover.jpg`
+`assets/<slug>/<slug>-cover.jpg`
 
 Não use capa vetorial determinística como substituição. Se a geração raster falhar, regenere simplificando a cena ou interrompa a publicação até obter uma pintura em aquarela que cumpra os critérios; não publique um SVG flat apenas porque ele contém filtros, manchas ou transparências.
 

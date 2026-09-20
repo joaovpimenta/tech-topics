@@ -34,7 +34,7 @@ Use este contrato:
   "date": "<data de publicação legível>",
   "publishedAt": "YYYY-MM-DD",
   "read": "<tempo estimado de leitura>",
-  "image": "assets/<slug>-cover.jpg",
+  "image": "assets/<slug>/<slug>-cover.jpg",
   "alt": "<descrição da capa>",
   "dek": "<subtítulo introdutório>",
   "excerpt": "<resumo curto para os cards>",
@@ -44,7 +44,7 @@ Use este contrato:
 
 ### Regra visual da capa
 
-O campo `image` deve apontar sempre para `assets/<slug>-cover.jpg`, uma pintura em aquarela editorial visível sobre papel texturizado, conforme `docs/VISUAL_STYLE.md`. A palavra “aquarela” no prompt ou a aplicação de um filtro não basta: capas com aparência vetorial flat, formas geométricas, 3D ou fotográfica devem ser rejeitadas.
+O campo `image` deve apontar sempre para `assets/<slug>/<slug>-cover.jpg`, uma pintura em aquarela editorial visível sobre papel texturizado, conforme `docs/VISUAL_STYLE.md`. A palavra “aquarela” no prompt ou a aplicação de um filtro não basta: capas com aparência vetorial flat, formas geométricas, 3D ou fotográfica devem ser rejeitadas.
 
 Não use SVG, HTML ou CSS como capa. Esses formatos ficam reservados a diagramas, gráficos, fórmulas e outros visuais técnicos que precisam de precisão. Ilustrações conceituais inseridas no corpo do artigo seguem a mesma exigência de aquarela da capa; apenas visuais técnicos de precisão ficam fora dela.
 
