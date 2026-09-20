@@ -10,12 +10,12 @@ A prioridade é **consistência com as capas já publicadas**, não apenas obede
 
 As capas raster abaixo definem o estilo visual atual do projeto. Elas são as referências canônicas porque mostram a pintura publicada, não apenas uma descrição ou um filtro aplicado:
 
-- `assets/four-golden-signals-cover.jpg`
-- `assets/hashing-consistente-cover.jpg`
-- `assets/transactional-outbox-cover.jpg`
-- `assets/leases-e-fencing-tokens-cover.jpg`
-- `assets/quoruns-de-leitura-e-escrita-cover.jpg`
-- `assets/retries-backoff-jitter-cover.jpg`
+- `assets/four-golden-signals/four-golden-signals-cover.jpg`
+- `assets/hashing-consistente/hashing-consistente-cover.jpg`
+- `assets/transactional-outbox/transactional-outbox-cover.jpg`
+- `assets/leases-e-fencing-tokens/leases-e-fencing-tokens-cover.jpg`
+- `assets/quoruns-de-leitura-e-escrita/quoruns-de-leitura-e-escrita-cover.jpg`
+- `assets/retries-backoff-jitter/retries-backoff-jitter-cover.jpg`
 
 Ao criar uma nova capa, **inspecione pelo menos duas dessas referências antes de montar o prompt**. Copie a gramática visual, não a cena.
 

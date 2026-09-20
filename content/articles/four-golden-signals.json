@@ -6,7 +6,7 @@
   "date": "12 de setembro de 2026",
   "publishedAt": "2026-09-12",
   "read": "22 min de leitura",
-  "image": "assets/four-golden-signals-cover.jpg",
+  "image": "assets/four-golden-signals/four-golden-signals-cover.jpg",
   "alt": "Ilustração abstrata dos quatro sinais dourados: ondas de latência, tráfego, erros e capacidade.",
   "dek": "Latência, tráfego, erros e saturação: um guia do zero à prática, com matemática, diagramas, PromQL e um simulador de fila.",
   "excerpt": "Aprenda a medir a saúde de um serviço com os quatro sinais dourados, interpretar falhas e ligar métricas a SLOs. Inclui gráficos, um simulador e exercícios locais.",
