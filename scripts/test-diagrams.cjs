@@ -30,11 +30,11 @@ let total = 0;
 for (const file of articleFiles) {
   const article = JSON.parse(await readFile(path.join(articlesDir, file), "utf8"));
   if (article.bodyHtml.includes("<svg") || article.bodyHtml.includes(".svg")) failures.push(`${file}: SVG visual reference remains`);
-  const firstParagraph = article.bodyHtml.match(/<p>[\\s\\S]*?<\\/p>/)?.[0] || "";
+  const firstParagraph = article.bodyHtml.match(/<p>[\s\S]*?<\/p>/)?.[0] || "";
   const visibleFirstParagraph = firstParagraph.replace(/<[^>]*>/g, "");
   const diagrams = article.bodyHtml.split('data-mermaid="true"').length - 1;
   const sources = article.bodyHtml.split('class="mermaid-source"').length - 1;
-  const tables = article.bodyHtml.match(/<table\\b/g)?.length || 0;
+  const tables = article.bodyHtml.match(/<table\b/g)?.length || 0;
   if (/[“”"]/u.test(visibleFirstParagraph)) failures.push(`${file}: introductory paragraph must not use quotation marks`);
   const tableScrollRegions = article.bodyHtml.match(/class="(?:article-table-scroll|fgs-table-scroll)"/g)?.length || 0;
   if (!diagrams || diagrams !== sources) failures.push(`${file}: Mermaid source/fallback count mismatch`);
