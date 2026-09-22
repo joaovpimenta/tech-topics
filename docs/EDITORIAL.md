@@ -1,5 +1,11 @@
 # Diretrizes editoriais
 
+## Brief de geração
+
+Para escrever um artigo novo, comece pelo compositor seletivo descrito em `generation/README.md`. Ele combina um contrato autoral compacto, uma task e somente os frameworks de domínio relevantes. Não carregue todos os módulos nem replique estas diretrizes em um prompt específico do tema.
+
+Esta documentação continua sendo a referência humana para escopo, pesquisa e revisão. O conteúdo que exige decisão do modelo durante a escrita fica em `generation/editorial/AUTHORING.md`; invariantes objetivas pertencem ao lint e aos testes.
+
 ## Escopo
 
 A cada novo artigo, pesquise, produza e publique conteúdo em português brasileiro sobre Engenharia de Software, com foco especial em arquitetura de sistemas, sistemas distribuídos, confiabilidade, observabilidade e resiliência.

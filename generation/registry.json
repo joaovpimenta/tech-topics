@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "limits": {
+    "maxFrameworks": 3,
+    "maxModuleBytes": 8192,
+    "maxBriefBytes": 32768
+  },
+  "authoring": "editorial/AUTHORING.md",
+  "tasks": {
+    "explain-concept": {
+      "label": "Explicar um conceito",
+      "file": "tasks/explain-concept.md"
+    },
+    "compare-approaches": {
+      "label": "Comparar abordagens",
+      "file": "tasks/compare-approaches.md"
+    },
+    "architecture-pattern": {
+      "label": "Explicar um padrão arquitetural",
+      "file": "tasks/architecture-pattern.md"
+    },
+    "failure-analysis": {
+      "label": "Analisar uma falha",
+      "file": "tasks/failure-analysis.md"
+    },
+    "algorithm-deep-dive": {
+      "label": "Aprofundar um algoritmo",
+      "file": "tasks/algorithm-deep-dive.md"
+    },
+    "technology-guide": {
+      "label": "Orientar o uso de uma tecnologia",
+      "file": "tasks/technology-guide.md"
+    }
+  },
+  "frameworks": {
+    "distributed-systems": {
+      "label": "Sistemas distribuídos",
+      "file": "frameworks/distributed-systems.md"
+    },
+    "databases": {
+      "label": "Bancos de dados",
+      "file": "frameworks/databases.md"
+    },
+    "algorithms": {
+      "label": "Algoritmos",
+      "file": "frameworks/algorithms.md"
+    },
+    "networking": {
+      "label": "Redes",
+      "file": "frameworks/networking.md"
+    },
+    "observability": {
+      "label": "Observabilidade",
+      "file": "frameworks/observability.md"
+    },
+    "security": {
+      "label": "Segurança",
+      "file": "frameworks/security.md"
+    },
+    "backend": {
+      "label": "Backend",
+      "file": "frameworks/backend.md"
+    },
+    "cloud": {
+      "label": "Cloud",
+      "file": "frameworks/cloud.md"
+    }
+  }
+}

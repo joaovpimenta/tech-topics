@@ -24,6 +24,24 @@ Every article JSON must include `slug`, `language`, `title`, `category`, `date`,
 
 Every cover must be a visibly painted editorial watercolor on textured paper, following `docs/VISUAL_STYLE.md`. Use `assets/<slug>/<slug>-cover.jpg` for covers. Use Mermaid for technical diagrams and charts; do not create or version SVGs for diagrams. Existing SVG favicon and icon assets remain allowed.
 
+## Composable article briefs
+
+Article generation is split into a task, one to three domain frameworks and a compact authoring contract. The allowlisted modules live under `generation/`; deterministic format and security rules remain in lint and tests.
+
+List the available modules and compose only what the current article needs:
+
+```bash
+node scripts/compose-article-brief.mjs --list
+node scripts/compose-article-brief.mjs \
+  --topic "Circuit Breaker" \
+  --task explain-concept \
+  --framework distributed-systems \
+  --framework backend \
+  --depth advanced
+```
+
+The brief is written to stdout and should not be committed. The composer has no external dependencies, does not call an LLM and rejects unknown modules, unsafe registry paths, oversized composition and exact topic duplicates.
+
 ## Local preview
 
 ```bash
