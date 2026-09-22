@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const checks = [
+  ["Validate generation registry", ["scripts/validate-generation.mjs"]],
+  ["Run generation composer tests", ["scripts/test-generation.cjs"]],
   ["Build article manifest", ["scripts/build-articles.mjs"]],
   ["Lint article content", ["scripts/lint-articles.mjs"]],
   ["Check application syntax", ["--check", "app.js"]],

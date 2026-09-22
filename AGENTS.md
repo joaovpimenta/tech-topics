@@ -2,15 +2,17 @@
 
 Este repositório mantém o site Tech Topics e seus artigos.
 
-Ao criar ou publicar um novo artigo, leia e siga, nesta ordem:
+Ao criar um artigo, não carregue toda a documentação no contexto por padrão. Primeiro componha o brief mínimo com `scripts/compose-article-brief.mjs`, escolhendo uma task e de um a três frameworks do registry. Esse brief é o contrato ativo de escrita e inclui apenas as lentes selecionadas.
 
-1. `docs/EDITORIAL.md`
-2. `docs/VISUAL_STYLE.md`
-3. `docs/ARTICLE_FORMAT.md`
-4. `docs/TTS.md`
-5. `docs/PUBLISHING.md`
+Consulte os documentos detalhados somente na etapa em que forem necessários:
 
-Esses documentos são a fonte de verdade para geração e publicação de conteúdo. Não duplique regras permanentes em prompts ou arquivos paralelos sem necessidade. Quando uma regra permanente mudar, atualize a documentação correspondente no repositório.
+1. `docs/EDITORIAL.md` para escopo, pesquisa e revisão humana;
+2. `docs/VISUAL_STYLE.md` antes de gerar ou revisar a capa;
+3. `docs/ARTICLE_FORMAT.md` ao investigar formato ou renderização;
+4. `docs/TTS.md` para decisões de pronúncia e marcação multilíngue;
+5. `docs/PUBLISHING.md` antes de concluir e publicar.
+
+`generation/` contém instruções compactas para o modelo; `docs/` explica as políticas; scripts de lint e testes garantem invariantes objetivas. Não copie a mesma regra entre camadas. Quando uma regra objetiva mudar, altere primeiro sua validação e depois a documentação humana correspondente.
 
 ## Princípios
 
@@ -28,6 +30,8 @@ Esses documentos são a fonte de verdade para geração e publicação de conte�
 
 ## Execução
 
+- Liste tasks e frameworks disponíveis com `node scripts/compose-article-brief.mjs --list`.
+- Gere o brief em stdout e use somente os módulos selecionados; não concatene a pasta `generation/` inteira nem persista o brief no repositório.
 - Se houver um assunto explícito para a execução, use-o apenas se ainda não tiver sido coberto conforme `docs/EDITORIAL.md`.
 - Caso contrário, escolha um novo tema relevante dentro do escopo editorial.
 - Trate o repositório como fonte de verdade para formato, build, validação e publicação.

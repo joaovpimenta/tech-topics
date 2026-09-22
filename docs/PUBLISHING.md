@@ -1,5 +1,26 @@
 # Build, validação e publicação
 
+## Preparação do artigo
+
+Antes de escrever, consulte os módulos disponíveis:
+
+```sh
+node scripts/compose-article-brief.mjs --list
+```
+
+Componha somente a task e os frameworks aplicáveis ao tema. O brief é emitido em stdout e não deve ser versionado:
+
+```sh
+node scripts/compose-article-brief.mjs \
+  --topic "Circuit Breaker" \
+  --task explain-concept \
+  --framework distributed-systems \
+  --framework backend \
+  --depth advanced
+```
+
+O compositor bloqueia IDs desconhecidos, excesso de frameworks, paths fora da allowlist e duplicatas exatas de slug ou título. A verificação semântica de temas semelhantes continua sendo uma decisão editorial.
+
 ## Build
 
 Depois de adicionar um novo artigo, execute:
@@ -122,5 +143,7 @@ O lint automatiza regras estruturais e de segurança. Rigor factual, qualidade d
 ## Comando único de validação
 
 Execute `node scripts/validate-site.mjs` para rodar o build, o lint editorial determinístico, as verificações de sintaxe JavaScript e os testes funcionais em uma única sequência. A mesma sequência é usada pelas workflows de Pull Request e de GitHub Pages.
+
+O comando também valida o registry de geração e testa seleção mínima de módulos, limites de tamanho, detecção de tópicos duplicados e rejeição de paths inseguros.
 
 O workflow de Pages publica o artefato gerado e validado pelo job anterior, sem reconstruí-lo durante o deploy.
