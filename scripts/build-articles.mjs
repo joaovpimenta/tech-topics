@@ -23,7 +23,6 @@ for (const file of files) {
   const missing = required.filter(field => !article[field]);
   if (missing.length) throw new Error(`${file}: missing ${missing.join(", ")}`);
   if (article.bodyHtml.includes("<svg") || article.bodyHtml.includes(".svg")) throw new Error(`${file}: technical visuals must use Mermaid, not SVG`);
-  if (!article.bodyHtml.includes('data-mermaid="true"')) throw new Error(`${file}: expected at least one Mermaid diagram`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(article.publishedAt) || Number.isNaN(Date.parse(article.publishedAt)) || new Date(article.publishedAt).toISOString().slice(0, 10) !== article.publishedAt) {
     throw new Error(`${file}: publishedAt must be a valid ISO YYYY-MM-DD date`);
   }

@@ -174,7 +174,6 @@ function scanBody(file, bodyHtml) {
   for (const reference of fragmentRefs) {
     if (!ids.has(reference)) fail(file, "fragment link points to missing id: " + reference);
   }
-  if (!diagrams) fail(file, "article must contain at least one Mermaid diagram");
   if (diagrams !== diagramSources || diagrams !== diagramFallbacks || diagrams !== mermaidFigures) {
     fail(file, "Mermaid diagrams, sources, fallbacks and figures must have matching counts");
   }

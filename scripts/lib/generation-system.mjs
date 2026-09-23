@@ -163,15 +163,26 @@ export function slugifyTopic(value) {
   return slug;
 }
 
-export async function findExistingTopic(root, topic, slug) {
+export async function listExistingTopics(root) {
   const articlesDirectory = path.resolve(root, "content", "articles");
-  const expectedTitle = normalizeTopic(topic);
-  const files = (await readdir(articlesDirectory)).filter(file => file.endsWith(".json") && file !== "index.json");
-
-  for (const file of files) {
+  const files = (await readdir(articlesDirectory)).filter(file => file.endsWith(".json") && file !== "index.json").sort();
+  return Promise.all(files.map(async file => {
     const article = JSON.parse(await readFile(path.join(articlesDirectory, file), "utf8"));
+    const compact = value => String(value || "").replace(/\s+/g, " ").trim();
+    return {
+      slug: compact(article.slug),
+      title: compact(article.title),
+      dek: compact(article.dek),
+      excerpt: compact(article.excerpt)
+    };
+  }));
+}
+
+export async function findExistingTopic(root, topic, slug) {
+  const expectedTitle = normalizeTopic(topic);
+  for (const article of await listExistingTopics(root)) {
     if (article.slug === slug || normalizeTopic(article.title || "") === expectedTitle) {
-      return { file, slug: article.slug, title: article.title };
+      return { file: `${article.slug}.json`, slug: article.slug, title: article.title };
     }
   }
   return null;

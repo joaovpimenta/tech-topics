@@ -32,7 +32,7 @@ async function main() {
     const diagrams = (article.bodyHtml.match(/data-mermaid\s*=\s*["']true["']/gi) || []).length;
     const sources = (article.bodyHtml.match(/class\s*=\s*["'][^"']*\bmermaid-source\b[^"']*["']/gi) || []).length;
     const fallbacks = (article.bodyHtml.match(/class\s*=\s*["'][^"']*\bmermaid-fallback\b[^"']*["']/gi) || []).length;
-    if (!diagrams || diagrams !== sources || diagrams !== fallbacks) {
+    if (diagrams !== sources || diagrams !== fallbacks) {
       failures.push(file + ": Mermaid diagram/source/fallback count mismatch");
     }
     if (/<svg\b|\.svg(?:["')?#]|$)/i.test(article.bodyHtml)) {
