@@ -4,6 +4,8 @@ Capas e ilustrações conceituais seguem a linguagem pictórica abaixo. Diagrama
 
 Este documento é a fonte de verdade para capas e ilustrações conceituais do Tech Topics.
 
+No fluxo de criação de artigos, `node scripts/compose-cover-brief.mjs` extrai deste arquivo as referências, o processo, o style anchor e os critérios de aceitação necessários para uma capa. Consulte o documento integral quando for alterar o estilo ou investigar uma dúvida visual.
+
 A regra abaixo é permanente e não pode ser relaxada por tema, formato ou urgência: toda capa e toda ilustração conceitual deve ser uma pintura em aquarela editorial visível sobre papel texturizado. O style anchor deste documento é obrigatório em todos os prompts de capa. Uma arte vetorial com filtros, transparências ou paleta de aquarela não cumpre o requisito se continuar parecendo vetor flat.
 
 A prioridade é **consistência com as capas já publicadas**, não apenas obedecer palavras como “aquarela” ou “editorial”. Antes de gerar uma nova capa, use as referências canônicas abaixo para calibrar composição, paleta, nível de detalhe e marcações.
@@ -29,7 +31,7 @@ Para satisfazer esta direção visual, a imagem precisa apresentar sinais visív
 
 Esta regra vale para todas as capas e ilustrações conceituais, mesmo quando o arquivo final for produzido por uma ferramenta diferente ou quando o assunto for técnico. O formato do arquivo não define o estilo: um SVG com filtros de ruído, gradientes ou opacidade continua sendo uma arte vetorial se não houver aparência pictórica convincente.
 
-Use `assets/<slug>/<slug>-cover.jpg` para capas. Não publique uma capa em SVG, HTML ou CSS. Esses formatos são permitidos somente para diagramas, gráficos, fórmulas e outros visuais de precisão descritos mais adiante neste documento.
+Use `assets/<slug>/<slug>-cover.jpg` para capas. Não publique uma capa em SVG, HTML ou CSS. Use Mermaid para diagramas técnicos; HTML e CSS podem apoiar fórmulas, gráficos e interfaces que exigem precisão. SVG fica reservado ao favicon e aos ícones compartilhados.
 
 ## O que caracteriza o estilo
 
@@ -200,11 +202,7 @@ Key objects to emphasize: [2 A 4 ELEMENTOS].
 
 Editorial annotation: [DIGA QUAIS ELEMENTOS RECEBEM CÍRCULO TRACEJADO E, SE NECESSÁRIO, QUAL ÚNICA RELAÇÃO RECEBE SETA TRACEJADA].
 
-Wide 2.6:1 editorial banner. Contemporary restrained, visibly hand-painted watercolor on warm off-white textured paper, with large translucent washes, soft irregular edges, simplified realistic people and objects, low-to-medium detail, muted desaturated blue-gray, olive, beige and soft rust palette, diffuse natural daylight, generous negative space, calm modern architectural atmosphere. The scene must read as a single plausible real-world moment, not as an infographic.
-
-Overlay exactly 2 to 4 bold hand-drawn black dashed editorial annotations on top of the finished watercolor: large dashed circles or ellipses around the key objects and, only when necessary, one thick dashed arrow connecting them. The black marks must look like an editor drew them later with a broad black pen and must be visually separate from the watercolor.
-
-No readable text, no labels, no captions, no numbers, no collage, no multi-panel layout, no storyboard, no UI, no dashboard, no tech icons, no floating code, no circuit imagery, no neon, no sci-fi, no 3D render, no cartoon, no photorealism.
+[INSIRA AQUI O STYLE ANCHOR OBRIGATÓRIO DA SEÇÃO ANTERIOR]
 ```
 
 ## Exemplo calibrado
@@ -222,11 +220,7 @@ Key objects to emphasize: the older card, the newer card at the reader, and the 
 
 Editorial annotation: one large black dashed circle around the older card, one around the reader/newer card, and one thick dashed curved arrow from the old-card area toward the reader. Add only a few short black emphasis strokes near the reader.
 
-Wide 2.6:1 editorial banner. Contemporary restrained, visibly hand-painted watercolor on warm off-white textured paper, with large translucent washes, soft irregular edges, simplified realistic people and objects, low-to-medium detail, muted desaturated blue-gray, olive, beige and soft rust palette, diffuse natural daylight, generous negative space, calm modern architectural atmosphere. The scene must read as a single plausible real-world moment, not as an infographic.
-
-Overlay exactly 2 to 4 bold hand-drawn black dashed editorial annotations on top of the finished watercolor: large dashed circles or ellipses around the key objects and, only when necessary, one thick dashed arrow connecting them. The black marks must look like an editor drew them later with a broad black pen and must be visually separate from the watercolor.
-
-No readable text, no labels, no captions, no numbers, no collage, no multi-panel layout, no storyboard, no UI, no dashboard, no tech icons, no floating code, no circuit imagery, no neon, no sci-fi, no 3D render, no cartoon, no photorealism.
+[INSIRA AQUI O STYLE ANCHOR OBRIGATÓRIO DA SEÇÃO ANTERIOR]
 ```
 
 ## Critérios de aceitação da capa
@@ -249,11 +243,11 @@ Antes de publicar, rejeite a imagem se qualquer uma destas condições falhar:
 
 Se a primeira geração não cumprir o estilo, **não tente corrigir adicionando mais parágrafos ao prompt**. Faça uma nova tentativa simplificando a cena e reforçando apenas o style anchor e as negativas.
 
-Se duas tentativas continuarem fora da direção, use uma capa determinística baseada na mesma gramática visual das referências canônicas, em vez de publicar uma imagem inconsistente.
+Se as tentativas continuarem fora da direção, interrompa a publicação até obter uma pintura em aquarela que cumpra os critérios.
 
 ## Capas e arquivos
 
-Todos os assets específicos de um artigo devem ficar em `assets/<slug>/`, incluindo a capa JPG, as ilustrações SVG e os experimentos Python. A raiz `assets/` deve conter apenas recursos compartilhados. Capas SVG não são permitidas; SVG continua reservado a diagramas e outros visuais técnicos de precisão.
+Todos os assets específicos de um artigo devem ficar em `assets/<slug>/`, incluindo a capa JPG, eventuais ilustrações conceituais JPG e experimentos Python. A raiz `assets/` deve conter apenas recursos compartilhados. Não crie SVGs técnicos em diretórios de artigos.
 
 Cada artigo deve ter uma capa original, sem reaproveitar cenas anteriores.
 
@@ -321,7 +315,7 @@ Se a geração de imagens estiver indisponível:
 - não declare que a imagem foi gerada;
 - não publique referência a arquivo inexistente;
 - não use URL temporária como substituição;
-- prefira uma capa determinística coerente com as referências canônicas.
+- interrompa a publicação até ser possível gerar e revisar uma capa que cumpra os critérios de aquarela.
 
 ## Como alterar o estilo no futuro
 

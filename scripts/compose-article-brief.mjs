@@ -2,6 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   findExistingTopic,
+  listExistingTopics,
   loadGenerationSystem,
   slugifyTopic,
   validateTopicInput
@@ -55,11 +56,20 @@ function parseArguments(argv) {
   return options;
 }
 
-function printCatalog(system) {
+async function printCatalog(system) {
   console.log("Tasks:");
   for (const [id, entry] of system.tasks) console.log(`  ${id}\t${entry.label}`);
   console.log("\nFrameworks:");
   for (const [id, entry] of system.frameworks) console.log(`  ${id}\t${entry.label}`);
+  console.log("\nPublished topics (catalog data; inspect full articles only for possible overlap):");
+  for (const topic of await listExistingTopics(root)) {
+    console.log(`  ${JSON.stringify({
+      slug: topic.slug,
+      title: topic.title,
+      dek: topic.dek.slice(0, 180),
+      excerpt: topic.excerpt.slice(0, 180)
+    })}`);
+  }
 }
 
 function renderModule(relativePath, content) {
@@ -76,7 +86,7 @@ async function main() {
   const system = await loadGenerationSystem(root);
   if (options.list) {
     if (process.argv.length !== 3) throw new Error("--list cannot be combined with other options");
-    printCatalog(system);
+    await printCatalog(system);
     return;
   }
 
@@ -137,7 +147,7 @@ async function main() {
     "",
     "## Gate final",
     "",
-    "Use somente as lentes aplicáveis ao tópico, sem criar seções artificiais para completar checklists. Antes de publicar, gere a capa conforme `docs/VISUAL_STYLE.md` e execute `node scripts/validate-site.mjs`. A validação determinística, não este brief, é a autoridade sobre invariantes estruturais e de segurança.",
+    "Use somente as lentes aplicáveis ao tópico, sem criar seções artificiais para completar checklists. Depois de escrever a abertura, gere a capa com `node scripts/compose-cover-brief.mjs` e execute `node scripts/validate-site.mjs` antes de publicar. A validação determinística, não este brief, é a autoridade sobre invariantes estruturais e de segurança.",
     ""
   );
 

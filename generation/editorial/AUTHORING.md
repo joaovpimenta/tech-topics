@@ -7,7 +7,7 @@ Escreva em português brasileiro para uma pessoa desenvolvedora que parte do zer
 - Explique a intuição antes da nomenclatura; depois aprofunde mecanismo, exemplos, limites, falhas e decisões operacionais.
 - Use exemplos concretos e quantificados quando eles aumentarem a compreensão. Diferencie garantias, hipóteses e simplificações didáticas.
 - Prefira headings informativos; evite “Introdução”, metalinguagem, bordões, repetição e conclusão que apenas reescreve a abertura.
-- Use visuais somente quando uma relação for difícil de entender em prosa. Diagramas técnicos são Mermaid; a capa é uma aquarela editorial gerada depois a partir da cena de abertura.
+- Use visuais somente quando uma relação for difícil de entender em prosa. Diagramas técnicos, quando úteis, são Mermaid; a capa é uma aquarela editorial gerada depois a partir da cena de abertura com `node scripts/compose-cover-brief.mjs`.
 - Termine com resumo mental, perguntas de revisão e dois ou três exercícios verificáveis.
 - Não prometa arquivos, simuladores, medições, imagens ou interações que não existam.
 

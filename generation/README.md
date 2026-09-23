@@ -7,7 +7,7 @@ Esta pasta contém somente conhecimento que precisa entrar no contexto do modelo
 - `editorial/AUTHORING.md`: reúne decisões editoriais subjetivas que a CI não consegue garantir;
 - `registry.json`: é a allowlist versionada dos módulos disponíveis.
 
-Não concatene a pasta inteira. Gere um brief mínimo com:
+Não concatene a pasta inteira. Liste tasks, frameworks e os resumos dos temas publicados com `node scripts/compose-article-brief.mjs --list`. Leia um artigo completo só quando houver possível sobreposição. Depois gere um brief mínimo com:
 
 ```sh
 node scripts/compose-article-brief.mjs \
@@ -19,6 +19,8 @@ node scripts/compose-article-brief.mjs \
 ```
 
 O comando escreve o brief em stdout. Ele não chama um provedor de LLM, não cria arquivos e não persiste o prompt composto.
+
+Após finalizar a abertura, use `node scripts/compose-cover-brief.mjs` para extrair de `docs/VISUAL_STYLE.md` apenas as instruções necessárias para criar e revisar a capa.
 
 ## Onde cada regra deve ficar
 

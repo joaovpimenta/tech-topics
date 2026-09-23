@@ -16,11 +16,13 @@ Exemplos de temas possíveis incluem Circuit Breaker, Four Golden Signals, Bulkh
 
 Antes de escolher o tema:
 
-1. leia todos os artigos existentes em `content/articles/`;
-2. compare títulos, slugs e conteúdo;
-3. evite repetição, inclusive sinônimos, equivalentes semânticos e variações superficiais do mesmo conceito;
+1. consulte o catálogo compacto de títulos, slugs e resumos emitido por `node scripts/compose-article-brief.mjs --list`;
+2. leia o conteúdo completo apenas dos artigos com possível sobreposição ao tema candidato;
+3. compare títulos, resumos e, nos casos ambíguos, o conteúdo; evite sinônimos, equivalentes semânticos e variações superficiais;
 4. se houver um assunto fornecido para a execução, utilize-o apenas se ainda não tiver sido coberto;
 5. caso contrário, escolha um novo tema relevante dentro do escopo editorial.
+
+O catálogo reduz a leitura inicial, mas não substitui o julgamento editorial. A verificação automática de duplicatas exatas no compositor também não detecta equivalência semântica.
 
 ## Pesquisa e rigor
 
@@ -91,18 +93,18 @@ Os artigos devem ser visualmente ricos quando isso melhorar a compreensão. Plan
 
 Não imponha uma quantidade artificial de imagens ou diagramas e não use recursos visuais apenas para preencher espaço.
 
-Toda a direção de estilo para capas e ilustrações conceituais, incluindo o template base do prompt de geração, está em `docs/VISUAL_STYLE.md`. Antes de gerar qualquer imagem, siga esse documento.
+Toda a direção de estilo para capas e ilustrações conceituais, incluindo o template base do prompt de geração, está em `docs/VISUAL_STYLE.md`. Na criação rotineira da capa, use `node scripts/compose-cover-brief.mjs`, que extrai daquele documento as partes necessárias; consulte o texto integral se houver dúvida visual.
 
 A aquarela editorial é um requisito permanente, não um adjetivo opcional do prompt: toda capa e toda ilustração conceitual deve parecer uma pintura real em aquarela sobre papel texturizado. Paleta suave, filtros de textura, transparências ou um arquivo SVG não são suficientes se o resultado parecer vetor flat, formas geométricas ou composição digital limpa. Rejeite e regenere qualquer imagem que não preserve essa aparência.
 
-Mermaid é o padrão para diagramas, fluxos, sequências, estados, relações e gráficos técnicos compatíveis. Não crie nem versione SVG para diagramas. HTML e CSS continuam permitidos para fórmulas, simuladores e interfaces de apoio; SVG fica reservado ao favicon e aos ícones compartilhados.
+Mermaid é o padrão quando diagramas, fluxos, sequências, estados, relações ou gráficos técnicos ajudarem a explicar o tema. Não crie nem versione SVG para diagramas. HTML e CSS continuam permitidos para fórmulas, simuladores e interfaces de apoio; SVG fica reservado ao favicon e aos ícones compartilhados.
 
 Diagramas, gráficos, fórmulas e outros elementos que exigem precisão também devem obedecer às regras técnicas e de acessibilidade definidas em `docs/VISUAL_STYLE.md` e `docs/ARTICLE_FORMAT.md`.
 
 
 ## Padrão técnico para diagramas
 
-Todo visual técnico novo deve começar como código Mermaid dentro do `bodyHtml`, usar o tema **Floresta semântica** e conter legenda, descrição acessível e fallback do código. Antes de publicar, confirme que não há referência a SVG de diagrama, que o fluxo ou dado essencial também está explicado em texto e que o diagrama permanece legível em telas pequenas.
+Quando um visual técnico for um diagrama compatível com Mermaid, escreva sua fonte dentro do `bodyHtml`, use o tema **Floresta semântica** e inclua legenda, descrição acessível e fallback do código. Antes de publicar, confirme que não há referência a SVG de diagrama, que o fluxo ou dado essencial também está explicado em texto e que o diagrama permanece legível em telas pequenas. Não imponha um diagrama quando ele não melhorar a compreensão.
 
 
 ## Regras automatizadas

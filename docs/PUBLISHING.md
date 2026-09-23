@@ -2,7 +2,7 @@
 
 ## Preparação do artigo
 
-Antes de escrever, consulte os módulos disponíveis:
+Antes de escrever, consulte os módulos e o catálogo compacto dos temas publicados:
 
 ```sh
 node scripts/compose-article-brief.mjs --list
@@ -19,17 +19,21 @@ node scripts/compose-article-brief.mjs \
   --depth advanced
 ```
 
-O compositor bloqueia IDs desconhecidos, excesso de frameworks, paths fora da allowlist e duplicatas exatas de slug ou título. A verificação semântica de temas semelhantes continua sendo uma decisão editorial.
+O compositor bloqueia IDs desconhecidos, excesso de frameworks, paths fora da allowlist e duplicatas exatas de slug ou título. Leia artigos completos somente nos casos de possível sobreposição; a verificação semântica continua sendo uma decisão editorial.
 
-## Build
+Depois de escrever o primeiro parágrafo, use `node scripts/compose-cover-brief.mjs` para consultar as instruções de capa extraídas de `docs/VISUAL_STYLE.md`. Revise visualmente a aquarela antes de publicar.
 
-Depois de adicionar um novo artigo, execute:
+## Comando único de validação
+
+Depois de adicionar o artigo e seus assets, execute:
 
 ```sh
-node scripts/build-articles.mjs
+node scripts/validate-site.mjs
 ```
 
-O comando reconstrói o manifesto com todos os artigos, ordenados do mais novo para o mais antigo, e atualiza os dados necessários ao cache da PWA.
+Esse comando executa o build, o lint editorial determinístico, as verificações de sintaxe JavaScript, os testes funcionais e a validação do registry de geração. Ele também verifica os diagramas Mermaid presentes, suas fontes e fallbacks; um artigo sem diagrama não precisa de um visual artificial.
+
+O build reconstrói o manifesto com todos os artigos, ordenados do mais novo para o mais antigo, e atualiza os dados necessários ao cache da PWA. A mesma sequência é usada nas workflows de Pull Request e de GitHub Pages.
 
 Não edite manualmente `content/articles/index.json` ou `sw-version.js` quando eles forem artefatos gerados pelo build.
 
@@ -48,22 +52,12 @@ Confirme, no mínimo:
 - tabelas largas envolvidas em contêineres próprios de rolagem horizontal, sem overflow horizontal no documento;
 - ausência de `<script>`, handlers inline e URLs `javascript:` no conteúdo;
 - marcação de idioma conforme `docs/TTS.md`;
-- ausência de referências a arquivos temporários ou URLs de download expirável.
+- ausência de referências a arquivos temporários ou URLs de download expirável;
 - cada campo `image` aponta para `assets/<slug>/<slug>-cover.jpg`, sem capa SVG;
 - cada capa e ilustração conceitual foi revisada como pintura em aquarela editorial visível, e não apenas como vetor ou filtro que simula aquarela;
 - o mapeamento entre artigo, slug e capa é um-para-um, sem deixar a capa de um artigo apontar para outra cena.
 
-Execute também:
-
-```sh
-node --check app.js
-node --check article.js
-node scripts/lint-articles.mjs
-node scripts/test-pwa.cjs
-node scripts/test-fgs.cjs
-```
-
-Execute outros testes específicos do projeto quando existirem ou quando a alteração afetar a funcionalidade coberta por eles.
+Execute testes adicionais somente quando existirem ou quando a alteração afetar uma funcionalidade não coberta pelo comando único.
 
 ## Inspeção da página
 
@@ -91,7 +85,7 @@ Antes de publicar, revise o diff e confirme que:
 - nenhum artigo anterior foi substituído, editado ou removido sem instrução explícita;
 - nenhum asset anterior foi modificado ou removido sem necessidade;
 - apenas arquivos esperados fazem parte da mudança;
-- arquivos gerados correspondem ao estado atual do conteúdo.
+- arquivos gerados correspondem ao estado atual do conteúdo;
 - nenhuma capa nova foi publicada sem passar pelo critério permanente de aquarela de `docs/VISUAL_STYLE.md`.
 
 ## Publicação
@@ -120,30 +114,8 @@ Ao concluir uma publicação de artigo, informe brevemente:
 - status do deploy.
 
 
-## Validação de diagramas Mermaid
-
-Antes de publicar, execute também `node scripts/test-diagrams.cjs`. A verificação deve confirmar que:
-
-- todo artigo tem pelo menos um diagrama Mermaid quando houver visual técnico;
-- não há `<svg>` inline nem referência a `.svg` no `bodyHtml`;
-- cada diagrama tem fonte Mermaid e fallback correspondente;
-- não há SVG técnico em `assets/<slug>/`;
-- o carregador compartilhado inclui `mermaid-theme.js`;
-- capas JPG, favicon e ícones continuam referenciados corretamente.
-
-
-
 ## Esteira de validação
 
-A workflow `Validate Tech Topics` executa em Pull Requests e em pushes para `main`. Ela roda o build, o lint determinístico, a verificação de sintaxe JavaScript e os testes funcionais antes que a publicação seja considerada válida. A workflow de Pages possui uma etapa de validação equivalente e só executa o deploy depois que ela passa.
+A workflow `Validate Tech Topics` executa em Pull Requests e sob acionamento manual. Em pushes para `main`, a workflow de Pages executa a mesma validação antes do deploy e publica o artefato validado, sem reconstruí-lo na etapa de deploy.
 
 O lint automatiza regras estruturais e de segurança. Rigor factual, qualidade da metáfora, correspondência entre abertura e capa e aparência de aquarela continuam sendo critérios editoriais que precisam de revisão humana ou visual.
-
-
-## Comando único de validação
-
-Execute `node scripts/validate-site.mjs` para rodar o build, o lint editorial determinístico, as verificações de sintaxe JavaScript e os testes funcionais em uma única sequência. A mesma sequência é usada pelas workflows de Pull Request e de GitHub Pages.
-
-O comando também valida o registry de geração e testa seleção mínima de módulos, limites de tamanho, detecção de tópicos duplicados e rejeição de paths inseguros.
-
-O workflow de Pages publica o artefato gerado e validado pelo job anterior, sem reconstruí-lo durante o deploy.
