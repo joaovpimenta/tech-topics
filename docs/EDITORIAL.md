@@ -20,7 +20,7 @@ Antes de escolher o tema:
 2. leia o conteúdo completo apenas dos artigos com possível sobreposição ao tema candidato;
 3. compare títulos, resumos e, nos casos ambíguos, o conteúdo; evite sinônimos, equivalentes semânticos e variações superficiais;
 4. se houver um assunto fornecido para a execução, utilize-o apenas se ainda não tiver sido coberto;
-5. caso contrário, escolha um novo tema relevante dentro do escopo editorial.
+5. na tarefa agendada, use exclusivamente a seleção ativa em `docs/TOPIC_QUEUE.md`; em execução manual sem seleção, escolha um novo tema relevante dentro do escopo editorial.
 
 O catálogo reduz a leitura inicial, mas não substitui o julgamento editorial. A verificação automática de duplicatas exatas no compositor também não detecta equivalência semântica.
 

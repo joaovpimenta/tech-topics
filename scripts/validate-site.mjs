@@ -6,6 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const checks = [
   ["Validate generation registry", ["scripts/validate-generation.mjs"]],
   ["Run generation composer tests", ["scripts/test-generation.cjs"]],
+  ["Run topic queue tests", ["scripts/test-topic-queue.mjs"]],
   ["Build article manifest", ["scripts/build-articles.mjs"]],
   ["Lint article content", ["scripts/lint-articles.mjs"]],
   ["Check application syntax", ["--check", "app.js"]],

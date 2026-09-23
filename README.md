@@ -8,6 +8,8 @@ The manifest uses repository-relative URLs and standalone display. On Android Ch
 
 The service worker downloads the app shell, article JSON files and covers after the first online visit. Once caching completes, they can be opened offline; embedded external resources still require a connection. Local article visuals are cached when requested under service-worker control. The network is preferred so new publications are not hidden by the cache. The build automatically versions the cache; no manual PWA update is needed for each article. Offline availability depends on the browser retaining site storage.
 
+Scheduled publication reads a selected topic from the [editorial queue](docs/TOPIC_QUEUE.md). Weekly curation adds five topics to a GitHub issue; after a successful Pages deploy, a GitHub Action randomly selects the next unpublished topic. This keeps editorial curation separate from article creation.
+
 Articles are sorted by valid `publishedAt` dates, newest first, both during the build and in the browser. For articles published on the same day, the first-addition Git commit timestamp breaks ties (not the last edit). The workflow fetches full history for this purpose. Adding an article never replaces older articles.
 
 ## GitHub Pages setup

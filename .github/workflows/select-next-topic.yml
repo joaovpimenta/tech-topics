@@ -1,0 +1,39 @@
+name: Select next Tech Topics article
+
+on:
+  workflow_run:
+    workflows: ["Build and deploy Tech Topics to GitHub Pages"]
+    types: [completed]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: tech-topics-queue
+  cancel-in-progress: false
+
+jobs:
+  select:
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') ||
+      (github.event_name == 'issue_comment' && github.event.issue.number == 21 && github.event.comment.user.login == github.repository_owner && contains(github.event.comment.body, '<!-- tech-topics:candidates:v1 -->')) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out published articles
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Select one unpublished candidate
+        run: node scripts/select-next-topic.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TOPIC_QUEUE_ISSUE_NUMBER: 21
