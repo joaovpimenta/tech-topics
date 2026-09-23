@@ -34,7 +34,7 @@ Consulte os documentos detalhados somente na etapa em que forem necessários:
 - Liste tasks, frameworks e temas publicados com `node scripts/compose-article-brief.mjs --list`.
 - Gere o brief em stdout e use somente os módulos selecionados; não concatene a pasta `generation/` inteira nem persista o brief no repositório.
 - Se houver um assunto explícito para a execução, use-o apenas se ainda não tiver sido coberto conforme `docs/EDITORIAL.md`.
-- Caso contrário, escolha um novo tema relevante dentro do escopo editorial.
+- Na tarefa agendada de publicação, consuma apenas a última seleção válida da [fila editorial](docs/TOPIC_QUEUE.md). Caso não haja uma seleção inédita, informe o impedimento sem escolher outra pauta. Na execução manual sem seleção, escolha um novo tema relevante dentro do escopo editorial.
 - Trate o repositório como fonte de verdade para formato, build, validação e publicação.
 - Antes de concluir, execute as verificações obrigatórias definidas em `docs/PUBLISHING.md`.
 - Uma tarefa só está concluída quando as validações obrigatórias passaram e o estado da publicação foi verificado.

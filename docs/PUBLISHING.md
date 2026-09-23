@@ -94,6 +94,8 @@ Publique na branch `main` com mensagem de commit descritiva, conforme o fluxo vi
 
 O workflow do GitHub Pages deve terminar com sucesso antes de declarar a publicação concluída.
 
+Na publicação agendada, a Action `Select next Tech Topics article` seleciona outra pauta da [fila editorial](TOPIC_QUEUE.md) após o deploy bem-sucedido. Confirme o estado dessa Action e o comentário de seleção; se a fila estiver vazia, registre a limitação sem confundir o status do deploy do artigo com o preparo da próxima execução.
+
 Se ocorrer uma falha:
 
 - informe o problema;
