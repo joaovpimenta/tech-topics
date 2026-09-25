@@ -1,5 +1,10 @@
 [
   {
+    "slug": "consenso-raft",
+    "path": "content/articles/consenso-raft.json",
+    "addedAt": ""
+  },
+  {
     "slug": "relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global",
     "path": "content/articles/relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global.json",
     "addedAt": "2026-09-23T06:47:13-03:00"
