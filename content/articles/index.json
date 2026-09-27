@@ -1,5 +1,10 @@
 [
   {
+    "slug": "cqrs-projecoes-e-consistencia",
+    "path": "content/articles/cqrs-projecoes-e-consistencia.json",
+    "addedAt": ""
+  },
+  {
     "slug": "consenso-raft",
     "path": "content/articles/consenso-raft.json",
     "addedAt": "2026-09-25T06:12:23-03:00"
