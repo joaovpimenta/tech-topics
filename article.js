@@ -86,15 +86,17 @@ let speechState = "idle";
 let speechSession = 0;
 let shareData = null;
 
-function preferredPortugueseVoice() {
+function preferredVoice(language) {
   const voices = window.speechSynthesis.getVoices();
-  return voices.find(voice => voice.lang.toLowerCase() === "pt-br")
-    || voices.find(voice => voice.lang.toLowerCase().startsWith("pt-br"))
-    || voices.find(voice => voice.lang.toLowerCase().startsWith("pt"))
+  const normalizedLanguage = language.toLowerCase();
+  const languagePrefix = normalizedLanguage.split("-")[0];
+  return voices.find(voice => voice.lang.toLowerCase() === normalizedLanguage)
+    || voices.find(voice => voice.lang.toLowerCase() === languagePrefix)
+    || voices.find(voice => voice.lang.toLowerCase().startsWith(`${languagePrefix}-`))
     || null;
 }
 
-function splitSpeechText(text, maxLength = 240) {
+function splitSpeechText(text, language, maxLength = 240) {
   const clean = text.replace(/\s+/g, " ").trim();
   if (!clean) return [];
   const sentences = clean.match(/[^.!?;:]+[.!?;:]?|.+$/g) || [clean];
@@ -104,7 +106,7 @@ function splitSpeechText(text, maxLength = 240) {
     const part = sentence.trim();
     if (!part) continue;
     if (part.length <= maxLength) {
-      chunks.push(part);
+      chunks.push({ text: part, lang: language });
       continue;
     }
 
@@ -112,33 +114,99 @@ function splitSpeechText(text, maxLength = 240) {
     for (const word of part.split(/\s+/)) {
       const candidate = current ? `${current} ${word}` : word;
       if (candidate.length > maxLength && current) {
-        chunks.push(current);
+        chunks.push({ text: current, lang: language });
         current = word;
       } else {
         current = candidate;
       }
     }
-    if (current) chunks.push(current);
+    if (current) chunks.push({ text: current, lang: language });
   }
 
   return chunks;
 }
 
+function articleSpeechSegments(node, defaultLanguage = "pt-BR") {
+  const segments = [];
+  const appendText = (text, language) => {
+    if (!text) return;
+    const previous = segments.at(-1);
+    if (previous?.lang === language) previous.text += text;
+    else segments.push({ text, lang: language });
+  };
+
+  const visit = (currentNode, inheritedLanguage) => {
+    if (currentNode.nodeType === Node.TEXT_NODE) {
+      appendText(currentNode.nodeValue, inheritedLanguage);
+      return;
+    }
+    if (currentNode.nodeType !== Node.ELEMENT_NODE) return;
+
+    const language = currentNode.getAttribute("lang")?.trim() || inheritedLanguage;
+    currentNode.childNodes.forEach(child => visit(child, language));
+  };
+
+  const language = node.closest("[lang]")?.getAttribute("lang") || defaultLanguage;
+  visit(node, language);
+
+  const normalizedSegments = [];
+  segments.forEach(segment => {
+    let text = segment.text.replace(/\s+/g, " ").trim();
+    if (!text) return;
+
+    const punctuation = text.match(/^\p{P}+/u)?.[0];
+    const previous = normalizedSegments.at(-1);
+    if (punctuation && previous) {
+      previous.text += punctuation;
+      text = text.slice(punctuation.length).trimStart();
+    }
+    if (!text) return;
+
+    if (previous?.lang === segment.lang) previous.text = `${previous.text} ${text}`;
+    else normalizedSegments.push({ text, lang: segment.lang });
+  });
+
+  return normalizedSegments.flatMap(segment => splitSpeechText(segment.text, segment.lang));
+}
+
+function renderSpeechMarkup(element, text, segments, defaultLanguage) {
+  const validSegments = Array.isArray(segments)
+    && segments.length > 0
+    && segments.every(segment => segment && typeof segment.text === "string" && segment.text && typeof segment.lang === "string");
+  if (!validSegments || segments.map(segment => segment.text).join("") !== text) {
+    element.textContent = text;
+    return;
+  }
+
+  element.replaceChildren();
+  segments.forEach(segment => {
+    if (segment.lang === defaultLanguage) {
+      element.append(document.createTextNode(segment.text));
+      return;
+    }
+
+    const span = document.createElement("span");
+    span.lang = segment.lang;
+    span.textContent = segment.text;
+    element.append(span);
+  });
+}
+
 function articleSpeechQueue() {
+  const defaultLanguage = document.documentElement.lang || "pt-BR";
   const parts = [
-    document.querySelector("#article-heading")?.textContent,
-    document.querySelector("#article-dek")?.textContent
-  ].filter(Boolean);
+    document.querySelector("#article-heading"),
+    document.querySelector("#article-dek")
+  ].filter(Boolean).flatMap(node => articleSpeechSegments(node, defaultLanguage));
 
   document.querySelectorAll("#article-body h2, #article-body h3, #article-body p, #article-body li, #article-body figcaption, #article-body th, #article-body td, #article-body .article-callout")
     .forEach(node => {
       if (node.closest("pre, code, .fgs-toc, .fgs-simulator")) return;
       if (node.matches(".article-callout") && node.querySelector("p")) return;
-      const text = node.textContent.replace(/\s+/g, " ").trim();
-      if (text) parts.push(text);
+      parts.push(...articleSpeechSegments(node, defaultLanguage));
     });
 
-  return parts.flatMap(part => splitSpeechText(part));
+  return parts;
 }
 
 function updateSpeechControls(message = "") {
@@ -167,7 +235,7 @@ function updateSpeechControls(message = "") {
   } else {
     speechButton.textContent = "Ouvir artigo";
     speechButton.setAttribute("aria-pressed", "false");
-    speechButton.setAttribute("aria-label", "Ouvir artigo em português brasileiro");
+    speechButton.setAttribute("aria-label", "Ouvir artigo");
   }
 
   speechStatus.textContent = message;
@@ -193,11 +261,12 @@ function speakNext(session) {
     return;
   }
 
-  const utterance = new SpeechSynthesisUtterance(speechQueue[speechIndex]);
-  utterance.lang = "pt-BR";
+  const segment = speechQueue[speechIndex];
+  const utterance = new SpeechSynthesisUtterance(segment.text);
+  utterance.lang = segment.lang;
   utterance.rate = 1;
   utterance.pitch = 1;
-  const voice = preferredPortugueseVoice();
+  const voice = preferredVoice(segment.lang);
   if (voice) utterance.voice = voice;
 
   utterance.onend = () => {
@@ -227,7 +296,7 @@ function startSpeech() {
   speechSession += 1;
   speechIndex = 0;
   speechState = "speaking";
-  updateSpeechControls("Lendo em voz alta em português do Brasil.");
+  updateSpeechControls("Lendo o artigo em voz alta.");
   speakNext(speechSession);
 }
 
@@ -280,7 +349,7 @@ speechButton?.addEventListener("click", () => {
   if (speechState === "paused") {
     window.speechSynthesis.resume();
     speechState = "speaking";
-    updateSpeechControls("Lendo em voz alta em português do Brasil.");
+    updateSpeechControls("Lendo o artigo em voz alta.");
     return;
   }
 
@@ -323,8 +392,8 @@ async function showArticle(article) {
   document.title = `${article.title} — Tech Topics`;
   document.querySelector("#article-description").content = article.excerpt;
   document.querySelector("#article-category").textContent = article.category;
-  document.querySelector("#article-heading").textContent = article.title;
-  document.querySelector("#article-dek").textContent = article.dek || article.excerpt;
+  renderSpeechMarkup(document.querySelector("#article-heading"), article.title, article.speechMarkup?.title, document.documentElement.lang);
+  renderSpeechMarkup(document.querySelector("#article-dek"), article.dek || article.excerpt, article.speechMarkup?.dek, document.documentElement.lang);
   const publishedAt = new Date(`${article.publishedAt}T00:00:00Z`);
   const date = Number.isNaN(publishedAt.getTime()) ? (article.date || "") : new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeZone: "UTC" }).format(publishedAt);
   const details = [date];

@@ -99,7 +99,7 @@ Não altere manualmente `content/articles/index.json`. Não insira o novo artigo
 
 O idioma padrão dos artigos é `pt-BR`.
 
-Termos ou expressões mantidos em inglês e destinados a ser pronunciados em inglês devem ser marcados semanticamente no HTML com `lang="en-US"`, seguindo `docs/TTS.md`.
+Termos ou expressões mantidos em inglês e destinados a ser pronunciados em inglês devem ser marcados semanticamente no `bodyHtml` com `lang="en-US"`; em `title` e `dek`, use segmentos `speechMarkup` conforme `docs/TTS.md`.
 
 Exemplo:
 

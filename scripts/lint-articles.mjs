@@ -183,6 +183,40 @@ function scanBody(file, bodyHtml) {
   return localRefs;
 }
 
+function scanSpeechMarkup(file, article) {
+  if (article.speechMarkup === undefined) return;
+  if (!article.speechMarkup || typeof article.speechMarkup !== "object" || Array.isArray(article.speechMarkup)) {
+    fail(file, "speechMarkup must be an object");
+    return;
+  }
+
+  for (const field of ["title", "dek"]) {
+    const segments = article.speechMarkup[field];
+    if (segments === undefined) continue;
+    if (!Array.isArray(segments)) {
+      fail(file, `speechMarkup.${field} must be an array`);
+      continue;
+    }
+
+    const expectedText = field === "title" ? article.title : (article.dek || article.excerpt);
+    const segmentText = [];
+    for (const [index, segment] of segments.entries()) {
+      if (!segment || typeof segment !== "object" || typeof segment.text !== "string" || !segment.text) {
+        fail(file, `speechMarkup.${field}[${index}] must contain non-empty text`);
+        continue;
+      }
+      if (typeof segment.lang !== "string" || !/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(segment.lang)) {
+        fail(file, `speechMarkup.${field}[${index}] must contain a valid lang`);
+      }
+      segmentText.push(segment.text);
+    }
+
+    if (segmentText.join("") !== expectedText) {
+      fail(file, `speechMarkup.${field} text must exactly match the displayed ${field}`);
+    }
+  }
+}
+
 const articleFiles = (await readdir(articlesDir))
   .filter(file => file.endsWith(".json") && file !== "index.json")
   .sort();
@@ -221,6 +255,8 @@ for (const file of articleFiles) {
   if (titles.has(article.title.trim().toLocaleLowerCase("pt-BR"))) fail(file, "duplicate article title");
   slugs.add(article.slug);
   titles.add(article.title.trim().toLocaleLowerCase("pt-BR"));
+
+  scanSpeechMarkup(file, article);
 
   const expectedImage = "assets/" + article.slug + "/" + article.slug + "-cover.jpg";
   if (article.image !== expectedImage) fail(file, "image must point to " + expectedImage);

@@ -39,6 +39,21 @@ Marque `lang="en-US"` quando:
 
 A marcação deve ser semântica. Não mantenha uma lista fechada de palavras como única regra: novos termos técnicos podem aparecer a qualquer momento.
 
+Os campos `title` e `dek` são texto simples, não HTML. Quando incluírem trechos que devam ser falados em outro idioma, declare segmentos em `speechMarkup` no JSON do artigo:
+
+```json
+"speechMarkup": {
+  "title": [
+    { "text": "Transactional Outbox", "lang": "en-US" },
+    { "text": ": do ", "lang": "pt-BR" },
+    { "text": "commit", "lang": "en-US" },
+    { "text": " local à entrega confiável", "lang": "pt-BR" }
+  ]
+}
+```
+
+Os segmentos devem concatenar exatamente o texto visível do campo correspondente. O player monta os elementos `lang` no DOM sem interpretar o conteúdo como HTML.
+
 ## Quando não marcar
 
 Não marque automaticamente:
@@ -81,7 +96,7 @@ Quando um trecho de código precisar ser explicado, faça essa explicação em p
 
 ## Responsabilidade do autor do artigo
 
-Quem gera ou edita o artigo deve inserir a marcação `lang` correta no próprio `bodyHtml`. Não dependa de detecção automática de idioma no navegador para corrigir o conteúdo depois.
+Quem gera ou edita o artigo deve inserir a marcação `lang` correta no próprio `bodyHtml` e declarar em `speechMarkup` os idiomas mistos de `title` ou `dek`. Não dependa de detecção automática de idioma no navegador para corrigir o conteúdo depois.
 
 Antes de publicar, revise expressões técnicas inglesas relevantes e confirme que as mudanças de idioma estão marcadas de maneira consistente.
 
