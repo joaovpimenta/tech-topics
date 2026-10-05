@@ -113,3 +113,7 @@ O player de TTS deve, quando suportado:
 7. evitar perder marcação semântica convertendo todo o artigo antecipadamente para um único `textContent`.
 
 Esta seção define o comportamento esperado do runtime, mas alterações no player compartilhado devem ser feitas como tarefa técnica específica, não incidentalmente durante a criação de um artigo.
+
+## Revisão com narração local
+
+Para preparar o Chatterbox, diagnosticar voz e dependências ou validar narração antes de um commit, consulte [o fluxo TTS local](../tools/tts/README.md). Esse fluxo usa o conteúdo staged e mantém voz e áudio privados; sua saída serve à revisão humana e não altera o player público.

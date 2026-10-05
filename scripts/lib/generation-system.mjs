@@ -56,7 +56,7 @@ async function readTrustedModule(generationRoot, generationRealRoot, relativePat
     `${context}: real module path escapes generation/`
   );
 
-  const content = await readFile(moduleRealPath, "utf8");
+  const content = (await readFile(moduleRealPath, "utf8")).replace(/\r\n?/g, "\n");
   assert(content.trim().startsWith("# "), `${context}: module must start with a level-one heading`);
   return { content: content.trim(), bytes: Buffer.byteLength(content), path: relativePath };
 }
