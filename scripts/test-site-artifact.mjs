@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -33,7 +33,7 @@ async function fixture(run) {
 
 test("publishes all runtime and article assets, preserving URLs independently of precache", async () => fixture(async ({ root }) => {
   const built = await buildSiteArtifact({ root });
-  assert.equal(built.destination, path.join(root, "dist"));
+  assert.equal(built.destination, path.join(await realpath(root), "dist"));
   for (const file of [...PUBLIC_ROOT_FILES, "content/articles/index.json", "content/articles/post.json", "assets/post/plot.jpg", "assets/post/experiment.py", "assets/maskable.png"]) {
     assert(built.files.includes(file), file);
     assert.equal(await readFile(path.join(root, "dist", file), "utf8"), await readFile(path.join(root, file), "utf8"));

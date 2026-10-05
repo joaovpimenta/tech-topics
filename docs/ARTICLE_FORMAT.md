@@ -13,6 +13,7 @@ Scripts inseridos nesse campo não são executados. Portanto:
 - não insira `<script>` no `bodyHtml`;
 - não use handlers inline como `onclick`;
 - não use URLs `javascript:`;
+- aplique marcações de pronúncia ao texto exibido, preservando `href` e `src` como URLs literais; HTML dentro desses atributos corrompe o link e é rejeitado pelo contrato;
 - mantenha uma legenda e uma descrição acessível para cada visual;
 - preserve um fallback que permita consultar o código Mermaid quando a biblioteca não estiver disponível.
 
