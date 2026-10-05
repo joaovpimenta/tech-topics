@@ -26,13 +26,19 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .node-version
+      - name: Set up Python for lightweight TTS tests
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
       - name: Run all validation gates
         run: node scripts/validate-site.mjs
+        env:
+          TECH_TOPICS_REQUIRE_TTS_TESTS: "1"
       - name: Upload validated site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: dist
   deploy:
     name: Deploy GitHub Pages
     needs: validate
