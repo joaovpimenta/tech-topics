@@ -7,7 +7,7 @@
   "publishedAt": "2026-10-02",
   "read": "17 min de leitura",
   "image": "assets/mtls-entre-servicos-identidade-alem-do-canal-cifrado/mtls-entre-servicos-identidade-alem-do-canal-cifrado-cover.jpg",
-  "alt": "Aquarela de dois profissionais em lados opostos de uma porta de acesso entre laboratórios, cada um apresentando seu crachá antes da passagem, com círculos e seta preta tracejada.",
+  "alt": "Aquarela de dois profissionais em lados opostos de uma porta de acesso entre laboratórios, cada um apresentando seu crachá antes da passagem, com três elipses pretas tracejadas destacando os crachás e a porta.",
   "dek": "Criptografia protege bytes em trânsito; mTLS só vira identidade de serviço quando certificados, nomes, confiança, rotação e autorização formam um contrato coerente.",
   "excerpt": "Um guia do handshake ao workload identity: X.509, SAN, trust anchors, SPIFFE, rotação, proxies, autorização e falhas comuns de mTLS entre serviços.",
   "speechMarkup": {
