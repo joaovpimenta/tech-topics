@@ -1,5 +1,25 @@
 [
   {
+    "slug": "bulkhead",
+    "path": "content/articles/bulkhead.json",
+    "addedAt": "2026-10-02T12:22:15-03:00"
+  },
+  {
+    "slug": "rate-limiting-token-bucket-leaky-bucket",
+    "path": "content/articles/rate-limiting-token-bucket-leaky-bucket.json",
+    "addedAt": "2026-10-02T12:20:17-03:00"
+  },
+  {
+    "slug": "mtls-entre-servicos-identidade-alem-do-canal-cifrado",
+    "path": "content/articles/mtls-entre-servicos-identidade-alem-do-canal-cifrado.json",
+    "addedAt": "2026-10-02T12:16:47-03:00"
+  },
+  {
+    "slug": "chaos-engineering-experimentos-de-falha",
+    "path": "content/articles/chaos-engineering-experimentos-de-falha.json",
+    "addedAt": "2026-10-02T12:05:31-03:00"
+  },
+  {
     "slug": "cqrs-projecoes-e-consistencia",
     "path": "content/articles/cqrs-projecoes-e-consistencia.json",
     "addedAt": "2026-09-27T06:14:45-03:00"
