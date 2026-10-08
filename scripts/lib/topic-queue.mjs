@@ -38,10 +38,70 @@ export function parseQueue(comments) {
   return { candidates, selections };
 }
 
+function registryProblems(topic, registry) {
+  const problems = [];
+  if (typeof topic.task !== "string" || !registry.tasks.has(topic.task)) {
+    problems.push(`unknown task id: ${String(topic.task)}`);
+  }
+  if (!Array.isArray(topic.frameworks) || topic.frameworks.length < 1 || topic.frameworks.length > 3) {
+    problems.push("frameworks must contain between one and three ids");
+  } else {
+    for (const id of topic.frameworks) {
+      if (typeof id !== "string" || !registry.frameworks.has(id)) {
+        problems.push(`unknown framework id: ${String(id)}`);
+      }
+    }
+  }
+  return problems;
+}
+
+export function validateQueueAgainstRegistry(queue, registry, published) {
+  if (!(registry?.tasks instanceof Map) || !(registry?.frameworks instanceof Map)) {
+    throw new Error("A validated generation registry is required to check the topic queue");
+  }
+
+  const candidates = [];
+  const invalidCandidates = [];
+  for (const topic of queue.candidates) {
+    const problems = registryProblems(topic, registry);
+    if (problems.length) {
+      invalidCandidates.push({
+        slug: topic.slug,
+        sourceCommentId: topic.sourceCommentId,
+        problems
+      });
+      continue;
+    }
+    candidates.push(topic);
+  }
+
+  const publishedSet = new Set(published);
+  const pendingSelection = queue.selections.at(-1);
+  if (pendingSelection && !publishedSet.has(pendingSelection.slug)) {
+    const problems = registryProblems(pendingSelection, registry);
+    if (problems.length) {
+      throw new Error(
+        `Pending selection comment ${pendingSelection.commentId} has invalid registry references: ${problems.join("; ")}`
+      );
+    }
+  }
+
+  return { candidates, selections: queue.selections, invalidCandidates };
+}
+
 export function chooseNext({ candidates, selections }, published, randomIndex) {
   const publishedSet = new Set(published);
   const selected = selections.at(-1);
   if (selected && !publishedSet.has(selected.slug)) return { status: "pending", topic: selected };
+  const eligible = eligibleTopics({ candidates, selections }, published);
+  if (!eligible.length) return { status: "empty" };
+  const index = randomIndex(eligible.length);
+  if (!Number.isInteger(index) || index < 0 || index >= eligible.length) throw new Error("Invalid random index");
+  return { status: "selected", topic: eligible[index] };
+}
+
+export function eligibleTopics({ candidates, selections }, published) {
+  const publishedSet = new Set(published);
   const used = new Set(selections.map(item => item.slug));
   const unique = new Map();
   for (const candidate of candidates) {
@@ -49,11 +109,7 @@ export function chooseNext({ candidates, selections }, published, randomIndex) {
       unique.set(candidate.slug, candidate);
     }
   }
-  const eligible = [...unique.values()];
-  if (!eligible.length) return { status: "empty" };
-  const index = randomIndex(eligible.length);
-  if (!Number.isInteger(index) || index < 0 || index >= eligible.length) throw new Error("Invalid random index");
-  return { status: "selected", topic: eligible[index] };
+  return [...unique.values()];
 }
 
 export function selectionComment(topic) {

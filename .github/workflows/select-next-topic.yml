@@ -31,9 +31,9 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .node-version
       - name: Select one unpublished candidate
-        run: node scripts/select-next-topic.mjs
+        run: node scripts/select-next-topic.mjs --json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TOPIC_QUEUE_ISSUE_NUMBER: 21

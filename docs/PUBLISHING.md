@@ -33,6 +33,10 @@ node scripts/validate-site.mjs
 
 Esse comando executa o build, o lint editorial determinístico, as verificações de sintaxe JavaScript, os testes funcionais e a validação do registry de geração. Ele também verifica os diagramas Mermaid presentes, suas fontes e fallbacks; um artigo sem diagrama não precisa de um visual artificial.
 
+Ao final, o comando testa e gera o pacote público em `dist/`. O empacotamento usa uma allowlist, verifica referências locais e preserva os caminhos relativos. Documentação, instruções de geração, scripts e ferramentas locais não fazem parte do deploy. O conjunto público é distinto do precache: um download local pode ser publicado sem ser baixado antecipadamente pela PWA.
+
+`node scripts/build-site.mjs` apenas empacota os arquivos já gerados. Para inspecionar o que será publicado, sirva `dist/` e abra os mesmos caminhos de página. A CI exige os testes rápidos do TTS, sem síntese ou modelos; localmente são pulados com diagnóstico explícito quando Python não está disponível. Use `TECH_TOPICS_PYTHON` para indicar outro interpretador.
+
 O build reconstrói o manifesto com todos os artigos, ordenados do mais novo para o mais antigo, e atualiza os dados necessários ao cache da PWA. A mesma sequência é usada nas workflows de Pull Request e de GitHub Pages.
 
 Não edite manualmente `content/articles/index.json` ou `sw-version.js` quando eles forem artefatos gerados pelo build.
@@ -119,5 +123,9 @@ Ao concluir uma publicação de artigo, informe brevemente:
 ## Esteira de validação
 
 A workflow `Validate Tech Topics` executa em Pull Requests e sob acionamento manual. Em pushes para `main`, a workflow de Pages executa a mesma validação antes do deploy e publica o artefato validado, sem reconstruí-lo na etapa de deploy.
+
+Os checks de PR cobrem Windows e Linux, usando a versão declarada em `.node-version`. A workflow de Pages envia somente `dist/`. A seleção da fila continua ocorrendo depois de um deploy bem-sucedido; mudança de tooling não autoriza substituir uma seleção pendente.
+
+A proteção da `main` exige o check estável `Content and application lint`. Esse check agrega a matriz do PR e só passa quando todas as plataformas passam; não renomeie sem atualizar a proteção correspondente.
 
 O lint automatiza regras estruturais e de segurança. Rigor factual, qualidade da metáfora, correspondência entre abertura e capa e aparência de aquarela continuam sendo critérios editoriais que precisam de revisão humana ou visual.

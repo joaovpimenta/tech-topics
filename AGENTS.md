@@ -2,6 +2,8 @@
 
 Este repositório mantém o site Tech Topics e seus artigos.
 
+Para manutenção, workflows, fila ou ferramentas locais, comece com `node scripts/doctor.mjs --json` e consulte somente o ramo pertinente em [docs/agents/README.md](docs/agents/README.md). O vocabulário editorial está em [CONTEXT.md](CONTEXT.md).
+
 Ao criar um artigo, não carregue toda a documentação no contexto por padrão. Use `node scripts/compose-article-brief.mjs --list` para ver as tasks, os frameworks e o catálogo compacto dos temas publicados. Leia artigos completos somente quando o catálogo indicar possível sobreposição. Depois de escolher um tema inédito, componha o brief mínimo com uma task e de um a três frameworks do registry. Esse brief é o contrato ativo de escrita e inclui apenas as lentes selecionadas.
 
 Consulte os documentos detalhados somente na etapa em que forem necessários:

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { validateArticleCatalog } from "./lib/article-contract.mjs";
 
 const run = promisify(execFile);
 
@@ -13,21 +14,21 @@ const files = (await readdir(articlesDir)).filter(file => file.endsWith(".json")
 
 if (!files.length) throw new Error("No article JSON files found in content/articles");
 
-const records = [];
-const covers = new Set();
-const slugs = new Set();
+const articles = [];
 for (const file of files) {
   const filePath = path.join(articlesDir, file);
   const article = JSON.parse(await readFile(filePath, "utf8"));
-  const required = ["slug", "title", "category", "date", "publishedAt", "read", "image", "excerpt", "bodyHtml"];
-  const missing = required.filter(field => !article[field]);
-  if (missing.length) throw new Error(`${file}: missing ${missing.join(", ")}`);
-  if (article.bodyHtml.includes("<svg") || article.bodyHtml.includes(".svg")) throw new Error(`${file}: technical visuals must use Mermaid, not SVG`);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(article.publishedAt) || Number.isNaN(Date.parse(article.publishedAt)) || new Date(article.publishedAt).toISOString().slice(0, 10) !== article.publishedAt) {
-    throw new Error(`${file}: publishedAt must be a valid ISO YYYY-MM-DD date`);
-  }
-  if (slugs.has(article.slug)) throw new Error(`Duplicate article slug: ${article.slug}`);
-  slugs.add(article.slug);
+  articles.push({ file, article });
+}
+
+const contractFailures = validateArticleCatalog(articles);
+if (contractFailures.length) {
+  throw new Error(contractFailures.map(({ file, message }) => `${file}: ${message}`).join("\n"));
+}
+
+const records = [];
+const covers = new Set();
+for (const { file, article } of articles) {
   const imagePath = path.join(root, article.image);
   await access(imagePath);
   covers.add(article.image);
@@ -46,9 +47,11 @@ console.log(`Built article manifest with ${manifest.length} article(s).`);
 
 // Regenerate the imported worker version on every content or application change.
 // Relative URLs keep the PWA inside the GitHub Pages repository subdirectory.
-const precacheFiles = ["index.html", "article.html", "styles.css", "app.js", "article.js", "mermaid-theme.js", "fgs-simulator.js", "pwa.js", "manifest.webmanifest", "favicon.svg",
+const webManifest = JSON.parse(await readFile(path.join(root, "manifest.webmanifest"), "utf8"));
+const precacheFiles = [...new Set(["index.html", "article.html", "styles.css", "app.js", "article.js", "mermaid-theme.js", "fgs-simulator.js", "pwa.js", "manifest.webmanifest", "favicon.svg", "favicon.ico",
+  "assets/favicon-16x16.png", "assets/favicon-32x32.png", ...webManifest.icons.map(icon => icon.src),
   "assets/app-icon.svg", "assets/app-icon-180.png", "assets/app-icon-192.png", "assets/app-icon-512.png",
-  "content/articles/index.json", ...manifest.map(entry => entry.path), ...covers].sort();
+  "content/articles/index.json", ...manifest.map(entry => entry.path), ...covers])].sort();
 const hash = createHash("sha256");
 for (const file of [...precacheFiles, "sw.js"]) {
   hash.update(file);

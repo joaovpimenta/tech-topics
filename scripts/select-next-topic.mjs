@@ -1,45 +1,45 @@
 import { randomInt } from "node:crypto";
-import { readdir } from "node:fs/promises";
+import { appendFile, readFile, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { chooseNext, parseQueue, selectionComment } from "./lib/topic-queue.mjs";
+import { loadGenerationSystem } from "./lib/generation-system.mjs";
+import { githubQueueAdapter, queueSummary, runTopicQueue } from "./lib/topic-queue-service.mjs";
 
-const repository = process.env.GITHUB_REPOSITORY;
-const token = process.env.GITHUB_TOKEN;
-const issue = Number(process.env.TOPIC_QUEUE_ISSUE_NUMBER);
-if (!repository || !token || !Number.isInteger(issue) || issue < 1) {
-  throw new Error("GITHUB_REPOSITORY, GITHUB_TOKEN and TOPIC_QUEUE_ISSUE_NUMBER are required");
-}
-
-async function github(url, options = {}) {
-  const response = await fetch(`https://api.github.com${url}`, {
-    ...options,
-    headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${token}`, "X-GitHub-Api-Version": "2022-11-28", ...options.headers }
-  });
-  if (!response.ok) throw new Error(`GitHub API ${response.status}: ${await response.text()}`);
-  return response.json();
-}
-
-const comments = [];
-for (let page = 1; ; page++) {
-  const batch = await github(`/repos/${repository}/issues/${issue}/comments?per_page=100&page=${page}`);
-  comments.push(...batch);
-  if (batch.length < 100) break;
-}
-// Public issue comments are untrusted; only the repository owner curates candidates.
-const owner = repository.split("/")[0];
-const trusted = comments.filter(comment => comment.user?.login === owner ||
-  (comment.user?.login === "github-actions[bot]" && comment.body?.includes("<!-- tech-topics:selected:v1 -->")));
-const articles = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../content/articles");
-const published = (await readdir(articles)).filter(file => file.endsWith(".json") && file !== "index.json").map(file => file.slice(0, -5));
-const result = chooseNext(parseQueue(trusted), published, randomInt);
-if (result.status === "selected") {
-  await github(`/repos/${repository}/issues/${issue}/comments`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ body: selectionComment(result.topic) })
-  });
-  console.log(`Selected: ${result.topic.slug}`);
+const args = process.argv.slice(2);
+if (args.includes("--help")) {
+  console.log("Usage: node scripts/select-next-topic.mjs [--dry-run] [--json] [--fixture path.json]\nRead-only queries need no token. Fixtures require --dry-run and contain comments, published, repository, and optional registry {tasks, frameworks} arrays.");
 } else {
-  console.log(result.status === "pending" ? `Selection pending: ${result.topic.slug}` : "No eligible candidate; weekly curation must replenish the queue.");
+  try {
+    const allowed = new Set(["--dry-run", "--json", "--fixture"]);
+    let fixturePath;
+    for (let i = 0; i < args.length; i++) {
+      if (!allowed.has(args[i])) throw new Error(`Unknown argument: ${args[i]}`);
+      if (args[i] === "--fixture") {
+        fixturePath = args[++i];
+        if (!fixturePath || fixturePath.startsWith("--")) throw new Error("--fixture requires a JSON path");
+      }
+    }
+    const dryRun = args.includes("--dry-run");
+    if (fixturePath && !dryRun) throw new Error("Fixtures require --dry-run; fixture queries cannot publish comments");
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+    const fixture = fixturePath ? JSON.parse(await readFile(fixturePath, "utf8")) : null;
+    const repository = fixture?.repository || process.env.GITHUB_REPOSITORY || "joaovpimenta/tech-topics";
+    const issue = Number(process.env.TOPIC_QUEUE_ISSUE_NUMBER || 21);
+    const registry = fixture?.registry ? {
+      tasks: new Map(fixture.registry.tasks.map(id => [id, {}])),
+      frameworks: new Map(fixture.registry.frameworks.map(id => [id, {}]))
+    } : await loadGenerationSystem(root);
+    const published = fixture?.published || (await readdir(path.join(root, "content", "articles")))
+      .filter(file => file.endsWith(".json") && file !== "index.json").map(file => file.slice(0, -5));
+    const adapter = fixture ? { listComments: async () => fixture.comments } :
+      githubQueueAdapter({ repository, issue, token: process.env.GITHUB_TOKEN });
+    if (!dryRun && !process.env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is required to publish a selection; use --dry-run for queries");
+    const result = await runTopicQueue({ adapter, owner: repository.split("/")[0], registry, published, dryRun, randomIndex: randomInt });
+    console.log(args.includes("--json") ? JSON.stringify(result, null, 2) : queueSummary(result));
+    if (process.env.GITHUB_STEP_SUMMARY && !fixture) await appendFile(process.env.GITHUB_STEP_SUMMARY, queueSummary(result));
+    if (result.status === "blocked") process.exitCode = 1;
+  } catch (error) {
+    console.error(JSON.stringify({ status: "blocked", problems: [error.message] }));
+    process.exitCode = 1;
+  }
 }
