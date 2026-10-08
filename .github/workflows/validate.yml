@@ -36,3 +36,14 @@ jobs:
         run: node scripts/validate-site.mjs
         env:
           TECH_TOPICS_REQUIRE_TTS_TESTS: "1"
+  required-validation:
+    name: Content and application lint
+    needs: validate
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every validation platform to pass
+        shell: bash
+        run: test "$VALIDATION_RESULT" = success
+        env:
+          VALIDATION_RESULT: ${{ needs.validate.result }}

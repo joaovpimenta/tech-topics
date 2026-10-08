@@ -126,4 +126,6 @@ A workflow `Validate Tech Topics` executa em Pull Requests e sob acionamento man
 
 Os checks de PR cobrem Windows e Linux, usando a versão declarada em `.node-version`. A workflow de Pages envia somente `dist/`. A seleção da fila continua ocorrendo depois de um deploy bem-sucedido; mudança de tooling não autoriza substituir uma seleção pendente.
 
+A proteção da `main` exige o check estável `Content and application lint`. Esse check agrega a matriz do PR e só passa quando todas as plataformas passam; não renomeie sem atualizar a proteção correspondente.
+
 O lint automatiza regras estruturais e de segurança. Rigor factual, qualidade da metáfora, correspondência entre abertura e capa e aparência de aquarela continuam sendo critérios editoriais que precisam de revisão humana ou visual.
