@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { validateArticleCatalog } from "./lib/article-contract.mjs";
+import { validateArticleCatalog, validateSpeechDirective } from "./lib/article-contract.mjs";
 
 const article = {
   slug: "fixture", language: "pt-BR", title: "Fixture", category: "Backend",
@@ -9,6 +9,11 @@ const article = {
 };
 const validate = value => validateArticleCatalog([{ file: "fixture.json", article: value }]);
 assert.deepEqual(validate(article), []);
+assert.deepEqual(validate({ ...article, speechMarkup: { title: [{ text: "Fixture", lang: "en-US", speak: "fixture" }] } }), []);
+assert.ok(validate({ ...article, speechMarkup: { title: [{ text: "Outro", lang: "pt-BR" }] } }).some(error => /exactly match/.test(error.message)));
+assert.ok(validate({ ...article, speechMarkup: { title: [{ text: "Fixture", lang: "pt-BR", mode: "guess" }] } }).some(error => /mode/.test(error.message)));
+assert.ok(validateSpeechDirective({ "data-tts-mode": "spell", "data-tts-say": "a pê i" }).some(message => /mutually exclusive/.test(message)));
+assert.ok(validateSpeechDirective({ "data-tts-say": " " }).some(message => /non-empty/.test(message)));
 assert.match(validate({ ...article, bodyHtml: '<p><a href="assets/<span lang="en-US">cqrs</span>/file.py">Download</a></p>' })[0].message, /URL attributes/);
 assert.match(validate({ ...article, bodyHtml: "<p><img src='assets/<span lang=\"en-US\">cqrs</span>/image.jpg'></p>" })[0].message, /URL attributes/);
 assert.match(validate({ ...article, publishedAt: "2026-02-30" })[0].message, /valid ISO/);

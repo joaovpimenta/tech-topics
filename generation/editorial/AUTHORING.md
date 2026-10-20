@@ -10,5 +10,6 @@ Escreva em português brasileiro para uma pessoa desenvolvedora que parte do zer
 - Use visuais somente quando uma relação for difícil de entender em prosa. Diagramas técnicos, quando úteis, são Mermaid; a capa é uma aquarela editorial gerada depois a partir da cena de abertura com `node scripts/compose-cover-brief.mjs`.
 - Termine com resumo mental, perguntas de revisão e dois ou três exercícios verificáveis.
 - Não prometa arquivos, simuladores, medições, imagens ou interações que não existam.
+- Antes de marcar expressões inglesas ou siglas, consulte [docs/TTS.md](../../docs/TTS.md) e o léxico indicado ali. Aplique a classificação e a precedência de pronúncia a título, subtítulo e corpo; preserve a grafia visível e use o fallback de soletração para siglas sem decisão editorial.
 
 Entregue um artigo no contrato JSON vigente em `content/articles/<slug>.json`. O lint é a autoridade para campos, HTML seguro, assets, acessibilidade, referências locais e estrutura verificável. Corrija o artigo até `node scripts/validate-site.mjs` passar; não tente contornar o lint em prosa.

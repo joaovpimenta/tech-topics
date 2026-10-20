@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Speech browser contracts</title>
+<body>
+<header class="article-header">
+  <h1 id="article-heading">API</h1><p id="article-dek">Resumo</p>
+  <button id="listen-article">Ouvir artigo</button><button id="speech-from-here" disabled>Ouvir daqui</button>
+  <span id="listen-status"></span>
+</header>
+<article id="article-body">
+  <p id="first">Uma <span lang="en-US">API</span> com <a href="#second">link</a> e <code>SQL</code>.</p>
+  <ul><li id="outer">Item <ul><li id="inner">Interno</li></ul></li></ul>
+  <p id="second"><span lang="en-US" data-tts-say="sequel"><em>SQL</em></span> e <span data-tts-mode="word" lang="en-US">REST</span>.</p>
+  <nav><p>NÃO LER</p></nav><div class="fgs-simulator"><p>NÃO LER</p></div>
+</article>
+<section id="speech-player" hidden><span id="speech-position"></span><button id="speech-play"></button><button id="speech-previous"></button><button id="speech-next"></button><button id="speech-stop"></button><label><input id="speech-follow" type="checkbox">Acompanhar</label></section>
+<pre id="result">PENDING</pre>
+<script src="../../speech.js"></script>
+<script>
+try {
+  function check(condition, message) { if (!condition) throw Error(message); }
+  const utterances = [];
+  const synthesis = { getVoices: () => [], speak: item => utterances.push(item), cancel() {}, pause() {}, resume() {} };
+  const player = TechTopicsSpeech.mount({ document, lexicon: {}, synthesis, Utterance: class { constructor(text) { this.text = text; } } });
+  document.querySelector('#listen-article').click();
+  check(utterances[0].text === 'a pê i', 'title spelling');
+  utterances[0].onboundary({ name: 'word', charIndex: 5 });
+  check(document.querySelector('.tts-word-active').textContent === 'API', 'expanded word maps to API');
+  check(!document.querySelector('#speech-player').hidden, 'toolbar visible');
+  document.querySelector('#first .tts-word').click();
+  const first = utterances.at(-1);
+  check(first.text.includes('a pê i'), 'paragraph click seeks');
+  check(!first.text.includes('SQL'), 'inline code excluded');
+  const before = utterances.length;
+  document.querySelector('#first a .tts-word').click();
+  check(utterances.length === before, 'links preserve navigation');
+  document.querySelector('#speech-play').click();
+  document.querySelector('#second').click();
+  check(player.snapshot().state === 'paused', 'seek preserves pause');
+  check(utterances.length === before, 'paused seek remains silent');
+  document.querySelector('#speech-play').click();
+  check(utterances.at(-1).text === 'sequel', 'occurrence pronunciation overrides spelling');
+  utterances.at(-1).onend();
+  check(utterances.at(-1).text === 'e', 'language preserved between overrides');
+  utterances.at(-1).onend();
+  check(utterances.at(-1).text === 'REST.', 'word override preserves acronym pronunciation');
+  document.querySelector('#speech-previous').click();
+  check(utterances.at(-1).text === 'Interno', 'nested list read once in order');
+  first.onend();
+  check(utterances.at(-1).text === 'Interno', 'canceled callback ignored');
+  document.querySelector('#speech-stop').click();
+  check(!document.querySelector('.tts-word-active,.tts-block-active'), 'highlights cleared');
+  check(document.querySelector('#speech-player').hidden, 'stop hides toolbar');
+  document.querySelector('#second').focus();
+  document.querySelector('#speech-from-here').click();
+  check(utterances.at(-1).text === 'sequel', 'keyboard selection supports listen from here');
+  player.stop();
+  document.querySelector('#first').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  check(player.snapshot().state === 'speaking', 'Enter starts from a block');
+  document.querySelector('#speech-play').focus();
+  for (let step = 0; player.snapshot().state !== 'idle' && step < 100; step++) utterances.at(-1).onend();
+  check(player.snapshot().state === 'idle', 'reading completes');
+  check(document.activeElement.id === 'listen-article', 'completion restores keyboard focus');
+  player.stop();
+  document.querySelector('#result').textContent = 'PASS: browser speech navigation, pronunciation, source mapping, controls and DOM exclusions';
+} catch (error) { document.querySelector('#result').textContent = 'FAIL: ' + error.stack; }
+</script>

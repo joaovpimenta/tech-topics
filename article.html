@@ -47,16 +47,30 @@
         <div class="article-meta" id="article-meta"></div>
         <div class="article-actions" id="article-actions" hidden>
           <button class="listen-button" id="listen-article" type="button" aria-pressed="false">Ouvir artigo</button>
-          <button class="listen-stop" id="stop-listening" type="button" hidden>Parar</button>
+          <button class="listen-stop" id="speech-from-here" type="button" disabled>Ouvir daqui</button>
           <button class="share-button" id="share-article" type="button">Compartilhar</button>
           <span class="listen-status" id="listen-status" role="status" aria-live="polite"></span>
           <span class="share-status" id="share-status" role="status" aria-live="polite"></span>
         </div>
+        <p class="speech-help" id="speech-help">Selecione um parágrafo e use “Ouvir daqui”, ou pressione Enter com o trecho em foco. Durante a leitura, clique no trecho para mudar o ponto de escuta.</p>
       </header>
       <div class="article-hero" hidden><img id="article-image" alt="" /></div>
       <article class="article-body" id="article-body"><p>Carregando o conteúdo…</p></article>
       <noscript><p>Ative o JavaScript para carregar o conteúdo deste artigo.</p></noscript>
     </main>
+
+    <section class="speech-player" id="speech-player" aria-label="Player de leitura do artigo" hidden>
+      <div class="speech-player-inner">
+        <span class="speech-position" id="speech-position"></span>
+        <div class="speech-player-controls">
+          <button id="speech-previous" type="button" aria-label="Ler trecho anterior">← Anterior</button>
+          <button id="speech-play" type="button">Pausar</button>
+          <button id="speech-next" type="button" aria-label="Ler próximo trecho">Próximo →</button>
+          <button id="speech-stop" type="button">Parar</button>
+        </div>
+        <label class="speech-follow"><input id="speech-follow" type="checkbox" checked /> Acompanhar leitura</label>
+      </div>
+    </section>
 
     <footer class="site-footer">
       <div class="footer-inner">
@@ -65,7 +79,8 @@
     </footer>
     <script src="fgs-simulator.js"></script>
     <script src="mermaid-theme.js?v=20260920-mermaid"></script>
-    <script src="article.js?v=20260920-mermaid"></script>
+    <script src="speech.js"></script>
+    <script src="article.js?v=20261020-player"></script>
     <script src="pwa.js"></script>
   </body>
 </html>

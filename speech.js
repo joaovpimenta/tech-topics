@@ -1,0 +1,311 @@
+(function (root) {
+  "use strict";
+
+  const letters = {
+    "pt-BR": ["a", "bê", "cê", "dê", "ê", "éfe", "gê", "agá", "i", "jota", "cá", "éle", "ême", "êne", "ó", "pê", "quê", "érre", "ésse", "tê", "u", "vê", "dáblio", "xis", "ípsilon", "zê"],
+    "en-US": ["ay", "bee", "see", "dee", "ee", "ef", "gee", "aitch", "eye", "jay", "kay", "el", "em", "en", "oh", "pee", "cue", "ar", "ess", "tee", "you", "vee", "double you", "ex", "why", "zee"]
+  };
+  const digits = { "pt-BR": ["zero", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"], "en-US": ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"] };
+
+  function spell(text, lang = "pt-BR") {
+    const language = lang.toLowerCase().startsWith("en") ? "en-US" : "pt-BR";
+    return [...text].map(char => /[A-Za-z]/.test(char) ? letters[language][char.toUpperCase().charCodeAt(0) - 65] : /\d/.test(char) ? digits[language][Number(char)] : char).join(" ");
+  }
+
+  function validateLexicon(lexicon) {
+    if (!lexicon || typeof lexicon !== "object" || Array.isArray(lexicon)) throw new Error("Léxico TTS inválido.");
+    for (const [term, entry] of Object.entries(lexicon)) {
+      if (!/^[\p{L}\p{N}]+$/u.test(term) || !entry || typeof entry.speak !== "string" || !entry.speak.trim() || !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i.test(entry.lang || "")) throw new Error(`Pronúncia TTS inválida: ${term}`);
+    }
+    return lexicon;
+  }
+
+  function pronounce(text, lang = "pt-BR", lexicon = {}) {
+    const parts = [];
+    let cursor = 0;
+    // URLs and identifiers remain literal; replacement only happens at whole words.
+    for (const match of text.matchAll(/https?:\/\/[^\s]+|www\.[^\s]+|[\p{L}\p{N}_]+/gu)) {
+      const token = match[0];
+      const plural = token.endsWith("s") && /^[a-z]?[A-Z][A-Z0-9]*s$/.test(token);
+      const base = plural ? token.slice(0, -1) : token;
+      const entry = Object.hasOwn(lexicon, token) ? lexicon[token] : plural && Object.hasOwn(lexicon, base) ? lexicon[base] : null;
+      const initialism = /^[a-z]?[A-Z][A-Z0-9]*$/.test(base) && (base.match(/[A-Z]/g) || []).length >= 2;
+      if (!entry && !initialism) continue;
+      if (match.index > cursor) parts.push({ text: text.slice(cursor, match.index), lang, start: cursor, end: match.index, replacement: false });
+      parts.push({ text: (entry?.speak || spell(base)) + (plural && !Object.hasOwn(lexicon, token) ? "s" : ""), lang: entry?.lang || "pt-BR", start: match.index, end: match.index + token.length, replacement: true });
+      cursor = match.index + token.length;
+    }
+    if (cursor < text.length) parts.push({ text: text.slice(cursor), lang, start: cursor, end: text.length, replacement: false });
+    return parts;
+  }
+
+  const blockSelector = "h1,h2,h3,h4,p,li,figcaption,th,td,.article-callout";
+  const ignoredSelector = "pre,code,nav,button,input,select,textarea,script,style,svg,details,[hidden],[aria-hidden=true],[data-tts-ignore],.fgs-toc,.fgs-simulator,.fgs-formula,.mermaid-diagram,.mermaid-fallback,.article-back";
+
+  function readableText(node) {
+    if (node.nodeType === 3) return node.nodeValue;
+    if (node.nodeType !== 1 || node.matches(ignoredSelector)) return "";
+    if (node.matches("br,hr")) return " ";
+    return [...node.childNodes].map(readableText).join("");
+  }
+
+  function buildBlocks(roots, lexicon = {}) {
+    const pieces = [];
+    function visit(node, owner, language) {
+      if (node.nodeType === 3) {
+        if (!owner || !node.nodeValue) return;
+        const fragment = node.ownerDocument.createDocumentFragment();
+        for (const match of node.nodeValue.matchAll(/\s+|\S+/g)) {
+          if (/^\s+$/.test(match[0])) {
+            fragment.append(node.ownerDocument.createTextNode(match[0]));
+            pieces.push({ owner, text: " ", lang: language, nodes: [] });
+          } else {
+            const word = node.ownerDocument.createElement("span");
+            word.className = "tts-word";
+            word.textContent = match[0];
+            fragment.append(word);
+            for (const part of pronounce(match[0], language, lexicon)) pieces.push({ owner, text: part.text, lang: part.lang, nodes: [word] });
+          }
+        }
+        node.replaceWith(fragment);
+        return;
+      }
+      if (node.nodeType !== 1 || node.matches(ignoredSelector)) return;
+      const lang = node.getAttribute("lang") || language;
+      const block = node.matches(blockSelector) ? node : owner;
+      if (node.matches("br,hr") && block) pieces.push({ owner: block, text: " ", lang, nodes: [] });
+      const start = pieces.length;
+      [...node.childNodes].forEach(child => visit(child, block, lang));
+      const say = node.getAttribute("data-tts-say");
+      const mode = node.getAttribute("data-tts-mode");
+      if ((say || mode) && pieces.length > start) {
+        const original = pieces.splice(start);
+        const nodes = [...new Set(original.flatMap(piece => piece.nodes))];
+        const literal = readableText(node);
+        pieces.push({ owner: block, text: say || (mode === "spell" ? spell(literal, lang) : literal), lang, nodes });
+      }
+    }
+    for (const rootNode of roots.filter(Boolean)) visit(rootNode, null, rootNode.closest("[lang]")?.lang || "pt-BR");
+    const blocks = [];
+    for (const piece of pieces) {
+      let text = piece.text.replace(/\s+/g, " ");
+      let block = blocks.at(-1);
+      if (block?.node !== piece.owner) {
+        if (!text.trim()) continue;
+        block = { node: piece.owner, segments: [] };
+        blocks.push(block);
+      }
+      let segment = block.segments.at(-1);
+      if (segment && /^[\s\p{P}]+$/u.test(text)) {
+        segment.text += text;
+        continue;
+      }
+      if (!segment || segment.lang !== piece.lang || segment.text.length + text.length > 240) {
+        if (!text.trim()) continue;
+        if (segment) segment.text = segment.text.trimEnd();
+        text = text.trimStart();
+        segment = { text: "", lang: piece.lang, words: [] };
+        block.segments.push(segment);
+      }
+      const start = segment.text.length;
+      segment.text += text;
+      if (piece.nodes.length) segment.words.push({ start, end: segment.text.length, nodes: piece.nodes });
+    }
+    for (const block of blocks) for (const segment of block.segments) segment.text = segment.text.trimEnd();
+    return blocks.filter(block => block.segments.length);
+  }
+
+  function createPlayer({ blocks, synthesis, Utterance, onChange = () => {}, onWord = () => {} }) {
+    let state = "idle";
+    let blockIndex = 0;
+    let segmentIndex = 0;
+    let session = 0;
+    let active = null;
+    const snapshot = () => ({ state, blockIndex, count: blocks.length });
+    const notify = message => onChange({ ...snapshot(), message });
+    function cancel() {
+      session += 1;
+      active = null;
+      synthesis.cancel();
+      onWord([]);
+    }
+    function stop(message = "Leitura interrompida.") {
+      cancel();
+      state = "idle";
+      blockIndex = segmentIndex = 0;
+      notify(message);
+    }
+    function speak() {
+      if (state !== "speaking") return;
+      if (blockIndex >= blocks.length) return stop("Leitura concluída.");
+      const segment = blocks[blockIndex].segments[segmentIndex];
+      const currentSession = session;
+      const utterance = new Utterance(segment.text);
+      active = utterance;
+      utterance.lang = segment.lang;
+      utterance.rate = utterance.pitch = 1;
+      const voices = synthesis.getVoices();
+      const language = segment.lang.toLowerCase();
+      const voice = voices.find(item => item.lang.toLowerCase() === language)
+        || voices.find(item => item.lang.toLowerCase().split("-")[0] === language.split("-")[0]);
+      if (voice) utterance.voice = voice;
+      utterance.onboundary = event => {
+        if (currentSession !== session || active !== utterance || state !== "speaking" || event.name !== "word") return;
+        const words = segment.words.filter(word => event.charIndex >= word.start && event.charIndex < word.end).flatMap(word => word.nodes);
+        onWord(words);
+      };
+      utterance.onend = () => {
+        if (currentSession !== session || active !== utterance) return;
+        active = null;
+        onWord([]);
+        segmentIndex += 1;
+        if (segmentIndex >= blocks[blockIndex].segments.length) {
+          segmentIndex = 0;
+          blockIndex += 1;
+        }
+        if (blockIndex >= blocks.length) return stop("Leitura concluída.");
+        notify();
+        speak();
+      };
+      utterance.onerror = event => {
+        if (currentSession !== session || active !== utterance || event.error === "canceled" || event.error === "interrupted") return;
+        stop("Não foi possível continuar a leitura neste navegador.");
+      };
+      notify();
+      synthesis.speak(utterance);
+    }
+    function start(index = 0, paused = false) {
+      if (!blocks.length) return notify("Não há texto disponível para leitura.");
+      cancel();
+      blockIndex = Math.max(0, Math.min(index, blocks.length - 1));
+      segmentIndex = 0;
+      state = paused ? "paused" : "speaking";
+      notify();
+      if (!paused) {
+        synthesis.resume();
+        speak();
+      }
+    }
+    function seek(index) { start(index, state === "paused"); }
+    function toggle() {
+      if (state === "idle") return start();
+      if (state === "speaking") {
+        state = "paused";
+        synthesis.pause();
+        onWord([]);
+      } else {
+        state = "speaking";
+        synthesis.resume();
+        if (!active) speak();
+      }
+      notify();
+    }
+    return { snapshot, start, toggle, seek, next: () => seek(blockIndex + 1), previous: () => seek(blockIndex - 1), stop };
+  }
+
+  function mount({ document, lexicon = {}, synthesis = root.speechSynthesis, Utterance = root.SpeechSynthesisUtterance }) {
+    const button = document.querySelector("#listen-article");
+    const status = document.querySelector("#listen-status");
+    const bar = document.querySelector("#speech-player");
+    if (!synthesis || !Utterance) {
+      button.hidden = true;
+      document.querySelector("#speech-from-here").hidden = true;
+      document.querySelector("#speech-help")?.setAttribute("hidden", "");
+      status.textContent = "Leitura em voz alta não é compatível com este navegador.";
+      return null;
+    }
+    const blocks = buildBlocks([document.querySelector("#article-heading"), document.querySelector("#article-dek"), document.querySelector("#article-body")], lexicon);
+    const play = document.querySelector("#speech-play");
+    const previous = document.querySelector("#speech-previous");
+    const next = document.querySelector("#speech-next");
+    const stop = document.querySelector("#speech-stop");
+    const position = document.querySelector("#speech-position");
+    const follow = document.querySelector("#speech-follow");
+    const fromHere = document.querySelector("#speech-from-here");
+    let selectedIndex = 0;
+    let highlightedBlock = null;
+    let highlightedWords = [];
+    function measureBar() {
+      if (!bar.hidden) document.body.style.setProperty("--speech-player-height", `${bar.getBoundingClientRect().height}px`);
+    }
+    if (document.defaultView.ResizeObserver) new document.defaultView.ResizeObserver(measureBar).observe(bar);
+    function highlightWords(nodes) {
+      highlightedWords.forEach(node => node.classList.remove("tts-word-active"));
+      highlightedWords = [...new Set(nodes)];
+      highlightedWords.forEach(node => node.classList.add("tts-word-active"));
+    }
+    const player = createPlayer({ blocks, synthesis, Utterance, onWord: highlightWords, onChange(snapshot) {
+      const { state, blockIndex, count, message } = snapshot;
+      const idle = state === "idle";
+      const speaking = state === "speaking";
+      const returnFocus = idle && bar.contains(document.activeElement);
+      bar.hidden = idle;
+      if (returnFocus) button.focus({ preventScroll: true });
+      measureBar();
+      document.body.classList.toggle("speech-session", !idle);
+      button.textContent = idle ? "Ouvir artigo" : speaking ? "Pausar leitura" : "Continuar leitura";
+      button.setAttribute("aria-pressed", String(!idle));
+      button.setAttribute("aria-label", button.textContent);
+      play.textContent = speaking ? "Pausar" : "Continuar";
+      play.setAttribute("aria-label", speaking ? "Pausar leitura" : "Continuar leitura");
+      previous.disabled = blockIndex === 0;
+      next.disabled = blockIndex >= count - 1;
+      position.textContent = `Trecho ${blockIndex + 1} de ${count}`;
+      const currentBlock = idle ? null : blocks[blockIndex]?.node;
+      if (highlightedBlock !== currentBlock) {
+        highlightedBlock?.classList.remove("tts-block-active");
+        highlightedBlock = currentBlock;
+        highlightedBlock?.classList.add("tts-block-active");
+        if (highlightedBlock && follow.checked) highlightedBlock.scrollIntoView({ behavior: "instant", block: "center" });
+      }
+      const label = message || (idle ? "" : speaking ? "Lendo o artigo em voz alta." : "Leitura pausada.");
+      if (status.textContent !== label) status.textContent = label;
+    } });
+    button.addEventListener("click", () => player.toggle());
+    play.addEventListener("click", () => player.toggle());
+    previous.addEventListener("click", () => player.previous());
+    next.addEventListener("click", () => player.next());
+    stop.addEventListener("click", () => {
+      player.stop();
+      button.focus({ preventScroll: true });
+    });
+    blocks.forEach((block, index) => {
+      if (!block.node.hasAttribute("tabindex")) block.node.tabIndex = 0;
+      block.node.setAttribute("aria-keyshortcuts", "Enter");
+      block.node.classList.add("tts-readable");
+      block.node.addEventListener("focus", () => {
+        selectedIndex = index;
+        fromHere.disabled = false;
+      });
+    });
+    fromHere.addEventListener("click", () => player.start(selectedIndex));
+    function chooseBlock(event) {
+      if (event.target.closest("a,button,input,select,textarea,summary,pre,code,[contenteditable=true]")) return;
+      if (document.defaultView.getSelection()?.toString()) return;
+      const node = event.target.closest(blockSelector);
+      const index = blocks.findIndex(block => block.node === node);
+      if (index < 0) return;
+      selectedIndex = index;
+      fromHere.disabled = false;
+      if (event.type === "keydown") {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        if (player.snapshot().state === "idle") player.start(index);
+        else player.seek(index);
+      } else if (player.snapshot().state !== "idle") player.seek(index);
+    }
+    for (const rootNode of [document.querySelector(".article-header"), document.querySelector("#article-body")]) {
+      rootNode.addEventListener("click", chooseBlock);
+      rootNode.addEventListener("keydown", chooseBlock);
+    }
+    follow.addEventListener("change", () => {
+      if (follow.checked) highlightedBlock?.scrollIntoView({ behavior: "instant", block: "center" });
+    });
+    document.defaultView.addEventListener("pagehide", () => player.stop(""));
+    return player;
+  }
+
+  const api = { pronounce, spell, validateLexicon, createPlayer, buildBlocks, mount };
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  else root.TechTopicsSpeech = api;
+})(globalThis);

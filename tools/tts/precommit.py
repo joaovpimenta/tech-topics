@@ -28,6 +28,49 @@ GENERATION_DEFAULTS = {
     "repetition_penalty": 1.5, "min_p": 0.05, "top_p": 1.0,
 }
 DEPENDENCIES = {"torch": "torch", "torchaudio": "torchaudio", "chatterbox": "chatterbox-tts"}
+LETTER_NAMES = {
+    "pt": "a,bê,cê,dê,ê,éfe,gê,agá,i,jota,cá,éle,ême,êne,ó,pê,quê,érre,ésse,tê,u,vê,dáblio,xis,ípsilon,zê".split(","),
+    "en": "ay,bee,see,dee,ee,ef,gee,aitch,eye,jay,kay,el,em,en,oh,pee,cue,ar,ess,tee,you,vee,double you,ex,why,zee".split(","),
+}
+DIGIT_NAMES = {"pt": "zero um dois três quatro cinco seis sete oito nove".split(), "en": "zero one two three four five six seven eight nine".split()}
+
+
+def load_lexicon(staged: bool = False) -> dict:
+    path = "content/tts-lexicon.json"
+    if staged:
+        if not git("ls-files", "--", path).strip():
+            return {}
+        source = git("show", ":" + path)
+    else:
+        file = ROOT / path
+        if not file.exists():
+            return {}
+        source = file.read_text(encoding="utf-8")
+    lexicon = json.loads(source)
+    if not isinstance(lexicon, dict):
+        raise ValueError("Léxico TTS inválido.")
+    for term, entry in lexicon.items():
+        if not term.isalnum() or not isinstance(entry, dict) or not isinstance(entry.get("speak"), str) or not entry["speak"].strip() or not re.fullmatch(r"[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*", entry.get("lang", "")):
+            raise ValueError(f"Pronúncia TTS inválida: {term}")
+    return lexicon
+
+
+def spell(text: str, language: str = "pt-BR") -> str:
+    lang = "en" if language.lower().startswith("en") else "pt"
+    return " ".join(LETTER_NAMES[lang][ord(char.upper()) - 65] if char.isascii() and char.isalpha() else DIGIT_NAMES[lang][int(char)] if char in "0123456789" else char for char in text)
+
+
+def spoken_text(text: str, lexicon: dict) -> str:
+    def replace(match):
+        token = match.group()
+        plural = bool(re.fullmatch(r"[a-z]?[A-Z][A-Z0-9]*s", token))
+        base = token[:-1] if plural else token
+        entry = lexicon.get(token, lexicon.get(base) if plural else None)
+        initialism = bool(re.fullmatch(r"[a-z]?[A-Z][A-Z0-9]*", base)) and len(re.findall(r"[A-Z]", base)) >= 2
+        if not entry and not initialism:
+            return token
+        return (entry["speak"] if entry else spell(base)) + ("s" if plural and token not in lexicon else "")
+    return re.sub(r"https?://[^\s]+|www\.[^\s]+|\w+", replace, text)
 
 
 def git(*args: str) -> str:
@@ -85,8 +128,8 @@ def digest_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def cache_identity(article: dict, voice: Path, settings: dict) -> dict:
-    narration = article_narration(article)
+def cache_identity(article: dict, voice: Path, settings: dict, lexicon: dict | None = None) -> dict:
+    narration = article_narration(article, lexicon)
     if not narration:
         raise ValueError("Não há prosa para narrar.")
     packages = {}
@@ -122,9 +165,9 @@ VOID_TAGS = {
 }
 IGNORED_TAGS = {"button", "code", "details", "nav", "pre", "script", "style", "svg"}
 IGNORED_CLASSES = {
-    "article-back", "fgs-simulator", "fgs-toc", "mermaid-diagram", "mermaid-fallback",
+    "article-back", "fgs-simulator", "fgs-toc", "fgs-formula", "mermaid-diagram", "mermaid-fallback",
 }
-NARRATION_TAGS = {"h2", "h3", "p", "li", "figcaption", "th", "td"}
+NARRATION_TAGS = {"h2", "h3", "h4", "p", "li", "figcaption", "th", "td"}
 SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
@@ -168,7 +211,8 @@ def classes(node: dict) -> set[str]:
 
 
 def is_ignored(node: dict) -> bool:
-    return node["tag"] in IGNORED_TAGS or bool(classes(node) & IGNORED_CLASSES)
+    attrs = node["attrs"]
+    return node["tag"] in IGNORED_TAGS or bool(classes(node) & IGNORED_CLASSES) or "hidden" in attrs or "data-tts-ignore" in attrs or attrs.get("aria-hidden") == "true"
 
 
 def descendant_has_tag(node: dict, tag: str) -> bool:
@@ -179,69 +223,86 @@ def descendant_has_tag(node: dict, tag: str) -> bool:
     return False
 
 
-def visible_text(node: dict) -> str:
+def visible_text(node: dict, lexicon: dict | None = None, language: str = "pt-BR") -> str:
     parts: list[str] = []
 
-    def collect(current: dict | str) -> None:
+    def collect(current: dict | str, inherited_language: str) -> None:
         if isinstance(current, str):
-            parts.append(current)
+            parts.append(spoken_text(current, lexicon) if lexicon is not None else current)
             return
         if is_ignored(current):
             return
+        attrs = current["attrs"]
+        lang = attrs.get("lang") or inherited_language
+        if lexicon is not None and attrs.get("data-tts-say"):
+            parts.append(attrs["data-tts-say"])
+            return
+        if lexicon is not None and attrs.get("data-tts-mode") in {"word", "spell"}:
+            literal = visible_text(current)
+            parts.append(spell(literal, lang) if attrs["data-tts-mode"] == "spell" else literal)
+            return
         for child in current["children"]:
-            collect(child)
+            collect(child, lang)
 
-    collect(node)
+    collect(node, language)
     return re.sub(r"\s+", " ", "".join(parts)).strip()
 
 
-def narration_blocks(body_html: str) -> list[str]:
+def narration_blocks(body_html: str, lexicon: dict | None = None) -> list[str]:
     parser = ElementTreeParser()
     parser.feed(body_html)
     parser.close()
     blocks: list[str] = []
 
-    def visit(node: dict | str) -> None:
+    def visit(node: dict | str, inherited_language: str = "pt-BR") -> None:
         if isinstance(node, str) or is_ignored(node):
             return
 
         tag = node["tag"]
+        language = node["attrs"].get("lang") or inherited_language
         node_classes = classes(node)
         if tag == "div" and "article-callout" in node_classes and not descendant_has_tag(node, "p"):
-            text = visible_text(node)
+            text = visible_text(node, lexicon, language)
             if text:
                 blocks.append(text)
             return
 
         if tag == "li" and not descendant_has_tag(node, "p"):
-            text = visible_text(node)
+            text = visible_text(node, lexicon, language)
             if text:
                 blocks.append(text)
             return
 
         if tag in NARRATION_TAGS:
-            text = visible_text(node)
+            text = visible_text(node, lexicon, language)
             if text:
                 blocks.append(text)
             return
 
         for child in node["children"]:
-            visit(child)
+            visit(child, language)
 
     visit(parser.root)
     return blocks
 
 
-def article_narration(article: dict) -> str:
+def article_narration(article: dict, lexicon: dict | None = None) -> str:
+    if lexicon is None:
+        lexicon = load_lexicon()
     blocks = []
     for field in ("title", "dek"):
         value = article.get(field)
         if isinstance(value, str) and value.strip():
-            blocks.append(re.sub(r"\s+", " ", value).strip())
+            segments = article.get("speechMarkup", {}).get(field, [])
+            if segments and "".join(segment["text"] for segment in segments) == value:
+                text = "".join(segment.get("speak") or (spell(segment["text"], segment["lang"]) if segment.get("mode") == "spell" else segment["text"] if segment.get("mode") == "word" else spoken_text(segment["text"], lexicon)) for segment in segments)
+            else:
+                text = spoken_text(value, lexicon)
+            blocks.append(re.sub(r"\s+", " ", text).strip())
 
     body_html = article.get("bodyHtml")
     if isinstance(body_html, str):
-        blocks.extend(narration_blocks(body_html))
+        blocks.extend(narration_blocks(body_html, lexicon))
     return "\n\n".join(blocks).strip()
 
 
@@ -370,9 +431,9 @@ def has_audio(path: Path) -> bool:
         return False
 
 
-def generate(article_path: str, article: dict, voice: Path, settings: dict, identity: dict) -> None:
+def generate(article_path: str, article: dict, voice: Path, settings: dict, identity: dict, lexicon: dict | None = None) -> None:
     slug = article["slug"]
-    narration = article_narration(article)
+    narration = article_narration(article, lexicon)
     if not narration:
         raise ValueError(f"{article_path}: não há prosa para narrar.")
 
@@ -431,6 +492,7 @@ def check_staged() -> dict:
     paths = staged_article_paths()
     if not paths:
         return {"ok": True, "articles": []}
+    lexicon = load_lexicon(staged=True)
     voice = configured_voice()
     assert_private_files(voice)
     settings = generation_settings()
@@ -439,11 +501,11 @@ def check_staged() -> dict:
     results = []
     for article_path in paths:
         article = read_staged_article(article_path)
-        identity = cache_identity(article, voice, settings)
+        identity = cache_identity(article, voice, settings, lexicon)
         output_path = OUTPUT_DIR / f"{article['slug']}.wav"
         reused = cache_matches(output_path, identity)
         if not reused:
-            generate(article_path, article, voice, settings, identity)
+            generate(article_path, article, voice, settings, identity, lexicon)
         results.append({"slug": article["slug"], "reused": reused})
     return {"ok": True, "articles": results}
 

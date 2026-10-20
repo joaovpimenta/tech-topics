@@ -1,7 +1,8 @@
 import { readdir, readFile, access } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateArticleCatalog } from "./lib/article-contract.mjs";
+import speech from "../speech.js";
+import { validateArticleCatalog, validateSpeechDirective } from "./lib/article-contract.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const articlesDir = path.join(root, "content", "articles");
@@ -89,6 +90,7 @@ function scanBody(file, bodyHtml) {
     if (!opening) continue;
     const name = opening[1].toLowerCase();
     const attrs = parseAttributes(raw);
+    for (const message of validateSpeechDirective(attrs)) fail(file, message);
     const classes = (attrs.class || "").split(/\s+/).filter(Boolean);
 
     for (const attributeName of Object.keys(attrs)) {
@@ -169,40 +171,6 @@ function scanBody(file, bodyHtml) {
   return localRefs;
 }
 
-function scanSpeechMarkup(file, article) {
-  if (article.speechMarkup === undefined) return;
-  if (!article.speechMarkup || typeof article.speechMarkup !== "object" || Array.isArray(article.speechMarkup)) {
-    fail(file, "speechMarkup must be an object");
-    return;
-  }
-
-  for (const field of ["title", "dek"]) {
-    const segments = article.speechMarkup[field];
-    if (segments === undefined) continue;
-    if (!Array.isArray(segments)) {
-      fail(file, `speechMarkup.${field} must be an array`);
-      continue;
-    }
-
-    const expectedText = field === "title" ? article.title : (article.dek || article.excerpt);
-    const segmentText = [];
-    for (const [index, segment] of segments.entries()) {
-      if (!segment || typeof segment !== "object" || typeof segment.text !== "string" || !segment.text) {
-        fail(file, `speechMarkup.${field}[${index}] must contain non-empty text`);
-        continue;
-      }
-      if (typeof segment.lang !== "string" || !/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(segment.lang)) {
-        fail(file, `speechMarkup.${field}[${index}] must contain a valid lang`);
-      }
-      segmentText.push(segment.text);
-    }
-
-    if (segmentText.join("") !== expectedText) {
-      fail(file, `speechMarkup.${field} text must exactly match the displayed ${field}`);
-    }
-  }
-}
-
 const articleFiles = (await readdir(articlesDir))
   .filter(file => file.endsWith(".json") && file !== "index.json")
   .sort();
@@ -224,6 +192,10 @@ for (const file of articleFiles) {
 
 for (const { file, message } of validateArticleCatalog(articles)) fail(file, message);
 
+try {
+  speech.validateLexicon(JSON.parse(await readFile(path.join(root, "content/tts-lexicon.json"), "utf8")));
+} catch (error) { fail("content/tts-lexicon.json", error.message); }
+
 const slugs = new Set(articles.flatMap(({ article }) =>
   article && typeof article === "object" && !Array.isArray(article) && typeof article.slug === "string" && article.slug
     ? [article.slug]
@@ -231,8 +203,6 @@ const slugs = new Set(articles.flatMap(({ article }) =>
 ));
 for (const { file, article } of articles) {
   if (!article || typeof article !== "object" || Array.isArray(article)) continue;
-
-  scanSpeechMarkup(file, article);
 
   if (typeof article.slug === "string" && typeof article.image === "string") {
     const expectedImage = `assets/${article.slug}/${article.slug}-cover.jpg`;

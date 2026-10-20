@@ -5,7 +5,7 @@ import path from "node:path";
 // list is deliberately independent of the smaller service-worker precache.
 export const PUBLIC_ROOT_FILES = Object.freeze([
   "index.html", "article.html", "styles.css", "app.js", "article.js",
-  "mermaid-theme.js", "fgs-simulator.js", "pwa.js", "manifest.webmanifest",
+  "speech.js", "content/tts-lexicon.json", "mermaid-theme.js", "fgs-simulator.js", "pwa.js", "manifest.webmanifest",
   "favicon.svg", "favicon.ico", "sw.js", "sw-version.js"
 ]);
 const artifactManifest = ".site-artifact.json";
