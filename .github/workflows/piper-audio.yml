@@ -108,7 +108,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/piper
-          key: piper-voice-pt_BR-faber-medium-v1
+          key: piper-voice-pt_BR-cadu-medium-v1
 
       - name: Download Brazilian Portuguese voice when missing
         if: steps.existing.outputs.skip != 'true'
@@ -116,11 +116,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .cache/piper
-          if [ ! -s .cache/piper/pt_BR-faber-medium.onnx ] || [ ! -s .cache/piper/pt_BR-faber-medium.onnx.json ]; then
-            python -m piper.download_voices --data-dir .cache/piper pt_BR-faber-medium
+          if [ ! -s .cache/piper/pt_BR-cadu-medium.onnx ] || [ ! -s .cache/piper/pt_BR-cadu-medium.onnx.json ]; then
+            python -m piper.download_voices --data-dir .cache/piper pt_BR-cadu-medium
           fi
-          test -s .cache/piper/pt_BR-faber-medium.onnx
-          test -s .cache/piper/pt_BR-faber-medium.onnx.json
+          test -s .cache/piper/pt_BR-cadu-medium.onnx
+          test -s .cache/piper/pt_BR-cadu-medium.onnx.json
 
       - name: Extract narrated text
         if: steps.existing.outputs.skip != 'true'
@@ -142,7 +142,7 @@ jobs:
         run: |
           set -euo pipefail
           time python -m piper \
-            --model .cache/piper/pt_BR-faber-medium.onnx \
+            --model .cache/piper/pt_BR-cadu-medium.onnx \
             --input-file ".audio/$ARTICLE_SLUG.txt" \
             --output-file ".audio/$ARTICLE_SLUG.wav" \
             --sentence-silence 0.2
