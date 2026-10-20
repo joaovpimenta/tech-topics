@@ -1,5 +1,10 @@
 [
   {
+    "slug": "seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets",
+    "path": "content/articles/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets.json",
+    "addedAt": "2026-10-19T21:50:47-03:00"
+  },
+  {
     "slug": "bulkhead",
     "path": "content/articles/bulkhead.json",
     "addedAt": "2026-10-02T12:22:15-03:00"
