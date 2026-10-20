@@ -87,6 +87,32 @@ class NarrationTests(unittest.TestCase):
         self.config.unlink()
         self.assertEqual(tts.check_staged(), {"ok": True, "articles": []})
 
+    def test_initialisms_and_explicit_pronunciation(self):
+        self.article.update(title="SQL e API", bodyHtml='<p>Uma <span lang="en-US">API</span> e <span data-tts-say="sequel" lang="en-US">SQL</span>.</p>')
+        self.assertIn("ésse quê éle e a pê i", tts.article_narration(self.article))
+        self.assertIn("Uma a pê i e sequel.", tts.article_narration(self.article))
+        self.assertEqual(tts.spoken_text("mTLS e gRPC; https://x.test/API_v2", {}), "ême tê éle ésse e gê érre pê cê; https://x.test/API_v2")
+
+    def test_staged_lexicon_controls_narration_and_cache(self):
+        self.article.update(title="SQL")
+        self.stage()
+        lexicon_file = self.root / "content/tts-lexicon.json"
+        lexicon_file.write_text(json.dumps({"SQL": {"speak": "sequel", "lang": "en-US"}}), encoding="utf-8")
+        tts.git("add", "--", "content/tts-lexicon.json")
+        lexicon_file.write_text(json.dumps({"SQL": {"speak": "outro", "lang": "pt-BR"}}), encoding="utf-8")
+        staged = tts.load_lexicon(staged=True)
+        self.assertEqual(staged["SQL"]["speak"], "sequel")
+        first = tts.cache_identity(self.article, self.voice, tts.generation_settings(), lexicon=staged)
+        second = tts.cache_identity(self.article, self.voice, tts.generation_settings(), lexicon={})
+        self.assertNotEqual(first["narration_sha256"], second["narration_sha256"])
+
+    def test_explicit_spelling_inherits_language_and_ignores_hidden_content(self):
+        self.article.update(title="Título", dek="Resumo", bodyHtml='<section lang="en-US"><p><span data-tts-mode="spell">API</span></p></section><p hidden>OCULTO</p><p data-tts-ignore>IGNORADO</p>')
+        narration = tts.article_narration(self.article, {})
+        self.assertIn("ay pee eye", narration)
+        self.assertNotIn("OCULTO", narration)
+        self.assertNotIn("IGNORADO", narration)
+
     def test_cache_requires_metadata_even_for_valid_legacy_audio(self):
         output = self.output / "test-article.wav"
         wav(output)

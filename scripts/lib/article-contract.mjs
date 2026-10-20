@@ -20,6 +20,51 @@ function isArticleObject(article) {
   return article !== null && typeof article === "object" && !Array.isArray(article);
 }
 
+export function validateSpeechDirective(attrs) {
+  const failures = [];
+  const mode = attrs["data-tts-mode"] ?? attrs.mode;
+  const speak = attrs["data-tts-say"] ?? attrs.speak;
+  if (mode !== undefined && !["spell", "word"].includes(mode)) failures.push("TTS mode must be spell or word");
+  if (speak !== undefined && (typeof speak !== "string" || !speak.trim())) failures.push("TTS speak must be non-empty text");
+  if (mode !== undefined && speak !== undefined) failures.push("TTS speak and mode are mutually exclusive");
+  return failures;
+}
+
+function validateSpeechMarkup(article, fail) {
+  if (article.speechMarkup === undefined) return;
+  if (!article.speechMarkup || typeof article.speechMarkup !== "object" || Array.isArray(article.speechMarkup)) {
+    fail("speechMarkup must be an object");
+    return;
+  }
+
+  for (const field of ["title", "dek"]) {
+    const segments = article.speechMarkup[field];
+    if (segments === undefined) continue;
+    if (!Array.isArray(segments)) {
+      fail(`speechMarkup.${field} must be an array`);
+      continue;
+    }
+
+    const expectedText = field === "title" ? article.title : (article.dek || article.excerpt);
+    const segmentText = [];
+    for (const [index, segment] of segments.entries()) {
+      if (!segment || typeof segment !== "object" || typeof segment.text !== "string" || !segment.text) {
+        fail(`speechMarkup.${field}[${index}] must contain non-empty text`);
+        continue;
+      }
+      if (typeof segment.lang !== "string" || !/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(segment.lang)) {
+        fail(`speechMarkup.${field}[${index}] must contain a valid lang`);
+      }
+      for (const message of validateSpeechDirective(segment)) fail(message);
+      segmentText.push(segment.text);
+    }
+
+    if (segmentText.join("") !== expectedText) {
+      fail(`speechMarkup.${field} text must exactly match the displayed ${field}`);
+    }
+  }
+}
+
 function validateArticleRecord(file, article) {
   const failures = [];
   const fail = message => failures.push({ file, message });
@@ -60,6 +105,7 @@ function validateArticleRecord(file, article) {
     if (article.image !== expectedImage) fail("image must point to " + expectedImage);
   }
 
+  validateSpeechMarkup(article, fail);
   return failures;
 }
 

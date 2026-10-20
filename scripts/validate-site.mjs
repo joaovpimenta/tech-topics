@@ -13,6 +13,8 @@ const checks = [
   ["Lint article content", ["scripts/lint-articles.mjs"]],
   ["Check application syntax", ["--check", "app.js"]],
   ["Check article syntax", ["--check", "article.js"]],
+  ["Check speech syntax", ["--check", "speech.js"]],
+  ["Run speech pronunciation and player tests", ["scripts/test-speech.cjs"]],
   ["Check simulator syntax", ["--check", "fgs-simulator.js"]],
   ["Check Mermaid syntax", ["--check", "mermaid-theme.js"]],
   ["Run PWA tests", ["scripts/test-pwa.cjs"]],

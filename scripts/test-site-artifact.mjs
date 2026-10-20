@@ -26,7 +26,7 @@ async function fixture(run) {
     await put("manifest.webmanifest", JSON.stringify({ start_url: "./index.html", icons: [{ src: "assets/maskable.png" }] }));
     await put("content/articles/index.json", JSON.stringify([{ slug: "post", path: "content/articles/post.json" }]));
     await put("content/articles/post.json", JSON.stringify({ image: "assets/post/cover.jpg", bodyHtml: '<img src="assets/post/plot.jpg" srcset="assets/post/cover.jpg 1x, assets/post/plot.jpg 2x"><a href="assets/post/experiment.py" download>Download</a><a href="https://example.com/external">External</a>' }));
-    for (const file of ["README.md", "AGENTS.md", "docs/private.md", "generation/registry.json", "scripts/private.mjs", "tools/voice.wav", "content/tts-lexicon.json", ".git/config"]) await put(file, "private tooling");
+    for (const file of ["README.md", "AGENTS.md", "docs/private.md", "generation/registry.json", "scripts/private.mjs", "tools/voice.wav", ".git/config"]) await put(file, "private tooling");
     await run({ root, put });
   } finally { await rm(root, { recursive: true, force: true }); }
 }
@@ -39,7 +39,7 @@ test("publishes all runtime and article assets, preserving URLs independently of
     assert.equal(await readFile(path.join(root, "dist", file), "utf8"), await readFile(path.join(root, file), "utf8"));
   }
   assert(!built.files.some(file => /^(docs|generation|scripts|tools|\.git)\//.test(file)));
-  assert(!built.files.includes("content/tts-lexicon.json"));
+  assert(built.files.includes("content/tts-lexicon.json"));
   const entries = await readdir(path.join(root, "dist"));
   assert(!entries.includes("README.md"));
   assert(!entries.includes("AGENTS.md"));

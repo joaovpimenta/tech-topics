@@ -113,6 +113,8 @@ Exemplo:
 
 Não use essa marcação de forma indiscriminada; ela deve indicar uma mudança real de idioma/pronúncia.
 
+Para siglas e exceções de pronúncia, siga a precedência e as marcações opcionais documentadas em [TTS.md](TTS.md#siglas-abreviações-e-pronúncias-especiais). O idioma e a forma de fala são informações distintas; `speechMarkup` continua concatenando exatamente o texto visível, mesmo quando um segmento declara `speak` ou `mode`.
+
 ## Acessibilidade dos visuais
 
 - Toda imagem relevante deve ter `alt` adequado.

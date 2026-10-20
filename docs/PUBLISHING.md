@@ -63,6 +63,8 @@ Confirme, no mínimo:
 
 Execute testes adicionais somente quando existirem ou quando a alteração afetar uma funcionalidade não coberta pelo comando único.
 
+Para alterações no player, execute também `node scripts/test-speech-browser.cjs` com Playwright e Chromium disponíveis. O teste cobre a página real em desktop e celular e usa síntese simulada para navegação e sincronização; a qualidade da voz exige escuta real. `TECH_TOPICS_PLAYWRIGHT` aceita o caminho do módulo Playwright e `TECH_TOPICS_CHROMIUM` o executável do navegador. Sem Playwright, o comando informa explicitamente que pulou o teste.
+
 ## Inspeção da página
 
 Confira a página inicial e o novo artigo em:
