@@ -126,6 +126,16 @@ jobs:
         if: steps.existing.outputs.skip != 'true'
         run: python tools/tts/piper_release.py prepare --slug "$ARTICLE_SLUG" --output-dir .audio
 
+      - name: Install FFmpeg for MP3 encoding
+        if: steps.existing.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          command -v ffmpeg
+          command -v ffprobe
+
       - name: Generate WAV and compressed MP3 on CPU
         if: steps.existing.outputs.skip != 'true'
         shell: bash
