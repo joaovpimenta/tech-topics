@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   validate:
@@ -53,3 +53,14 @@ jobs:
       - name: Deploy validated artifact to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  publish-audio:
+    name: Publish new article audio after successful deploy
+    if: github.event_name == 'push'
+    needs: deploy
+    permissions:
+      contents: write
+    uses: ./.github/workflows/piper-audio.yml
+    with:
+      before_sha: ${{ github.event.before }}
+      after_sha: ${{ github.sha }}
