@@ -60,7 +60,7 @@ jobs:
     needs: deploy
     permissions:
       contents: write
-    uses: ./.github/workflows/piper-audio.yml
+    uses: ./.github/workflows/kokoro-audio.yml
     with:
       before_sha: ${{ github.event.before }}
       after_sha: ${{ github.sha }}

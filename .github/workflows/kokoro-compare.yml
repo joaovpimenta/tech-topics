@@ -1,0 +1,135 @@
+name: Compare Kokoro Dora versus Piper Cadu
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/kokoro-audio.yml"
+      - ".github/workflows/kokoro-compare.yml"
+      - "tools/tts/kokoro_release.py"
+      - "tools/tts/test_kokoro_release.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Compare identical bulkhead excerpt on CPU
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ARTICLE_SLUG: bulkhead
+      OMP_NUM_THREADS: "4"
+      OPENBLAS_NUM_THREADS: "4"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: .python-version
+
+      - name: Install synthesis dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends espeak-ng libespeak-ng1 ffmpeg
+          python -m pip install "kokoro-onnx==0.6.1" "misaki-fork==0.9.6" "phonemizer-fork==3.3.2" "espeakng-loader==0.2.4" \
+            "soundfile==0.13.1" "piper-tts==1.8.0"
+
+      - name: Cache Kokoro and Piper comparison models
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/kokoro
+            .cache/piper
+          key: tts-ab-kokoro-fp32-v1.1-piper-cadu-v1
+
+      - name: Fetch voices and models
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/kokoro .cache/piper
+          base="https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1"
+          for file in kokoro-v1.0.onnx voices-v1.0.bin; do
+            if [ ! -s ".cache/kokoro/$file" ]; then
+              curl --fail --location --retry 3 --silent --show-error \
+                "$base/$file" -o ".cache/kokoro/$file"
+            fi
+          done
+          if [ ! -s .cache/piper/pt_BR-cadu-medium.onnx ]; then
+            python -m piper.download_voices --data-dir .cache/piper pt_BR-cadu-medium
+          fi
+
+      - name: Prepare the same PT-BR article sample
+        run: |
+          python tools/tts/kokoro_release.py prepare \
+            --slug "$ARTICLE_SLUG" --max-chars 1200 --output-dir .audio
+
+      - name: Measure Kokoro Dora FP32
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/tts/kokoro_release.py synthesize \
+            --slug "$ARTICLE_SLUG" --output-dir .audio \
+            --model .cache/kokoro/kokoro-v1.0.onnx \
+            --voices .cache/kokoro/voices-v1.0.bin
+          ffmpeg -hide_banner -loglevel error -y \
+            -i ".audio/$ARTICLE_SLUG.wav" \
+            -af "loudnorm=I=-19:TP=-1:LRA=11" \
+            -ar 24000 -ac 1 -c:a libmp3lame -b:a 96k \
+            ".audio/kokoro-$ARTICLE_SLUG.mp3"
+
+      - name: Measure Piper Cadu on the same text
+        shell: bash
+        run: |
+          set -euo pipefail
+          start="$(date +%s)"
+          python -m piper \
+            --model .cache/piper/pt_BR-cadu-medium.onnx \
+            --input-file ".audio/$ARTICLE_SLUG.txt" \
+            --output-file ".audio/piper-$ARTICLE_SLUG.wav" \
+            --sentence-silence 0.2
+          end="$(date +%s)"
+          echo "PIPER_SECONDS=$((end-start))" >> "$GITHUB_ENV"
+          ffmpeg -hide_banner -loglevel error -y \
+            -i ".audio/piper-$ARTICLE_SLUG.wav" \
+            -af "loudnorm=I=-19:TP=-1:LRA=11" \
+            -ar 24000 -ac 1 -c:a libmp3lame -b:a 96k \
+            ".audio/piper-$ARTICLE_SLUG.mp3"
+
+      - name: Show comparison metrics
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os, subprocess
+          from pathlib import Path
+          slug = os.environ["ARTICLE_SLUG"]
+          k = json.loads((Path(".audio") / f"{slug}.metrics.json").read_text())
+          duration = float(subprocess.check_output([
+              "ffprobe", "-v", "error", "-show_entries", "format=duration",
+              "-of", "default=noprint_wrappers=1:nokey=1",
+              str(Path(".audio") / f"piper-{slug}.wav")
+          ]).decode().strip())
+          ptime = int(os.environ["PIPER_SECONDS"])
+          print("### Tech Topics — A/B Kokoro x Piper (PT-BR)")
+          print("Mesma amostra de 1.200 caracteres, CPU sem GPU, MP3 96 kbps.")
+          print("| Motor | Voz | Áudio | Inferência (tempo de parede) | Fator tempo-real |")
+          print("|---|---|---:|---:|---:|")
+          print(f"| Kokoro FP32 | pf_dora | {k['audio_seconds']} s | {k['synthesis_seconds']} s | {k['real_time_factor']}× |")
+          print(f"| Piper | pt_BR-cadu-medium | {duration:.2f} s | {ptime} s | {ptime/duration:.3f}× |")
+          print("Qualidade de voz e pronúncia precisam de avaliação auditiva humana.")
+          PY
+
+      - name: Upload both MP3s and the script for listening
+        uses: actions/upload-artifact@v4
+        with:
+          name: tts-ab-bulkhead-${{ github.run_id }}
+          path: |
+            .audio/kokoro-bulkhead.mp3
+            .audio/piper-bulkhead.mp3
+            .audio/bulkhead.txt
+            .audio/bulkhead.metrics.json
+          if-no-files-found: error
+          retention-days: 14
