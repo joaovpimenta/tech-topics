@@ -1,0 +1,23 @@
+name: Compare Kokoro Dora versus Piper Cadu
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/kokoro-audio.yml"
+      - ".github/workflows/kokoro-compare.yml"
+      - "tools/tts/kokoro_release.py"
+      - "tools/tts/test_kokoro_release.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Compare the same bulkhead excerpt on CPU
+    permissions:
+      contents: read
+    uses: ./.github/workflows/kokoro-audio.yml
+    with:
+      slug: bulkhead
+      mode: compare
