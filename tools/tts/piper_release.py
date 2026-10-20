@@ -74,7 +74,7 @@ def prepare(slug: str, output_dir: Path) -> None:
         f"Áudio do artigo **{title}** do Tech Topics.\n\n"
         f"Artigo original: {page}\n\n"
         "Gerado automaticamente em CPU com Piper TTS 1.8.0, "
-        "voz pt_BR-faber-medium (português brasileiro).\n"
+        "voz pt_BR-cadu-medium (português brasileiro).\n"
         "A geração automática não substitui uma revisão auditiva editorial.\n"
     )
     (output_dir / f"{slug}.md").write_text(notes, encoding="utf-8")

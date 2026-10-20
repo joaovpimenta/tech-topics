@@ -1,7 +1,7 @@
 # Publicação de áudio com Piper TTS
 
 O Tech Topics publica áudio **MP3 em português brasileiro** com a voz
-`pt_BR-faber-medium` do Piper 1.8.0, usando **somente CPU** no GitHub Actions.
+`pt_BR-cadu-medium` do Piper 1.8.0, usando **somente CPU** no GitHub Actions.
 
 O extrator de `tools/tts/precommit.py` é reutilizado; ele lê os JSONs em
 `content/articles/<slug>.json`, respeita o léxico e as marcas de pronúncia
