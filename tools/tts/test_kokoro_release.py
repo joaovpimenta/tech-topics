@@ -63,7 +63,7 @@ class KokoroReleaseTests(unittest.TestCase):
             with patch.object(piper_release, "ARTICLE_DIR", article_dir):
                 kokoro_release.prepare("preview", root / "audio", max_chars=300)
             audio_dir = root / "audio"
-            segments = json.loads((audio_dir / "preview.segments.json").read_text())
+            segments = json.loads((audio_dir / "preview.segments.json").read_text(encoding="utf-8"))
             lines = (audio_dir / "preview.txt").read_text(encoding="utf-8").splitlines()
             self.assertEqual(lines, [x["text"] for x in segments])
             self.assertLessEqual(sum(len(s) for s in lines), 300 + 240)
