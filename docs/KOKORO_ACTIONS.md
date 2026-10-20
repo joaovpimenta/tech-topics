@@ -78,7 +78,8 @@ em **Actions → Run workflow**, selecione `main`, informe o slug (por exemplo
 A workflow usa `actions/cache` para guardar modelo FP32 (~326 MB)
 e arquivo de vozes (~28 MB), fixados nos assets oficiais `model-files-v1.1`.
 Dependências Python com versões fixas: `kokoro-onnx==0.6.1`,
-`misaki-fork==0.9.6`, `soundfile==0.13.1`. Precisa de
+`misaki-fork==0.9.6`, `phonemizer-fork==3.3.2`,
+`espeakng-loader==0.2.4`, `soundfile==0.13.1`. Precisa de
 `espeak-ng` e `ffmpeg` no runner. Nenhuma chave de serviço externo é
 necessária. `GITHUB_TOKEN` publica Releases com permissão `contents:write`.
 Revisar tempos reais em Jobs e o uso do GitHub Actions antes de aumentar volume
