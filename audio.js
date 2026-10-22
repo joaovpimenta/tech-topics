@@ -164,6 +164,12 @@
       elements.forEach(node => {
         node.classList.add("recording-readable");
         if (!node.hasAttribute("tabindex")) node.tabIndex = 0;
+        if (!devicePlayer) {
+          node.addEventListener("click", event => seekFromArticle(node, event));
+          node.addEventListener("keydown", event => {
+            if (event.key === "Enter") seekFromArticle(node, event);
+          });
+        }
       });
     }
     function seekFromArticle(node, event) {
