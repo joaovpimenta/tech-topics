@@ -250,16 +250,16 @@ jobs:
           slug = os.environ["ARTICLE_SLUG"]
           data = json.loads(Path(".audio/compare/comparison.json").read_text(encoding="utf-8"))
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as report:
-              report.write("### Dora — título e primeiro parágrafo de metáfora; 9 versões\\n\\n")
-              report.write("Voz pf_dora em todas as versões; nenhum MP3 publicado foi alterado.\\n\\n")
-              report.write("| Prosódia | Velocidade | Pausa parágrafo | Entre chunks | Chunks | Áudio |\\n")
-              report.write("|---|---:|---:|---:|---:|---:|\\n")
+              report.write("### Dora — título e primeiro parágrafo de metáfora; 9 versões\n\n")
+              report.write("Voz pf_dora em todas as versões; nenhum MP3 publicado foi alterado.\n\n")
+              report.write("| Prosódia | Velocidade | Pausa parágrafo | Entre chunks | Chunks | Áudio |\n")
+              report.write("|---|---:|---:|---:|---:|---:|\n")
               for variant in data["variants"]:
                   config = data["presets"][variant["preset"]]
                   report.write(f"| {variant['preset']} | {variant['speed']:.2f} | "
                                f"{config['paragraph_pause']} s | {config['chunk_pause']} s | "
-                               f"{variant['segment_count']} | {variant['audio_seconds']} s |\\n")
-              report.write("\\n**Baixe o artifact `kokoro-dora-compare-*` para ouvir os nove MP3s.**\\n")
+                               f"{variant['segment_count']} | {variant['audio_seconds']} s |\n")
+              report.write("\n**Baixe o artifact `kokoro-dora-compare-*` para ouvir os nove MP3s.**\n")
           PY
 
       - name: Upload short Dora A/B comparison (no Releases)
