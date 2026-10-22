@@ -27,3 +27,18 @@ Leia somente o ramo que corresponde à tarefa:
 Preserve alterações locais anteriores. Rode o comando único após integrar mudanças. Ele gera `content/articles/index.json`, `sw-version.js` e o pacote ignorado `dist/`; sucesso local não confirma publicação. Verifique os checks do PR e o deploy antes de declarar a mudança publicada. Registre testes pulados e falhas separadamente.
 
 As revisões de rigor factual, metáfora, aparência de aquarela e qualidade da voz continuam exigindo julgamento. Automação não equivale a essas revisões.
+
+## Narração Dora e estado das decisões
+
+- **Implementação e modos da Action:** [KOKORO_ACTIONS.md](../KOKORO_ACTIONS.md);
+  `tools/tts/kokoro_release.py` prepara spans bilíngues, monta
+  chunks e sintetiza; `test_kokoro_release.py` valida texto e orçamento.
+- **Decisão de áudio/prosódia e codec:** [ADR 0001](../adr/0001-kokoro-dora-prosody-and-encoding.md);
+  **skip de publicação, workflow e CPU:** [ADR 0002](../adr/0002-publish-skip-and-kokoro-cpu.md);
+  **player único (proposto):** [ADR 0003](../adr/0003-unified-audio-player-paragraph-sync.md).
+- **Handoff consolidado:** [issue #56](https://github.com/joaovpimenta/tech-topics/issues/56).
+  Verifique as PRs abertas antes de agir; a decisão auditiva
+  `equilibrado-100` não é autorização para substituir MP3s.
+- **Verificação:** `mode=compare` não publica Releases e pode criar
+  comparações de bitrate sem inferência adicional. Execute a validação
+  do projeto e, após CI verde, obtenha avaliação humana do áudio.
