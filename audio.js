@@ -170,13 +170,17 @@
       if (event.target.closest("a,button,input,select,textarea,summary,pre,code,[contenteditable=true]")) return;
       if (document.getSelection?.()?.toString()) return;
       if (event.type === "keydown") event.preventDefault();
+      const index = devicePlayer?.blocks?.findIndex(block => block.node === node) ?? -1;
+      if (mode === "device" && index >= 0) {
+        beginDevice(index);
+        return;
+      }
       const chapter = chapterNodes.indexOf(node);
       if (available && chapter >= 0) {
         seekTo(chapters[chapter].start);
         if (mode !== "recorded" || audio.paused || !open) void play();
-      } else if (devicePlayer) {
-        const index = devicePlayer.blocks.findIndex(block => block.node === node);
-        if (index >= 0) beginDevice(index);
+      } else if (index >= 0) {
+        beginDevice(index);
       }
     }
     function attachReadingHandlers() {
