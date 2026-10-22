@@ -265,6 +265,7 @@
         deviceSwitch.textContent = native ? "Usar áudio gravado" : "Usar voz do dispositivo";
         deviceSwitch.hidden = native ? !available : !devicePlayer;
       }
+      if (sourceMenu) sourceMenu.hidden = !available || !devicePlayer;
       followChapter();
       document.body.classList.toggle("recording-open", open);
       dock.hidden = !open;
