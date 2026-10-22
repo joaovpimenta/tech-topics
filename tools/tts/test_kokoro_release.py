@@ -239,7 +239,7 @@ class KokoroReleaseTests(unittest.TestCase):
         }
         ph = {"pt-br": FakeG2P("PT"), "en-us": FakeG2P("EN")}
         result = kokoro_release.fit_segments_to_phoneme_budget(
-            [item], ph, DenseTokenizer(), max_tokens=180
+            [item], ph, DenseTokenizer(), max_tokens=180, target_tokens=140
         )
         self.assertGreater(len(result), 1)
         self.assertEqual({x["block_index"] for x in result}, {7})
@@ -248,6 +248,93 @@ class KokoroReleaseTests(unittest.TestCase):
         self.assertEqual(result[-1]["pause_after_seconds"], 0.3)
         self.assertTrue(all(len(kokoro_release.phonemize_runs(x["runs"], ph)[0]) <= 180
                             for x in result))
+
+    def test_token_budget_does_not_care_about_text_character_length(self):
+        class WordTokenizer:
+            @staticmethod
+            def tokenize(phonemes, limit=None):
+                return phonemes.split()
+        ph = {"pt-br": FakeG2P("PT"), "en-us": FakeG2P("EN")}
+        # 392 editorial characters, below the 500-phoneme safeguard,
+        # and about 56 tokenizer words: no arbitrary 320-char split.
+        sentence = ("Explicação técnica detalhada " * 14).strip() + "."
+        item = {
+            "text": sentence, "runs": [{"text": sentence, "lang": "pt-br"}],
+            "block_index": 3, "pause_after_seconds": 0.38,
+        }
+        result = kokoro_release.fit_segments_to_phoneme_budget(
+            [item], ph, WordTokenizer(), max_tokens=350
+        )
+        self.assertEqual(len(result), 1)
+        self.assertGreater(len(sentence), 320)
+        self.assertEqual(result[0]["text"], sentence)
+
+    def test_small_complete_sentences_are_grouped_without_leaving_paragraph(self):
+        class WordTokenizer:
+            @staticmethod
+            def tokenize(phonemes, limit=None):
+                return phonemes.split()
+        ph = {"pt-br": FakeG2P("PT"), "en-us": FakeG2P("EN")}
+        sentence = "Uma frase curta. Outra frase curta. A terceira frase explica o isolamento."
+        segments = [
+            {"text": sentence, "runs": [{"text": sentence, "lang": "pt-br"}],
+             "block_index": 2, "pause_after_seconds": 0.38},
+            {"text": "Um novo parágrafo.", "runs": [{"text": "Um novo parágrafo.", "lang": "pt-br"}],
+             "block_index": 3, "pause_after_seconds": 0.38},
+        ]
+        out = kokoro_release.fit_segments_to_phoneme_budget(
+            segments, ph, WordTokenizer(), target_tokens=300, max_tokens=350
+        )
+        self.assertEqual(len(out), 2, "short sentences combine within their paragraph")
+        self.assertEqual([item["block_index"] for item in out], [2, 3])
+        self.assertEqual(out[0]["text"], sentence)
+
+    def test_tokenized_long_sentence_prefers_comma_and_25ms_join(self):
+        class CharacterTokenizer:
+            @staticmethod
+            def tokenize(phonemes, limit=None):
+                return list(phonemes)
+        ph = {"pt-br": FakeG2P("PT"), "en-us": FakeG2P("EN")}
+        sentence = (
+            "A técnica de isolamento protege recursos compartilhados, "
+            "mesmo quando as requisições ficam lentas, "
+            "e assim preserva capacidade para o processamento saudável, "
+            "evitando que uma falha comprometa todos os serviços."
+        )
+        item = {
+            "text": sentence, "runs": [{"text": sentence, "lang": "pt-br"}],
+            "block_index": 7, "pause_after_seconds": 0.38,
+        }
+        pieces = kokoro_release.fit_segments_to_phoneme_budget(
+            [item], ph, CharacterTokenizer(),
+            target_tokens=110, max_tokens=145, internal_pause=0.025,
+        )
+        self.assertGreater(len(pieces), 1)
+        self.assertEqual({part["block_index"] for part in pieces}, {7})
+        self.assertEqual(pieces[-1]["pause_after_seconds"], 0.38)
+        self.assertEqual(" ".join(" ".join(p["text"] for p in pieces).split()),
+                         " ".join(sentence.split()))
+        self.assertTrue(all(part["token_count"] <= 145 for part in pieces))
+        self.assertTrue(all(part["phoneme_length"] <= 500 for part in pieces))
+        self.assertEqual(pieces[0]["split_reason"], "clause")
+        self.assertEqual(pieces[0]["pause_after_seconds"], 0.025)
+
+    def test_raw_phoneme_length_limit_is_checked_even_with_few_tokens(self):
+        class WordTokenizer:
+            @staticmethod
+            def tokenize(phonemes, limit=None):
+                return phonemes.split()
+        ph = {"pt-br": FakeG2P("PT"), "en-us": FakeG2P("EN")}
+        sentence = ("Capacidade extraordinária e flexibilidade, " * 12).strip() + "."
+        input_segment = {"text": sentence,
+                         "runs": [{"text": sentence, "lang": "pt-br"}],
+                         "block_index": 0, "pause_after_seconds": 0.38}
+        out = kokoro_release.fit_segments_to_phoneme_budget(
+            [input_segment], ph, WordTokenizer(),
+            max_tokens=350, target_tokens=300, max_phonemes=260
+        )
+        self.assertGreater(len(out), 1)
+        self.assertTrue(all(part["phoneme_length"] <= 260 for part in out))
 
     def test_presets_keep_dora_and_original_as_unchanged_reference(self):
         names = list(kokoro_release.NARRATION_PRESETS)
