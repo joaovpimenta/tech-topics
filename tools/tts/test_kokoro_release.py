@@ -387,6 +387,37 @@ class KokoroReleaseTests(unittest.TestCase):
             ])
             self.assertEqual(len(seen), 9)
 
+    def test_new_default_is_approved_equilibrado_dora_100(self):
+        self.assertEqual(kokoro_release.DEFAULT_PRESET, "equilibrado")
+        self.assertEqual(kokoro_release.VOICE, "pf_dora")
+        self.assertEqual(kokoro_release.NARRATION_PRESETS["equilibrado"]["speed"], 1.00)
+        self.assertEqual(kokoro_release.DEFAULT_BITRATE_KBPS, 128)
+        self.assertEqual(kokoro_release.NARRATION_PRESETS["equilibrado"]["paragraph_pause"], 0.38)
+        self.assertEqual(kokoro_release.NARRATION_PRESETS["equilibrado"]["chunk_pause"], 0.14)
+
+    def test_prepare_default_defers_sentence_splitting_until_real_tokenizer(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            directory = root / "articles"
+            directory.mkdir()
+            paragraph = ("Os compartimentos preservam a capacidade, " * 11).strip() + "."
+            article = {"slug": "sample", "language": "pt-BR", "title": "Isolamento",
+                       "dek": "Breve contextualização.", "bodyHtml": f"<p>{paragraph}</p>"}
+            (directory / "sample.json").write_text(
+                json.dumps(article, ensure_ascii=False), encoding="utf-8")
+            with patch.object(article_selection, "ARTICLE_DIR", directory):
+                kokoro_release.prepare("sample", root / "audio")
+            segments = json.loads((root / "audio/sample.segments.json").read_text(encoding="utf-8"))
+            self.assertEqual([s["block_index"] for s in segments], [0, 1, 2])
+            self.assertEqual(segments[-1]["text"], paragraph)
+            self.assertGreater(len(paragraph), 320)
+            notes = (root / "audio/sample.md").read_text(encoding="utf-8")
+            self.assertIn("velocidade 1.0", notes)
+
+    def test_compare_preserves_old_baseline_095(self):
+        self.assertEqual(kokoro_release.NARRATION_PRESETS["atual"]["speed"], 0.95)
+        self.assertFalse(kokoro_release.NARRATION_PRESETS["atual"]["adaptive_chunks"])
+
     def test_voice_speed_and_languages(self):
         self.assertEqual(kokoro_release.VOICE, "pf_dora")
         self.assertEqual(kokoro_release.SPEED, 0.95)
