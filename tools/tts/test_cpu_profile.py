@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from cpu_profile import CpuSampler, format_markdown, percentile, read_kb, summary
+from cpu_profile import CpuSampler, format_markdown, percentile, read_kb, summary, sparkline
 
 
 class CpuProfileTests(unittest.TestCase):
@@ -35,6 +35,13 @@ class CpuProfileTests(unittest.TestCase):
         self.assertIn("paralelo", format_markdown({
             "summary": stats, "cpu_limits": cores,
         }))
+
+    def test_cpu_timeline_is_readable_and_bounded(self):
+        self.assertEqual(sparkline([], "cpu_budget_pct"), "Sem amostras")
+        samples = [{"cpu_budget_pct": i * 5} for i in range(21)]
+        graph = sparkline(samples, "cpu_budget_pct", max_points=10)
+        self.assertEqual(len(graph), 10)
+        self.assertEqual(graph[-1], "█")
 
     def test_sampler_collects_native_cpu_time_without_tts_dependencies(self):
         sampler = CpuSampler(interval=0.025).start()
