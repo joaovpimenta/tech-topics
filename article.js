@@ -195,7 +195,11 @@ async function showArticle(article) {
     article,
     cover,
     audio: document.querySelector("#article-recording"),
-    stopDevice: () => devicePlayer?.stop("")
+    stopDevice: () => devicePlayer?.stop(""),
+    startDevice: () => {
+      if (devicePlayer) devicePlayer.toggle();
+      else document.querySelector("#recording-status").textContent = "O navegador não oferece leitura por voz.";
+    }
   });
   document.addEventListener("tech-topics:device-tts-start", () => recordingPlayer.stop());
   void recordingPlayer.discover();
