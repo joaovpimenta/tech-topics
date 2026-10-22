@@ -137,3 +137,21 @@ O léxico e `speech.js` fazem parte do pacote público e do precache; mudanças 
 Para preparar o Chatterbox, diagnosticar voz e dependências ou validar narração antes de um commit, consulte [o fluxo TTS local](../tools/tts/README.md). Esse fluxo usa o conteúdo staged e mantém voz e áudio privados; sua saída serve à revisão humana e não altera o player público.
 
 O roteiro local aplica a mesma precedência de pronúncia. No pre-commit, tanto o artigo quanto o léxico vêm do índice Git. Uma mudança na fala resultante invalida o cache daquele artigo na próxima verificação; alterar apenas uma entrada não utilizada preserva o áudio. O sintetizador local mantém sua voz/configuração em português e não reproduz a troca de vozes do navegador.
+
+## Geração de MP3 pelo Kokoro no GitHub Actions
+
+A narração de áudio publicado usa **Kokoro Dora** e respeita as mesmas
+marcações `lang="en-US"` do corpo e `speechMarkup` de título/subtítulo.
+Texto sem marcação usa fonemização `pt-br`; segmentos ingleses recebem
+fonemização `en-us`; a voz permanece `pf_dora` em uma única sequência de
+fonemas por bloco. Decisões explícitas de `data-tts-say`, `data-tts-mode`
+e léxico continuam tendo precedência.
+
+Para gerar MP3 sem alterar uma Release, usar **preview** no workflow Kokoro.
+A seleção manual aceita slug, título ou campo vazio para o artigo publicado
+mais recentemente. O fluxo automático cria áudio apenas para novos arquivos
+JSON após o deploy da página. Ver [guia do Kokoro](KOKORO_ACTIONS.md).
+
+A revisão de pronúncia por escuta é necessária, sobretudo para nomes próprios
+e termos ingleses não marcados. A geração de roteiros dedicados ou em diálogo
+não faz parte deste fluxo.
