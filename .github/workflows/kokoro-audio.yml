@@ -69,6 +69,10 @@ jobs:
           MANUAL_ARTICLE: ${{ inputs.article }}
           BEFORE_SHA: ${{ inputs.before_sha }}
           AFTER_SHA: ${{ inputs.after_sha }}
+          SELECT_MODE: ${{ inputs.mode || 'publish' }}
+          REPLACE_EXISTING: ${{ inputs.replace_existing || 'false' }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
@@ -79,9 +83,21 @@ jobs:
             test -n "$BEFORE_SHA" && test -n "$AFTER_SHA"
             slugs="$(python tools/tts/article_selection.py --before "$BEFORE_SHA" --after "$AFTER_SHA")"
           fi
+          # Release exists? Don't even schedule an audio matrix job. Explicit
+          # preview/profile and replace_existing=true remain allowed.
+          if [ "$SELECT_MODE" = publish ] && [ "$REPLACE_EXISTING" != true ]; then
+            selected='[]'
+            while IFS= read -r slug; do
+              if gh release view "tts-$slug" >/dev/null 2>&1; then
+                echo "SKIP $slug: MP3 Release already exists." >> "$GITHUB_STEP_SUMMARY"
+              else
+                selected="$(jq -nc --argjson existing "$selected" --arg slug "$slug" '$existing + [$slug]')"
+              fi
+            done < <(jq -r '.[]' <<< "$slugs")
+            slugs="$selected"
+          fi
           echo "slugs=$slugs" >> "$GITHUB_OUTPUT"
-          echo "Selected: $slugs"
-          echo "### Artigos selecionados: $slugs" >> "$GITHUB_STEP_SUMMARY"
+          echo "Eligible for audio work: $slugs" >> "$GITHUB_STEP_SUMMARY"
 
   audio:
     name: Dora ${{ matrix.slug }} (${{ inputs.mode || 'publish' }})
