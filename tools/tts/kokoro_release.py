@@ -153,7 +153,7 @@ def article_blocks(article: dict, lexicon: dict) -> list[dict]:
         special_callout = (tag == "div" and "article-callout" in node_classes
                            and not descendant_has_tag(node, "p"))
         standalone_li = tag == "li" and not descendant_has_tag(node, "p")
-        if tag in NARRATION_TAGS or standalone_li or special_callout:
+        if tag in (NARRATION_TAGS - {"li"}) or standalone_li or special_callout:
             runs: list[dict] = []
             collect_html_runs(node, inherited, lexicon, runs)
             clean = clean_runs(runs)
