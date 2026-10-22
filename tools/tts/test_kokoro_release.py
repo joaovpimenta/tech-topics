@@ -116,6 +116,19 @@ class KokoroReleaseTests(unittest.TestCase):
         self.assertEqual(segments[3]["pause_after_seconds"], 0.45)
         self.assertLessEqual(sum(len(s["text"]) for s in segments), 300 + 240)
 
+    def test_block_ids_enable_exact_paragraph_timestamps(self):
+        article = {
+            "title": "Hedged Requests",
+            "dek": "Explicação inicial.",
+            "bodyHtml": ("<p>" + "Uma frase de teste bem explicada. " * 20
+                         + "</p><p>Segundo parágrafo.</p>"),
+        }
+        segments = kokoro_release.segments_for_article(article, self.lexicon)
+        ids = [item["block_index"] for item in segments]
+        self.assertEqual(ids[:2], [0, 1])
+        self.assertGreater(ids.count(2), 1, "long paragraph must span several synthesis chunks")
+        self.assertEqual(ids[-1], 3, "new paragraph gets its own chapter marker")
+
     def test_prepare_writes_structured_runs_and_utf8(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

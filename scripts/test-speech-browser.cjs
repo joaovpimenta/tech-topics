@@ -40,7 +40,11 @@ async function main() {
     await page.route("https://**/*", route => route.abort());
     await page.route("https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-*", route =>
       route.fulfill({ status: 200, contentType: "application/json",
-        body: JSON.stringify({ assets: [{ name: "cqrs-projecoes-e-consistencia.mp3", state: "uploaded" }] }) }));
+        body: JSON.stringify({
+          body: "\n<!-- TECH_TOPICS_CHAPTERS_V1\n" +
+            JSON.stringify({ version: 1, chapters: [{start: 0}, {start: 35}, {start: 85}] }) + "\n-->\n",
+          assets: [{ name: "cqrs-projecoes-e-consistencia.mp3", state: "uploaded" }]
+        }) }));
     await page.addInitScript(() => {
       // Simulate playback rather than requiring audio hardware or downloading an MP3.
       HTMLMediaElement.prototype.play = function () {
@@ -57,7 +61,7 @@ async function main() {
       await page.setViewportSize({ width, height: 800 });
       await page.goto(`${base}/article.html?slug=cqrs-projecoes-e-consistencia`);
       await page.waitForSelector(".tts-readable");
-      await page.locator("#listen-article").click();
+      await page.evaluate(() => document.querySelector("#listen-article").click());
       await page.waitForSelector("#speech-player:not([hidden])");
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `no document overflow at ${width}px`);
       await page.locator("#article-body p.tts-readable").first().click();
@@ -75,6 +79,10 @@ async function main() {
       });
       await page.locator("#listen-recording").click();
       await page.locator("#recording-player").waitFor({ state: "visible" });
+      assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "true", "pause icon must appear when playing");
+      assert(await page.locator("#recording-skip").isVisible(), "paragraph skip available when release has chapters");
+      await page.locator("#recording-skip").click();
+      assert.equal(await page.locator("#article-recording").evaluate(element => element.currentTime), 35);
       const dock = await page.evaluate(() => ({
         title: document.querySelector("#recording-title").textContent,
         duration: document.querySelector("#recording-duration").textContent,
@@ -85,6 +93,7 @@ async function main() {
       assert.equal(dock.duration, "2:05");
       assert(dock.bounds.bottom <= dock.viewport.height && dock.bounds.left >= 0, "recorded audio dock stays within viewport");
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "recording controls do not overflow");
+      await page.locator(".recording-options summary").click();
       await page.locator("#listen-article").click();
       assert(await page.locator("#recording-player").isHidden(), "starting device TTS closes MP3 dock");
       await page.locator("#speech-stop").click();

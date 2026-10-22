@@ -202,9 +202,27 @@ jobs:
           path: |
             .audio/${{ matrix.slug }}.mp3
             .audio/${{ matrix.slug }}.segments.json
+            .audio/${{ matrix.slug }}.chapters.json
             .audio/${{ matrix.slug }}.metrics.json
           retention-days: 14
           if-no-files-found: error
+
+      - name: Attach paragraph timestamps to public Release notes
+        if: steps.policy.outputs.skip != 'true' && env.MODE == 'publish'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          slug = os.environ["ARTICLE_SLUG"]
+          directory = Path(".audio")
+          chapters = json.loads((directory / f"{slug}.chapters.json").read_text(encoding="utf-8"))
+          notes = (directory / f"{slug}.md").read_text(encoding="utf-8")
+          notes += "\n<!-- TECH_TOPICS_CHAPTERS_V1\n"
+          notes += json.dumps(chapters, ensure_ascii=False, separators=(",", ":"))
+          notes += "\n-->\n"
+          (directory / f"{slug}.release.md").write_text(notes, encoding="utf-8")
+          PY
 
       - name: Publish MP3 as article-specific GitHub Release
         if: steps.policy.outputs.skip != 'true' && env.MODE == 'publish'
@@ -215,14 +233,14 @@ jobs:
           title="$(python -c 'import json,os,pathlib;print(json.loads((pathlib.Path("content/articles") / (os.environ["ARTICLE_SLUG"] + ".json")).read_text(encoding="utf-8"))["title"])')"
           if gh release view "$tag" >/dev/null 2>&1; then
             if [ "$REPLACE_EXISTING" = true ]; then
-              gh release upload "$tag" ".audio/$ARTICLE_SLUG.mp3" --clobber
+              gh release upload "$tag" ".audio/$ARTICLE_SLUG.mp3" ".audio/$ARTICLE_SLUG.chapters.json" --clobber
               gh release edit "$tag" --title "Tech Topics Áudio — $title" \
-                --notes-file ".audio/$ARTICLE_SLUG.md"
+                --notes-file ".audio/$ARTICLE_SLUG.release.md"
             else
               echo "Existing release kept unchanged."
             fi
           else
-            gh release create "$tag" ".audio/$ARTICLE_SLUG.mp3" \
+            gh release create "$tag" ".audio/$ARTICLE_SLUG.mp3" ".audio/$ARTICLE_SLUG.chapters.json" \
               --target "$GITHUB_SHA" --title "Tech Topics Áudio — $title" \
               --notes-file ".audio/$ARTICLE_SLUG.md" --latest=false
           fi

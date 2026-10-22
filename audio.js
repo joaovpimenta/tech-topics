@@ -13,7 +13,24 @@
     return hours ? `${hours}:${String(minutes).padStart(2, "0")}:${secs}` : `${minutes}:${secs}`;
   }
 
-  async function findAudio(slug, fetchImpl = root.fetch) {
+  function normalizedChapters(data) {
+    if (data?.version !== 1 || !Array.isArray(data.chapters)) return [];
+    const chapters = data.chapters
+      .filter(item => item && Number.isFinite(item.start) && item.start >= 0)
+      .map(item => ({ start: item.start, label: typeof item.label === "string" ? item.label : "" }));
+    if (chapters.length < 2 || chapters.some((chapter, i) => i && chapter.start <= chapters[i - 1].start)) return [];
+    return chapters;
+  }
+
+  function chaptersFromNotes(notes) {
+    if (typeof notes !== "string") return [];
+    const found = notes.match(/<!-- TECH_TOPICS_CHAPTERS_V1\s*\n([^\n]+)\n-->/);
+    if (!found) return [];
+    try { return normalizedChapters(JSON.parse(found[1])); }
+    catch (_) { return []; }
+  }
+
+  async function lookupAudio(slug, fetchImpl = root.fetch) {
     if (!SLUG.test(slug)) throw new Error("Slug de áudio inválida.");
     const response = await fetchImpl(API_ROOT + encodeURIComponent(slug), {
       headers: { Accept: "application/vnd.github+json" },
@@ -22,14 +39,30 @@
     if (response.status === 404) return null;
     if (!response.ok) throw new Error("Consulta à Release indisponível.");
     const release = await response.json();
-    const name = `${slug}.mp3`;
-    const asset = release.assets?.find(item => item.name === name && item.state !== "deleted");
-    // Trust the GitHub API only for the existence check; the asset URL is fixed
-    // to this public repository to prevent arbitrary redirects.
-    return asset ? `https://github.com/joaovpimenta/tech-topics/releases/download/tts-${slug}/${name}` : null;
+    const asset = name => release.assets?.some(item => item.name === name && item.state !== "deleted");
+    const mp3 = `${slug}.mp3`;
+    if (!asset(mp3)) return null;
+    const base = `https://github.com/joaovpimenta/tech-topics/releases/download/tts-${slug}/`;
+    const chapters = `${slug}.chapters.json`;
+    return {
+      url: base + mp3,
+      chapters: chaptersFromNotes(release.body),
+      chaptersUrl: asset(chapters) ? base + chapters : null
+    };
   }
 
-  function createPlayer({ document, navigator, article, cover, audio, fetchAudio = findAudio, stopDevice = () => {} }) {
+  async function findAudio(slug, fetchImpl = root.fetch) {
+    return (await lookupAudio(slug, fetchImpl))?.url || null;
+  }
+
+  async function loadChapters(url, fetchImpl = root.fetch) {
+    const response = await fetchImpl(url, { cache: "no-store" });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return normalizedChapters(data);
+  }
+
+  function createPlayer({ document, navigator, article, cover, audio, fetchAudio = lookupAudio, fetchChapters = loadChapters, stopDevice = () => {}, startDevice = () => {} }) {
     const button = document.querySelector("#listen-recording");
     const dock = document.querySelector("#recording-player");
     const title = document.querySelector("#recording-title");
@@ -46,11 +79,21 @@
     const status = document.querySelector("#recording-status");
     const session = navigator.mediaSession;
     let available = false;
+    let chapters = [];
     let open = false;
     let seeking = false;
 
     function setStatus(message) {
       status.textContent = message || "";
+    }
+    function nextParagraph() {
+      const target = chapters.find(chapter => chapter.start > audio.currentTime + 0.7);
+      if (target) seekTo(target.start);
+    }
+    function previousParagraph() {
+      const previous = chapters.filter(chapter => chapter.start < audio.currentTime - 2);
+      if (previous.length) seekTo(previous[previous.length - 1].start);
+      else if (chapters.length) seekTo(chapters[0].start);
     }
     function render() {
       const current = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
@@ -66,11 +109,12 @@
       const playing = !audio.paused && !audio.ended;
       playButton.setAttribute("aria-label", playing ? "Pausar narração" : "Reproduzir narração");
       playButton.setAttribute("aria-pressed", String(playing));
-      playButton.querySelector(".recording-icon-play").hidden = playing;
-      playButton.querySelector(".recording-icon-pause").hidden = !playing;
+      playButton.dataset.playing = String(playing);
       button.setAttribute("aria-label", playing ? "Pausar áudio do artigo" : "Ouvir áudio do artigo");
       button.setAttribute("aria-pressed", String(playing));
-      button.querySelector(".recording-button-label").textContent = playing ? "Pausar áudio" : "Ouvir agora";
+      button.querySelector(".recording-button-label").textContent = "Ouvir artigo";
+      skip.hidden = chapters.length < 2;
+      skip.disabled = !chapters.some(chapter => chapter.start > current + 0.7);
       document.body.classList.toggle("recording-open", open);
       dock.hidden = !open;
       if (session) session.playbackState = playing ? "playing" : open ? "paused" : "none";
@@ -107,9 +151,13 @@
         play: () => { void play(); },
         pause: () => audio.pause(),
         stop: () => close(),
-        seekbackward: details => seekTo(audio.currentTime - (details.seekOffset || 10)),
-        seekforward: details => seekTo(audio.currentTime + (details.seekOffset || 10)),
-        seekto: details => seekTo(details.seekTime)
+        seekto: details => seekTo(details.seekTime),
+        ...(chapters.length > 1 ? {
+          previoustrack: previousParagraph,
+          nexttrack: nextParagraph,
+          seekbackward: previousParagraph,
+          seekforward: nextParagraph
+        } : {})
       };
       for (const [action, handler] of Object.entries(handlers)) {
         try { session.setActionHandler(action, handler); }
@@ -119,7 +167,7 @@
     }
     function clearSession() {
       if (!session) return;
-      for (const action of ["play", "pause", "stop", "seekbackward", "seekforward", "seekto"]) {
+      for (const action of ["play", "pause", "stop", "seekbackward", "seekforward", "seekto", "previoustrack", "nexttrack"]) {
         try { session.setActionHandler(action, null); } catch (_) {}
       }
       session.playbackState = "none";
@@ -150,6 +198,7 @@
       close();
     }
     button.addEventListener("click", () => {
+      if (!available) return startDevice();
       if (!audio.paused && !audio.ended) audio.pause();
       else void play();
     });
@@ -157,7 +206,7 @@
       if (!audio.paused && !audio.ended) audio.pause();
       else void play();
     });
-    skip.addEventListener("click", () => seekTo(audio.currentTime + 15));
+    skip.addEventListener("click", nextParagraph);
     closeButton.addEventListener("click", close);
     seek.addEventListener("input", () => {
       seeking = true;
@@ -198,11 +247,18 @@
 
     async function discover() {
       try {
-        const url = await fetchAudio(article.slug);
-        if (!url) return;
-        audio.src = url;
+        const source = await fetchAudio(article.slug);
+        if (!source) return;
+        audio.src = typeof source === "string" ? source : source.url;
         available = true;
-        button.hidden = false;
+        if (typeof source === "object") {
+          chapters = Array.isArray(source.chapters) ? normalizedChapters({ version: 1, chapters: source.chapters }) : [];
+          if (!chapters.length && source.chaptersUrl) {
+            try { chapters = await fetchChapters(source.chaptersUrl); }
+            catch (_) { chapters = []; }
+          }
+        }
+        render();
       } catch (_) {
         setStatus("Não foi possível verificar se existe áudio gravado.");
       }
@@ -211,7 +267,7 @@
     return { discover, play, stop, close, snapshot: () => ({ available, open, playing: !audio.paused }) };
   }
 
-  const api = { findAudio, formatTime, createPlayer };
+  const api = { findAudio, lookupAudio, loadChapters, chaptersFromNotes, formatTime, createPlayer };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.TechTopicsAudio = api;
 })(globalThis);

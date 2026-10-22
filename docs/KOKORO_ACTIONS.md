@@ -63,8 +63,16 @@ A workflow [Pages](../.github/workflows/pages.yml) chama
 Somente novos arquivos `content/articles/<slug>.json` adicionados pelo push
 são publicados; mudanças em artigos existentes não refazem áudios.
 
-Cada artigo recebe uma GitHub Release `tts-<slug>` e o arquivo `<slug>.mp3`.
+Cada artigo recebe uma GitHub Release `tts-<slug>` com `<slug>.mp3`
+e `<slug>.chapters.json`. O Kokoro grava os instantes de início de cada
+bloco narrativo (título, subtítulo, seção ou parágrafo) a partir das amostras
+WAV, e publica os mesmos marcadores nas notas da Release. O site consulta
+essas notas pela API do GitHub e permite pular ao próximo parágrafo sem
+depender de uma requisição JSON cross-origin à hospedagem dos assets.
 Releases existentes nunca são substituídas automaticamente.
+**Áudios antigos sem esses marcadores continuam tocando, mas não podem
+pular parágrafos com precisão até serem regenerados manualmente com
+`mode=publish` e `replace_existing=true`.**
 
 ## Manual: escolher artigo por nome ou o mais recente
 

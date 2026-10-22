@@ -212,7 +212,7 @@ def split_runs(runs: list[dict], max_chars: int = MAX_CHARS_PER_CHUNK) -> list[l
 def segments_for_article(article: dict, lexicon: dict, max_chars: int = 0) -> list[dict]:
     segments: list[dict] = []
     total = 0
-    for block in article_blocks(article, lexicon):
+    for block_index, block in enumerate(article_blocks(article, lexicon)):
         chunks = split_runs(block["runs"])
         for j, chunk in enumerate(chunks):
             if max_chars and total >= max_chars:
@@ -220,6 +220,7 @@ def segments_for_article(article: dict, lexicon: dict, max_chars: int = 0) -> li
             text = "".join(run["text"] for run in chunk)
             segments.append({
                 "text": text,
+                "block_index": block_index,
                 "runs": chunk,
                 "pause_after_seconds": (
                     SECTION_PAUSE_SECONDS if block["section"] else PARAGRAPH_PAUSE_SECONDS
@@ -304,11 +305,20 @@ def synthesize(slug: str, output_dir: Path, model: Path, voices: Path) -> None:
     start = time.perf_counter()
     generated_samples = 0
     english_samples: list[dict] = []
+    chapters: list[dict] = []
+    last_block: int | None = None
     destination = output_dir / f"{slug}.wav"
     with sf.SoundFile(
         destination, mode="w", samplerate=SAMPLE_RATE, channels=1, subtype="PCM_16"
     ) as wav:
         for i, item in enumerate(segments, start=1):
+            block_id = item.get("block_index", i - 1)
+            if block_id != last_block:
+                chapters.append({
+                    "start": round(generated_samples / SAMPLE_RATE, 3),
+                    "label": item["text"][:96]
+                })
+                last_block = block_id
             phonemes, examples = phonemize_runs(item["runs"], phonemizers)
             english_samples.extend(examples)
             if not phonemes:
@@ -329,6 +339,10 @@ def synthesize(slug: str, output_dir: Path, model: Path, voices: Path) -> None:
 
     duration = generated_samples / SAMPLE_RATE
     elapsed = time.perf_counter() - start
+    (output_dir / f"{slug}.chapters.json").write_text(
+        json.dumps({"version": 1, "chapters": chapters}, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8"
+    )
     report = {
         "engine": "kokoro-onnx",
         "model": "kokoro-v1.0.onnx",
