@@ -90,11 +90,13 @@ Exemplo para testar a palavra *Bulkhead*: `article=bulkhead`,
 
 ## Validação e custo
 
-A rotina de PR [Verify Kokoro PT-BR and English phonemes](../.github/workflows/kokoro-smoke.yml)
-gera uma amostra real do artigo *Bulkhead* usando os dois fonemizadores na
-mesma sequência de áudio, verifica que as tags inglesas sobrevivem à extração
-e disponibiliza MP3 e relatório de fonemas. Testes unitários validam
-seleção manual, idiomas, léxico, corte de blocos e exceções locais.
+A validação geral de PR em [Validate Tech Topics](../.github/workflows/validate.yml)
+executa os testes leves de seleção manual, idiomas, léxico, corte de blocos,
+exceções locais e integridade dos artigos **uma vez em Ubuntu**. Não baixa
+o modelo Kokoro e não gera MP3 no CI, para reduzir o uso de CPU e o tempo
+das revisões. Para testar a síntese real com a voz Dora e as tags inglesas,
+use o modo `preview` do único workflow manual Kokoro: ele produz o áudio
+e o relatório de fonemas sem alterar Releases.
 
 Dependências fixadas:
 `kokoro-onnx==0.6.1`, `misaki-fork==0.9.6`,
