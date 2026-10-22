@@ -308,46 +308,131 @@ def split_runs_adaptive(
 
 
 def fit_segments_to_phoneme_budget(
-    segments: list[dict], phonemizers: dict, tokenizer, max_tokens: int = 450,
+    segments: list[dict], phonemizers: dict, tokenizer,
+    max_tokens: int = 350, target_tokens: int = 300,
+    max_phonemes: int = 500, internal_pause: float = 0.025,
 ) -> list[dict]:
-    """Enforce a model-token safety margin after real PT/EN phonemization.
+    """Choose inference boundaries using the *real* Kokoro phoneme tokenizer.
 
-    Using 450 (vs Kokoro's ~510 limit) avoids internal hidden splits. If a
-    320-character sentence has unusually dense phonemes, split it again
-    at a clause boundary if possible, preserving original block_index.
+    Each input item remains inside its editorial paragraph (block_index).
+    A complete sentence is preferred; neighbouring short sentences may be
+    combined toward 300 tokens without exceeding 350. For overlong sentences,
+    split at a comma/semicolon/colon, falling back to a word boundary.
+
+    The upstream library also splits by phoneme-string length at 510,
+    independently of the token count, so protect both budgets. Never
+    concatenate text across paragraph boundaries or drop multilingual runs.
     """
+    if not 0 < target_tokens <= max_tokens < 510:
+        raise ValueError("Invalid Kokoro token budgets")
+    if not 0 < max_phonemes < 510:
+        raise ValueError("Phoneme text budget must stay below Kokoro's 510 limit")
+
     output: list[dict] = []
-    pending = list(segments)
-    while pending:
-        item = pending.pop(0)
-        phonemes, _ = phonemize_runs(item["runs"], phonemizers)
-        try:
-            tokens = tokenizer.tokenize(phonemes, limit=None)
-        except TypeError:
-            tokens = tokenizer.tokenize(phonemes)
-        if len(tokens) <= max_tokens:
-            output.append(item)
+
+    for item in segments:
+        tokens = tokenize_runs(item["runs"])
+        if not tokens:
             continue
-        current_length = len(item["text"])
-        # Progressively halve the bound, preferring natural clause breaks.
-        new_cap = max(48, current_length // 2)
-        parts = split_runs_adaptive(
-            item["runs"], target_chars=max(32, min(160, new_cap)),
-            max_chars=new_cap, min_chars=min(48, new_cap),
-        )
-        if len(parts) < 2:
-            raise ValueError(f"Impossível reduzir trecho de {len(tokens)} tokens sem cortar palavra.")
-        replacements = []
-        for i, part in enumerate(parts):
-            text = "".join(run["text"] for run in part)
-            replacements.append({
-                **item, "text": text, "runs": part,
+
+        cache: dict[tuple[int, int], tuple[int, int]] = {}
+
+        def runs_for(start: int, end: int) -> list[dict]:
+            group: list[dict] = []
+            for token in tokens[start:end]:
+                append_run(group, token["text"].lstrip() if not group else token["text"],
+                           token["lang"])
+            return clean_runs(group)
+
+        def measure(start: int, end: int) -> tuple[int, int]:
+            key = (start, end)
+            if key not in cache:
+                phonemes, _ = phonemize_runs(runs_for(start, end), phonemizers)
+                # limit=None is essential: the library's default checks
+                # phoneme characters and can reject a valid candidate early.
+                ids = tokenizer.tokenize(phonemes, limit=None)
+                cache[key] = (len(ids), len(phonemes))
+            return cache[key]
+
+        def fits(start: int, end: int) -> bool:
+            n_tokens, n_phonemes = measure(start, end)
+            return 0 < n_tokens <= max_tokens and n_phonemes <= max_phonemes
+
+        # Sentence boundaries first, before *any* token-budget decision.
+        sentences: list[tuple[int, int]] = []
+        start = 0
+        for end, token in enumerate(tokens, start=1):
+            if punctuation_boundary(token["text"]) == "sentence":
+                sentences.append((start, end))
+                start = end
+        if start < len(tokens):
+            sentences.append((start, len(tokens)))
+
+        # Triples: start/end word indices plus the most recent cut type.
+        groups: list[tuple[int, int, str]] = []
+        for begin, finish in sentences:
+            if fits(begin, finish):
+                # A 30-token sentence is not a good stand-alone unit if
+                # the next sentence fits in the same context window.
+                if groups and groups[-1][2] == "sentence":
+                    prev_start, _, _ = groups[-1]
+                    if (measure(prev_start, begin)[0] < target_tokens and
+                            fits(prev_start, finish)):
+                        groups[-1] = (prev_start, finish, "sentence")
+                        continue
+                groups.append((begin, finish, "sentence"))
+                continue
+
+            position = begin
+            while position < finish:
+                if fits(position, finish):
+                    groups.append((position, finish, "sentence"))
+                    break
+
+                clause_candidates = [
+                    end for end in range(position + 1, finish)
+                    if punctuation_boundary(tokens[end - 1]["text"]) == "clause"
+                ]
+                good_clauses = [end for end in clause_candidates if fits(position, end)]
+                if good_clauses:
+                    # Natural phrasing beats an arbitrary 300-token cut.
+                    cut = min(good_clauses,
+                              key=lambda end: (abs(measure(position, end)[0] -
+                                                   target_tokens), -end))
+                    kind = "clause"
+                else:
+                    # For punctuation-free long sentences, binary-search the
+                    # furthest safe word boundary; do not split a word.
+                    low, high = position + 1, finish - 1
+                    cut = None
+                    while low <= high:
+                        middle = (low + high) // 2
+                        if fits(position, middle):
+                            cut = middle
+                            low = middle + 1
+                        else:
+                            high = middle - 1
+                    if cut is None:
+                        raise ValueError("Uma palavra ultrapassa o orçamento fonético Kokoro.")
+                    kind = "word_fallback"
+                groups.append((position, cut, kind))
+                position = cut
+
+        for index, (start, end, kind) in enumerate(groups):
+            runs = runs_for(start, end)
+            text = "".join(part["text"] for part in runs)
+            last = index == len(groups) - 1
+            output.append({
+                **item, "text": text, "runs": runs,
+                "split_reason": "paragraph_end" if last else kind,
+                "token_count": measure(start, end)[0],
+                "phoneme_length": measure(start, end)[1],
                 "pause_after_seconds": (
-                    item["pause_after_seconds"] if i == len(parts) - 1 else 0.02
+                    item["pause_after_seconds"] if last else
+                    internal_pause if kind in {"clause", "word_fallback"} else
+                    item.get("sentence_pause_after_seconds", 0.14)
                 ),
-                "split_reason": "phoneme_budget",
             })
-        pending[:0] = replacements
     return output
 
 
@@ -369,8 +454,11 @@ def segments_for_article(
     segments: list[dict] = []
     total = 0
     for block_index, block in enumerate(blocks):
-        chunks = (split_runs_adaptive(block["runs"]) if sentence_aware or settings["adaptive_chunks"]
-                  else split_runs(block["runs"]))
+        # Token-aware A/B: leave each paragraph intact until the model's
+        # real G2P and tokenizer are available immediately before inference.
+        chunks = ([clean_runs(block["runs"])] if sentence_aware else
+                  split_runs_adaptive(block["runs"]) if settings["adaptive_chunks"] else
+                  split_runs(block["runs"]))
         for j, chunk in enumerate(chunks):
             if max_chars and total >= max_chars:
                 break
@@ -495,7 +583,9 @@ def synthesize(
             shared_engine.update({"kokoro": kokoro, "phonemizers": phonemizers})
     if enforce_token_budget:
         segments = fit_segments_to_phoneme_budget(
-            segments, phonemizers, kokoro.tokenizer, max_tokens=450
+            segments, phonemizers, kokoro.tokenizer,
+            target_tokens=300, max_tokens=350, max_phonemes=500,
+            internal_pause=0.025,
         )
         (output_dir / f"{slug}.segments.json").write_text(
             json.dumps(segments, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -534,6 +624,7 @@ def synthesize(
             # PT-BR and English phonemes in ONE call, always with Dora.
             audio, sample_rate = kokoro.create(
                 phonemes, voice=VOICE, speed=selected_speed, is_phonemes=True,
+                trim=True,  # Explicit: already the upstream default.
                 sentence_pause=settings["sentence_pause"],
                 clause_pause=settings["clause_pause"],
             )
