@@ -13,6 +13,23 @@
     return hours ? `${hours}:${String(minutes).padStart(2, "0")}:${secs}` : `${minutes}:${secs}`;
   }
 
+  function normalizedChapters(data) {
+    if (data?.version !== 1 || !Array.isArray(data.chapters)) return [];
+    const chapters = data.chapters
+      .filter(item => item && Number.isFinite(item.start) && item.start >= 0)
+      .map(item => ({ start: item.start, label: typeof item.label === "string" ? item.label : "" }));
+    if (chapters.length < 2 || chapters.some((chapter, i) => i && chapter.start <= chapters[i - 1].start)) return [];
+    return chapters;
+  }
+
+  function chaptersFromNotes(notes) {
+    if (typeof notes !== "string") return [];
+    const found = notes.match(/<!-- TECH_TOPICS_CHAPTERS_V1\s*\n([^\n]+)\n-->/);
+    if (!found) return [];
+    try { return normalizedChapters(JSON.parse(found[1])); }
+    catch (_) { return []; }
+  }
+
   async function lookupAudio(slug, fetchImpl = root.fetch) {
     if (!SLUG.test(slug)) throw new Error("Slug de áudio inválida.");
     const response = await fetchImpl(API_ROOT + encodeURIComponent(slug), {
@@ -29,6 +46,7 @@
     const chapters = `${slug}.chapters.json`;
     return {
       url: base + mp3,
+      chapters: chaptersFromNotes(release.body),
       chaptersUrl: asset(chapters) ? base + chapters : null
     };
   }
@@ -41,12 +59,7 @@
     const response = await fetchImpl(url, { cache: "no-store" });
     if (!response.ok) return [];
     const data = await response.json();
-    if (data.version !== 1 || !Array.isArray(data.chapters)) return [];
-    const chapters = data.chapters
-      .filter(item => item && Number.isFinite(item.start) && item.start >= 0)
-      .map(item => ({ start: item.start, label: typeof item.label === "string" ? item.label : "" }));
-    if (chapters.length < 2 || chapters.some((chapter, i) => i && chapter.start <= chapters[i - 1].start)) return [];
-    return chapters;
+    return normalizedChapters(data);
   }
 
   function createPlayer({ document, navigator, article, cover, audio, fetchAudio = lookupAudio, fetchChapters = loadChapters, stopDevice = () => {}, startDevice = () => {} }) {
@@ -238,9 +251,12 @@
         if (!source) return;
         audio.src = typeof source === "string" ? source : source.url;
         available = true;
-        if (typeof source === "object" && source.chaptersUrl) {
-          try { chapters = await fetchChapters(source.chaptersUrl); }
-          catch (_) { chapters = []; }
+        if (typeof source === "object") {
+          chapters = Array.isArray(source.chapters) ? normalizedChapters({ version: 1, chapters: source.chapters }) : [];
+          if (!chapters.length && source.chaptersUrl) {
+            try { chapters = await fetchChapters(source.chaptersUrl); }
+            catch (_) { chapters = []; }
+          }
         }
         render();
       } catch (_) {
@@ -251,7 +267,7 @@
     return { discover, play, stop, close, snapshot: () => ({ available, open, playing: !audio.paused }) };
   }
 
-  const api = { findAudio, lookupAudio, loadChapters, formatTime, createPlayer };
+  const api = { findAudio, lookupAudio, loadChapters, chaptersFromNotes, formatTime, createPlayer };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.TechTopicsAudio = api;
 })(globalThis);
