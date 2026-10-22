@@ -34,8 +34,6 @@ Vocabulário do fluxo editorial de Tech Topics.
 
 **Tokens fonéticos:** IDs obtidos de `kokoro.tokenizer.tokenize(phonemes, limit=None)`, depois da fonemização PT-BR/EN-US, **antes** da síntese. Teto de 350 por inferência e alvo de 300; não são caracteres editoriais. Há outra restrição independente de ~510 caracteres na *string fonética* tratada internamente pelo `kokoro-onnx`, protegida por guarda de 500.
 
-**Profiling:** uma síntese completa para medir CPU/memória/tempo, sem publicar áudio; justifica ou não novos experimentos, não implica paralelismo automático.
-
 **Compare:** geração manual e curta para escuta A/B com a Dora, sem alterar Releases; compara prosódia, velocidade e compressão a partir de um WAV comum quando o único fator é o codec.
 
 **Handoff:** issue de histórico e próximos passos com links para PRs, ADRs, evidências, decisões aprovadas e pendências; não substitui os arquivos versionados que definem o comportamento.
