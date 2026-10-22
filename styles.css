@@ -191,3 +191,80 @@ a:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid
   font-family: var(--sans);
   font-size: 14px;
 }
+
+
+/* Compact recorded-audio dock. Uses a regular HTMLAudioElement so browsers
+   may continue playback under lock screen/background tab media controls. */
+.recording-trigger { display: inline-flex; align-items: center; gap: 8px; }
+.recording-dock {
+  position: fixed;
+  z-index: 25;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  width: min(720px, calc(100% - 28px));
+  min-height: 102px;
+  padding: 14px 19px;
+  color: #fff;
+  background: #322b34;
+  border: 1px solid #4a4149;
+  border-radius: 70px;
+  box-shadow: 0 12px 36px #0005;
+  font-family: var(--sans);
+}
+.recording-cover-ring {
+  --recording-progress: 0deg;
+  flex: 0 0 69px;
+  height: 69px;
+  border-radius: 50%;
+  padding: 5px;
+  background: conic-gradient(#ffa99a var(--recording-progress), #524850 0);
+}
+.recording-cover-ring img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #544850; }
+.recording-info { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.recording-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 16px; font-weight: 700; line-height: 1.45; }
+.recording-subtitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d0c7cb; font-size: 12px; }
+.recording-progress { display: flex; align-items: center; gap: 8px; margin-top: 7px; min-width: 0; }
+.recording-time { color: #e5d9dc; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 11px; }
+.recording-progress input[type="range"] { flex: 1; min-width: 24px; height: 20px; margin: 0; cursor: pointer; accent-color: #ffa99a; }
+.recording-progress input[type="range"]:disabled { opacity: .45; }
+.recording-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.recording-dock button {
+  display: grid; place-items: center; cursor: pointer;
+  border: 0; background: transparent; color: #eee6e9; border-radius: 50%;
+  padding: 0; flex-shrink: 0;
+}
+.recording-dock button:focus-visible, .recording-progress input:focus-visible { outline: 2px solid #ffa99a; outline-offset: 3px; }
+.recording-dock .recording-rate { font-size: 12px; font-weight: 700; width: 35px; height: 36px; border-radius: 12px; }
+.recording-dock .recording-play { width: 52px; height: 52px; background: #ffa99a; color: #4c1411; border-radius: 18px; }
+.recording-dock .recording-skip { width: 35px; height: 40px; }
+.recording-dock .recording-close { width: 27px; height: 33px; color: #cbc1c7; }
+.recording-dock button:hover { background-color: #ffffff20; }
+.recording-dock .recording-play:hover { background-color: #ffc0b3; }
+.recording-open .site-footer { padding-bottom: 130px; }
+.recording-announcement { color: #a43c27; font: 13px/1.4 var(--sans); margin: 8px auto; max-width: 920px; }
+.recording-announcement:empty { display: none; }
+@media (max-width: 600px) {
+  .recording-dock { min-height: 82px; padding: 9px 11px; gap: 9px; }
+  .recording-cover-ring { flex-basis: 49px; height: 49px; padding: 4px; }
+  .recording-title { font-size: 13px; }
+  .recording-subtitle { font-size: 11px; }
+  .recording-progress { gap: 4px; margin-top: 4px; }
+  .recording-time { font-size: 10px; }
+  .recording-actions { gap: 1px; }
+  .recording-dock .recording-rate { width: 28px; font-size: 11px; }
+  .recording-dock .recording-play { width: 41px; height: 45px; border-radius: 14px; }
+  .recording-dock .recording-skip { width: 29px; height: 40px; }
+  .recording-dock .recording-close { width: 22px; height: 34px; }
+  .recording-open .site-footer { padding-bottom: 106px; }
+}
+@media (max-width: 380px) {
+  .recording-dock { width: calc(100% - 14px); gap: 6px; padding: 8px; }
+  .recording-cover-ring { flex-basis: 42px; height: 42px; }
+  .recording-dock .recording-rate { width: 25px; }
+  .recording-dock .recording-skip { width: 26px; }
+  .recording-dock .recording-close { width: 20px; }
+}

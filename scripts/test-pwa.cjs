@@ -34,6 +34,7 @@ async function testWorker() {
   for (const icon of manifestIcons) assert(entries.has(new URL(icon.src, "https://example.com/tech-topics/").href), "installable app icon must be available offline: " + icon.src);
   assert(entries.has("https://example.com/tech-topics/favicon.ico"));
   assert(entries.has("https://example.com/tech-topics/speech.js"));
+  assert(entries.has("https://example.com/tech-topics/audio.js"));
   assert(entries.has("https://example.com/tech-topics/content/tts-lexicon.json"));
   handlers.activate({ waitUntil(promise) { pending = promise; } }); await pending;
   assert.deepEqual(deleted, ["tech-topics-old"]); assert(claimed);

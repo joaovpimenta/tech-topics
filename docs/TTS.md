@@ -155,3 +155,44 @@ JSON após o deploy da página. Ver [guia do Kokoro](KOKORO_ACTIONS.md).
 A revisão de pronúncia por escuta é necessária, sobretudo para nomes próprios
 e termos ingleses não marcados. A geração de roteiros dedicados ou em diálogo
 não faz parte deste fluxo.
+
+## Reprodução dos MP3s no site
+
+Cada artigo pode oferecer duas formas independentes de escuta:
+
+- **Ouvir agora** (ícone de fones): aparece apenas se a API pública do GitHub
+  confirmar o asset `<slug>.mp3` da Release `tts-<slug>`. Usa um elemento
+  nativo `<audio>` para reproduzir o arquivo inteiro, sem precisar sintetizar
+  novamente. A barra fixa **inferior** mostra a capa, o título do artigo,
+  duração e tempo transcorrido, busca no áudio, pausa/retomada, avanço de
+  15 segundos, velocidade e fechamento.
+- **Voz do dispositivo**: mantém a Web Speech API como opção independente,
+  inclusive quando não há MP3 publicado. O botão desativado "Ouvir daqui"
+  foi removido. Durante a leitura nativa, o usuário pode continuar usando
+  os comandos de parágrafo e o destaque de texto.
+
+O navegador consulta
+`https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-<slug>`
+e só revela o botão caso a Release pública contenha o asset correto.
+Falha de rede, limite da API ou Release ausente não impede a leitura pelo
+dispositivo; uma nova visita/recarregamento verifica novamente se o
+MP3 já foi publicado. O site não baixa o MP3 ao instalar a PWA nem
+inclui o arquivo no precache; streaming é feito pelo navegador a partir
+da Release.
+
+Ao iniciar um tipo de narração, o outro é interrompido para evitar
+sobreposição. A reprodução do MP3 usa a **Media Session API** com metadados
+do artigo e ações de play/pause/seek, permitindo integração com
+controles do sistema, notificações e tela bloqueada em navegadores
+compatíveis. A aba pode ficar em segundo plano, mas não se pode
+garantir reprodução se o navegador for encerrado, a aba descartada ou o
+sistema suspender aplicativos em segundo plano. O service worker da PWA
+não é e não pode ser usado como reprodutor em segundo plano.
+
+As Releases antigas podem conter áudios gerados com Piper: a interface
+mostra "Tech Topics · Narração", e não presume que a voz seja sempre Dora.
+
+Os testes rápidos `scripts/test-audio.cjs` verificam consulta à Release,
+playback, tempo, busca, velocidade e Media Session sem precisar de
+hardware de áudio. `scripts/test-speech.cjs` continua cobrindo o TTS
+nativo. O teste visual em navegador é opcional.

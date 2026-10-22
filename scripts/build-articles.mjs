@@ -48,7 +48,7 @@ console.log(`Built article manifest with ${manifest.length} article(s).`);
 // Regenerate the imported worker version on every content or application change.
 // Relative URLs keep the PWA inside the GitHub Pages repository subdirectory.
 const webManifest = JSON.parse(await readFile(path.join(root, "manifest.webmanifest"), "utf8"));
-const precacheFiles = [...new Set(["index.html", "article.html", "styles.css", "app.js", "article.js", "speech.js", "content/tts-lexicon.json", "mermaid-theme.js", "fgs-simulator.js", "pwa.js", "manifest.webmanifest", "favicon.svg", "favicon.ico",
+const precacheFiles = [...new Set(["index.html", "article.html", "styles.css", "app.js", "article.js", "speech.js", "audio.js", "content/tts-lexicon.json", "mermaid-theme.js", "fgs-simulator.js", "pwa.js", "manifest.webmanifest", "favicon.svg", "favicon.ico",
   "assets/favicon-16x16.png", "assets/favicon-32x32.png", ...webManifest.icons.map(icon => icon.src),
   "assets/app-icon.svg", "assets/app-icon-180.png", "assets/app-icon-192.png", "assets/app-icon-512.png",
   "content/articles/index.json", ...manifest.map(entry => entry.path), ...covers])].sort();

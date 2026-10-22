@@ -209,8 +209,6 @@
     const bar = document.querySelector("#speech-player");
     if (!synthesis || !Utterance) {
       button.hidden = true;
-      document.querySelector("#speech-from-here").hidden = true;
-      document.querySelector("#speech-help")?.setAttribute("hidden", "");
       status.textContent = "Leitura em voz alta não é compatível com este navegador.";
       return null;
     }
@@ -221,10 +219,10 @@
     const stop = document.querySelector("#speech-stop");
     const position = document.querySelector("#speech-position");
     const follow = document.querySelector("#speech-follow");
-    const fromHere = document.querySelector("#speech-from-here");
     let selectedIndex = 0;
     let highlightedBlock = null;
     let highlightedWords = [];
+    let wasSpeaking = false;
     function measureBar() {
       if (!bar.hidden) document.body.style.setProperty("--speech-player-height", `${bar.getBoundingClientRect().height}px`);
     }
@@ -238,12 +236,14 @@
       const { state, blockIndex, count, message } = snapshot;
       const idle = state === "idle";
       const speaking = state === "speaking";
+      if (speaking && !wasSpeaking) document.dispatchEvent(new Event("tech-topics:device-tts-start"));
+      wasSpeaking = speaking;
       const returnFocus = idle && bar.contains(document.activeElement);
       bar.hidden = idle;
       if (returnFocus) button.focus({ preventScroll: true });
       measureBar();
       document.body.classList.toggle("speech-session", !idle);
-      button.textContent = idle ? "Ouvir artigo" : speaking ? "Pausar leitura" : "Continuar leitura";
+      button.textContent = idle ? "Voz do dispositivo" : speaking ? "Pausar dispositivo" : "Continuar dispositivo";
       button.setAttribute("aria-pressed", String(!idle));
       button.setAttribute("aria-label", button.textContent);
       play.textContent = speaking ? "Pausar" : "Continuar";
@@ -275,10 +275,8 @@
       block.node.classList.add("tts-readable");
       block.node.addEventListener("focus", () => {
         selectedIndex = index;
-        fromHere.disabled = false;
       });
     });
-    fromHere.addEventListener("click", () => player.start(selectedIndex));
     function chooseBlock(event) {
       if (event.target.closest("a,button,input,select,textarea,summary,pre,code,[contenteditable=true]")) return;
       if (document.defaultView.getSelection()?.toString()) return;
@@ -286,7 +284,6 @@
       const index = blocks.findIndex(block => block.node === node);
       if (index < 0) return;
       selectedIndex = index;
-      fromHere.disabled = false;
       if (event.type === "keydown") {
         if (event.key !== "Enter") return;
         event.preventDefault();

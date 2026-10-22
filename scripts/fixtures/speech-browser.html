@@ -5,7 +5,7 @@
 <body>
 <header class="article-header">
   <h1 id="article-heading">API</h1><p id="article-dek">Resumo</p>
-  <button id="listen-article">Ouvir artigo</button><button id="speech-from-here" disabled>Ouvir daqui</button>
+  <button id="listen-article">Voz do dispositivo</button>
   <span id="listen-status"></span>
 </header>
 <article id="article-body">
@@ -53,8 +53,8 @@ try {
   check(!document.querySelector('.tts-word-active,.tts-block-active'), 'highlights cleared');
   check(document.querySelector('#speech-player').hidden, 'stop hides toolbar');
   document.querySelector('#second').focus();
-  document.querySelector('#speech-from-here').click();
-  check(utterances.at(-1).text === 'sequel', 'keyboard selection supports listen from here');
+  document.querySelector('#second').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  check(utterances.at(-1).text === 'sequel', 'keyboard Enter starts from focused paragraph');
   player.stop();
   document.querySelector('#first').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
   check(player.snapshot().state === 'speaking', 'Enter starts from a block');

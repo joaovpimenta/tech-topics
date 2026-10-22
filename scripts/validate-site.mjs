@@ -15,6 +15,7 @@ const checks = [
   ["Check article syntax", ["--check", "article.js"]],
   ["Check speech syntax", ["--check", "speech.js"]],
   ["Run speech pronunciation and player tests", ["scripts/test-speech.cjs"]],
+  ["Run recorded audio + Media Session tests", ["scripts/test-audio.cjs"]],
   ["Check simulator syntax", ["--check", "fgs-simulator.js"]],
   ["Check Mermaid syntax", ["--check", "mermaid-theme.js"]],
   ["Run PWA tests", ["scripts/test-pwa.cjs"]],
