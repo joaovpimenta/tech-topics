@@ -325,11 +325,17 @@ def phonemize_runs(runs: list[dict], phonemizers: dict) -> tuple[str, list[dict]
     return re.sub(r"\s+", " ", "".join(parts)).strip(), english_samples
 
 
-def prepare(slug: str, output_dir: Path, max_chars: int = 0) -> None:
+def prepare(
+    slug: str, output_dir: Path, max_chars: int = 0,
+    preset: str = "atual", first_body_paragraphs: int = 0,
+) -> None:
     if max_chars < 0:
         raise ValueError("--max-chars deve ser >= 0")
     article = read_article(slug)
-    segments = segments_for_article(article, load_lexicon(), max_chars)
+    segments = segments_for_article(
+        article, load_lexicon(), max_chars, preset=preset,
+        first_body_paragraphs=first_body_paragraphs,
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / f"{slug}.segments.json").write_text(
         json.dumps(segments, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -353,7 +359,11 @@ def prepare(slug: str, output_dir: Path, max_chars: int = 0) -> None:
           f"{len(english)} trechos ingleses (ex.: {english[:5]}).")
 
 
-def synthesize(slug: str, output_dir: Path, model: Path, voices: Path, profile: bool = False) -> None:
+def synthesize(
+    slug: str, output_dir: Path, model: Path, voices: Path,
+    profile: bool = False, preset: str = "atual",
+    shared_engine: dict | None = None,
+) -> None:
     import numpy as np
     import onnxruntime as ort
     import soundfile as sf
@@ -363,16 +373,23 @@ def synthesize(slug: str, output_dir: Path, model: Path, voices: Path, profile: 
     segments = json.loads((output_dir / f"{slug}.segments.json").read_text(encoding="utf-8"))
     if not segments:
         raise ValueError("Nenhum segmento preparado.")
-    options = ort.SessionOptions()
-    options.intra_op_num_threads = 4
-    session = ort.InferenceSession(
-        str(model), sess_options=options, providers=["CPUExecutionProvider"]
-    )
-    kokoro = Kokoro.from_session(session, str(voices))
-    phonemizers = {
-        LANG: EspeakG2P(language=LANG),
-        ENGLISH: EspeakG2P(language=ENGLISH),
-    }
+    settings = NARRATION_PRESETS[preset]
+    if shared_engine is not None and "kokoro" in shared_engine:
+        kokoro = shared_engine["kokoro"]
+        phonemizers = shared_engine["phonemizers"]
+    else:
+        options = ort.SessionOptions()
+        options.intra_op_num_threads = 4
+        session = ort.InferenceSession(
+            str(model), sess_options=options, providers=["CPUExecutionProvider"]
+        )
+        kokoro = Kokoro.from_session(session, str(voices))
+        phonemizers = {
+            LANG: EspeakG2P(language=LANG),
+            ENGLISH: EspeakG2P(language=ENGLISH),
+        }
+        if shared_engine is not None:
+            shared_engine.update({"kokoro": kokoro, "phonemizers": phonemizers})
     start = time.perf_counter()
     sampler = None
     if profile:
@@ -403,7 +420,9 @@ def synthesize(slug: str, output_dir: Path, model: Path, voices: Path, profile: 
             inference_started = time.perf_counter() if profile else 0.0
             # PT-BR and English phonemes in ONE call, always with Dora.
             audio, sample_rate = kokoro.create(
-                phonemes, voice=VOICE, speed=SPEED, is_phonemes=True
+                phonemes, voice=VOICE, speed=settings["speed"], is_phonemes=True,
+                sentence_pause=settings["sentence_pause"],
+                clause_pause=settings["clause_pause"],
             )
             if profile:
                 finished = time.perf_counter()
@@ -446,7 +465,9 @@ def synthesize(slug: str, output_dir: Path, model: Path, voices: Path, profile: 
         "languages": [LANG, ENGLISH],
         "english_runs": len(english_samples),
         "english_examples": english_samples[:20],
-        "speed": SPEED,
+        "speed": settings["speed"],
+        "preset": preset,
+        "parameters": settings,
         "segments": len(segments),
         "audio_seconds": round(duration, 2),
         "synthesis_seconds": round(elapsed, 2),
@@ -459,23 +480,59 @@ def synthesize(slug: str, output_dir: Path, model: Path, voices: Path, profile: 
                      ensure_ascii=False), flush=True)
 
 
+def compare_presets(slug: str, output_dir: Path, model: Path, voices: Path) -> None:
+    """Render the first two body paragraphs for three Dora-only presets.
+
+    Reuse a single ONNX session and phonemizers across all variants. No
+    article Release is read or written by this operation.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    shared: dict = {}
+    manifest = {
+        "slug": slug, "voice": VOICE, "paragraphs": 2,
+        "presets": NARRATION_PRESETS, "variants": [],
+    }
+    for preset in NARRATION_PRESETS:
+        folder = output_dir / preset
+        prepare(slug, folder, preset=preset, first_body_paragraphs=2)
+        synthesize(slug, folder, model, voices, preset=preset, shared_engine=shared)
+        metrics = json.loads((folder / f"{slug}.metrics.json").read_text(encoding="utf-8"))
+        manifest["variants"].append({
+            "name": preset,
+            "audio_seconds": metrics["audio_seconds"],
+            "synthesis_seconds": metrics["synthesis_seconds"],
+            "segment_count": metrics["segments"],
+            "file": f"{preset}/{slug}.mp3",
+        })
+    (output_dir / "comparison.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["prepare", "synthesize"])
+    parser.add_argument("command", choices=["prepare", "synthesize", "compare"])
     parser.add_argument("--slug", required=True)
     parser.add_argument("--output-dir", type=Path, default=Path(".audio"))
     parser.add_argument("--max-chars", type=int, default=0)
+    parser.add_argument("--preset", choices=list(NARRATION_PRESETS), default="atual")
+    parser.add_argument("--first-body-paragraphs", type=int, default=0)
     parser.add_argument("--model", type=Path)
     parser.add_argument("--voices", type=Path)
     parser.add_argument("--profile", action="store_true",
                         help="Amostrar CPU, RSS e tempos por segmento; sintetiza sem paralelismo")
     args = parser.parse_args()
     if args.command == "prepare":
-        prepare(args.slug, args.output_dir, args.max_chars)
+        prepare(args.slug, args.output_dir, args.max_chars,
+                preset=args.preset, first_body_paragraphs=args.first_body_paragraphs)
     else:
         if not args.model or not args.voices:
-            parser.error("--model e --voices são obrigatórios para synthesize")
-        synthesize(args.slug, args.output_dir, args.model, args.voices, profile=args.profile)
+            parser.error("--model e --voices são obrigatórios para synthesize/compare")
+        if args.command == "compare":
+            compare_presets(args.slug, args.output_dir, args.model, args.voices)
+        else:
+            synthesize(args.slug, args.output_dir, args.model, args.voices,
+                       profile=args.profile, preset=args.preset)
 
 
 if __name__ == "__main__":
