@@ -68,3 +68,33 @@ test("seeking while paused stays paused and resumes at the selected paragraph", 
   utterances.at(-1).onend();
   assert.equal(player.snapshot().state, "idle");
 });
+
+test("device TTS smoke: browser synthesis speaks PT-BR and English without MP3", () => {
+  const utterances = [];
+  const voices = [{ lang: "pt-BR", name: "Português" }, { lang: "en-US", name: "English" }];
+  const synthesis = {
+    getVoices: () => voices,
+    speak: utterance => utterances.push(utterance),
+    cancel() {}, pause() {}, resume() {}
+  };
+  const blocks = [{ segments: [
+    { text: "O padrão", lang: "pt-BR", words: [] },
+    { text: "Bulkhead", lang: "en-US", words: [] }
+  ] }];
+  const player = speech.createPlayer({
+    blocks, synthesis,
+    Utterance: class { constructor(text) { this.text = text; } }
+  });
+  player.start();
+  assert.equal(utterances.length, 1);
+  assert.equal(utterances[0].text, "O padrão");
+  assert.equal(utterances[0].lang, "pt-BR");
+  assert.equal(utterances[0].voice, voices[0]);
+  utterances[0].onend();
+  assert.equal(utterances.length, 2);
+  assert.equal(utterances[1].text, "Bulkhead");
+  assert.equal(utterances[1].lang, "en-US");
+  assert.equal(utterances[1].voice, voices[1]);
+  utterances[1].onend();
+  assert.equal(player.snapshot().state, "idle");
+});
