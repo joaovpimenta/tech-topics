@@ -97,10 +97,57 @@ Campo **mode**:
 - **`publish`**: sintetiza o artigo completo e cria uma Release.
   Se ela já existe, é preservada; `replace_existing=true` permite
   substituir somente quando solicitado manualmente.
+- **`profile`**: sintetiza **o artigo completo uma única vez**, ainda de forma
+  sequencial, sem gerar MP3, sem criar/substituir Release e sem executar um
+  benchmark paralelo automaticamente. Salva `<slug>.cpu-profile.json`,
+  `<slug>.metrics.json` e `<slug>.chapters.json` como artefato de Actions
+  por 14 dias e mostra resumo em **GITHUB_STEP_SUMMARY**.
+  O relatório amostra a cada segundo CPU da inferência nativa,
+  afinidade/quota efetiva do runner, RSS máximo e tempos por segmento.
+  Um indicador conservador aponta se vale **investigar** 2 instâncias;
+  não significa que paralelismo já traga ganho.
 
 Exemplo para testar a palavra *Bulkhead*: `article=bulkhead`,
 `mode=preview`. Para atualizar o áudio antigo depois de ouvi-lo:
 `article=bulkhead`, `mode=publish`, `replace_existing=true`.
+
+## Execuções redundantes evitadas
+
+O workflow **Pages** continua fazendo build e deploy quando código, CSS ou
+artigos mudam: isso é necessário para atualizar o site e o cache da PWA.
+Ele **não recria o texto editorial**: os artigos existentes já estão
+versionados em `content/articles/<slug>.json`; o build apenas indexa
+e empacota esses dados.
+
+Quando um push na `main` não adiciona nenhum `content/articles/<slug>.json`
+novo, o job de áudio **nem é agendado**. A seleção editorial automática
+também só é acionada se o push tocar artigos e de fato adicionar um JSON
+novo; mudanças de código, layout ou edição de artigo existente não
+selecionam outro tópico. A seleção por comentário autorizado ou
+`workflow_dispatch` continua explícita.
+
+Mesmo havendo um artigo novo, o workflow de áudio confere as Releases
+`tts-<slug>` **antes de criar jobs de síntese**. Release já existente
+faz skip por padrão. `preview` e `profile` são solicitações manuais
+intencionais e podem rodar um artigo existente; `publish` só substitui
+áudio existente com `replace_existing=true`. A checagem de Release é
+repetida no início do job como proteção contra duas execuções concorrentes.
+
+## Como analisar possível paralelismo dentro do runner
+
+1. Execute **Run workflow → main**, `article=bulkhead`,
+   `mode=profile` (uma medição de referência por artigo; não publique áudio).
+2. Abra a execução e leia o resumo de CPU/RSS. Baixe o artefato
+   `kokoro-cpu-profile-bulkhead-<run_id>` para ver as amostras ao longo
+   do tempo, inferências por segmento e o fator de tempo real.
+3. Se CPU p90 estiver abaixo de 75% e média abaixo de 55% do orçamento
+   do runner, com amostras suficientes, vale criar **outro experimento**
+   com duas instâncias limitadas a 1–2 threads cada, comparando tempo
+   total, memória e qualidade. Caso contrário, não há indício suficiente
+   de CPU ociosa. Três instâncias não devem ser padrão sem números.
+
+O modo normal continua com um único Kokoro CPU FP32 e `pf_dora`.
+O profiling não ativa multiprocessamento nem muda o áudio.
 
 ## Validação e custo
 
