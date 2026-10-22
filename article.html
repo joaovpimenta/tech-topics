@@ -46,13 +46,16 @@
         <p class="dek" id="article-dek"></p>
         <div class="article-meta" id="article-meta"></div>
         <div class="article-actions" id="article-actions" hidden>
-          <button class="listen-button" id="listen-article" type="button" aria-pressed="false">Ouvir artigo</button>
-          <button class="listen-stop" id="speech-from-here" type="button" disabled>Ouvir daqui</button>
+          <button class="listen-button recording-trigger" id="listen-recording" type="button" aria-pressed="false" hidden>
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-3a9 9 0 0 1 18 0v3"/><rect x="2.5" y="13" width="4.5" height="7" rx="2"/><rect x="17" y="13" width="4.5" height="7" rx="2"/></svg>
+            <span class="recording-button-label">Ouvir agora</span>
+          </button>
+          <button class="listen-stop" id="listen-article" type="button" aria-pressed="false">Voz do dispositivo</button>
           <button class="share-button" id="share-article" type="button">Compartilhar</button>
           <span class="listen-status" id="listen-status" role="status" aria-live="polite"></span>
           <span class="share-status" id="share-status" role="status" aria-live="polite"></span>
         </div>
-        <p class="speech-help" id="speech-help">Selecione um parágrafo e use “Ouvir daqui”, ou pressione Enter com o trecho em foco. Durante a leitura, clique no trecho para mudar o ponto de escuta.</p>
+
       </header>
       <div class="article-hero" hidden><img id="article-image" alt="" /></div>
       <article class="article-body" id="article-body"><p>Carregando o conteúdo…</p></article>
@@ -72,6 +75,36 @@
       </div>
     </section>
 
+    <section class="recording-dock" id="recording-player" aria-label="Player do áudio gravado do artigo" hidden>
+      <audio id="article-recording" preload="none"></audio>
+      <div class="recording-cover-ring" id="recording-ring">
+        <img id="recording-cover" alt="" />
+      </div>
+      <div class="recording-info">
+        <strong id="recording-title" class="recording-title"></strong>
+        <span class="recording-subtitle" id="recording-subtitle">Tech Topics · Narração</span>
+        <div class="recording-progress">
+          <span id="recording-elapsed" class="recording-time">0:00</span>
+          <input id="recording-seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Posição da narração" disabled />
+          <span id="recording-duration" class="recording-time">–:––</span>
+        </div>
+      </div>
+      <div class="recording-actions">
+        <button id="recording-rate" class="recording-rate" type="button" aria-label="Velocidade da narração: 1 vez">1×</button>
+        <button id="recording-play" class="recording-play" type="button" aria-label="Reproduzir narração" aria-pressed="false">
+          <svg class="recording-icon-play" aria-hidden="true" width="23" height="23" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5a1 1 0 0 1 1.5-.86l12 7.5a1 1 0 0 1 0 1.72l-12 7.5A1 1 0 0 1 7 19.5z"/></svg>
+          <svg class="recording-icon-pause" aria-hidden="true" width="23" height="23" viewBox="0 0 24 24" fill="currentColor" hidden><rect x="5" y="4" width="5" height="16" rx="1.5"/><rect x="14" y="4" width="5" height="16" rx="1.5"/></svg>
+        </button>
+        <button id="recording-skip" class="recording-skip" type="button" aria-label="Avançar 15 segundos">
+          <svg aria-hidden="true" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M19 8a8 8 0 1 1-3-3"/><path d="M15 2v5h5"/><text x="7" y="15.5" font-size="7.3" fill="currentColor" stroke="none" font-family="Arial">15</text></svg>
+        </button>
+        <button id="recording-close" class="recording-close" type="button" aria-label="Fechar player" title="Fechar player">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"><path d="M5 5 19 19M19 5 5 19"/></svg>
+        </button>
+      </div>
+    </section>
+    <p class="recording-announcement" id="recording-status" role="status" aria-live="polite"></p>
+
     <footer class="site-footer">
       <div class="footer-inner">
         <p>Tech Topics · Arquivo de arquitetura e engenharia de software</p>
@@ -80,7 +113,8 @@
     <script src="fgs-simulator.js"></script>
     <script src="mermaid-theme.js?v=20260920-mermaid"></script>
     <script src="speech.js"></script>
-    <script src="article.js?v=20261020-player"></script>
+    <script src="audio.js?v=20261022-audio"></script>
+    <script src="article.js?v=20261022-audio"></script>
     <script src="pwa.js"></script>
   </body>
 </html>
