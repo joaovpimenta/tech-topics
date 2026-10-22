@@ -32,3 +32,91 @@ jobs:
         run: node scripts/validate-site.mjs
         env:
           TECH_TOPICS_REQUIRE_TTS_TESTS: "1"
+
+  # Single short inference for codec comparison; remove once artifact exists.
+  codec-preview-oneoff:
+    name: Dora Equilibrado 1.00 — codec A/B (one-off)
+    if: ${{ github.event_name == 'pull_request' && github.head_ref == 'feat/kokoro-dora-prosody-compare-20261022' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      OMP_NUM_THREADS: "4"
+      OPENBLAS_NUM_THREADS: "4"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+      - name: Install CPU-only Dora requirements
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends espeak-ng libespeak-ng1 ffmpeg
+          python -m pip install "kokoro-onnx==0.6.1" "misaki-fork==0.9.6" "phonemizer-fork==3.3.2" "espeakng-loader==0.2.4" "soundfile==0.13.1"
+      - uses: actions/cache@v4
+        with:
+          path: .cache/kokoro
+          key: kokoro-v1.0-fp32-voices-model-files-v1.1
+      - name: Synthesize only Dora Equilibrado 1.00 intro and encode from same WAV
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/kokoro
+          base="https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1"
+          for file in kokoro-v1.0.onnx voices-v1.0.bin; do
+            if [ ! -s ".cache/kokoro/$file" ]; then
+              curl --fail --location --retry 3 --silent --show-error "$base/$file" -o ".cache/kokoro/$file"
+            fi
+          done
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path("tools/tts").resolve()))
+          from kokoro_release import prepare, synthesize
+          output = Path(".audio/codec-review")
+          prepare("bulkhead", output, preset="equilibrado",
+                  first_body_paragraphs=1, sentence_aware=True)
+          synthesize("bulkhead", output,
+                     Path(".cache/kokoro/kokoro-v1.0.onnx"),
+                     Path(".cache/kokoro/voices-v1.0.bin"),
+                     preset="equilibrado", speed=1.0, enforce_token_budget=True)
+          PY
+          for kbps in 96 128 160; do
+            ffmpeg -hide_banner -loglevel error -y -i .audio/codec-review/bulkhead.wav \
+              -af "loudnorm=I=-19:TP=-1:LRA=11" -ar 24000 -ac 1 \
+              -c:a libmp3lame -b:a "${kbps}k" ".audio/codec-review/bulkhead-${kbps}k.mp3"
+            test -s ".audio/codec-review/bulkhead-${kbps}k.mp3"
+          done
+          ffmpeg -hide_banner -loglevel error -y -i .audio/codec-review/bulkhead.wav \
+            -af "loudnorm=I=-19:TP=-1:LRA=11" -ar 24000 -ac 1 \
+            -c:a pcm_s16le .audio/codec-review/bulkhead-lossless.wav
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path(".audio/codec-review")
+          segments = json.loads((path / "bulkhead.segments.json").read_text())
+          assert {v["block_index"] for v in segments} == {0, 1}
+          assert all(0 < v["token_count"] <= 350 for v in segments)
+          assert all(0 < v["phoneme_length"] <= 500 for v in segments)
+          assert all(abs(v["pause_after_seconds"] - 0.025) < 1e-6
+                     for v in segments[:-1] if v["split_reason"] == "clause")
+          print("PASS: phoneme/token budget; exactly one title + one intro paragraph")
+          print("Token/split summary:", [
+            (v["token_count"], v["phoneme_length"], v["split_reason"])
+            for v in segments
+          ])
+          print("Files:", [(p.name,p.stat().st_size) for p in path.glob("*k.mp3")])
+          PY
+      - name: Upload single-synthesis compression A/B
+        uses: actions/upload-artifact@v4
+        with:
+          name: dora-equilibrado100-96-128-160-wav
+          path: |
+            .audio/codec-review/bulkhead-*.mp3
+            .audio/codec-review/bulkhead-lossless.wav
+            .audio/codec-review/bulkhead.segments.json
+            .audio/codec-review/bulkhead.metrics.json
+            .audio/codec-review/bulkhead.txt
+          if-no-files-found: error
+          retention-days: 14

@@ -151,6 +151,242 @@ class KokoroReleaseTests(unittest.TestCase):
             self.assertTrue(any(r["lang"] == "en-us" for s in segments for r in s["runs"]))
             self.assertIn("EN-US", (root / "output/teste.md").read_text(encoding="utf-8"))
 
+    def test_compare_uses_title_and_first_metaphor_paragraph_with_identical_words(self):
+        article = {
+            "title": "Bulkhead",
+            "dek": "Descrição",
+            "bodyHtml": (
+                '<h2>Uma seção</h2>'
+                '<p>O primeiro parágrafo tem <span lang="en-US">Bulkhead</span>. '
+                + "Uma frase completa para preservar a pronúncia. " * 10 + '</p>'
+                '<p>O segundo parágrafo tem uma explicação longa; '
+                + "continua com mais explicações, vírgulas e frases. " * 11 + '</p>'
+                '<p>Este terceiro parágrafo NÃO deve ser narrado.</p>'
+            ),
+        }
+        texts = []
+        for preset in kokoro_release.NARRATION_PRESETS:
+            segments = kokoro_release.segments_for_article(
+                article, self.lexicon, preset=preset, first_body_paragraphs=1, sentence_aware=True)
+            self.assertEqual(set(s["block_index"] for s in segments), {0, 1})
+            self.assertTrue(segments[0]["text"].startswith("Bulkhead"))
+            self.assertTrue(any(r["lang"] == "en-us" for s in segments for r in s["runs"]))
+            narrated = " ".join(" ".join(s["text"] for s in segments).split())
+            self.assertNotIn("terceiro", narrated)
+            self.assertNotIn("segundo parágrafo", narrated)
+            self.assertNotIn("Descrição", narrated)
+            texts.append(narrated)
+        self.assertEqual(len(set(texts)), 1, "variants must read exactly the same body text")
+
+    def test_adaptive_chunks_preserve_all_words_and_keep_safe_sizes(self):
+        runs = [
+            {"lang": "pt-br", "text": "O sistema evita falhas. " * 8},
+            {"lang": "en-us", "text": "Bulkhead patterns. "},
+            {"lang": "pt-br", "text": "As fronteiras preservam os recursos; " * 12},
+        ]
+        chunks = kokoro_release.split_runs_adaptive(runs)
+        self.assertGreater(len(chunks), 2)
+        self.assertEqual(
+            " ".join("".join(r["text"] for r in chunk) for chunk in chunks).split(),
+            "".join(r["text"] for r in runs).split(),
+        )
+        self.assertTrue(all(len("".join(r["text"] for r in part)) <= 320 for part in chunks))
+        self.assertTrue(any(r["lang"] == "en-us" for part in chunks for r in part))
+        short = kokoro_release.split_runs_adaptive([{"lang": "pt-br", "text": "Parágrafo curto."}])
+        self.assertEqual(len(short), 1)
+
+    def test_sentence_first_and_comma_breaks_under_320_characters(self):
+        # This reproduces a long first sentence in Bulkhead: comma pauses
+        # are legitimate, but a forced break at "a porta pesada" is not.
+        long_sentence = (
+            "No corredor de manutenção de uma balsa, uma passageira vê, "
+            "através de uma janela de vidro reforçado, água invadindo uma "
+            "sala de máquinas, e pergunta por que o tripulante está "
+            "apertando a roda de uma porta pesada já fechada em vez de "
+            "tentar entrar; ele termina de vedar a porta e explica que "
+            "a ideia é perder aquele compartimento para manter o resto seco."
+        )
+        short_sentence = "Ela entende o motivo da separação."
+        runs = [{"text": long_sentence + " " + short_sentence, "lang": "pt-br"}]
+        chunks = kokoro_release.split_runs_adaptive(runs)
+        parts = ["".join(item["text"] for item in chunk) for chunk in chunks]
+        self.assertGreater(len(parts), 2)
+        self.assertTrue(all(len(part) <= 320 for part in parts))
+        self.assertEqual(" ".join(" ".join(parts).split()),
+                         " ".join((long_sentence + " " + short_sentence).split()))
+        self.assertEqual(parts[-1], short_sentence, "short complete sentences must stand alone")
+        for part in parts[:-2]:
+            self.assertIn(part.rstrip()[-1], ",;:", "long sentence should end on clause punctuation")
+
+    def test_long_sentence_without_comma_falls_back_to_word_boundary(self):
+        text = " ".join(["isolamento"] * 54) + "."
+        runs = [{"text": text, "lang": "pt-br"}]
+        chunks = kokoro_release.split_runs_adaptive(runs)
+        self.assertTrue(all(len("".join(r["text"] for r in c)) <= 320 for c in chunks))
+        self.assertEqual(" ".join(" ".join(r["text"] for r in c) for c in chunks).split(),
+                         text.split())
+
+    def test_phoneme_token_safety_repartitions_denser_sentences(self):
+        class DenseTokenizer:
+            @staticmethod
+            def tokenize(text, limit=None):
+                return list(text)
+        item = {
+            "text": "Frases técnicas completas, " * 12,
+            "block_index": 7,
+            "runs": [{"text": "Frases técnicas completas, " * 12, "lang": "pt-br"}],
+            "pause_after_seconds": 0.3
+        }
+        ph = {"pt-br": FakeG2P("PT"), "en-us": FakeG2P("EN")}
+        result = kokoro_release.fit_segments_to_phoneme_budget(
+            [item], ph, DenseTokenizer(), max_tokens=180, target_tokens=140
+        )
+        self.assertGreater(len(result), 1)
+        self.assertEqual({x["block_index"] for x in result}, {7})
+        self.assertEqual(" ".join(" ".join(x["text"] for x in result).split()),
+                         " ".join(item["text"].split()))
+        self.assertEqual(result[-1]["pause_after_seconds"], 0.3)
+        self.assertTrue(all(len(kokoro_release.phonemize_runs(x["runs"], ph)[0]) <= 180
+                            for x in result))
+
+    def test_token_budget_does_not_care_about_text_character_length(self):
+        class WordTokenizer:
+            @staticmethod
+            def tokenize(phonemes, limit=None):
+                return phonemes.split()
+        ph = {"pt-br": FakeG2P("PT"), "en-us": FakeG2P("EN")}
+        # 392 editorial characters, below the 500-phoneme safeguard,
+        # and about 56 tokenizer words: no arbitrary 320-char split.
+        sentence = ("Explicação técnica detalhada " * 14).strip() + "."
+        item = {
+            "text": sentence, "runs": [{"text": sentence, "lang": "pt-br"}],
+            "block_index": 3, "pause_after_seconds": 0.38,
+        }
+        result = kokoro_release.fit_segments_to_phoneme_budget(
+            [item], ph, WordTokenizer(), max_tokens=350
+        )
+        self.assertEqual(len(result), 1)
+        self.assertGreater(len(sentence), 320)
+        self.assertEqual(result[0]["text"], sentence)
+
+    def test_small_complete_sentences_are_grouped_without_leaving_paragraph(self):
+        class WordTokenizer:
+            @staticmethod
+            def tokenize(phonemes, limit=None):
+                return phonemes.split()
+        ph = {"pt-br": FakeG2P("PT"), "en-us": FakeG2P("EN")}
+        sentence = "Uma frase curta. Outra frase curta. A terceira frase explica o isolamento."
+        segments = [
+            {"text": sentence, "runs": [{"text": sentence, "lang": "pt-br"}],
+             "block_index": 2, "pause_after_seconds": 0.38},
+            {"text": "Um novo parágrafo.", "runs": [{"text": "Um novo parágrafo.", "lang": "pt-br"}],
+             "block_index": 3, "pause_after_seconds": 0.38},
+        ]
+        out = kokoro_release.fit_segments_to_phoneme_budget(
+            segments, ph, WordTokenizer(), target_tokens=300, max_tokens=350
+        )
+        self.assertEqual(len(out), 2, "short sentences combine within their paragraph")
+        self.assertEqual([item["block_index"] for item in out], [2, 3])
+        self.assertEqual(out[0]["text"], sentence)
+
+    def test_tokenized_long_sentence_prefers_comma_and_25ms_join(self):
+        class CharacterTokenizer:
+            @staticmethod
+            def tokenize(phonemes, limit=None):
+                return list(phonemes)
+        ph = {"pt-br": FakeG2P("PT"), "en-us": FakeG2P("EN")}
+        sentence = (
+            "A técnica de isolamento protege recursos compartilhados, "
+            "mesmo quando as requisições ficam lentas, "
+            "e assim preserva capacidade para o processamento saudável, "
+            "evitando que uma falha comprometa todos os serviços."
+        )
+        item = {
+            "text": sentence, "runs": [{"text": sentence, "lang": "pt-br"}],
+            "block_index": 7, "pause_after_seconds": 0.38,
+        }
+        pieces = kokoro_release.fit_segments_to_phoneme_budget(
+            [item], ph, CharacterTokenizer(),
+            target_tokens=110, max_tokens=145, internal_pause=0.025,
+        )
+        self.assertGreater(len(pieces), 1)
+        self.assertEqual({part["block_index"] for part in pieces}, {7})
+        self.assertEqual(pieces[-1]["pause_after_seconds"], 0.38)
+        self.assertEqual(" ".join(" ".join(p["text"] for p in pieces).split()),
+                         " ".join(sentence.split()))
+        self.assertTrue(all(part["token_count"] <= 145 for part in pieces))
+        self.assertTrue(all(part["phoneme_length"] <= 500 for part in pieces))
+        self.assertEqual(pieces[0]["split_reason"], "clause")
+        self.assertEqual(pieces[0]["pause_after_seconds"], 0.025)
+
+    def test_raw_phoneme_length_limit_is_checked_even_with_few_tokens(self):
+        class WordTokenizer:
+            @staticmethod
+            def tokenize(phonemes, limit=None):
+                return phonemes.split()
+        ph = {"pt-br": FakeG2P("PT"), "en-us": FakeG2P("EN")}
+        sentence = ("Capacidade extraordinária e flexibilidade, " * 12).strip() + "."
+        input_segment = {"text": sentence,
+                         "runs": [{"text": sentence, "lang": "pt-br"}],
+                         "block_index": 0, "pause_after_seconds": 0.38}
+        out = kokoro_release.fit_segments_to_phoneme_budget(
+            [input_segment], ph, WordTokenizer(),
+            max_tokens=350, target_tokens=300, max_phonemes=260
+        )
+        self.assertGreater(len(out), 1)
+        self.assertTrue(all(part["phoneme_length"] <= 260 for part in out))
+
+    def test_presets_keep_dora_and_original_as_unchanged_reference(self):
+        names = list(kokoro_release.NARRATION_PRESETS)
+        self.assertEqual(names, ["atual", "equilibrado", "fluido"])
+        self.assertEqual(kokoro_release.COMPARE_SPEEDS, (0.95, 1.00, 1.05))
+        self.assertEqual(kokoro_release.VOICE, "pf_dora")
+        current = kokoro_release.NARRATION_PRESETS["atual"]
+        self.assertEqual(current["speed"], kokoro_release.SPEED)
+        self.assertEqual(current["paragraph_pause"], kokoro_release.PARAGRAPH_PAUSE_SECONDS)
+        self.assertEqual(current["chunk_pause"], kokoro_release.CHUNK_PAUSE_SECONDS)
+        self.assertFalse(current["adaptive_chunks"])
+        self.assertTrue(all(0.5 <= v["speed"] <= 2 for v in kokoro_release.NARRATION_PRESETS.values()))
+        self.assertTrue(all(0 <= v["clause_pause"] <= v["sentence_pause"]
+                            for v in kokoro_release.NARRATION_PRESETS.values()))
+
+    def test_compare_reuses_engine_and_writes_manifest(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            seen = []
+            def fake_prepare(slug, output_dir, **kwargs):
+                self.assertEqual(kwargs["first_body_paragraphs"], 1)
+                self.assertTrue(kwargs["sentence_aware"])
+                output_dir.mkdir(parents=True)
+                seen.append((kwargs["preset"], output_dir))
+            def fake_synthesize(slug, output_dir, model, voices, **kwargs):
+                self.assertEqual(kwargs["preset"], output_dir.name.rsplit("-", 1)[0])
+                self.assertIn(kwargs["speed"], (0.95, 1.00, 1.05))
+                self.assertTrue(kwargs["enforce_token_budget"])
+                shared = kwargs["shared_engine"]
+                shared.setdefault("kokoro", object())
+                self.assertEqual(id(shared), shared_id[0] if shared_id else id(shared))
+                if not shared_id:
+                    shared_id.append(id(shared))
+                (output_dir / f"{slug}.metrics.json").write_text(
+                    json.dumps({"audio_seconds": 12.5, "synthesis_seconds": 5.0,
+                                "segments": 3}), encoding="utf-8")
+            shared_id = []
+            with (patch.object(kokoro_release, "prepare", side_effect=fake_prepare),
+                  patch.object(kokoro_release, "synthesize", side_effect=fake_synthesize)):
+                kokoro_release.compare_presets(
+                    "bulkhead", root / "compare", root / "model.onnx", root / "voices.bin")
+            manifest = json.loads((root / "compare/comparison.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["voice"], "pf_dora")
+            self.assertEqual(manifest["paragraphs"], 1)
+            self.assertEqual(manifest["selection"], "title_plus_first_body_paragraph")
+            self.assertEqual(manifest["speeds"], [0.95, 1.0, 1.05])
+            self.assertEqual([v["name"] for v in manifest["variants"]], [
+                f"{preset}-{speed}" for preset in ("atual", "equilibrado", "fluido")
+                for speed in ("095", "100", "105")
+            ])
+            self.assertEqual(len(seen), 9)
+
     def test_voice_speed_and_languages(self):
         self.assertEqual(kokoro_release.VOICE, "pf_dora")
         self.assertEqual(kokoro_release.SPEED, 0.95)

@@ -97,6 +97,9 @@ Campo **mode**:
 - **`publish`**: sintetiza o artigo completo e cria uma Release.
   Se ela já existe, é preservada; `replace_existing=true` permite
   substituir somente quando solicitado manualmente.
+- **`compare`**: produz nove amostras curtas para escuta, cruzando
+  três configurações de prosódia e velocidades 0.95/1.00/1.05;
+  não publica nem substitui Releases (detalhes abaixo).
 - **`profile`**: sintetiza **o artigo completo uma única vez**, ainda de forma
   sequencial, sem gerar MP3, sem criar/substituir Release e sem executar um
   benchmark paralelo automaticamente. Salva `<slug>.cpu-profile.json`,
@@ -110,6 +113,78 @@ Campo **mode**:
 Exemplo para testar a palavra *Bulkhead*: `article=bulkhead`,
 `mode=preview`. Para atualizar o áudio antigo depois de ouvi-lo:
 `article=bulkhead`, `mode=publish`, `replace_existing=true`.
+
+## Comparação de prosódia, tokens e compressão — somente Dora
+
+A opção manual `compare` testa a **voz fixa `pf_dora`**, somente no
+**título + primeiro parágrafo do corpo** (metáfora de abertura, sem `dek`).
+Compara as três velocidades `0.95`, `1.00`, `1.05` cruzadas com os
+três perfis de pausas `atual`, `equilibrado`, `fluido`.
+
+A opção aprovada preliminarmente na escuta foi **Equilibrado 1.00**:
+pausa de parágrafo 380 ms, pausa depois de título 700 ms, e 140 ms
+entre sentenças agrupadas em chamadas diferentes. No `compare`, as
+emendas obrigatórias no meio de uma frase usam **25 ms** de silêncio.
+
+### Chunking por tokens reais antes do TTS
+
+A fonemização PT-BR/EN-US acontece **antes de `kokoro.create()`**.
+O pipeline usa `kokoro.tokenizer.tokenize(fonemas, limit=None)`
+para contar tokens reais e escolher cortes antes da inferência.
+**Não existe limite de 320 caracteres editoriais nessa comparação.**
+
+- **Alvo de contexto:** 300 tokens, agregando sentenças curtas do mesmo
+  parágrafo quando cabe e preservando sentenças completas.
+- **Teto de inferência:** 350 tokens; acima dele, buscar vírgula,
+  ponto e vírgula ou dois-pontos mais próximos do alvo, ou, só como
+  alternativa, separar entre palavras. Não separar uma palavra ao meio.
+- **Segundo teto técnico:** 500 caracteres na **string de fonemas**
+  produzida pelo G2P, pois `kokoro-onnx` divide internamente em
+  510 caracteres fonéticos. É um limite diferente de caracteres do
+  texto do artigo ou tokens do vocabulário; ambos precisam ser aferidos.
+- Os `block_index` da narração permanecem associados aos parágrafos
+  originais para o player, mesmo com múltiplos chunks no mesmo parágrafo.
+- A biblioteca já utiliza `trim=True` por padrão; o pipeline o envia
+  explicitamente. Isso remove silêncio da borda dos lotes da biblioteca,
+  não significa corte semântico de frases.
+
+### Compressão sem inferência extra
+
+A fonte permanece WAV mono PCM a 24 kHz. O MP3 normal do projeto é
+**96 kbps CBR**, com `loudnorm=I=-19:TP=-1:LRA=11`. No `compare`,
+além dos nove MP3s, o workflow produz do **mesmo WAV Equilibrado 1.00**:
+
+| Arquivo | Compressão |
+|---|---|
+| `equilibrado-100/bulkhead.mp3` | 96 kbps MP3 (referência atual) |
+| `equilibrado-100/bulkhead-128k.mp3` | 128 kbps MP3 |
+| `equilibrado-100/bulkhead-160k.mp3` | 160 kbps MP3 |
+| `equilibrado-100/bulkhead-lossless.wav` | WAV PCM sem perdas, após a mesma normalização |
+
+Todos têm o mesmo áudio antes da codificação e os mesmos parâmetros de
+normalização. Se a diferença entre o MP3 e o WAV for mínima, aumentar
+bitrate não corrigirá problemas de pronúncia, prosódia ou recortes:
+apenas reduzirá os artefatos da compressão, aumentando o arquivo.
+
+A versão normal `publish` e o `profile` mantêm seus parâmetros antigos
+até aprovação de escuta e autorização de publicação. Nenhuma Release
+existente é sobrescrita por `compare`, e o controle de publicação
+manual permanece em `replace_existing=true`.
+
+### E o modo `continuous`?
+
+O modelo ONNX `kokoro-v1.0.onnx` hospedado em
+`model-files-v1.1` **expõe saída de durações** e, segundo a
+documentação oficial do exportador, permite
+`create(continuous=True)`. Compatibilidade de formato **não garante**
+melhor qualidade com Dora ou com fonemas mesclados PT-BR/EN-US.
+Ele permanece **desligado** até um teste auditivo específico; não
+é necessária uma decisão/ADR separada para manter essa configuração.
+
+**Como executar** após o merge: Actions → Publish Tech Topics audio
+(Kokoro Dora), `article=bulkhead`, `mode=compare`, com
+`replace_existing=false`. Baixar o artifact `kokoro-dora-compare-*`
+para ouvir as variantes; não publica nem substitui MP3 de Release.
 
 ## Execuções redundantes evitadas
 
