@@ -29,7 +29,10 @@ class AudioRepoTests(unittest.TestCase):
             git("commit", "-m", "Website", cwd=work)
             git("push", "origin", "main", cwd=work)
 
-            a = root / "bulkhead.mp3"
+            # Real Actions produces audio inside an ignored .audio/ directory.
+            generated = work / ".audio"
+            generated.mkdir()
+            a = generated / "bulkhead.mp3"
             a.write_bytes(b"ID3" + b"first recording")
             self.assertEqual(publish("bulkhead", a, work), "published")
             self.assertIn("audio/bulkhead.mp3", git("--git-dir", str(remote),
@@ -38,7 +41,7 @@ class AudioRepoTests(unittest.TestCase):
                              "ls-tree", "-r", "--name-only", "audio", cwd=root))
             self.assertEqual(publish("bulkhead", a, work), "skipped")
 
-            b = root / "hedged-requests.mp3"
+            b = generated / "hedged-requests.mp3"
             b.write_bytes(b"ID3" + b"second recording")
             self.assertEqual(publish("hedged-requests", b, work), "published")
             files = git("--git-dir", str(remote), "ls-tree", "-r",
