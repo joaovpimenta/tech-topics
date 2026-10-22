@@ -160,8 +160,9 @@ não faz parte deste fluxo.
 
 Cada artigo pode oferecer duas formas independentes de escuta:
 
-- **Ouvir agora** (ícone de fones): aparece apenas se a API pública do GitHub
-  confirmar o asset `<slug>.mp3` da Release `tts-<slug>`. Usa um elemento
+- **Ouvir agora** (ícone de fones): aparece quando a API pública do GitHub
+  confirma `audio/<slug>.mp3` na branch `audio` ou, como compatibilidade,
+  o asset `<slug>.mp3` da Release `tts-<slug>`. Usa um elemento
   nativo `<audio>` para reproduzir o arquivo inteiro, sem precisar sintetizar
   novamente. A barra fixa **inferior** mostra a capa, o título do artigo,
   duração e tempo transcorrido, busca no áudio, pausa/retomada, avanço de
@@ -171,14 +172,17 @@ Cada artigo pode oferecer duas formas independentes de escuta:
   foi removido. Durante a leitura nativa, o usuário pode continuar usando
   os comandos de parágrafo e o destaque de texto.
 
-O navegador consulta
-`https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-<slug>`
-e só revela o botão caso a Release pública contenha o asset correto.
-Falha de rede, limite da API ou Release ausente não impede a leitura pelo
-dispositivo; uma nova visita/recarregamento verifica novamente se o
-MP3 já foi publicado. O site não baixa o MP3 ao instalar a PWA nem
-inclui o arquivo no precache; streaming é feito pelo navegador a partir
-da Release.
+O navegador consulta primeiro
+`https://api.github.com/repos/joaovpimenta/tech-topics/contents/audio/<slug>.mp3?ref=audio`.
+Se o MP3 estiver lá, reproduz a versão da branch `audio` via
+`raw.githubusercontent.com`. Se não existir, consulta a Release antiga
+`tts-<slug>` ou uma Release de contingência. Não é preciso criar um novo
+deploy da página para disponibilizar uma gravação adicionada à branch.
+
+Falha de rede, limite da API ou arquivo ausente não impedem a leitura
+pelo dispositivo; recarregar a página repete a verificação. O site não baixa
+os MP3s ao instalar a PWA nem os inclui no precache: o áudio é transmitido
+diretamente a partir do host público do GitHub.
 
 Ao iniciar um tipo de narração, o outro é interrompido para evitar
 sobreposição. A reprodução do MP3 usa a **Media Session API** com metadados
@@ -192,7 +196,7 @@ não é e não pode ser usado como reprodutor em segundo plano.
 As Releases antigas podem conter áudios gerados com Piper: a interface
 mostra "Tech Topics · Narração", e não presume que a voz seja sempre Dora.
 
-Os testes rápidos `scripts/test-audio.cjs` verificam consulta à Release,
+Os testes rápidos `scripts/test-audio.cjs` verificam consulta à branch e à Release,
 playback, tempo, busca, velocidade e Media Session sem precisar de
 hardware de áudio. `scripts/test-speech.cjs` continua cobrindo o TTS
 nativo. O teste visual em navegador é opcional.
