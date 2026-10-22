@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const source = await readFile(path.join(root, "docs", "VISUAL_STYLE.md"), "utf8");
+const source = (await readFile(path.join(root, "docs", "VISUAL_STYLE.md"), "utf8")).replace(/\r\n?/g, "\n");
 
 function section(start, end) {
   const from = source.indexOf(`## ${start}\n`);

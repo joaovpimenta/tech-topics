@@ -1,0 +1,62 @@
+const assert = require("node:assert/strict");
+const { createServer } = require("node:http");
+const { readFile } = require("node:fs/promises");
+const path = require("node:path");
+const root = path.resolve(__dirname, "..");
+
+async function main() {
+  let chromium;
+  try { ({ chromium } = require(process.env.TECH_TOPICS_PLAYWRIGHT || "playwright")); }
+  catch (error) {
+    if (process.env.TECH_TOPICS_PLAYWRIGHT || error.code !== "MODULE_NOT_FOUND") throw error;
+    console.log("SKIP: browser speech checks require Playwright; set TECH_TOPICS_PLAYWRIGHT to its module path.");
+    return;
+  }
+  const server = createServer(async (request, response) => {
+    try {
+      const file = decodeURIComponent(new URL(request.url, "http://localhost").pathname).slice(1);
+      if (!file || file.includes("..") || path.isAbsolute(file)) throw Error("Invalid path");
+      response.setHeader("Content-Type", file.endsWith(".js") ? "text/javascript" : file.endsWith(".json") ? "application/json" : file.endsWith(".css") ? "text/css" : file.endsWith(".html") ? "text/html; charset=utf-8" : "application/octet-stream");
+      response.end(await readFile(path.join(root, file)));
+    } catch { response.writeHead(404); response.end(); }
+  });
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  let browser;
+  try {
+    browser = await chromium.launch({ headless: true, executablePath: process.env.TECH_TOPICS_CHROMIUM || undefined, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+    const base = `http://127.0.0.1:${server.address().port}`;
+    const page = await browser.newPage();
+    const errors = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await page.goto(`${base}/scripts/fixtures/speech-browser.html`);
+    const message = await page.locator("#result").innerText();
+    assert.match(message, /^PASS:/, message);
+    console.log(message);
+    await page.addInitScript(() => {
+      window.testUtterances = [];
+      Object.defineProperty(window, "speechSynthesis", { value: { getVoices: () => [], speak: item => window.testUtterances.push(item), cancel() {}, pause() {}, resume() {} } });
+      window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
+    });
+    await page.route("https://**/*", route => route.abort());
+    for (const width of [1280, 375]) {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto(`${base}/article.html?slug=cqrs-projecoes-e-consistencia`);
+      await page.waitForSelector(".tts-readable");
+      await page.locator("#listen-article").click();
+      await page.waitForSelector("#speech-player:not([hidden])");
+      assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `no document overflow at ${width}px`);
+      await page.locator("#article-body p.tts-readable").first().click();
+      const active = await page.evaluate(() => ({ top: document.querySelector(".tts-block-active").getBoundingClientRect().top, barBottom: document.querySelector("#speech-player").getBoundingClientRect().bottom, spoken: window.testUtterances.at(-1).text }));
+      assert(active.top >= active.barBottom, `active paragraph clears toolbar at ${width}px`);
+      assert(active.spoken.length > 0);
+      await page.locator("#speech-stop").click();
+      assert(await page.locator("#speech-player").isHidden());
+    }
+    assert.deepEqual(errors, []);
+    console.log("PASS: actual article loads with pronunciation, toolbar, desktop/mobile layout and clean stop.");
+  } finally {
+    await browser?.close();
+    await new Promise(resolve => server.close(resolve));
+  }
+}
+main().catch(error => { console.error(error); process.exitCode = 1; });

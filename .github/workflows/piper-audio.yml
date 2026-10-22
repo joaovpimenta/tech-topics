@@ -1,0 +1,179 @@
+name: Publish Tech Topics audio (Piper)
+
+on:
+  workflow_call:
+    inputs:
+      before_sha:
+        description: Commit anterior ao push que publicou os artigos
+        required: true
+        type: string
+      after_sha:
+        description: Commit publicado pelo GitHub Pages
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: Slug do artigo (nome do arquivo em content/articles sem .json)
+        required: true
+        type: string
+      replace_existing:
+        description: Substituir o MP3 caso a release já exista
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  select-articles:
+    name: Select article(s)
+    runs-on: ubuntu-latest
+    outputs:
+      slugs: ${{ steps.select.outputs.slugs }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+      - name: Resolve article slugs
+        id: select
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          ARTICLE_SLUG: ${{ inputs.slug }}
+          BEFORE_SHA: ${{ inputs.before_sha }}
+          AFTER_SHA: ${{ inputs.after_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            slugs="$(python tools/tts/piper_release.py slugs --slug "$ARTICLE_SLUG")"
+          else
+            slugs="$(python tools/tts/piper_release.py slugs --before "$BEFORE_SHA" --after "$AFTER_SHA")"
+          fi
+          echo "Selected articles: $slugs"
+          echo "slugs=$slugs" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Narrate ${{ matrix.slug }}
+    needs: select-articles
+    if: needs.select-articles.outputs.slugs != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        slug: ${{ fromJSON(needs.select-articles.outputs.slugs) }}
+    concurrency:
+      group: piper-release-${{ matrix.slug }}
+      cancel-in-progress: false
+    env:
+      ARTICLE_SLUG: ${{ matrix.slug }}
+      REPLACE_EXISTING: ${{ inputs.replace_existing || 'false' }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip an already published release unless replacement was requested
+        id: existing
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="tts-$ARTICLE_SLUG"
+          if gh release view "$tag" >/dev/null 2>&1 && [ "$REPLACE_EXISTING" != "true" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Audio already published: $tag"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.existing.outputs.skip != 'true'
+        with:
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: .python-version
+
+      - name: Install CPU-only Piper
+        if: steps.existing.outputs.skip != 'true'
+        run: python -m pip install "piper-tts==1.8.0"
+
+      - name: Restore Piper voice
+        if: steps.existing.outputs.skip != 'true'
+        uses: actions/cache@v4
+        with:
+          path: .cache/piper
+          key: piper-voice-pt_BR-cadu-medium-v1
+
+      - name: Download Brazilian Portuguese voice when missing
+        if: steps.existing.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/piper
+          if [ ! -s .cache/piper/pt_BR-cadu-medium.onnx ] || [ ! -s .cache/piper/pt_BR-cadu-medium.onnx.json ]; then
+            python -m piper.download_voices --data-dir .cache/piper pt_BR-cadu-medium
+          fi
+          test -s .cache/piper/pt_BR-cadu-medium.onnx
+          test -s .cache/piper/pt_BR-cadu-medium.onnx.json
+
+      - name: Extract narrated text
+        if: steps.existing.outputs.skip != 'true'
+        run: python tools/tts/piper_release.py prepare --slug "$ARTICLE_SLUG" --output-dir .audio
+
+      - name: Install FFmpeg for MP3 encoding
+        if: steps.existing.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          command -v ffmpeg
+          command -v ffprobe
+
+      - name: Generate WAV and compressed MP3 on CPU
+        if: steps.existing.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          time python -m piper \
+            --model .cache/piper/pt_BR-cadu-medium.onnx \
+            --input-file ".audio/$ARTICLE_SLUG.txt" \
+            --output-file ".audio/$ARTICLE_SLUG.wav" \
+            --sentence-silence 0.2
+          command -v ffmpeg
+          ffmpeg -hide_banner -loglevel error -y \
+            -i ".audio/$ARTICLE_SLUG.wav" \
+            -ac 1 -c:a libmp3lame -b:a 64k \
+            ".audio/$ARTICLE_SLUG.mp3"
+          test -s ".audio/$ARTICLE_SLUG.mp3"
+          ffprobe -v error -show_entries format=duration -of default=nokey=1:noprint_wrappers=1 ".audio/$ARTICLE_SLUG.mp3"
+
+      - name: Publish MP3 in article-specific GitHub Release
+        if: steps.existing.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="tts-$ARTICLE_SLUG"
+          title="$(python -c 'import json,os,pathlib;print(json.loads((pathlib.Path("content/articles") / (os.environ["ARTICLE_SLUG"] + ".json")).read_text(encoding="utf-8"))["title"])')"
+          mp3=".audio/$ARTICLE_SLUG.mp3"
+          notes=".audio/$ARTICLE_SLUG.md"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            if [ "$REPLACE_EXISTING" = "true" ]; then
+              gh release upload "$tag" "$mp3" --clobber
+              gh release edit "$tag" --title "Tech Topics Áudio — $title" --notes-file "$notes"
+            else
+              echo "Release already exists; no changes made."
+            fi
+          else
+            gh release create "$tag" "$mp3" \
+              --target "$GITHUB_SHA" \
+              --title "Tech Topics Áudio — $title" \
+              --notes-file "$notes" \
+              --latest=false
+          fi

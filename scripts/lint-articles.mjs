@@ -1,25 +1,13 @@
 import { readdir, readFile, access } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import speech from "../speech.js";
+import { validateArticleCatalog, validateSpeechDirective } from "./lib/article-contract.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const articlesDir = path.join(root, "content", "articles");
 const assetsDir = path.join(root, "assets");
 const failures = [];
-const requiredFields = {
-  slug: "string",
-  language: "string",
-  title: "string",
-  category: "string",
-  date: "string",
-  publishedAt: "string",
-  read: "string",
-  image: "string",
-  alt: "string",
-  dek: "string",
-  excerpt: "string",
-  bodyHtml: "string"
-};
 const voidTags = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"]);
 
 function fail(file, message) {
@@ -64,7 +52,6 @@ function scanBody(file, bodyHtml) {
   if (/<(?:script|iframe|object|embed)\b/i.test(bodyHtml)) fail(file, "bodyHtml contains an executable or embedded element");
   if (/\bon[a-z]+\s*=/i.test(bodyHtml)) fail(file, "bodyHtml contains an inline event handler");
   if (/javascript:|data:text\/html|blob:|file:|sandbox:|X-Amz-|Expires=/i.test(bodyHtml)) fail(file, "bodyHtml contains a forbidden or expiring URL");
-  if (/<svg\b|\.svg(?:["')?#]|$)/i.test(bodyHtml)) fail(file, "technical visuals must not use SVG");
   if (!/^\s*<p\b[^>]*>/i.test(bodyHtml)) fail(file, "bodyHtml must begin with one introductory <p>");
   const intro = bodyHtml.match(/^\s*<p\b[^>]*>[\s\S]*?<\/p>/i)?.[0] || "";
   if (!intro) fail(file, "introductory paragraph is missing or not closed");
@@ -103,6 +90,7 @@ function scanBody(file, bodyHtml) {
     if (!opening) continue;
     const name = opening[1].toLowerCase();
     const attrs = parseAttributes(raw);
+    for (const message of validateSpeechDirective(attrs)) fail(file, message);
     const classes = (attrs.class || "").split(/\s+/).filter(Boolean);
 
     for (const attributeName of Object.keys(attrs)) {
@@ -183,40 +171,6 @@ function scanBody(file, bodyHtml) {
   return localRefs;
 }
 
-function scanSpeechMarkup(file, article) {
-  if (article.speechMarkup === undefined) return;
-  if (!article.speechMarkup || typeof article.speechMarkup !== "object" || Array.isArray(article.speechMarkup)) {
-    fail(file, "speechMarkup must be an object");
-    return;
-  }
-
-  for (const field of ["title", "dek"]) {
-    const segments = article.speechMarkup[field];
-    if (segments === undefined) continue;
-    if (!Array.isArray(segments)) {
-      fail(file, `speechMarkup.${field} must be an array`);
-      continue;
-    }
-
-    const expectedText = field === "title" ? article.title : (article.dek || article.excerpt);
-    const segmentText = [];
-    for (const [index, segment] of segments.entries()) {
-      if (!segment || typeof segment !== "object" || typeof segment.text !== "string" || !segment.text) {
-        fail(file, `speechMarkup.${field}[${index}] must contain non-empty text`);
-        continue;
-      }
-      if (typeof segment.lang !== "string" || !/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(segment.lang)) {
-        fail(file, `speechMarkup.${field}[${index}] must contain a valid lang`);
-      }
-      segmentText.push(segment.text);
-    }
-
-    if (segmentText.join("") !== expectedText) {
-      fail(file, `speechMarkup.${field} text must exactly match the displayed ${field}`);
-    }
-  }
-}
-
 const articleFiles = (await readdir(articlesDir))
   .filter(file => file.endsWith(".json") && file !== "index.json")
   .sort();
@@ -226,50 +180,44 @@ if (!articleFiles.length) {
   process.exit(1);
 }
 
-const slugs = new Set();
-const titles = new Set();
-const coverPaths = new Set();
-const localRefsByFile = new Map();
+const articles = [];
 for (const file of articleFiles) {
   const filePath = path.join(articlesDir, file);
-  let article;
   try {
-    article = JSON.parse(await readFile(filePath, "utf8"));
+    articles.push({ file, article: JSON.parse(await readFile(filePath, "utf8")) });
   } catch (error) {
     fail(file, "invalid JSON: " + error.message);
-    continue;
   }
+}
 
-  for (const [field, type] of Object.entries(requiredFields)) {
-    if (!(field in article) || typeof article[field] !== type || !article[field].trim()) {
-      fail(file, "missing or invalid field: " + field);
+for (const { file, message } of validateArticleCatalog(articles)) fail(file, message);
+
+try {
+  speech.validateLexicon(JSON.parse(await readFile(path.join(root, "content/tts-lexicon.json"), "utf8")));
+} catch (error) { fail("content/tts-lexicon.json", error.message); }
+
+const slugs = new Set(articles.flatMap(({ article }) =>
+  article && typeof article === "object" && !Array.isArray(article) && typeof article.slug === "string" && article.slug
+    ? [article.slug]
+    : []
+));
+for (const { file, article } of articles) {
+  if (!article || typeof article !== "object" || Array.isArray(article)) continue;
+
+  if (typeof article.slug === "string" && typeof article.image === "string") {
+    const expectedImage = `assets/${article.slug}/${article.slug}-cover.jpg`;
+    const imagePath = path.resolve(root, article.image);
+    if (article.image === expectedImage && imagePath.startsWith(assetsDir + path.sep)) {
+      try {
+        await access(imagePath);
+      } catch {
+        fail(file, "cover image does not exist: " + article.image);
+      }
     }
   }
-  if (!article.slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(article.slug)) fail(file, "slug must be lowercase kebab-case");
-  if (article.slug !== file.slice(0, -5)) fail(file, "slug must match the JSON filename");
-  if (article.language !== "pt-BR") fail(file, "language must be pt-BR");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(article.publishedAt) || Number.isNaN(Date.parse(article.publishedAt))) {
-    fail(file, "publishedAt must be a valid ISO YYYY-MM-DD date");
-  }
-  if (slugs.has(article.slug)) fail(file, "duplicate article slug: " + article.slug);
-  if (titles.has(article.title.trim().toLocaleLowerCase("pt-BR"))) fail(file, "duplicate article title");
-  slugs.add(article.slug);
-  titles.add(article.title.trim().toLocaleLowerCase("pt-BR"));
 
-  scanSpeechMarkup(file, article);
-
-  const expectedImage = "assets/" + article.slug + "/" + article.slug + "-cover.jpg";
-  if (article.image !== expectedImage) fail(file, "image must point to " + expectedImage);
-  if (coverPaths.has(article.image)) fail(file, "cover image is reused by another article");
-  coverPaths.add(article.image);
-  try {
-    await access(path.join(root, article.image));
-  } catch {
-    fail(file, "cover image does not exist: " + article.image);
-  }
-
-  localRefsByFile.set(file, scanBody(file, article.bodyHtml));
-  for (const reference of localRefsByFile.get(file)) {
+  const localRefs = typeof article.bodyHtml === "string" ? scanBody(file, article.bodyHtml) : new Set();
+  for (const reference of localRefs) {
     try {
       await access(path.join(root, reference));
     } catch {

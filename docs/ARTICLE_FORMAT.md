@@ -13,6 +13,7 @@ Scripts inseridos nesse campo não são executados. Portanto:
 - não insira `<script>` no `bodyHtml`;
 - não use handlers inline como `onclick`;
 - não use URLs `javascript:`;
+- aplique marcações de pronúncia ao texto exibido, preservando `href` e `src` como URLs literais; HTML dentro desses atributos corrompe o link e é rejeitado pelo contrato;
 - mantenha uma legenda e uma descrição acessível para cada visual;
 - preserve um fallback que permita consultar o código Mermaid quando a biblioteca não estiver disponível.
 
@@ -111,6 +112,8 @@ Exemplo:
 ```
 
 Não use essa marcação de forma indiscriminada; ela deve indicar uma mudança real de idioma/pronúncia.
+
+Para siglas e exceções de pronúncia, siga a precedência e as marcações opcionais documentadas em [TTS.md](TTS.md#siglas-abreviações-e-pronúncias-especiais). O idioma e a forma de fala são informações distintas; `speechMarkup` continua concatenando exatamente o texto visível, mesmo quando um segmento declara `speak` ou `mode`.
 
 ## Acessibilidade dos visuais
 

@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   validate:
@@ -26,13 +26,19 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .node-version
+      - name: Set up Python for lightweight TTS tests
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
       - name: Run all validation gates
         run: node scripts/validate-site.mjs
+        env:
+          TECH_TOPICS_REQUIRE_TTS_TESTS: "1"
       - name: Upload validated site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: dist
   deploy:
     name: Deploy GitHub Pages
     needs: validate
@@ -47,3 +53,14 @@ jobs:
       - name: Deploy validated artifact to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  publish-audio:
+    name: Publish new article audio after successful deploy
+    if: github.event_name == 'push'
+    needs: deploy
+    permissions:
+      contents: write
+    uses: ./.github/workflows/kokoro-audio.yml
+    with:
+      before_sha: ${{ github.event.before }}
+      after_sha: ${{ github.sha }}

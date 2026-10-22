@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const checks = [
+  ["Check repository diagnostics", ["scripts/test-repository-health.mjs"]],
+  ["Run article contract tests", ["scripts/test-article-contract.mjs"]],
   ["Validate generation registry", ["scripts/validate-generation.mjs"]],
   ["Run generation composer tests", ["scripts/test-generation.cjs"]],
   ["Run topic queue tests", ["scripts/test-topic-queue.mjs"]],
@@ -11,11 +13,16 @@ const checks = [
   ["Lint article content", ["scripts/lint-articles.mjs"]],
   ["Check application syntax", ["--check", "app.js"]],
   ["Check article syntax", ["--check", "article.js"]],
+  ["Check speech syntax", ["--check", "speech.js"]],
+  ["Run speech pronunciation and player tests", ["scripts/test-speech.cjs"]],
   ["Check simulator syntax", ["--check", "fgs-simulator.js"]],
   ["Check Mermaid syntax", ["--check", "mermaid-theme.js"]],
   ["Run PWA tests", ["scripts/test-pwa.cjs"]],
   ["Run FGS tests", ["scripts/test-fgs.cjs"]],
-  ["Run diagram tests", ["scripts/test-diagrams.cjs"]]
+  ["Run diagram tests", ["scripts/test-diagrams.cjs"]],
+  ["Run public artifact tests", ["scripts/test-site-artifact.mjs"]],
+  ["Run local TTS tests", ["scripts/test-tts.mjs"]],
+  ["Build public site artifact", ["scripts/build-site.mjs"]]
 ];
 
 function run(label, args) {

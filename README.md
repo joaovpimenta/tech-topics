@@ -2,6 +2,12 @@
 
 A responsive editorial journal built as a static site for GitHub Pages.
 
+## Repository operations
+
+Start with `node scripts/doctor.mjs --json` for environment diagnostics and commands. The [agent navigation map](docs/agents/README.md) routes maintenance, editorial queue and local TTS tasks to their documentation. CI uses `.node-version` and validates both Linux and Windows. Python is optional for local site tasks; lightweight TTS tests require it in CI, without downloading speech models.
+
+`node scripts/validate-site.mjs` validates and builds the public artifact in `dist/`. Pages deploys that directory; repository tooling and documentation stay outside the public package. Run `node scripts/build-site.mjs` to repackage an already-generated site, then serve `dist/` for publication parity.
+
 ## Installable app (PWA)
 
 The manifest uses repository-relative URLs and standalone display. On Android Chrome, use **Install app** when offered, or the browser menu. On iPhone, use Safari → Share → **Add to Home Screen**. Installation depends on browser/platform support; this is not an App Store release.

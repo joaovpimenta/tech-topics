@@ -30,12 +30,8 @@ const coverFor = article => coverOverrides[article.slug] || {
 };
 
 const articleActions = document.querySelector("#article-actions");
-const speechButton = document.querySelector("#listen-article");
-const speechStopButton = document.querySelector("#stop-listening");
-const speechStatus = document.querySelector("#listen-status");
 const shareButton = document.querySelector("#share-article");
 const shareStatus = document.querySelector("#share-status");
-const speechSupported = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
 
 async function renderMermaidDiagrams() {
   const containers = [...document.querySelectorAll('[data-mermaid="true"]')];
@@ -80,94 +76,7 @@ async function renderMermaidDiagrams() {
   }
 }
 
-let speechQueue = [];
-let speechIndex = 0;
-let speechState = "idle";
-let speechSession = 0;
 let shareData = null;
-
-function preferredVoice(language) {
-  const voices = window.speechSynthesis.getVoices();
-  const normalizedLanguage = language.toLowerCase();
-  const languagePrefix = normalizedLanguage.split("-")[0];
-  return voices.find(voice => voice.lang.toLowerCase() === normalizedLanguage)
-    || voices.find(voice => voice.lang.toLowerCase() === languagePrefix)
-    || voices.find(voice => voice.lang.toLowerCase().startsWith(`${languagePrefix}-`))
-    || null;
-}
-
-function splitSpeechText(text, language, maxLength = 240) {
-  const clean = text.replace(/\s+/g, " ").trim();
-  if (!clean) return [];
-  const sentences = clean.match(/[^.!?;:]+[.!?;:]?|.+$/g) || [clean];
-  const chunks = [];
-
-  for (const sentence of sentences) {
-    const part = sentence.trim();
-    if (!part) continue;
-    if (part.length <= maxLength) {
-      chunks.push({ text: part, lang: language });
-      continue;
-    }
-
-    let current = "";
-    for (const word of part.split(/\s+/)) {
-      const candidate = current ? `${current} ${word}` : word;
-      if (candidate.length > maxLength && current) {
-        chunks.push({ text: current, lang: language });
-        current = word;
-      } else {
-        current = candidate;
-      }
-    }
-    if (current) chunks.push({ text: current, lang: language });
-  }
-
-  return chunks;
-}
-
-function articleSpeechSegments(node, defaultLanguage = "pt-BR") {
-  const segments = [];
-  const appendText = (text, language) => {
-    if (!text) return;
-    const previous = segments.at(-1);
-    if (previous?.lang === language) previous.text += text;
-    else segments.push({ text, lang: language });
-  };
-
-  const visit = (currentNode, inheritedLanguage) => {
-    if (currentNode.nodeType === Node.TEXT_NODE) {
-      appendText(currentNode.nodeValue, inheritedLanguage);
-      return;
-    }
-    if (currentNode.nodeType !== Node.ELEMENT_NODE) return;
-
-    const language = currentNode.getAttribute("lang")?.trim() || inheritedLanguage;
-    currentNode.childNodes.forEach(child => visit(child, language));
-  };
-
-  const language = node.closest("[lang]")?.getAttribute("lang") || defaultLanguage;
-  visit(node, language);
-
-  const normalizedSegments = [];
-  segments.forEach(segment => {
-    let text = segment.text.replace(/\s+/g, " ").trim();
-    if (!text) return;
-
-    const punctuation = text.match(/^\p{P}+/u)?.[0];
-    const previous = normalizedSegments.at(-1);
-    if (punctuation && previous) {
-      previous.text += punctuation;
-      text = text.slice(punctuation.length).trimStart();
-    }
-    if (!text) return;
-
-    if (previous?.lang === segment.lang) previous.text = `${previous.text} ${text}`;
-    else normalizedSegments.push({ text, lang: segment.lang });
-  });
-
-  return normalizedSegments.flatMap(segment => splitSpeechText(segment.text, segment.lang));
-}
 
 function renderSpeechMarkup(element, text, segments, defaultLanguage) {
   const validSegments = Array.isArray(segments)
@@ -180,128 +89,18 @@ function renderSpeechMarkup(element, text, segments, defaultLanguage) {
 
   element.replaceChildren();
   segments.forEach(segment => {
-    if (segment.lang === defaultLanguage) {
+    if (segment.lang === defaultLanguage && !segment.speak && !segment.mode) {
       element.append(document.createTextNode(segment.text));
       return;
     }
 
     const span = document.createElement("span");
     span.lang = segment.lang;
+    if (segment.speak) span.dataset.ttsSay = segment.speak;
+    if (segment.mode) span.dataset.ttsMode = segment.mode;
     span.textContent = segment.text;
     element.append(span);
   });
-}
-
-function articleSpeechQueue() {
-  const defaultLanguage = document.documentElement.lang || "pt-BR";
-  const parts = [
-    document.querySelector("#article-heading"),
-    document.querySelector("#article-dek")
-  ].filter(Boolean).flatMap(node => articleSpeechSegments(node, defaultLanguage));
-
-  document.querySelectorAll("#article-body h2, #article-body h3, #article-body p, #article-body li, #article-body figcaption, #article-body th, #article-body td, #article-body .article-callout")
-    .forEach(node => {
-      if (node.closest("pre, code, .fgs-toc, .fgs-simulator")) return;
-      if (node.matches(".article-callout") && node.querySelector("p")) return;
-      parts.push(...articleSpeechSegments(node, defaultLanguage));
-    });
-
-  return parts;
-}
-
-function updateSpeechControls(message = "") {
-  if (!articleActions) return;
-
-  articleActions.hidden = false;
-  speechStopButton.hidden = speechState === "idle";
-
-  if (!speechSupported) {
-    speechButton.hidden = true;
-    speechStopButton.hidden = true;
-    speechStatus.textContent = "Leitura em voz alta não é compatível com este navegador.";
-    return;
-  }
-
-  speechButton.hidden = false;
-
-  if (speechState === "speaking") {
-    speechButton.textContent = "Pausar";
-    speechButton.setAttribute("aria-pressed", "true");
-    speechButton.setAttribute("aria-label", "Pausar leitura do artigo");
-  } else if (speechState === "paused") {
-    speechButton.textContent = "Continuar";
-    speechButton.setAttribute("aria-pressed", "true");
-    speechButton.setAttribute("aria-label", "Continuar leitura do artigo");
-  } else {
-    speechButton.textContent = "Ouvir artigo";
-    speechButton.setAttribute("aria-pressed", "false");
-    speechButton.setAttribute("aria-label", "Ouvir artigo");
-  }
-
-  speechStatus.textContent = message;
-}
-
-function finishSpeech(message = "Leitura concluída.") {
-  speechQueue = [];
-  speechIndex = 0;
-  speechState = "idle";
-  updateSpeechControls(message);
-}
-
-function stopSpeech(message = "") {
-  speechSession += 1;
-  window.speechSynthesis.cancel();
-  finishSpeech(message);
-}
-
-function speakNext(session) {
-  if (session !== speechSession || speechState === "idle") return;
-  if (speechIndex >= speechQueue.length) {
-    finishSpeech();
-    return;
-  }
-
-  const segment = speechQueue[speechIndex];
-  const utterance = new SpeechSynthesisUtterance(segment.text);
-  utterance.lang = segment.lang;
-  utterance.rate = 1;
-  utterance.pitch = 1;
-  const voice = preferredVoice(segment.lang);
-  if (voice) utterance.voice = voice;
-
-  utterance.onend = () => {
-    if (session !== speechSession) return;
-    speechIndex += 1;
-    speakNext(session);
-  };
-
-  utterance.onerror = event => {
-    if (session !== speechSession || event.error === "canceled" || event.error === "interrupted") return;
-    speechSession += 1;
-    window.speechSynthesis.cancel();
-    finishSpeech("Não foi possível continuar a leitura neste navegador.");
-  };
-
-  window.speechSynthesis.speak(utterance);
-}
-
-function startSpeech() {
-  speechQueue = articleSpeechQueue();
-  if (!speechQueue.length) {
-    updateSpeechControls("Não há texto disponível para leitura.");
-    return;
-  }
-
-  window.speechSynthesis.cancel();
-  speechSession += 1;
-  speechIndex = 0;
-  speechState = "speaking";
-  updateSpeechControls("Lendo o artigo em voz alta.");
-  speakNext(speechSession);
-}
-
-function setupSpeechControls() {
-  updateSpeechControls();
 }
 
 async function copyShareLink(url) {
@@ -336,28 +135,6 @@ function setupShareControls(article) {
   shareStatus.textContent = "";
 }
 
-speechButton?.addEventListener("click", () => {
-  if (!speechSupported) return;
-
-  if (speechState === "speaking") {
-    window.speechSynthesis.pause();
-    speechState = "paused";
-    updateSpeechControls("Leitura pausada.");
-    return;
-  }
-
-  if (speechState === "paused") {
-    window.speechSynthesis.resume();
-    speechState = "speaking";
-    updateSpeechControls("Lendo o artigo em voz alta.");
-    return;
-  }
-
-  startSpeech();
-});
-
-speechStopButton?.addEventListener("click", () => stopSpeech("Leitura interrompida."));
-
 shareButton?.addEventListener("click", async () => {
   if (!shareData) return;
   shareStatus.textContent = "";
@@ -383,10 +160,6 @@ shareButton?.addEventListener("click", async () => {
   }
 });
 
-window.addEventListener("pagehide", () => {
-  if (speechSupported) stopSpeech();
-});
-
 async function showArticle(article) {
   document.documentElement.lang = article.language || "pt-BR";
   document.title = `${article.title} — Tech Topics`;
@@ -406,7 +179,17 @@ async function showArticle(article) {
   document.querySelector(".article-hero").hidden = false;
   document.querySelector("#article-body").innerHTML = article.bodyHtml;
   await renderMermaidDiagrams();
-  setupSpeechControls();
+  let lexicon = {};
+  let pronunciationUnavailable = false;
+  try {
+    const response = await fetch("content/tts-lexicon.json", { cache: "no-store" });
+    if (!response.ok) throw new Error("Léxico indisponível");
+    lexicon = window.TechTopicsSpeech.validateLexicon(await response.json());
+  } catch (error) {
+    pronunciationUnavailable = true;
+  }
+  window.TechTopicsSpeech.mount({ document, lexicon });
+  if (pronunciationUnavailable) document.querySelector("#listen-status").textContent = "Pronúncias personalizadas indisponíveis; siglas serão soletradas.";
   setupShareControls(article);
   document.dispatchEvent(new Event("tech-topics:article-ready"));
 }

@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+if [ -x "./.venv/Scripts/python.exe" ]; then
+  python="./.venv/Scripts/python.exe"
+elif [ -x "./.venv/bin/python" ]; then
+  python="./.venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
+  python="$(command -v python3)"
+elif command -v python >/dev/null 2>&1; then
+  python="$(command -v python)"
+else
+  echo "TTS hook: Python não encontrado. Instale Python 3 ou configure .venv/." >&2
+  exit 1
+fi
+
+exec "$python" "tools/tts/precommit.py" check

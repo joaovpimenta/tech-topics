@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { execFile } = require("node:child_process");
-const { mkdtemp, mkdir, writeFile } = require("node:fs/promises");
+const { mkdtemp, mkdir, writeFile, readFile, rm } = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
 const { promisify } = require("node:util");
@@ -47,6 +47,22 @@ async function expectFailure(args, pattern) {
   assert.doesNotMatch(cover.stdout, /capa determinística/);
   assert.ok(Buffer.byteLength(cover.stdout) < 8192);
 
+  const coverFixture = await mkdtemp(path.join(os.tmpdir(), "tech-topics-cover-"));
+  try {
+    await mkdir(path.join(coverFixture, "scripts"));
+    await mkdir(path.join(coverFixture, "docs"));
+    const fixtureComposer = path.join(coverFixture, "scripts", "compose-cover-brief.mjs");
+    await writeFile(fixtureComposer, await readFile(coverComposer));
+    const visualStyle = (await readFile(path.join(root, "docs", "VISUAL_STYLE.md"), "utf8")).replace(/\r\n?/g, "\n");
+    for (const newline of ["\n", "\r\n", "\r"]) {
+      await writeFile(path.join(coverFixture, "docs", "VISUAL_STYLE.md"), visualStyle.replace(/\n/g, newline));
+      const fixtureCover = await run(process.execPath, [fixtureComposer]);
+      assert.equal(fixtureCover.stdout, cover.stdout, "cover brief must be independent of document line endings");
+    }
+  } finally {
+    await rm(coverFixture, { recursive: true, force: true });
+  }
+
   await expectFailure([
     "--topic", "Circuit Breaker",
     "--task", "unknown-task",
@@ -86,6 +102,26 @@ async function expectFailure(args, pattern) {
   const moduleUrl = pathToFileURL(path.join(root, "scripts", "lib", "generation-system.mjs"));
   const { validateGenerationRegistry } = await import(moduleUrl.href);
   await assert.rejects(validateGenerationRegistry(temporaryRoot, invalidRegistry), /normalized|must live|traversal/);
+
+  // Exercise the actual article CLI with the same selected modules in LF and CRLF.
+  await mkdir(path.join(temporaryRoot, "scripts", "lib"), { recursive: true });
+  await mkdir(path.join(temporaryRoot, "generation", "tasks"));
+  await mkdir(path.join(temporaryRoot, "content", "articles"), { recursive: true });
+  const fixtureArticleComposer = path.join(temporaryRoot, "scripts", "compose-article-brief.mjs");
+  await writeFile(fixtureArticleComposer, await readFile(composer));
+  await writeFile(path.join(temporaryRoot, "scripts", "lib", "generation-system.mjs"), await readFile(path.join(root, "scripts", "lib", "generation-system.mjs")));
+  const validRegistry = { ...invalidRegistry, tasks: { fixture: { label: "Fixture", file: "tasks/fixture.md" } } };
+  await writeFile(path.join(temporaryRoot, "generation", "registry.json"), JSON.stringify(validRegistry));
+  const fixtureModules = ["editorial/AUTHORING.md", "tasks/fixture.md", "frameworks/safe.md"];
+  let canonicalBrief;
+  for (const newline of ["\n", "\r\n", "\r"]) {
+    for (const file of fixtureModules) await writeFile(path.join(temporaryRoot, "generation", file), ["# Fixture", "", "Texto do módulo.", "Outra linha.", ""].join(newline));
+    const composed = await run(process.execPath, [fixtureArticleComposer, "--topic", "Novo tema", "--task", "fixture", "--framework", "safe"]);
+    canonicalBrief ??= composed.stdout;
+    assert.equal(composed.stdout, canonicalBrief, "article brief must be independent of selected module line endings");
+    assert.equal(composed.stdout.includes("\r"), false);
+  }
+  await rm(temporaryRoot, { recursive: true, force: true });
 
   console.log("PASS: article and cover briefs are selective, compact and reject unsafe or invalid input.");
 })().catch(error => {
