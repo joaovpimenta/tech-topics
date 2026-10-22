@@ -39,7 +39,7 @@ on:
           - preview
           - publish
       replace_existing:
-        description: "Substituir MP3 de Release existente? Apenas no modo publish"
+        description: "Substituir MP3 já salvo na branch audio? Só para publish"
         type: boolean
         required: false
         default: false
@@ -114,9 +114,14 @@ jobs:
           set -euo pipefail
           case "$MODE" in preview|publish) ;; *) echo "Invalid mode: $MODE" >&2; exit 1;; esac
           if [ "$MODE" = publish ] && [ "$REPLACE_EXISTING" != true ] && \
-             gh release view "tts-$ARTICLE_SLUG" >/dev/null 2>&1; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "Existing release preserved (choose replace_existing=true to regenerate)."
+             git ls-remote --exit-code origin refs/heads/audio >/dev/null 2>&1; then
+            git fetch --quiet origin refs/heads/audio
+            if git cat-file -e "FETCH_HEAD:audio/$ARTICLE_SLUG.mp3" 2>/dev/null; then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "Existing MP3 in audio branch preserved (set replace_existing=true to regenerate)."
+            else
+              echo "skip=false" >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
@@ -206,23 +211,39 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
-      - name: Publish MP3 as article-specific GitHub Release
+      - name: Save MP3 as a commit in the repository audio branch
+        id: store
         if: steps.policy.outputs.skip != 'true' && env.MODE == 'publish'
         shell: bash
         run: |
           set -euo pipefail
+          args=(--slug "$ARTICLE_SLUG" --mp3 ".audio/$ARTICLE_SLUG.mp3")
+          if [ "$REPLACE_EXISTING" = true ]; then args+=(--replace-existing); fi
+          result="$(python tools/tts/publish_repo_audio.py "${args[@]}")"
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+          echo "Repository audio result: $result" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Release fallback if repository cannot host the MP3
+        if: steps.store.outputs.result == 'fallback'
+        shell: bash
+        run: |
+          set -euo pipefail
           tag="tts-$ARTICLE_SLUG"
-          title="$(python -c 'import json,os,pathlib;print(json.loads((pathlib.Path("content/articles") / (os.environ["ARTICLE_SLUG"] + ".json")).read_text(encoding="utf-8"))["title"])')"
+          title="$(python -c 'import json,os,pathlib;print(json.loads((pathlib.Path("content/articles") / (os.environ["ARTICLE_SLUG"] + ".json")).read_text(encoding="utf-8"))["title"])')" || title="$ARTICLE_SLUG"
+          # The publish script checks out a media-only branch. Metadata and
+          # generated audio stay in .audio/, but article JSON may be absent.
           if gh release view "$tag" >/dev/null 2>&1; then
             if [ "$REPLACE_EXISTING" = true ]; then
               gh release upload "$tag" ".audio/$ARTICLE_SLUG.mp3" --clobber
               gh release edit "$tag" --title "Tech Topics Áudio — $title" \
                 --notes-file ".audio/$ARTICLE_SLUG.md"
             else
-              echo "Existing release kept unchanged."
+              echo "Existing Release preserved; repository commit failed." >&2
+              exit 1
             fi
           else
             gh release create "$tag" ".audio/$ARTICLE_SLUG.mp3" \
               --target "$GITHUB_SHA" --title "Tech Topics Áudio — $title" \
               --notes-file ".audio/$ARTICLE_SLUG.md" --latest=false
           fi
+          echo "Fallback: audio published as GitHub Release $tag" >> "$GITHUB_STEP_SUMMARY"
