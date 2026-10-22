@@ -160,16 +160,16 @@ não faz parte deste fluxo.
 
 Cada artigo pode oferecer duas formas independentes de escuta:
 
-- **Ouvir agora** (ícone de fones): aparece apenas se a API pública do GitHub
-  confirmar o asset `<slug>.mp3` da Release `tts-<slug>`. Usa um elemento
-  nativo `<audio>` para reproduzir o arquivo inteiro, sem precisar sintetizar
-  novamente. A barra fixa **inferior** mostra a capa, o título do artigo,
-  duração e tempo transcorrido, busca no áudio, pausa/retomada, avanço de
-  15 segundos, velocidade e fechamento.
-- **Voz do dispositivo**: mantém a Web Speech API como opção independente,
-  inclusive quando não há MP3 publicado. O botão desativado "Ouvir daqui"
-  foi removido. Durante a leitura nativa, o usuário pode continuar usando
-  os comandos de parágrafo e o destaque de texto.
+- **Ouvir artigo** (único botão de fones no cabeçalho): abre o MP3 completo
+  se a Release pública `tts-<slug>` contiver `<slug>.mp3`; caso contrário
+  usa a leitura nativa do navegador.
+- **Voz do dispositivo** permanece disponível mesmo quando há MP3,
+  pelo menu de opções (`···`) dentro do miniplayer.
+- A barra **inferior**, no tema branco e verde do site, mostra a imagem de
+  capa do artigo, título, tempo transcorrido e total, progresso, play/pause
+  animado, velocidade, fechamento e, quando houver marcadores, avanço ao
+  **próximo parágrafo** em vez de salto arbitrário por segundos.
+  O botão "Ouvir daqui" não faz mais parte do cabeçalho.
 
 O navegador consulta
 `https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-<slug>`
