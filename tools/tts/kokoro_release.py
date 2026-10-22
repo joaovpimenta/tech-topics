@@ -1,7 +1,8 @@
-"""Prepare and synthesize editorial PT-BR article audio with Kokoro ONNX.
+"""Kokoro Dora article audio, using semantic PT-BR/EN-US phonemization.
 
-Uses the shared Tech Topics text extraction/lexicon. No GPU or external TTS API.
-Heavy dependencies are imported only by the synthesize command.
+The visible article remains untouched. Language spans survive extraction and
+chunking, so an English term can be phonemized in the same Kokoro inference as
+its Portuguese sentence (no audio splicing or second narrator).
 """
 
 from __future__ import annotations
@@ -12,102 +13,219 @@ import re
 import time
 from pathlib import Path
 
-from piper_release import read_article
+from article_selection import read_article
 from precommit import (
     ElementTreeParser,
-    article_narration,
+    NARRATION_TAGS,
+    classes,
+    descendant_has_tag,
     is_ignored,
     load_lexicon,
+    spell,
     visible_text,
 )
 
 VOICE = "pf_dora"
 LANG = "pt-br"
+ENGLISH = "en-us"
 SPEED = 0.95
 MAX_CHARS_PER_CHUNK = 240
 PARAGRAPH_PAUSE_SECONDS = 0.45
 SECTION_PAUSE_SECONDS = 0.80
 CHUNK_PAUSE_SECONDS = 0.18
-# Kokoro v1.0 ONNX model uses 24 kHz audio.
 SAMPLE_RATE = 24000
+TOKENS = re.compile(r"https?://[^\s]+|www\.[^\s]+|\w+", re.UNICODE)
 
 
-def heading_texts(html: str, lexicon: dict) -> set[str]:
+def language_code(language: str) -> str:
+    """Only the two approved editorial languages can be used for this voice."""
+    if language.lower() in {"pt", "pt-br"}:
+        return LANG
+    if language.lower() in {"en", "en-us"}:
+        return ENGLISH
+    raise ValueError(f"Idioma de narração não suportado: {language!r}")
+
+
+def append_run(runs: list[dict], text: str, lang: str) -> None:
+    if not text:
+        return
+    if runs and runs[-1]["lang"] == lang:
+        runs[-1]["text"] += text
+    else:
+        runs.append({"lang": lang, "text": text})
+
+
+def lexical_runs(text: str, lang: str, lexicon: dict) -> list[dict]:
+    """Apply local lexicon and PT-BR initialism defaults, preserving language."""
+    runs: list[dict] = []
+    cursor = 0
+    for match in TOKENS.finditer(text):
+        append_run(runs, text[cursor:match.start()], lang)
+        token = match.group()
+        plural = bool(re.fullmatch(r"[a-z]?[A-Z][A-Z0-9]*s", token))
+        base = token[:-1] if plural else token
+        entry = lexicon.get(token, lexicon.get(base) if plural else None)
+        initialism = (bool(re.fullmatch(r"[a-z]?[A-Z][A-Z0-9]*", base))
+                      and len(re.findall(r"[A-Z]", base)) >= 2)
+        if entry:
+            spoken = entry["speak"] + ("s" if plural and token not in lexicon else "")
+            append_run(runs, spoken, language_code(entry["lang"]))
+        elif initialism:
+            # The editorial contract spells unfamiliar acronyms in PT-BR,
+            # even if they appear inside an English-tagged phrase.
+            append_run(runs, spell(base) + ("s" if plural else ""), LANG)
+        else:
+            append_run(runs, token, lang)
+        cursor = match.end()
+    append_run(runs, text[cursor:], lang)
+    return runs
+
+
+def collect_html_runs(node: dict | str, language: str, lexicon: dict, out: list[dict]) -> None:
+    if isinstance(node, str):
+        for run in lexical_runs(node, language, lexicon):
+            append_run(out, run["text"], run["lang"])
+        return
+    if is_ignored(node):
+        return
+    attrs = node["attrs"]
+    current_lang = language_code(attrs.get("lang") or language)
+    if attrs.get("data-tts-say"):
+        append_run(out, attrs["data-tts-say"], current_lang)
+        return
+    if attrs.get("data-tts-mode") in {"spell", "word"}:
+        literal = visible_text(node)
+        spoken = spell(literal, current_lang) if attrs["data-tts-mode"] == "spell" else literal
+        append_run(out, spoken, current_lang)
+        return
+    for child in node["children"]:
+        collect_html_runs(child, current_lang, lexicon, out)
+
+
+def clean_runs(runs: list[dict]) -> list[dict]:
+    """Normalize whitespace without discarding spaces at language boundaries."""
+    clean: list[dict] = []
+    for run in runs:
+        append_run(clean, re.sub(r"\s+", " ", run["text"]), run["lang"])
+    if clean:
+        clean[0]["text"] = clean[0]["text"].lstrip()
+        clean[-1]["text"] = clean[-1]["text"].rstrip()
+    return [r for r in clean if r["text"]]
+
+
+def article_blocks(article: dict, lexicon: dict) -> list[dict]:
+    """Produce exactly the narratable HTML blocks, retaining language spans."""
+    blocks: list[dict] = []
+    speech_markup = article.get("speechMarkup") or {}
+    for field in ("title", "dek"):
+        value = article.get(field)
+        if not isinstance(value, str) or not value.strip():
+            continue
+        markup = speech_markup.get(field) or []
+        runs: list[dict] = []
+        if markup and "".join(s["text"] for s in markup) == value:
+            for item in markup:
+                lang = language_code(item["lang"])
+                if item.get("speak"):
+                    append_run(runs, item["speak"], lang)
+                elif item.get("mode") in {"spell", "word"}:
+                    rendered = (spell(item["text"], lang) if item["mode"] == "spell"
+                                else item["text"])
+                    append_run(runs, rendered, lang)
+                else:
+                    for run in lexical_runs(item["text"], lang, lexicon):
+                        append_run(runs, run["text"], run["lang"])
+        else:
+            runs = lexical_runs(value, LANG, lexicon)
+        blocks.append({"runs": clean_runs(runs), "section": field == "title"})
+
+    html = article.get("bodyHtml") or ""
     parser = ElementTreeParser()
     parser.feed(html)
     parser.close()
-    headings: set[str] = set()
 
-    def visit(node: dict | str) -> None:
+    def visit(node: dict | str, inherited: str = LANG) -> None:
         if isinstance(node, str) or is_ignored(node):
             return
-        if node["tag"] in {"h2", "h3", "h4"}:
-            value = visible_text(node, lexicon)
-            if value:
-                headings.add(value)
+        tag = node["tag"]
+        lang = language_code(node["attrs"].get("lang") or inherited)
+        node_classes = classes(node)
+        special_callout = (tag == "div" and "article-callout" in node_classes
+                           and not descendant_has_tag(node, "p"))
+        standalone_li = tag == "li" and not descendant_has_tag(node, "p")
+        if tag in NARRATION_TAGS or standalone_li or special_callout:
+            runs: list[dict] = []
+            collect_html_runs(node, inherited, lexicon, runs)
+            clean = clean_runs(runs)
+            if clean and "".join(r["text"] for r in clean).strip():
+                blocks.append({"runs": clean, "section": tag in {"h2", "h3", "h4"}})
+            return
         for child in node["children"]:
-            visit(child)
+            visit(child, lang)
 
     visit(parser.root)
-    return headings
+    return blocks
 
 
-def split_long(text: str, max_chars: int = MAX_CHARS_PER_CHUNK) -> list[str]:
-    """Split at sentences when possible, then at words. No content is dropped."""
-    text = " ".join(text.split())
-    if not text:
-        return []
-    sentences = re.split(r"(?<=[.!?;])\s+", text)
-    pieces: list[str] = []
-    for sentence in sentences:
-        words = sentence.split()
-        current = ""
-        for word in words:
-            if len(word) > max_chars:
-                if current:
-                    pieces.append(current)
-                    current = ""
-                pieces.extend(word[i:i + max_chars] for i in range(0, len(word), max_chars))
-                continue
-            candidate = f"{current} {word}".strip()
-            if current and len(candidate) > max_chars:
-                pieces.append(current)
-                current = word
+def tokenize_runs(runs: list[dict]) -> list[dict]:
+    """Word-level tokens keep preceding whitespace, even across lang spans."""
+    tokens: list[dict] = []
+    spaces = ""
+    for run in runs:
+        for part in re.findall(r"\s+|\S+", run["text"]):
+            if part.isspace():
+                spaces += part
             else:
-                current = candidate
-        if current:
-            pieces.append(current)
+                tokens.append({"text": spaces + part, "lang": run["lang"]})
+                spaces = ""
+    return tokens
 
-    # Combine small sentences to avoid unnecessarily short model calls.
-    merged: list[str] = []
-    for piece in pieces:
-        if merged and len(merged[-1]) + len(piece) + 1 <= max_chars:
-            merged[-1] += " " + piece
-        else:
-            merged.append(piece)
-    return merged
+
+def split_runs(runs: list[dict], max_chars: int = MAX_CHARS_PER_CHUNK) -> list[list[dict]]:
+    tokens = tokenize_runs(runs)
+    chunks: list[list[dict]] = []
+    current: list[dict] = []
+    length = 0
+
+    def finish() -> None:
+        nonlocal current, length
+        if current:
+            clean = clean_runs(current)
+            if clean:
+                chunks.append(clean)
+        current, length = [], 0
+
+    for token in tokens:
+        token = dict(token)
+        if current and length + len(token["text"]) > max_chars:
+            finish()
+        if not current:
+            token["text"] = token["text"].lstrip()
+        append_run(current, token["text"], token["lang"])
+        length += len(token["text"])
+        if length >= 150 and re.search(r"[.!?;][”\"']?$", token["text"]):
+            finish()
+    finish()
+    return chunks
 
 
 def segments_for_article(article: dict, lexicon: dict, max_chars: int = 0) -> list[dict]:
-    narration = article_narration(article, lexicon)
-    blocks = narration.split("\n\n") if narration else []
-    headings = heading_texts(article.get("bodyHtml", ""), lexicon)
     segments: list[dict] = []
     total = 0
-
-    for i, block in enumerate(blocks):
-        chunks = split_long(block)
-        is_section = i == 0 or (i >= 2 and block in headings)
+    for block in article_blocks(article, lexicon):
+        chunks = split_runs(block["runs"])
         for j, chunk in enumerate(chunks):
             if max_chars and total >= max_chars:
                 break
+            text = "".join(run["text"] for run in chunk)
             segments.append({
-                "text": chunk,
+                "text": text,
+                "runs": chunk,
                 "pause_after_seconds": (
-                    SECTION_PAUSE_SECONDS if is_section else PARAGRAPH_PAUSE_SECONDS
+                    SECTION_PAUSE_SECONDS if block["section"] else PARAGRAPH_PAUSE_SECONDS
                 ) if j == len(chunks) - 1 else CHUNK_PAUSE_SECONDS,
             })
-            total += len(chunk)
+            total += len(text)
         if max_chars and total >= max_chars:
             break
     if not segments:
@@ -115,34 +233,55 @@ def segments_for_article(article: dict, lexicon: dict, max_chars: int = 0) -> li
     return segments
 
 
+def phonemize_runs(runs: list[dict], phonemizers: dict) -> tuple[str, list[dict]]:
+    """One combined IPA sequence for the single Kokoro/Dora inference."""
+    parts: list[str] = []
+    english_samples: list[dict] = []
+    for run in runs:
+        raw = run["text"]
+        if not raw.strip():
+            parts.append(" ")
+            continue
+        lang = language_code(run["lang"])
+        ipa, _ = phonemizers[lang](raw.strip())
+        if not ipa or not ipa.strip():
+            raise ValueError(f"Fonemização vazia: {lang} {raw!r}")
+        if lang == ENGLISH:
+            english_samples.append({"text": raw.strip(), "phonemes": ipa})
+        parts.append((" " if raw[:1].isspace() else "") +
+                     ipa.strip() + (" " if raw[-1:].isspace() else ""))
+    return re.sub(r"\s+", " ", "".join(parts)).strip(), english_samples
+
+
 def prepare(slug: str, output_dir: Path, max_chars: int = 0) -> None:
-    article = read_article(slug)
     if max_chars < 0:
         raise ValueError("--max-chars deve ser >= 0")
+    article = read_article(slug)
     segments = segments_for_article(article, load_lexicon(), max_chars)
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / f"{slug}.segments.json").write_text(
         json.dumps(segments, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
-    # Exactly the same input snippets will be used for the Piper A/B test.
     (output_dir / f"{slug}.txt").write_text(
         "\n".join(s["text"] for s in segments) + "\n", encoding="utf-8"
     )
     notes = (
         f"Áudio do artigo **{article['title']}** do Tech Topics.\n\n"
         f"Artigo: https://joaovpimenta.github.io/tech-topics/article.html?slug={slug}\n\n"
-        "Gerado localmente no GitHub Actions com Kokoro-82M v1.0 FP32, "
-        f"voz {VOICE}, velocidade {SPEED}, idioma {LANG}. "
-        "Narração editorial, léxico Tech Topics, MP3 mono 96 kbps.\n"
-        "A pronúncia de termos técnicos e a qualidade precisam de revisão auditiva.\n"
+        "Gerado no GitHub Actions com Kokoro-82M v1.0 FP32, "
+        f"voz única {VOICE}, velocidade {SPEED}, fonemização PT-BR + EN-US "
+        "respeitando as tags e o léxico editorial; MP3 mono 96 kbps.\n"
+        "A qualidade e a pronúncia precisam de revisão auditiva.\n"
     )
     (output_dir / f"{slug}.md").write_text(notes, encoding="utf-8")
+    english = [r["text"].strip() for s in segments for r in s["runs"]
+               if r["lang"] == ENGLISH and r["text"].strip()]
     print(f"Preparado {slug}: {len(segments)} segmentos, "
-          f"{sum(len(s['text']) for s in segments)} caracteres.")
+          f"{sum(len(s['text']) for s in segments)} caracteres, "
+          f"{len(english)} trechos ingleses (ex.: {english[:5]}).")
 
 
 def synthesize(slug: str, output_dir: Path, model: Path, voices: Path) -> None:
-    # Imported lazily so the standard-library-only unit tests remain lightweight.
     import numpy as np
     import onnxruntime as ort
     import soundfile as sf
@@ -152,24 +291,29 @@ def synthesize(slug: str, output_dir: Path, model: Path, voices: Path) -> None:
     segments = json.loads((output_dir / f"{slug}.segments.json").read_text(encoding="utf-8"))
     if not segments:
         raise ValueError("Nenhum segmento preparado.")
-    sess_options = ort.SessionOptions()
-    sess_options.intra_op_num_threads = 4
+    options = ort.SessionOptions()
+    options.intra_op_num_threads = 4
     session = ort.InferenceSession(
-        str(model), sess_options=sess_options, providers=["CPUExecutionProvider"]
+        str(model), sess_options=options, providers=["CPUExecutionProvider"]
     )
     kokoro = Kokoro.from_session(session, str(voices))
-    g2p = EspeakG2P(language=LANG)
-
+    phonemizers = {
+        LANG: EspeakG2P(language=LANG),
+        ENGLISH: EspeakG2P(language=ENGLISH),
+    }
     start = time.perf_counter()
     generated_samples = 0
+    english_samples: list[dict] = []
     destination = output_dir / f"{slug}.wav"
     with sf.SoundFile(
         destination, mode="w", samplerate=SAMPLE_RATE, channels=1, subtype="PCM_16"
     ) as wav:
         for i, item in enumerate(segments, start=1):
-            phonemes, _ = g2p(item["text"])
+            phonemes, examples = phonemize_runs(item["runs"], phonemizers)
+            english_samples.extend(examples)
             if not phonemes:
-                raise ValueError(f"Fonemização vazia no segmento {i}")
+                raise ValueError(f"Segmento {i}: fonemas vazios")
+            # PT-BR and English phonemes in ONE call, always with Dora.
             audio, sample_rate = kokoro.create(
                 phonemes, voice=VOICE, speed=SPEED, is_phonemes=True
             )
@@ -183,14 +327,16 @@ def synthesize(slug: str, output_dir: Path, model: Path, voices: Path) -> None:
             if i % 20 == 0 or i == len(segments):
                 print(f"Kokoro: {i}/{len(segments)} segmentos", flush=True)
 
-    elapsed = time.perf_counter() - start
     duration = generated_samples / SAMPLE_RATE
+    elapsed = time.perf_counter() - start
     report = {
         "engine": "kokoro-onnx",
         "model": "kokoro-v1.0.onnx",
         "precision": "fp32",
         "voice": VOICE,
-        "language": LANG,
+        "languages": [LANG, ENGLISH],
+        "english_runs": len(english_samples),
+        "english_examples": english_samples[:20],
         "speed": SPEED,
         "segments": len(segments),
         "audio_seconds": round(duration, 2),
@@ -198,9 +344,10 @@ def synthesize(slug: str, output_dir: Path, model: Path, voices: Path) -> None:
         "real_time_factor": round(elapsed / duration, 3) if duration else None,
     }
     (output_dir / f"{slug}.metrics.json").write_text(
-        json.dumps(report, indent=2) + "\n", encoding="utf-8"
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
-    print(json.dumps(report, ensure_ascii=False), flush=True)
+    print(json.dumps({k: v for k, v in report.items() if k != "english_examples"},
+                     ensure_ascii=False), flush=True)
 
 
 def main() -> None:
