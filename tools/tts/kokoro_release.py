@@ -254,7 +254,7 @@ def split_runs_adaptive(
                 break
             remaining = sum(len(t["text"]) for t in tokens[end + 1:])
             punctuation = tokens[end]["text"].rstrip()
-            tail = punctuation.rstrip("”\\\"'")[-1:]
+            tail = punctuation.rstrip(chr(34) + chr(39) + "”")[-1:]
             sentence = tail in (".", "!", "?")
             clause = tail in (";", ":", ",")
             penalty = 0 if sentence else 35 if clause else 85
