@@ -221,6 +221,20 @@ jobs:
                 test -s ".audio/compare/$name/$ARTICLE_SLUG.mp3"
               done
             done
+            # Codec-only A/B: SAME synthesized equilibrado-100 WAV, no
+            # second inference. All formats receive identical loudness.
+            source=".audio/compare/equilibrado-100/$ARTICLE_SLUG"
+            for kbps in 128 160; do
+              ffmpeg -hide_banner -loglevel error -y \
+                -i "$source.wav" -af "loudnorm=I=-19:TP=-1:LRA=11" \
+                -ar 24000 -ac 1 -c:a libmp3lame -b:a "${kbps}k" \
+                "$source-${kbps}k.mp3"
+              test -s "$source-${kbps}k.mp3"
+            done
+            ffmpeg -hide_banner -loglevel error -y \
+              -i "$source.wav" -af "loudnorm=I=-19:TP=-1:LRA=11" \
+              -ar 24000 -ac 1 -c:a pcm_s16le "$source-lossless.wav"
+            test -s "$source-lossless.wav"
           else
             extra=()
             if [ "$MODE" = profile ]; then extra+=(--profile); fi
@@ -260,6 +274,11 @@ jobs:
                                f"{config['paragraph_pause']} s | {config['chunk_pause']} s | "
                                f"{variant['segment_count']} | {variant['audio_seconds']} s |\n")
               report.write("\n**Baixe o artifact `kokoro-dora-compare-*` para ouvir os nove MP3s.**\n")
+              report.write("\nComparação de compressão (mesmo WAV de equilibrado-100, sem inferência extra):\n")
+              report.write("- `equilibrado-100/<slug>.mp3`: MP3 96 kbps CBR atual\n")
+              report.write("- `equilibrado-100/<slug>-128k.mp3`: MP3 128 kbps CBR\n")
+              report.write("- `equilibrado-100/<slug>-160k.mp3`: MP3 160 kbps CBR\n")
+              report.write("- `equilibrado-100/<slug>-lossless.wav`: WAV normalizado, referência sem perdas\n")
           PY
 
       - name: Upload short Dora A/B comparison (no Releases)
@@ -270,6 +289,7 @@ jobs:
           path: |
             .audio/compare/comparison.json
             .audio/compare/*/*.mp3
+            .audio/compare/equilibrado-100/*-lossless.wav
             .audio/compare/*/*.txt
             .audio/compare/*/*.segments.json
             .audio/compare/*/*.metrics.json
