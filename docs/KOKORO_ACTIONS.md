@@ -124,7 +124,7 @@ Kokoro ONNX FP32, fonemização bilíngue e voz fixa **`pf_dora`** em
 
 | Pausas/chunking | Velocidades |
 |---|---|
-| `atual`: parágrafo 0,45 s; chunk 0,18 s; split atual até 240 caracteres | `0.95`, `1.00`, `1.05` |
+| `atual`: parágrafo 0,45 s; chunk 0,18 s; frases inteiras até 320 caracteres no compare | `0.95`, `1.00`, `1.05` |
 | `equilibrado`: parágrafo 0,38 s; chunk 0,14 s; frases inteiras, máximo 320 caracteres | `0.95`, `1.00`, `1.05` |
 | `fluido`: parágrafo 0,30 s; chunk 0,10 s; frases inteiras, máximo 320 caracteres | `0.95`, `1.00`, `1.05` |
 
