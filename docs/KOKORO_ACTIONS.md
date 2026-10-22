@@ -125,8 +125,8 @@ Kokoro ONNX FP32, fonemização bilíngue e voz fixa **`pf_dora`** em
 | Pausas/chunking | Velocidades |
 |---|---|
 | `atual`: parágrafo 0,45 s; chunk 0,18 s; split atual até 240 caracteres | `0.95`, `1.00`, `1.05` |
-| `equilibrado`: parágrafo 0,38 s; chunk 0,14 s; divisão por frases perto de 240, máximo 300 | `0.95`, `1.00`, `1.05` |
-| `fluido`: parágrafo 0,30 s; chunk 0,10 s; divisão por frases perto de 240, máximo 300 | `0.95`, `1.00`, `1.05` |
+| `equilibrado`: parágrafo 0,38 s; chunk 0,14 s; frases inteiras, máximo 320 caracteres | `0.95`, `1.00`, `1.05` |
+| `fluido`: parágrafo 0,30 s; chunk 0,10 s; frases inteiras, máximo 320 caracteres | `0.95`, `1.00`, `1.05` |
 
 Os perfis também ajustam `sentence_pause`/`clause_pause` do
 `kokoro-onnx` para `0.25/0.10`, `0.22/0.08` e `0.18/0.06`
@@ -134,12 +134,28 @@ segundos, respectivamente. Essas pausas internas **só são relevantes
 quando a biblioteca divide fonemas em batches**; não são parâmetros
 de emoção e podem não alterar trechos curtos.
 
-O limite de 240/300 é medido em caracteres editoriais, apenas uma
-heurística conservadora: o limite real do Kokoro usa tokens fonéticos.
-A divisão dinâmica procura evitar cortar frases e preserva os
-trechos PT-BR/EN-US, sem abrir mão do teto aproximado de caracteres.
-O preset **`atual` com velocidade `0.95`** serve como controle.
-Nenhum preset experimental é ativado automaticamente em `publish`.
+No `mode=compare`, **todos os três presets** usam divisão por frases:
+cada sentença que caiba em 320 caracteres vira uma única chamada de síntese,
+independentemente de ter 90, 240 ou 315 caracteres. Só quando uma
+**sentença ultrapassa 320 caracteres**, o pipeline tenta dividir na
+**última vírgula/ponto e vírgula/dois-pontos** seguros antes do teto.
+Se não houver pontuação interna adequada, usa uma fronteira entre palavras,
+nunca corta o meio de uma palavra. Na emenda em vírgula, a pausa artificial
+é limitada a 20 ms, evitando uma respiração duplicada sobre a pontuação.
+
+320 caracteres são **um teto editorial**, não o limite real do modelo:
+antes da inferência no `compare`, o pipeline conta os **tokens reais
+do fonemizador de PT-BR/EN-US** via tokenizer do Kokoro. Se ultrapassar
+450 tokens (margem para o contexto de ~510), divide novamente e valida;
+não confia apenas no número de caracteres. Preserva o `block_index`
+dos parágrafos, permitindo a navegação futura pelo player.
+
+A linha `atual` no comparativo mantém as **pausas e velocidades de
+produção**, mas usa o **novo corte por frases** para que as nove amostras
+sejam comparáveis. Os nove arquivos do experimento anterior continuam
+guardados no artefato da respectiva execução, como referência da mudança.
+O fluxo `publish` e o `profile` **não mudam seu segmentador existente**
+até que a melhoria seja aprovada auditivamente.
 
 **Para ouvir**: depois que esta alteração estiver na branch
 `main`, abra Actions → **Publish Tech Topics audio (Kokoro Dora)**,
