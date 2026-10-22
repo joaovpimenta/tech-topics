@@ -188,7 +188,17 @@ async function showArticle(article) {
   } catch (error) {
     pronunciationUnavailable = true;
   }
-  window.TechTopicsSpeech.mount({ document, lexicon });
+  const devicePlayer = window.TechTopicsSpeech.mount({ document, lexicon });
+  const recordingPlayer = window.TechTopicsAudio.createPlayer({
+    document,
+    navigator,
+    article,
+    cover,
+    audio: document.querySelector("#article-recording"),
+    stopDevice: () => devicePlayer?.stop("")
+  });
+  document.addEventListener("tech-topics:device-tts-start", () => recordingPlayer.stop());
+  void recordingPlayer.discover();
   if (pronunciationUnavailable) document.querySelector("#listen-status").textContent = "Pronúncias personalizadas indisponíveis; siglas serão soletradas.";
   setupShareControls(article);
   document.dispatchEvent(new Event("tech-topics:article-ready"));
