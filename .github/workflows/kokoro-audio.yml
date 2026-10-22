@@ -31,12 +31,14 @@ on:
         required: false
         default: ""
       mode:
-        description: "Prévia curta sem Release ou publicação do áudio completo"
+        description: "preview: trecho curto; compare: 9 versões do título + 1º parágrafo; profile: CPU; publish: Release"
         type: choice
         required: true
         default: preview
         options:
           - preview
+          - compare
+          - profile
           - publish
       replace_existing:
         description: "Substituir MP3 de Release existente? Apenas no modo publish"
@@ -68,6 +70,10 @@ jobs:
           MANUAL_ARTICLE: ${{ inputs.article }}
           BEFORE_SHA: ${{ inputs.before_sha }}
           AFTER_SHA: ${{ inputs.after_sha }}
+          SELECT_MODE: ${{ inputs.mode || 'publish' }}
+          REPLACE_EXISTING: ${{ inputs.replace_existing || 'false' }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
@@ -78,9 +84,21 @@ jobs:
             test -n "$BEFORE_SHA" && test -n "$AFTER_SHA"
             slugs="$(python tools/tts/article_selection.py --before "$BEFORE_SHA" --after "$AFTER_SHA")"
           fi
+          # Release exists? Don't even schedule an audio matrix job. Explicit
+          # preview/profile and replace_existing=true remain allowed.
+          if [ "$SELECT_MODE" = publish ] && [ "$REPLACE_EXISTING" != true ]; then
+            selected='[]'
+            while IFS= read -r slug; do
+              if gh release view "tts-$slug" >/dev/null 2>&1; then
+                echo "SKIP $slug: MP3 Release already exists." >> "$GITHUB_STEP_SUMMARY"
+              else
+                selected="$(jq -nc --argjson existing "$selected" --arg slug "$slug" '$existing + [$slug]')"
+              fi
+            done < <(jq -r '.[]' <<< "$slugs")
+            slugs="$selected"
+          fi
           echo "slugs=$slugs" >> "$GITHUB_OUTPUT"
-          echo "Selected: $slugs"
-          echo "### Artigos selecionados: $slugs" >> "$GITHUB_STEP_SUMMARY"
+          echo "Eligible for audio work: $slugs" >> "$GITHUB_STEP_SUMMARY"
 
   audio:
     name: Dora ${{ matrix.slug }} (${{ inputs.mode || 'publish' }})
@@ -112,7 +130,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "$MODE" in preview|publish) ;; *) echo "Invalid mode: $MODE" >&2; exit 1;; esac
+          case "$MODE" in preview|compare|profile|publish) ;; *) echo "Invalid mode: $MODE" >&2; exit 1;; esac
+          if [ "$MODE" = compare ] && [ "$GITHUB_EVENT_NAME" != workflow_dispatch ]; then
+            echo "A/B compare is manual-only and must never run after a site deploy." >&2
+            exit 1
+          fi
           if [ "$MODE" = publish ] && [ "$REPLACE_EXISTING" != true ] && \
              gh release view "tts-$ARTICLE_SLUG" >/dev/null 2>&1; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -168,7 +190,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ "$MODE" = preview ]; then
+          if [ "$MODE" = compare ]; then
+            echo "Comparison is title plus first metaphor paragraph, with 3 Dora speeds and 3 prosodies."
+          elif [ "$MODE" = preview ]; then
             python tools/tts/kokoro_release.py prepare \
               --slug "$ARTICLE_SLUG" --max-chars 1200 --output-dir .audio
           else
@@ -176,23 +200,120 @@ jobs:
               --slug "$ARTICLE_SLUG" --output-dir .audio
           fi
 
-      - name: Generate single-voice mixed-language WAV and MP3 on CPU
+      - name: Generate single-voice mixed-language WAV (and MP3 outside profiling)
         if: steps.policy.outputs.skip != 'true'
         shell: bash
         run: |
           set -euo pipefail
-          time python tools/tts/kokoro_release.py synthesize \
-            --slug "$ARTICLE_SLUG" --output-dir .audio \
-            --model .cache/kokoro/kokoro-v1.0.onnx \
-            --voices .cache/kokoro/voices-v1.0.bin
-          ffmpeg -hide_banner -loglevel error -y \
-            -i ".audio/$ARTICLE_SLUG.wav" \
-            -af "loudnorm=I=-19:TP=-1:LRA=11" \
-            -ar 24000 -ac 1 -c:a libmp3lame -b:a 96k \
-            ".audio/$ARTICLE_SLUG.mp3"
-          test -s ".audio/$ARTICLE_SLUG.mp3"
-          ffprobe -v error -show_entries format=duration \
-            -of default=noprint_wrappers=1:nokey=1 ".audio/$ARTICLE_SLUG.mp3"
+          if [ "$MODE" = compare ]; then
+            time python tools/tts/kokoro_release.py compare \
+              --slug "$ARTICLE_SLUG" --output-dir .audio/compare \
+              --model .cache/kokoro/kokoro-v1.0.onnx \
+              --voices .cache/kokoro/voices-v1.0.bin
+            for preset in atual equilibrado fluido; do
+              for speed in 095 100 105; do
+                name="$preset-$speed"
+                ffmpeg -hide_banner -loglevel error -y \
+                  -i ".audio/compare/$name/$ARTICLE_SLUG.wav" \
+                  -af "loudnorm=I=-19:TP=-1:LRA=11" \
+                  -ar 24000 -ac 1 -c:a libmp3lame -b:a 96k \
+                  ".audio/compare/$name/$ARTICLE_SLUG.mp3"
+                test -s ".audio/compare/$name/$ARTICLE_SLUG.mp3"
+              done
+            done
+            # Codec-only A/B: SAME synthesized equilibrado-100 WAV, no
+            # second inference. All formats receive identical loudness.
+            source=".audio/compare/equilibrado-100/$ARTICLE_SLUG"
+            for kbps in 128 160; do
+              ffmpeg -hide_banner -loglevel error -y \
+                -i "$source.wav" -af "loudnorm=I=-19:TP=-1:LRA=11" \
+                -ar 24000 -ac 1 -c:a libmp3lame -b:a "${kbps}k" \
+                "$source-${kbps}k.mp3"
+              test -s "$source-${kbps}k.mp3"
+            done
+            ffmpeg -hide_banner -loglevel error -y \
+              -i "$source.wav" -af "loudnorm=I=-19:TP=-1:LRA=11" \
+              -ar 24000 -ac 1 -c:a pcm_s16le "$source-lossless.wav"
+            test -s "$source-lossless.wav"
+          else
+            extra=()
+            if [ "$MODE" = profile ]; then extra+=(--profile); fi
+            time python tools/tts/kokoro_release.py synthesize \
+              --slug "$ARTICLE_SLUG" --output-dir .audio \
+              --model .cache/kokoro/kokoro-v1.0.onnx \
+              --voices .cache/kokoro/voices-v1.0.bin "${extra[@]}"
+            if [ "$MODE" != profile ]; then
+              ffmpeg -hide_banner -loglevel error -y \
+                -i ".audio/$ARTICLE_SLUG.wav" \
+                -af "loudnorm=I=-19:TP=-1:LRA=11" \
+                -ar 24000 -ac 1 -c:a libmp3lame -b:a 128k \
+                ".audio/$ARTICLE_SLUG.mp3"
+              test -s ".audio/$ARTICLE_SLUG.mp3"
+              ffprobe -v error -show_entries format=duration \
+                -of default=noprint_wrappers=1:nokey=1 ".audio/$ARTICLE_SLUG.mp3"
+            fi
+          fi
+
+      - name: Summarize Dora listening comparison
+        if: steps.policy.outputs.skip != 'true' && env.MODE == 'compare'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          slug = os.environ["ARTICLE_SLUG"]
+          data = json.loads(Path(".audio/compare/comparison.json").read_text(encoding="utf-8"))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as report:
+              report.write("### Dora — título e primeiro parágrafo de metáfora; 9 versões\n\n")
+              report.write("Voz pf_dora em todas as versões; nenhum MP3 publicado foi alterado.\n\n")
+              report.write("| Prosódia | Velocidade | Pausa parágrafo | Entre chunks | Chunks | Áudio |\n")
+              report.write("|---|---:|---:|---:|---:|---:|\n")
+              for variant in data["variants"]:
+                  config = data["presets"][variant["preset"]]
+                  report.write(f"| {variant['preset']} | {variant['speed']:.2f} | "
+                               f"{config['paragraph_pause']} s | {config['chunk_pause']} s | "
+                               f"{variant['segment_count']} | {variant['audio_seconds']} s |\n")
+              report.write("\n**Baixe o artifact `kokoro-dora-compare-*` para ouvir os nove MP3s.**\n")
+              report.write("\nComparação de compressão (mesmo WAV de equilibrado-100, sem inferência extra):\n")
+              report.write("- `equilibrado-100/<slug>.mp3`: MP3 96 kbps CBR atual\n")
+              report.write("- `equilibrado-100/<slug>-128k.mp3`: MP3 128 kbps CBR\n")
+              report.write("- `equilibrado-100/<slug>-160k.mp3`: MP3 160 kbps CBR\n")
+              report.write("- `equilibrado-100/<slug>-lossless.wav`: WAV normalizado, referência sem perdas\n")
+          PY
+
+      - name: Upload short Dora A/B comparison (no Releases)
+        if: steps.policy.outputs.skip != 'true' && env.MODE == 'compare'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kokoro-dora-compare-${{ matrix.slug }}-${{ github.run_id }}
+          path: |
+            .audio/compare/comparison.json
+            .audio/compare/*/*.mp3
+            .audio/compare/equilibrado-100/*-lossless.wav
+            .audio/compare/*/*.txt
+            .audio/compare/*/*.segments.json
+            .audio/compare/*/*.metrics.json
+            .audio/compare/*/*.chapters.json
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Summarize CPU headroom for potential intra-run parallelism
+        if: steps.policy.outputs.skip != 'true' && env.MODE == 'profile'
+        shell: bash
+        run: |
+          python tools/tts/cpu_profile.py ".audio/$ARTICLE_SLUG.cpu-profile.json" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload CPU and memory profile (no MP3 release)
+        if: steps.policy.outputs.skip != 'true' && env.MODE == 'profile'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kokoro-cpu-profile-${{ matrix.slug }}-${{ github.run_id }}
+          path: |
+            .audio/${{ matrix.slug }}.cpu-profile.json
+            .audio/${{ matrix.slug }}.metrics.json
+            .audio/${{ matrix.slug }}.chapters.json
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Upload preview for listening (without modifying Releases)
         if: steps.policy.outputs.skip != 'true' && env.MODE == 'preview'
@@ -242,5 +363,5 @@ jobs:
           else
             gh release create "$tag" ".audio/$ARTICLE_SLUG.mp3" ".audio/$ARTICLE_SLUG.chapters.json" \
               --target "$GITHUB_SHA" --title "Tech Topics Áudio — $title" \
-              --notes-file ".audio/$ARTICLE_SLUG.md" --latest=false
+              --notes-file ".audio/$ARTICLE_SLUG.release.md" --latest=false
           fi

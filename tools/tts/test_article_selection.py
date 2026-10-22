@@ -56,6 +56,30 @@ class ArticleSelectionTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "ambíguo"):
                     article_selection.select_manual("Four Golden Signals")
 
+    def test_code_only_or_article_edits_never_select_existing_article(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            def git(*args):
+                return subprocess.run(["git", *args], cwd=root, check=True,
+                                      capture_output=True, text=True).stdout.strip()
+            git("init")
+            git("config", "user.email", "test@example.com")
+            git("config", "user.name", "Test")
+            directory = root / "content" / "articles"
+            directory.mkdir(parents=True)
+            article = directory / "bulkhead.json"
+            article.write_text('{"text":"published"}', encoding="utf-8")
+            (root / "article.js").write_text("console.log('v1')", encoding="utf-8")
+            git("add", ".")
+            git("commit", "-m", "published")
+            before = git("rev-parse", "HEAD")
+            article.write_text('{"text":"edited"}', encoding="utf-8")
+            (root / "article.js").write_text("console.log('v2')", encoding="utf-8")
+            git("add", ".")
+            git("commit", "-m", "site code and existing article only")
+            after = git("rev-parse", "HEAD")
+            self.assertEqual(article_selection.added_slugs(before, after, root), [])
+
     def test_only_added_jsons_trigger_automatic_workflow(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
