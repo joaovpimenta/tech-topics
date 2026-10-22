@@ -1,6 +1,6 @@
 # ADR 0001 — Prosódia e qualidade de áudio Kokoro/Dora
 
-- **Estado:** Aceito — decisão editorial aprovada; implementação para novas gerações na PR #58, ainda sem merge
+- **Estado:** Aceito e implementado para novas gerações na `main` (PR #58)
 - **Data:** 2026-10-22
 - **Escopo:** `tools/tts/kokoro_release.py`, `.github/workflows/kokoro-audio.yml` e artefatos de comparação
 - **Voz inalterada:** `pf_dora`; **velocidade de referência:** `1.00`; **perfil de referência:** `equilibrado`

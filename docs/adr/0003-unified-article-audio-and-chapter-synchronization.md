@@ -1,6 +1,6 @@
 # ADR 0003 — Player único, capítulos e sincronismo de leitura
 
-- **Estado:** Proposto — implementação na PR #53, **ainda não incorporada à main**
+- **Estado:** Aceito e implementado na `main` (PR #53); QA visual entre navegadores ainda é independente
 - **Data:** 2026-10-22
 - **Escopo:** player do artigo, Web Speech API, áudio gravado e marcadores de bloco
 
@@ -8,7 +8,7 @@
 
 A interface de áudio deve ser consistente ao alternar entre MP3 previamente sintetizado e síntese local do dispositivo. A narração baseada em Kokoro pode ter múltiplas chamadas por parágrafo devido à segmentação por frases; o player, porém, deve continuar navegando por unidades editoriais, não pelos chunks técnicos.
 
-## Decisão proposta
+## Decisão aceita
 
 - Reutilizar **um único miniplayer** branco e verde na base da página para ambas as fontes (MP3 do Kokoro e voz local do navegador). O menu de três pontos troca de motor e interrompe o motor anterior.
 - Exibir **parágrafo anterior/próximo**, play/pause e velocidade nas duas fontes. Para MP3, a posição usa segundos reais; Web Speech API não expõe duração confiável, portanto mostrar **bloco atual/total** em vez de fabricar um cronômetro.
@@ -20,7 +20,7 @@ A interface de áudio deve ser consistente ao alternar entre MP3 previamente sin
 
 ## Dependências e riscos
 
-PR **[#53](https://github.com/joaovpimenta/tech-topics/pull/53)** está aberta e não deve ser considerada comportamento publicado até o merge e a validação no site. PR **[#58](https://github.com/joaovpimenta/tech-topics/pull/58)** adiciona `block_index` nos capítulos de futuras narrações e muda o tamanho das unidades de síntese, mas não muda a regra editorial de navegação. Merge separado do player depende da revisão humana e checks do seu HEAD.
+PR **[#53](https://github.com/joaovpimenta/tech-topics/pull/53)** foi integrada à `main`. A verificação funcional no navegador e o deploy são critérios de QA distintos do merge. PR **[#58](https://github.com/joaovpimenta/tech-topics/pull/58)** adiciona `block_index` nos capítulos de futuras narrações e muda o tamanho das unidades de síntese, mas não muda a regra editorial de navegação. O merge do player ocorreu após validação automatizada; não confundir CI verde com validação visual ou sincronização em Releases antigas.
 
 ## Aceite
 

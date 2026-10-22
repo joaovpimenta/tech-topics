@@ -537,7 +537,7 @@ def prepare(
         f"Artigo: https://joaovpimenta.github.io/tech-topics/article.html?slug={slug}\n\n"
         "Gerado no GitHub Actions com Kokoro-82M v1.0 FP32, "
         f"voz única {VOICE}, velocidade {NARRATION_PRESETS[preset]['speed']}, fonemização PT-BR + EN-US "
-        "respeitando as tags e o léxico editorial; MP3 mono 96 kbps.\n"
+        f"respeitando as tags e o léxico editorial; MP3 mono {DEFAULT_BITRATE_KBPS} kbps.\n"
         "A qualidade e a pronúncia precisam de revisão auditiva.\n"
     )
     (output_dir / f"{slug}.md").write_text(notes, encoding="utf-8")
