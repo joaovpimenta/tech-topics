@@ -1,10 +1,10 @@
 # ADR 0001 — Prosódia e qualidade de áudio Kokoro/Dora
 
-- **Estado:** Proposto — aguardando avaliação auditiva e decisão de publicação
+- **Estado:** Aceito — decisão editorial aprovada; implementação para novas gerações na PR #58, ainda sem merge
 - **Data:** 2026-10-22
 - **Escopo:** `tools/tts/kokoro_release.py`, `.github/workflows/kokoro-audio.yml` e artefatos de comparação
 - **Voz inalterada:** `pf_dora`; **velocidade de referência:** `1.00`; **perfil de referência:** `equilibrado`
-- **Proteção:** `publish` e Releases existentes permanecem intactos até aprovação explícita
+- **Proteção:** nenhuma Release existente pode ser substituída automaticamente; `replace_existing=true` exige disparo manual explícito
 
 ## Contexto
 
@@ -19,14 +19,17 @@ extremos (<10–20 ou >400 tokens).
 A síntese bilíngue é fonemizada primeiro com eSpeak PT-BR/EN-US e
 `is_phonemes=True`, mantendo Dora também nas expressões inglesas.
 
-## Decisão proposta
+## Decisão aceita
 
 ### 1. Planejamento por tokens reais, não por caracteres
 
-- **Teto rígido editorial:** `350` tokens fonéticos, contados pelo
+- **Teto operacional:** `350` IDs de tokens do vocabulário, contados pelo
   **mesmo tokenizer do `kokoro-onnx`** que será usado na inferência,
   sobre a saída consolidada do fonemizador PT-BR/EN-US.
-- **Faixa-alvo flexível:** `100–200` tokens. Pode-se agrupar frases
+  Existe também uma **segunda guarda independente de 500 caracteres da string
+  fonética** (não 500 caracteres editoriais), já que a biblioteca faz
+  repartição interna quando encontra ~510 caracteres fonéticos.
+- **Faixa-alvo operacional:** cerca de **300 tokens** (faixa menor pode favorecer frases curtas). Pode-se agrupar frases
   adjacentes **dentro do mesmo parágrafo**, desde que não ultrapassem
   350 e não mudem a ordem/idioma/pontuação. Evitar chunks com menos
   de 20 tokens quando a fusão natural for possível; títulos e
@@ -71,8 +74,11 @@ sobre trechos que excedem o teto.
 **mesmo WAV** para todas as alternativas de codificação; assim
 diferenças perceptíveis não serão confundidas com prosódia distinta.
 
-1. Fixar primeiro o `loudnorm` atual `I=-19:TP=-1:LRA=11`
-   e comparar `libmp3lame` mono 24 kHz em **96, 128 e 160 kbps**.
+1. Manter `loudnorm=I=-19:TP=-1:LRA=11` e comparar
+   `libmp3lame` mono 24 kHz em **96, 128 e 160 kbps**, como já foi
+   implementado no modo `compare` da PR #55. **128 kbps** foi selecionado
+   como ponto intermediário para **novos** previews e releases na PR #58;
+   preservar 96 kbps como referência histórica.
    Registrar tamanho, bitrate, qualidade percebida e eventuais
    artefatos em sibilantes.
 2. Com bitrate escolhido, testar separadamente normalização
@@ -93,9 +99,10 @@ downloads e armazenamento da Release.
 **Não afirmar que Dora é incompatível.** A compatibilidade depende
 da **exportação ONNX**, não da identidade da voz.
 
-- A distribuição oficial `model-files-v1.1` informa que seu
-  `kokoro-v1.0.onnx` inclui saída de durações, usada por
-  `create(continuous=True)`.
+- Os recursos de áudio contínuo dependem de o **arquivo ONNX exato**
+  oferecer saída `duration`; a voz Dora isoladamente não determina isso.
+  A existência dessa saída deve ser verificada **no runtime** pelo campo
+  `has_model_timings`, não inferida do nome do modelo.
 - O `kokoro-onnx` exige que `kokoro.has_timings` seja verdadeiro
   (saída `duration` presente). Caso contrário, `continuous=True`
   lança erro.
@@ -135,9 +142,12 @@ Referências:
    separada somente se necessário.
 5. **Continuous (opcional):** conferir `has_timings`, custo e
    naturalidade em um trecho longo antes de cogitar alteração padrão.
-6. **Aceite:** escolher um único preset após audição, registrar
-   métricas, testes de regressão e consentimento explícito antes
-   de aplicar ao `publish` ou substituir qualquer Release.
+6. **Aceite:** o usuário escolheu `equilibrado-100` após audição; a PR #58
+   aplica-o **somente a novas gerações**. Qualquer substituição de áudio
+   publicado requer um novo comando manual explícito.
+7. **Estado técnico:** testes determinísticos de seleção de texto e orçamento
+   na PR #58; comparação de codecs já disponível na `main`. A avaliação
+   auditiva do MP3 128 kbps permanece um item de QA, não um dado presumido.
 
 **Critérios de aceite:** voz sempre `pf_dora`; velocidade `1.00`;
 texto preservado incluindo inglês e léxico; 350 tokens no máximo
