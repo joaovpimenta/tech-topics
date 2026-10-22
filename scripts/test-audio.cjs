@@ -65,7 +65,7 @@ class AudioMock extends EventTarget {
 test("recorded MP3 dock: discover, play, time, seek, speed, Media Session and native exclusion", async () => {
   const ids = [
     "listen-recording", "recording-player", "recording-title", "recording-subtitle",
-    "recording-cover", "recording-ring", "recording-play", "recording-skip",
+    "recording-cover", "recording-ring", "recording-play", "recording-previous", "recording-skip", "recording-follow",
     "recording-close", "recording-seek", "recording-elapsed",
     "recording-duration", "recording-rate", "recording-status"
   ];
@@ -120,6 +120,7 @@ test("recorded MP3 dock: discover, play, time, seek, speed, Media Session and na
   assert.equal(nodes["#recording-duration"].textContent, "1:45");
   assert(positions.length > 0);
   assert.equal(nodes["#recording-skip"].hidden, false);
+  assert.equal(nodes["#recording-previous"].hidden, false);
   nodes["#recording-skip"].click();
   assert.equal(audio.currentTime, 80, "next narration block, not plus 15 seconds");
   nodes["#recording-seek"].value = "500";
@@ -132,6 +133,8 @@ test("recorded MP3 dock: discover, play, time, seek, speed, Media Session and na
   assert.equal(audio.currentTime, 80);
   actions.previoustrack();
   assert.equal(audio.currentTime, 30);
+  nodes["#recording-previous"].click();
+  assert.equal(audio.currentTime, 0);
   nodes["#recording-play"].click();
   assert.equal(mediaSession.playbackState, "paused");
   assert.equal(audio.paused, true);
@@ -161,7 +164,7 @@ test("release chapter metadata is available through CORS-safe GitHub API respons
 
 test("legacy MP3 has no fake 15-second paragraph skip; device remains available", async () => {
   const ids = ["listen-recording", "recording-player", "recording-title", "recording-subtitle",
-    "recording-cover", "recording-ring", "recording-play", "recording-skip",
+    "recording-cover", "recording-ring", "recording-play", "recording-previous", "recording-skip", "recording-follow",
     "recording-close", "recording-seek", "recording-elapsed",
     "recording-duration", "recording-rate", "recording-status"];
   const nodes = Object.fromEntries(ids.map(id => ["#" + id, new Element()]));
@@ -180,4 +183,117 @@ test("legacy MP3 has no fake 15-second paragraph skip; device remains available"
   await player.discover();
   assert.equal(player.snapshot().available, false);
   assert.equal(nodes["#recording-skip"].hidden, true);
+});
+
+
+class ReadingNode extends EventTarget {
+  constructor(tag, text, children = []) {
+    super();
+    this.nodeType = 1;
+    this.tagName = tag.toUpperCase();
+    this.textContent = text;
+    this.children = children;
+    this.classes = new Set();
+    this.classList = {
+      add: name => this.classes.add(name),
+      remove: name => this.classes.delete(name)
+    };
+    this.scrolls = 0;
+    this.tabIndex = -1;
+  }
+  matches(selectors) {
+    return selectors.split(",").some(selector => selector.trim() === this.tagName.toLowerCase());
+  }
+  querySelector() { return null; }
+  hasAttribute() { return false; }
+  closest() { return null; }
+  scrollIntoView() { this.scrolls++; }
+  click() { this.dispatchEvent(new Event("click")); }
+}
+
+test("exact chapter timestamps highlight and auto-scroll the corresponding paragraph; click seeks", async () => {
+  const ids = ["listen-recording", "recording-player", "recording-title", "recording-subtitle",
+    "recording-cover", "recording-ring", "recording-play", "recording-previous",
+    "recording-skip", "recording-follow", "recording-close", "recording-seek",
+    "recording-elapsed", "recording-duration", "recording-rate", "recording-status"];
+  const nodes = Object.fromEntries(ids.map(id => ["#" + id, new Element()]));
+  const heading = new ReadingNode("h1", "Bulkhead");
+  const dek = new ReadingNode("p", "Introdução");
+  const first = new ReadingNode("p", "Texto do primeiro parágrafo.");
+  const second = new ReadingNode("p", "Texto do segundo parágrafo.");
+  const body = new ReadingNode("article", "", [first, second]);
+  nodes["#recording-follow"].checked = true;
+  const doc = {
+    visibilityState: "visible",
+    baseURI: "https://joaovpimenta.github.io/tech-topics/article.html?slug=bulkhead",
+    querySelector(selector) {
+      return ({
+        "#article-heading": heading,
+        "#article-dek": dek,
+        "#article-body": body
+      })[selector] || nodes[selector];
+    },
+    body: { classList: { toggle() {} } }
+  };
+  const chapters = [
+    { start: 0, block_index: 0 },
+    { start: 8, block_index: 1 },
+    { start: 23, block_index: 2 },
+    { start: 48, block_index: 3 }
+  ];
+  const audio = new AudioMock();
+  const player = createPlayer({
+    document: doc, navigator: {}, article: { slug: "bulkhead", title: "Bulkhead" },
+    cover: { src: "assets/bulkhead/cover.jpg" }, audio,
+    fetchAudio: async () => ({ url: "https://example.com/bulkhead.mp3", chapters })
+  });
+  await player.discover();
+  await player.play();
+  assert(heading.classes.has("recording-block-active"));
+  assert.equal(heading.scrolls, 1);
+  audio.currentTime = 25;
+  audio.dispatchEvent(new Event("timeupdate"));
+  assert(first.classes.has("recording-block-active"));
+  assert(!heading.classes.has("recording-block-active"));
+  assert.equal(first.scrolls, 1);
+  second.click();
+  assert.equal(audio.currentTime, 48);
+  assert(second.classes.has("recording-block-active"));
+  nodes["#recording-previous"].click();
+  assert.equal(audio.currentTime, 23);
+  nodes["#recording-follow"].checked = false;
+  audio.currentTime = 48;
+  audio.dispatchEvent(new Event("timeupdate"));
+  assert.equal(second.scrolls, 1, "follow disabled suppresses automatic scrolling");
+  player.close();
+  assert(!second.classes.has("recording-block-active"));
+});
+
+test("chapter-to-DOM drift disables unsafe text highlighting without blocking audio", async () => {
+  const ids = ["listen-recording", "recording-player", "recording-title", "recording-subtitle",
+    "recording-cover", "recording-ring", "recording-play", "recording-previous",
+    "recording-skip", "recording-follow", "recording-close", "recording-seek",
+    "recording-elapsed", "recording-duration", "recording-rate", "recording-status"];
+  const nodes = Object.fromEntries(ids.map(id => ["#" + id, new Element()]));
+  const paragraph = new ReadingNode("p", "One paragraph");
+  const doc = {
+    querySelector(selector) {
+      if (selector === "#article-body") return new ReadingNode("article", "", [paragraph]);
+      return nodes[selector];
+    },
+    body: { classList: { toggle() {} } }
+  };
+  const audio = new AudioMock();
+  const player = createPlayer({
+    document: doc, navigator: {}, article: { slug: "bulkhead", title: "Bulkhead" },
+    cover: { src: "cover.jpg" }, audio,
+    fetchAudio: async () => ({ url: "https://example.com/bulkhead.mp3",
+      chapters: [{ start: 0 }, { start: 30 }, { start: 80 }] })
+  });
+  await player.discover();
+  assert.equal(paragraph.classes.has("recording-readable"), false);
+  await player.play();
+  nodes["#recording-skip"].click();
+  assert.equal(audio.currentTime, 30);
+  assert.equal(paragraph.scrolls, 0);
 });
