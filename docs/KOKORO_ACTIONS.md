@@ -104,6 +104,12 @@ Campo **mode**:
 - **`preview` (padrão)**: sintetiza os primeiros ~1.200 caracteres em CPU;
   publica MP3 e relatório de fonemas como `Actions → Artifacts` por 14 dias.
   Não cria nem altera Releases.
+- **`review`**: sintetiza **o artigo completo** com o preset de produção,
+  exporta MP3 128 kbps, capítulos e métricas como um **Artifact de revisão
+  por 30 dias** (inclui SHA-256). Verifica codec, 350 tokens e sequência dos
+  capítulos. **Não cria nem altera Releases**, incluindo artigos que já
+  possuem `tts-<slug>`; use este modo para validar Bulkhead antes de
+  qualquer substituição ou backfill.
 - **`publish`**: sintetiza o artigo completo e cria uma Release.
   Se ela já existe, é preservada; `replace_existing=true` permite
   substituir somente quando solicitado manualmente.
@@ -120,7 +126,7 @@ Campo **mode**:
   Um indicador conservador aponta se vale **investigar** 2 instâncias;
   não significa que paralelismo já traga ganho.
 
-Exemplo para testar a palavra *Bulkhead*: `article=bulkhead`,
+Para revisão integral antes do backfill: `article=bulkhead`, `mode=review`, `replace_existing=false`. Acesse o artifact `kokoro-dora-review-bulkhead-*`, valide duração, pausas, pronúncia, volume e capítulos em navegador. A aprovação auditiva e de interface antecede qualquer substituição da Release histórica.\n\nExemplo para testar a palavra *Bulkhead*: `article=bulkhead`,
 `mode=preview`. Para atualizar o áudio antigo depois de ouvi-lo:
 `article=bulkhead`, `mode=publish`, `replace_existing=true`.
 
