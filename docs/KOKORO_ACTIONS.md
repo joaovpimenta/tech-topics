@@ -63,8 +63,24 @@ A workflow [Pages](../.github/workflows/pages.yml) chama
 Somente novos arquivos `content/articles/<slug>.json` adicionados pelo push
 são publicados; mudanças em artigos existentes não refazem áudios.
 
-Cada artigo recebe uma GitHub Release `tts-<slug>` e o arquivo `<slug>.mp3`.
-Releases existentes nunca são substituídas automaticamente.
+Cada artigo passa a receber um commit de **`audio/<slug>.mp3` na branch
+`audio` deste mesmo repositório**. A branch é independente e não contém
+os arquivos do site; ela é criada automaticamente na primeira publicação
+(sem alterar ou fazer amend na `main`). `main` exige PR e check obrigatório,
+portanto o workflow não tenta gravar diretamente nela.
+
+A etapa de publicação usa `GITHUB_TOKEN` com `contents:write`, sem novos
+segredos. Commits na branch `audio` não acionam a workflow Pages, que observa
+somente pushes em `main`. Um conflito de push é retentado após obter a
+versão mais recente da branch, preservando MP3s de outros artigos.
+
+O limite é **45 MiB por MP3** para evitar arquivos grandes no histórico Git
+(o GitHub recomenda manter cada arquivo abaixo de 50 MiB). Se ultrapassado ou
+a gravação no repositório falhar, o workflow usa uma **GitHub Release
+`tts-<slug>` como contingência**. Não altera Releases existentes sem
+`replace_existing=true`. A branch versiona binários e substituições ampliam
+o histórico do repositório; acompanhe seu crescimento antes de gerar áudios
+em grande escala.
 
 ## Manual: escolher artigo por nome ou o mais recente
 
@@ -86,13 +102,17 @@ Campo **mode**:
 - **`preview` (padrão)**: sintetiza os primeiros ~1.200 caracteres em CPU;
   publica MP3 e relatório de fonemas como `Actions → Artifacts` por 14 dias.
   Não cria nem altera Releases.
-- **`publish`**: sintetiza o artigo completo e cria uma Release.
-  Se ela já existe, é preservada; `replace_existing=true` permite
-  substituir somente quando solicitado manualmente.
+- **`publish`**: sintetiza o artigo completo e registra o MP3 na branch
+  `audio`, criando um commit por arquivo. Se o MP3 já existir nessa branch,
+  ele é preservado; `replace_existing=true` permite gravar uma nova versão
+  por commit. Se houver limite ou falha de push, a Action usa Release como
+  contingência, preservando Releases já existentes por padrão.
 
 Exemplo para testar a palavra *Bulkhead*: `article=bulkhead`,
-`mode=preview`. Para atualizar o áudio antigo depois de ouvi-lo:
-`article=bulkhead`, `mode=publish`, `replace_existing=true`.
+`mode=preview`. Para criar um MP3 Kokoro na branch `audio`, mesmo que
+exista uma Release antiga: `article=bulkhead`, `mode=publish`.
+Para atualizar um MP3 já salvo na branch, adicione
+`replace_existing=true`.
 
 ## Validação e custo
 
@@ -119,3 +139,14 @@ um projeto separado e não está incorporado neste fluxo.
 Fontes:
 - https://github.com/thewh1teagle/kokoro-onnx/blob/main/examples/portuguese.py
 - https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md
+
+## Disponibilidade no player do site
+
+O site consulta primeiro
+`GET /repos/joaovpimenta/tech-topics/contents/audio/<slug>.mp3?ref=audio`
+na API do GitHub. Quando o arquivo existe, o navegador reproduz o MP3
+por `raw.githubusercontent.com` e mantém o player no rodapé. Se não existir,
+o site procura uma Release legada `tts-<slug>`. Isso permite consumir áudio
+automaticamente **sem outro deploy do site** e sem escrever em `main`.
+A voz do dispositivo continua independente como alternativa. MP3s não são
+incluídos no precache da PWA.
