@@ -251,8 +251,10 @@
       previousButton.disabled = native ? deviceState.blockIndex <= 0 : count < 2 || current < 0.7;
       skip.disabled = native ? deviceState.blockIndex >= count - 1 : !chapters.some(chapter => chapter.start > current + 0.7);
       rate.textContent = `${native ? devicePlayer?.getRate?.() || 1 : audio.playbackRate}×`;
-      deviceSwitch.textContent = native ? "Usar áudio gravado" : "Usar voz do dispositivo";
-      deviceSwitch.hidden = native ? !available : !devicePlayer;
+      if (deviceSwitch) {
+        deviceSwitch.textContent = native ? "Usar áudio gravado" : "Usar voz do dispositivo";
+        deviceSwitch.hidden = native ? !available : !devicePlayer;
+      }
       followChapter();
       document.body.classList.toggle("recording-open", open);
       dock.hidden = !open;
@@ -349,8 +351,8 @@
     }
     button.addEventListener("click", togglePlayback);
     playButton.addEventListener("click", togglePlayback);
-    deviceSwitch.addEventListener("click", () => {
-      sourceMenu.open = false;
+    deviceSwitch?.addEventListener("click", () => {
+      if (sourceMenu) sourceMenu.open = false;
       if (mode === "device" && available) void play();
       else beginDevice();
     });
