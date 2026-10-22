@@ -143,9 +143,9 @@ test("recorded MP3 dock: discover, play, time, seek, speed, Media Session and na
 });
 
 test("release chapter metadata is available through CORS-safe GitHub API response", async () => {
-  const body = "\\n<!-- TECH_TOPICS_CHAPTERS_V1\\n" +
+  const body = "\n<!-- TECH_TOPICS_CHAPTERS_V1\n" +
     JSON.stringify({ version: 1, chapters: [{ start: 0 }, { start: 18.45 }, { start: 43 }] }) +
-    "\\n-->\\n";
+    "\n-->\n";
   const info = await lookupAudio("hedged-requests", async () => ({
     ok: true, async json() {
       return { body, assets: [{ name: "hedged-requests.mp3" }, { name: "hedged-requests.chapters.json" }] };
@@ -154,9 +154,9 @@ test("release chapter metadata is available through CORS-safe GitHub API respons
   assert.deepEqual(info.chapters.map(chapter => chapter.start), [0, 18.45, 43]);
   assert.match(info.url, /hedged-requests.mp3$/);
   assert.deepEqual(chaptersFromNotes("No markers"), []);
-  assert.deepEqual(chaptersFromNotes("<!-- TECH_TOPICS_CHAPTERS_V1\\nnot-json\\n-->"), []);
-  assert.deepEqual(chaptersFromNotes("<!-- TECH_TOPICS_CHAPTERS_V1\\n" +
-    JSON.stringify({ version: 1, chapters: [{ start: 0 }, { start: -1 }] }) + "\\n-->"), []);
+  assert.deepEqual(chaptersFromNotes("<!-- TECH_TOPICS_CHAPTERS_V1\nnot-json\n-->"), []);
+  assert.deepEqual(chaptersFromNotes("<!-- TECH_TOPICS_CHAPTERS_V1\n" +
+    JSON.stringify({ version: 1, chapters: [{ start: 0 }, { start: -1 }] }) + "\n-->"), []);
 });
 
 test("legacy MP3 has no fake 15-second paragraph skip; device remains available", async () => {
