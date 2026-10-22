@@ -206,7 +206,7 @@
       if (!Number.isFinite(speed) || speed < 0.5 || speed > 2) return;
       if (speed === rate) return;
       rate = speed;
-      if (state === "speaking") start(blockIndex);
+      if (state === "speaking" || state === "paused") start(blockIndex, state === "paused");
       else notify();
     }
     return { snapshot, start, toggle, seek, next: () => seek(blockIndex + 1), previous: () => seek(blockIndex - 1), stop, setRate, getRate: () => rate };
