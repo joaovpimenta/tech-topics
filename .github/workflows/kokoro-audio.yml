@@ -210,31 +210,40 @@ jobs:
               --slug "$ARTICLE_SLUG" --output-dir .audio/compare \
               --model .cache/kokoro/kokoro-v1.0.onnx \
               --voices .cache/kokoro/voices-v1.0.bin
+            # Normalize equilibrado-100 ONCE. Encode every comparison format
+            # from precisely the same normalized PCM, without another inference.
+            source=".audio/compare/equilibrado-100/$ARTICLE_SLUG"
+            ffmpeg -hide_banner -loglevel error -y \
+              -i "$source.wav" -af "loudnorm=I=-19:TP=-1:LRA=11" \
+              -ar 24000 -ac 1 -c:a pcm_s16le "$source-lossless.wav"
+            test -s "$source-lossless.wav"
             for preset in atual equilibrado fluido; do
               for speed in 095 100 105; do
                 name="$preset-$speed"
+                if [ "$name" = equilibrado-100 ]; then
+                  input="$source-lossless.wav"
+                  filter=()
+                else
+                  input=".audio/compare/$name/$ARTICLE_SLUG.wav"
+                  filter=(-af "loudnorm=I=-19:TP=-1:LRA=11")
+                fi
                 ffmpeg -hide_banner -loglevel error -y \
-                  -i ".audio/compare/$name/$ARTICLE_SLUG.wav" \
-                  -af "loudnorm=I=-19:TP=-1:LRA=11" \
+                  -i "$input" "${filter[@]}" \
                   -ar 24000 -ac 1 -c:a libmp3lame -b:a 96k \
                   ".audio/compare/$name/$ARTICLE_SLUG.mp3"
                 test -s ".audio/compare/$name/$ARTICLE_SLUG.mp3"
               done
             done
-            # Codec-only A/B: SAME synthesized equilibrado-100 WAV, no
-            # second inference. All formats receive identical loudness.
-            source=".audio/compare/equilibrado-100/$ARTICLE_SLUG"
             for kbps in 128 160; do
               ffmpeg -hide_banner -loglevel error -y \
-                -i "$source.wav" -af "loudnorm=I=-19:TP=-1:LRA=11" \
+                -i "$source-lossless.wav" \
                 -ar 24000 -ac 1 -c:a libmp3lame -b:a "${kbps}k" \
                 "$source-${kbps}k.mp3"
               test -s "$source-${kbps}k.mp3"
             done
-            ffmpeg -hide_banner -loglevel error -y \
-              -i "$source.wav" -af "loudnorm=I=-19:TP=-1:LRA=11" \
-              -ar 24000 -ac 1 -c:a pcm_s16le "$source-lossless.wav"
-            test -s "$source-lossless.wav"
+            python tools/tts/codec_review.py \
+              --slug "$ARTICLE_SLUG" --directory ".audio/compare/equilibrado-100" \
+              | tee -a "$GITHUB_STEP_SUMMARY"
           else
             extra=()
             if [ "$MODE" = profile ]; then extra+=(--profile); fi
@@ -288,6 +297,7 @@ jobs:
           name: kokoro-dora-compare-${{ matrix.slug }}-${{ github.run_id }}
           path: |
             .audio/compare/comparison.json
+            .audio/compare/equilibrado-100/codec-comparison.json
             .audio/compare/*/*.mp3
             .audio/compare/equilibrado-100/*-lossless.wav
             .audio/compare/*/*.txt
