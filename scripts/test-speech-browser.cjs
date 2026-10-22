@@ -41,8 +41,8 @@ async function main() {
     await page.route("https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-*", route =>
       route.fulfill({ status: 200, contentType: "application/json",
         body: JSON.stringify({
-          body: "\\n<!-- TECH_TOPICS_CHAPTERS_V1\\n" +
-            JSON.stringify({ version: 1, chapters: [{start: 0}, {start: 35}, {start: 85}] }) + "\\n-->\\n",
+          body: "\n<!-- TECH_TOPICS_CHAPTERS_V1\n" +
+            JSON.stringify({ version: 1, chapters: [{start: 0}, {start: 35}, {start: 85}] }) + "\n-->\n",
           assets: [{ name: "cqrs-projecoes-e-consistencia.mp3", state: "uploaded" }]
         }) }));
     await page.addInitScript(() => {
