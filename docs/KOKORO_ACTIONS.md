@@ -97,6 +97,9 @@ Campo **mode**:
 - **`publish`**: sintetiza o artigo completo e cria uma Release.
   Se ela já existe, é preservada; `replace_existing=true` permite
   substituir somente quando solicitado manualmente.
+- **`compare`**: produz nove amostras curtas para escuta, cruzando
+  três configurações de prosódia e velocidades 0.95/1.00/1.05;
+  não publica nem substitui Releases (detalhes abaixo).
 - **`profile`**: sintetiza **o artigo completo uma única vez**, ainda de forma
   sequencial, sem gerar MP3, sem criar/substituir Release e sem executar um
   benchmark paralelo automaticamente. Salva `<slug>.cpu-profile.json`,
@@ -110,6 +113,45 @@ Campo **mode**:
 Exemplo para testar a palavra *Bulkhead*: `article=bulkhead`,
 `mode=preview`. Para atualizar o áudio antigo depois de ouvi-lo:
 `article=bulkhead`, `mode=publish`, `replace_existing=true`.
+
+## Comparação rápida de prosódia e velocidade — somente Dora
+
+O modo manual `compare` prepara **apenas o título falado e o primeiro
+parágrafo `<p>` do corpo do artigo** (a introdução metafórica). Não inclui
+o `dek`, chamadas laterais nem qualquer parágrafo posterior. Usa o mesmo
+Kokoro ONNX FP32, fonemização bilíngue e voz fixa **`pf_dora`** em
+**nove amostras curtas**, cruzando:
+
+| Pausas/chunking | Velocidades |
+|---|---|
+| `atual`: parágrafo 0,45 s; chunk 0,18 s; split atual até 240 caracteres | `0.95`, `1.00`, `1.05` |
+| `equilibrado`: parágrafo 0,38 s; chunk 0,14 s; divisão por frases perto de 240, máximo 300 | `0.95`, `1.00`, `1.05` |
+| `fluido`: parágrafo 0,30 s; chunk 0,10 s; divisão por frases perto de 240, máximo 300 | `0.95`, `1.00`, `1.05` |
+
+Os perfis também ajustam `sentence_pause`/`clause_pause` do
+`kokoro-onnx` para `0.25/0.10`, `0.22/0.08` e `0.18/0.06`
+segundos, respectivamente. Essas pausas internas **só são relevantes
+quando a biblioteca divide fonemas em batches**; não são parâmetros
+de emoção e podem não alterar trechos curtos.
+
+O limite de 240/300 é medido em caracteres editoriais, apenas uma
+heurística conservadora: o limite real do Kokoro usa tokens fonéticos.
+A divisão dinâmica procura evitar cortar frases e preserva os
+trechos PT-BR/EN-US, sem abrir mão do teto aproximado de caracteres.
+O preset **`atual` com velocidade `0.95`** serve como controle.
+Nenhum preset experimental é ativado automaticamente em `publish`.
+
+**Para ouvir**: depois que esta alteração estiver na branch
+`main`, abra Actions → **Publish Tech Topics audio (Kokoro Dora)**,
+selecione `article=bulkhead`, `mode=compare`,
+`replace_existing=false`. A Action reutiliza a sessão ONNX, exporta
+os nove MP3s com o mesmo tratamento `ffmpeg`, publica um único artefato
+`kokoro-dora-compare-bulkhead-<run_id>` (14 dias) e escreve a tabela
+com os tempos no resumo da execução. Não altera nenhuma Release.
+Os nomes são `atual-095/bulkhead.mp3`,
+`equilibrado-100/bulkhead.mp3`, `fluido-105/bulkhead.mp3`, etc.
+A escolha final deve considerar naturalidade das frases, transições,
+pronúncia e ritmo, antes de qualquer mudança na narração padrão.
 
 ## Execuções redundantes evitadas
 
