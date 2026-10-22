@@ -34,6 +34,25 @@ PARAGRAPH_PAUSE_SECONDS = 0.45
 SECTION_PAUSE_SECONDS = 0.80
 CHUNK_PAUSE_SECONDS = 0.18
 SAMPLE_RATE = 24000
+
+# Listening-only presets. No change to default published Dora narration.
+NARRATION_PRESETS = {
+    "atual": {
+        "speed": 0.95, "paragraph_pause": 0.45, "section_pause": 0.80,
+        "chunk_pause": 0.18, "sentence_pause": 0.25, "clause_pause": 0.10,
+        "adaptive_chunks": False,
+    },
+    "equilibrado": {
+        "speed": 0.98, "paragraph_pause": 0.38, "section_pause": 0.70,
+        "chunk_pause": 0.14, "sentence_pause": 0.22, "clause_pause": 0.08,
+        "adaptive_chunks": True,
+    },
+    "fluido": {
+        "speed": 1.02, "paragraph_pause": 0.30, "section_pause": 0.65,
+        "chunk_pause": 0.10, "sentence_pause": 0.18, "clause_pause": 0.06,
+        "adaptive_chunks": True,
+    },
+}
 TOKENS = re.compile(r"https?://[^\s]+|www\.[^\s]+|\w+", re.UNICODE)
 
 
@@ -137,7 +156,7 @@ def article_blocks(article: dict, lexicon: dict) -> list[dict]:
                         append_run(runs, run["text"], run["lang"])
         else:
             runs = lexical_runs(value, LANG, lexicon)
-        blocks.append({"runs": clean_runs(runs), "section": field == "title"})
+        blocks.append({"runs": clean_runs(runs), "section": field == "title", "tag": field})
 
     html = article.get("bodyHtml") or ""
     parser = ElementTreeParser()
@@ -158,7 +177,7 @@ def article_blocks(article: dict, lexicon: dict) -> list[dict]:
             collect_html_runs(node, inherited, lexicon, runs)
             clean = clean_runs(runs)
             if clean and "".join(r["text"] for r in clean).strip():
-                blocks.append({"runs": clean, "section": tag in {"h2", "h3", "h4"}})
+                blocks.append({"runs": clean, "section": tag in {"h2", "h3", "h4"}, "tag": tag})
             return
         for child in node["children"]:
             visit(child, lang)
@@ -209,11 +228,63 @@ def split_runs(runs: list[dict], max_chars: int = MAX_CHARS_PER_CHUNK) -> list[l
     return chunks
 
 
-def segments_for_article(article: dict, lexicon: dict, max_chars: int = 0) -> list[dict]:
+def split_runs_adaptive(
+    runs: list[dict], target_chars: int = 240, max_chars: int = 300,
+    min_chars: int = 140,
+) -> list[list[dict]]:
+    """Prefer sentence boundaries near 240 characters; cap at 300.
+
+    The model limit is expressed in phonemes, not characters. Keep the
+    character ceiling conservative and preserve multilingual runs, entire
+    words, punctuation and the original reading order.
+    """
+    tokens = tokenize_runs(runs)
+    if not tokens:
+        return []
+    if sum(len(item["text"]) for item in tokens) <= max_chars:
+        return [clean_runs(runs)]
+    chunks: list[list[dict]] = []
+    index = 0
+    while index < len(tokens):
+        choices = []
+        size = 0
+        for end in range(index, len(tokens)):
+            size += len(tokens[end]["text"])
+            if size > max_chars:
+                break
+            remaining = sum(len(t["text"]) for t in tokens[end + 1:])
+            punctuation = tokens[end]["text"].rstrip()
+            tail = punctuation.rstrip("”\\\"'")[-1:]
+            sentence = tail in (".", "!", "?")
+            clause = tail in (";", ":", ",")
+            penalty = 0 if sentence else 35 if clause else 85
+            penalty += 30 if 0 < remaining < min_chars
+            score = abs(size - target_chars) + penalty
+            if size >= min_chars or end == len(tokens) - 1:
+                choices.append((score, end + 1))
+        stop = min(choices)[1] if choices else index + 1
+        chunk: list[dict] = []
+        for token in tokens[index:stop]:
+            append_run(chunk, token["text"].lstrip() if not chunk else token["text"], token["lang"])
+        chunks.append(clean_runs(chunk))
+        index = stop
+    return chunks
+
+
+def segments_for_article(
+    article: dict, lexicon: dict, max_chars: int = 0,
+    preset: str = "atual", first_body_paragraphs: int = 0,
+) -> list[dict]:
+    settings = NARRATION_PRESETS[preset]
+    blocks = article_blocks(article, lexicon)
+    if first_body_paragraphs:
+        # Compare only the same first two real body paragraphs, not title/dek.
+        blocks = [block for block in blocks if block["tag"] == "p"][:first_body_paragraphs]
     segments: list[dict] = []
     total = 0
-    for block_index, block in enumerate(article_blocks(article, lexicon)):
-        chunks = split_runs(block["runs"])
+    for block_index, block in enumerate(blocks):
+        chunks = (split_runs_adaptive(block["runs"]) if settings["adaptive_chunks"]
+                  else split_runs(block["runs"]))
         for j, chunk in enumerate(chunks):
             if max_chars and total >= max_chars:
                 break
@@ -223,8 +294,8 @@ def segments_for_article(article: dict, lexicon: dict, max_chars: int = 0) -> li
                 "block_index": block_index,
                 "runs": chunk,
                 "pause_after_seconds": (
-                    SECTION_PAUSE_SECONDS if block["section"] else PARAGRAPH_PAUSE_SECONDS
-                ) if j == len(chunks) - 1 else CHUNK_PAUSE_SECONDS,
+                    settings["section_pause"] if block["section"] else settings["paragraph_pause"]
+                ) if j == len(chunks) - 1 else settings["chunk_pause"],
             })
             total += len(text)
         if max_chars and total >= max_chars:
