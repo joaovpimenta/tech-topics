@@ -122,6 +122,23 @@ class CpuSampler:
         }
 
 
+def sparkline(samples: list[dict], field: str, max_points: int = 64) -> str:
+    """Downsample the whole run into a legible usage trend, not just peak load."""
+    values = [max(0.0, float(sample[field])) for sample in samples
+              if sample.get(field) is not None]
+    if not values:
+        return "Sem amostras"
+    levels = "▁▂▃▄▅▆▇█"
+    bars = []
+    count = min(len(values), max_points)
+    for index in range(count):
+        start = index * len(values) // count
+        end = (index + 1) * len(values) // count
+        usage = statistics.mean(values[start:end])
+        bars.append(levels[min(7, round(min(100.0, usage) * 7 / 100))])
+    return "".join(bars)
+
+
 def format_markdown(report: dict) -> str:
     stats = report["summary"]
     cores = report["cpu_limits"]
@@ -135,6 +152,9 @@ def format_markdown(report: dict) -> str:
         f"- CPU média no orçamento: **{value('mean_cpu_budget_pct')}%**",
         f"- CPU p90 no orçamento: **{value('p90_cpu_budget_pct')}%**",
         f"- RSS máximo do processo: **{value('max_process_rss_mb')} MiB**",
+        "- Evolução da CPU no orçamento (esquerda = início, direita = fim):",
+        f"  `{sparkline(report.get('samples', []), 'cpu_budget_pct')}`",
+        "  (▁ = próximo de 0%, █ = próximo de 100%; amostras agrupadas)",
         f"- Indício de capacidade para um experimento paralelo: **{'sim' if stats['potential_headroom_for_parallel_test'] else 'não demonstrado'}**",
         "",
         "A utilização sozinha não prova ganho de velocidade. O próximo passo é um benchmark "
