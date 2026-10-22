@@ -191,7 +191,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$MODE" = compare ]; then
-            echo "The comparison command prepares exactly the first two body paragraphs for each preset."
+            echo "Comparison is title plus first metaphor paragraph, with 3 Dora speeds and 3 prosodies."
           elif [ "$MODE" = preview ]; then
             python tools/tts/kokoro_release.py prepare \
               --slug "$ARTICLE_SLUG" --max-chars 1200 --output-dir .audio
@@ -246,7 +246,7 @@ jobs:
               ffmpeg -hide_banner -loglevel error -y \
                 -i ".audio/$ARTICLE_SLUG.wav" \
                 -af "loudnorm=I=-19:TP=-1:LRA=11" \
-                -ar 24000 -ac 1 -c:a libmp3lame -b:a 96k \
+                -ar 24000 -ac 1 -c:a libmp3lame -b:a 128k \
                 ".audio/$ARTICLE_SLUG.mp3"
               test -s ".audio/$ARTICLE_SLUG.mp3"
               ffprobe -v error -show_entries format=duration \
