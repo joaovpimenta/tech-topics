@@ -31,12 +31,13 @@ on:
         required: false
         default: ""
       mode:
-        description: "preview: amostra; profile: artigo completo só para medições; publish: criar Release"
+        description: "preview: trecho curto; compare: 3 versões de 2 parágrafos; profile: CPU; publish: Release"
         type: choice
         required: true
         default: preview
         options:
           - preview
+          - compare
           - profile
           - publish
       replace_existing:
@@ -129,7 +130,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "$MODE" in preview|profile|publish) ;; *) echo "Invalid mode: $MODE" >&2; exit 1;; esac
+          case "$MODE" in preview|compare|profile|publish) ;; *) echo "Invalid mode: $MODE" >&2; exit 1;; esac
+          if [ "$MODE" = compare ] && [ "$GITHUB_EVENT_NAME" != workflow_dispatch ]; then
+            echo "A/B compare is manual-only and must never run after a site deploy." >&2
+            exit 1
+          fi
           if [ "$MODE" = publish ] && [ "$REPLACE_EXISTING" != true ] && \
              gh release view "tts-$ARTICLE_SLUG" >/dev/null 2>&1; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -185,7 +190,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ "$MODE" = preview ]; then
+          if [ "$MODE" = compare ]; then
+            echo "The comparison command prepares exactly the first two body paragraphs for each preset."
+          elif [ "$MODE" = preview ]; then
             python tools/tts/kokoro_release.py prepare \
               --slug "$ARTICLE_SLUG" --max-chars 1200 --output-dir .audio
           else
@@ -198,22 +205,74 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          extra=()
-          if [ "$MODE" = profile ]; then extra+=(--profile); fi
-          time python tools/tts/kokoro_release.py synthesize \
-            --slug "$ARTICLE_SLUG" --output-dir .audio \
-            --model .cache/kokoro/kokoro-v1.0.onnx \
-            --voices .cache/kokoro/voices-v1.0.bin "${extra[@]}"
-          if [ "$MODE" != profile ]; then
-            ffmpeg -hide_banner -loglevel error -y \
-              -i ".audio/$ARTICLE_SLUG.wav" \
-              -af "loudnorm=I=-19:TP=-1:LRA=11" \
-              -ar 24000 -ac 1 -c:a libmp3lame -b:a 96k \
-              ".audio/$ARTICLE_SLUG.mp3"
-            test -s ".audio/$ARTICLE_SLUG.mp3"
-            ffprobe -v error -show_entries format=duration \
-              -of default=noprint_wrappers=1:nokey=1 ".audio/$ARTICLE_SLUG.mp3"
+          if [ "$MODE" = compare ]; then
+            time python tools/tts/kokoro_release.py compare \
+              --slug "$ARTICLE_SLUG" --output-dir .audio/compare \
+              --model .cache/kokoro/kokoro-v1.0.onnx \
+              --voices .cache/kokoro/voices-v1.0.bin
+            for preset in atual equilibrado fluido; do
+              ffmpeg -hide_banner -loglevel error -y \
+                -i ".audio/compare/$preset/$ARTICLE_SLUG.wav" \
+                -af "loudnorm=I=-19:TP=-1:LRA=11" \
+                -ar 24000 -ac 1 -c:a libmp3lame -b:a 96k \
+                ".audio/compare/$preset/$ARTICLE_SLUG.mp3"
+              test -s ".audio/compare/$preset/$ARTICLE_SLUG.mp3"
+            done
+          else
+            extra=()
+            if [ "$MODE" = profile ]; then extra+=(--profile); fi
+            time python tools/tts/kokoro_release.py synthesize \
+              --slug "$ARTICLE_SLUG" --output-dir .audio \
+              --model .cache/kokoro/kokoro-v1.0.onnx \
+              --voices .cache/kokoro/voices-v1.0.bin "${extra[@]}"
+            if [ "$MODE" != profile ]; then
+              ffmpeg -hide_banner -loglevel error -y \
+                -i ".audio/$ARTICLE_SLUG.wav" \
+                -af "loudnorm=I=-19:TP=-1:LRA=11" \
+                -ar 24000 -ac 1 -c:a libmp3lame -b:a 96k \
+                ".audio/$ARTICLE_SLUG.mp3"
+              test -s ".audio/$ARTICLE_SLUG.mp3"
+              ffprobe -v error -show_entries format=duration \
+                -of default=noprint_wrappers=1:nokey=1 ".audio/$ARTICLE_SLUG.mp3"
+            fi
           fi
+
+      - name: Summarize Dora listening comparison
+        if: steps.policy.outputs.skip != 'true' && env.MODE == 'compare'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          slug = os.environ["ARTICLE_SLUG"]
+          data = json.loads(Path(".audio/compare/comparison.json").read_text(encoding="utf-8"))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as report:
+              report.write("### Dora — 2 primeiros parágrafos, 3 configurações\n\n")
+              report.write("Voz pf_dora em todas as versões; nenhum MP3 publicado foi alterado.\n\n")
+              report.write("| Versão | Speed | Pausa parágrafo | Pause entre chunks | Chunks | Áudio |\n")
+              report.write("|---|---:|---:|---:|---:|---:|\n")
+              for variant in data["variants"]:
+                  config = data["presets"][variant["name"]]
+                  report.write(f"| {variant['name']} | {config['speed']} | "
+                               f"{config['paragraph_pause']} s | {config['chunk_pause']} s | "
+                               f"{variant['segment_count']} | {variant['audio_seconds']} s |\n")
+              report.write("\n**Baixe o artifact `kokoro-dora-compare-*` para ouvir os três MP3s.**\n")
+          PY
+
+      - name: Upload short Dora A/B comparison (no Releases)
+        if: steps.policy.outputs.skip != 'true' && env.MODE == 'compare'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kokoro-dora-compare-${{ matrix.slug }}-${{ github.run_id }}
+          path: |
+            .audio/compare/comparison.json
+            .audio/compare/*/*.mp3
+            .audio/compare/*/*.txt
+            .audio/compare/*/*.segments.json
+            .audio/compare/*/*.metrics.json
+            .audio/compare/*/*.chapters.json
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Summarize CPU headroom for potential intra-run parallelism
         if: steps.policy.outputs.skip != 'true' && env.MODE == 'profile'
