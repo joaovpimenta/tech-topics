@@ -9,22 +9,45 @@ test("format elapsed/total including long technical talks", () => {
   assert.equal(formatTime(Infinity), "0:00");
 });
 
-test("find exact article release asset only, never generate false MP3 links", async () => {
-  let asked = "";
+test("find article MP3 in media branch first, then fallback to legacy Release", async () => {
+  const asked = [];
   const fetchImpl = async (url, options) => {
-    asked = url;
+    asked.push(url);
     assert.equal(options.cache, "no-store");
-    return { ok: true, async json() {
-      return { assets: [{ name: "wrong.mp3" }, { name: "hedged-requests.mp3", state: "uploaded" }] };
-    } };
+    if (url.includes("/contents/audio/")) {
+      return { ok: true, status: 200, json: async () => ({
+        type: "file", name: "hedged-requests.mp3", size: 2048,
+        sha: "a".repeat(40)
+      }) };
+    }
+    throw Error("Should not query Releases after discovering repository MP3");
   };
   assert.equal(await findAudio("hedged-requests", fetchImpl),
-    "https://github.com/joaovpimenta/tech-topics/releases/download/tts-hedged-requests/hedged-requests.mp3");
-  assert.match(asked, /releases\/tags\/tts-hedged-requests$/);
-  assert.equal(await findAudio("bulkhead", async () => ({ status: 404 })), null);
-  assert.equal(await findAudio("bulkhead", async () => ({ ok: true, json: async () => ({ assets: [] }) })), null);
-  await assert.rejects(findAudio("../bad", fetchImpl), /Slug/);
+    "https://raw.githubusercontent.com/joaovpimenta/tech-topics/audio/audio/hedged-requests.mp3?v=" + "a".repeat(40));
+  assert.deepEqual(asked, [
+    "https://api.github.com/repos/joaovpimenta/tech-topics/contents/audio/hedged-requests.mp3?ref=audio"
+  ]);
+
+  const legacy = [];
+  const fallBack = async url => {
+    legacy.push(url);
+    if (url.includes("/contents/audio/")) return { ok: false, status: 404 };
+    return { ok: true, status: 200, json: async () => ({
+      assets: [{ name: "wrong.mp3" }, { name: "bulkhead.mp3", state: "uploaded" }]
+    }) };
+  };
+  assert.equal(await findAudio("bulkhead", fallBack),
+    "https://github.com/joaovpimenta/tech-topics/releases/download/tts-bulkhead/bulkhead.mp3");
+  assert.equal(legacy.length, 2);
+  const bothMissing = async () => ({ ok: false, status: 404 });
+  assert.equal(await findAudio("other-article", bothMissing), null);
+  await assert.rejects(findAudio("../bad", bothMissing), /Slug/);
   await assert.rejects(findAudio("bulkhead", async () => ({ ok: false, status: 403 })), /indisponível/);
+  const invalid = async url => {
+    if (url.includes("/contents/audio/")) return { ok: true, json: async () => ({ type: "dir", name: "bulkhead.mp3", size: 0 }) };
+    return { ok: false, status: 404 };
+  };
+  assert.equal(await findAudio("bulkhead", invalid), null);
 });
 
 class Element extends EventTarget {
