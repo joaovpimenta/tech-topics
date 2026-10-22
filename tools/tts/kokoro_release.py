@@ -316,6 +316,7 @@ def synthesize(slug: str, output_dir: Path, model: Path, voices: Path) -> None:
             if block_id != last_block:
                 chapters.append({
                     "start": round(generated_samples / SAMPLE_RATE, 3),
+                    "block_index": block_id,
                     "label": item["text"][:96]
                 })
                 last_block = block_id
