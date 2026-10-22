@@ -167,7 +167,7 @@ class KokoroReleaseTests(unittest.TestCase):
         texts = []
         for preset in kokoro_release.NARRATION_PRESETS:
             segments = kokoro_release.segments_for_article(
-                article, self.lexicon, preset=preset, first_body_paragraphs=1)
+                article, self.lexicon, preset=preset, first_body_paragraphs=1, sentence_aware=True)
             self.assertEqual(set(s["block_index"] for s in segments), {0, 1})
             self.assertTrue(segments[0]["text"].startswith("Bulkhead"))
             self.assertTrue(any(r["lang"] == "en-us" for s in segments for r in s["runs"]))
@@ -190,10 +190,64 @@ class KokoroReleaseTests(unittest.TestCase):
             " ".join("".join(r["text"] for r in chunk) for chunk in chunks).split(),
             "".join(r["text"] for r in runs).split(),
         )
-        self.assertTrue(all(len("".join(r["text"] for r in part)) <= 300 for part in chunks))
+        self.assertTrue(all(len("".join(r["text"] for r in part)) <= 320 for part in chunks))
         self.assertTrue(any(r["lang"] == "en-us" for part in chunks for r in part))
         short = kokoro_release.split_runs_adaptive([{"lang": "pt-br", "text": "Parágrafo curto."}])
         self.assertEqual(len(short), 1)
+
+    def test_sentence_first_and_comma_breaks_under_320_characters(self):
+        # This reproduces a long first sentence in Bulkhead: comma pauses
+        # are legitimate, but a forced break at "a porta pesada" is not.
+        long_sentence = (
+            "No corredor de manutenção de uma balsa, uma passageira vê, "
+            "através de uma janela de vidro reforçado, água invadindo uma "
+            "sala de máquinas, e pergunta por que o tripulante está "
+            "apertando a roda de uma porta pesada já fechada em vez de "
+            "tentar entrar; ele termina de vedar a porta e explica que "
+            "a ideia é perder aquele compartimento para manter o resto seco."
+        )
+        short_sentence = "Ela entende o motivo da separação."
+        runs = [{"text": long_sentence + " " + short_sentence, "lang": "pt-br"}]
+        chunks = kokoro_release.split_runs_adaptive(runs)
+        parts = ["".join(item["text"] for item in chunk) for chunk in chunks]
+        self.assertGreater(len(parts), 2)
+        self.assertTrue(all(len(part) <= 320 for part in parts))
+        self.assertEqual(" ".join(" ".join(parts).split()),
+                         " ".join((long_sentence + " " + short_sentence).split()))
+        self.assertEqual(parts[-1], short_sentence, "short complete sentences must stand alone")
+        for part in parts[:-2]:
+            self.assertIn(part.rstrip()[-1], ",;:", "long sentence should end on clause punctuation")
+
+    def test_long_sentence_without_comma_falls_back_to_word_boundary(self):
+        text = " ".join(["isolamento"] * 54) + "."
+        runs = [{"text": text, "lang": "pt-br"}]
+        chunks = kokoro_release.split_runs_adaptive(runs)
+        self.assertTrue(all(len("".join(r["text"] for r in c)) <= 320 for c in chunks))
+        self.assertEqual(" ".join(" ".join(r["text"] for r in c) for c in chunks).split(),
+                         text.split())
+
+    def test_phoneme_token_safety_repartitions_denser_sentences(self):
+        class DenseTokenizer:
+            @staticmethod
+            def tokenize(text, limit=None):
+                return list(text)
+        item = {
+            "text": "Frases técnicas completas, " * 12,
+            "block_index": 7,
+            "runs": [{"text": "Frases técnicas completas, " * 12, "lang": "pt-br"}],
+            "pause_after_seconds": 0.3
+        }
+        ph = {"pt-br": FakeG2P("PT"), "en-us": FakeG2P("EN")}
+        result = kokoro_release.fit_segments_to_phoneme_budget(
+            [item], ph, DenseTokenizer(), max_tokens=180
+        )
+        self.assertGreater(len(result), 1)
+        self.assertEqual({x["block_index"] for x in result}, {7})
+        self.assertEqual(" ".join(" ".join(x["text"] for x in result).split()),
+                         " ".join(item["text"].split()))
+        self.assertEqual(result[-1]["pause_after_seconds"], 0.3)
+        self.assertTrue(all(len(kokoro_release.phonemize_runs(x["runs"], ph)[0]) <= 180
+                            for x in result))
 
     def test_presets_keep_dora_and_original_as_unchanged_reference(self):
         names = list(kokoro_release.NARRATION_PRESETS)
@@ -215,11 +269,13 @@ class KokoroReleaseTests(unittest.TestCase):
             seen = []
             def fake_prepare(slug, output_dir, **kwargs):
                 self.assertEqual(kwargs["first_body_paragraphs"], 1)
+                self.assertTrue(kwargs["sentence_aware"])
                 output_dir.mkdir(parents=True)
                 seen.append((kwargs["preset"], output_dir))
             def fake_synthesize(slug, output_dir, model, voices, **kwargs):
                 self.assertEqual(kwargs["preset"], output_dir.name.rsplit("-", 1)[0])
                 self.assertIn(kwargs["speed"], (0.95, 1.00, 1.05))
+                self.assertTrue(kwargs["enforce_token_budget"])
                 shared = kwargs["shared_engine"]
                 shared.setdefault("kokoro", object())
                 self.assertEqual(id(shared), shared_id[0] if shared_id else id(shared))
