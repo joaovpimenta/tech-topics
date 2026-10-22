@@ -1,93 +1,121 @@
-# Kokoro Dora no GitHub Actions — narração editorial em PT-BR
+# Kokoro Dora — narração automática e manual com PT-BR + inglês
 
-O Tech Topics utiliza **Kokoro-82M v1.0 (ONNX FP32)** com **pf_dora**, eSpeak G2P
-`pt-br`, velocidade `0.95`, execução em CPU, sem GPU nem API externa.
+O Tech Topics usa **somente Kokoro-82M v1.0 (FP32 / ONNX)**, voz
+`pf_dora`, CPU em GitHub Actions. Velocidade `0.95`, áudio mono
+24 kHz, MP3 96 kbps normalizado para -19 LUFS (TP -1 dB).
+O modelo e a voz são mantidos em cache. Piper não faz mais parte
+dos workflows de narração.
 
-## Preset editorial
+**A leitura pelo TTS nativo do navegador/dispositivo continua disponível** no
+site pelo botão **Ouvir artigo** (`speech.js`, Web Speech API), independente
+dos MP3s publicados. A validação normal executa apenas um **smoke test**
+rápido e simulado para confirmar a chamada de síntese PT-BR/EN-US; não depende
+de drivers de áudio, navegadores instalados nem de uma matriz de sistemas.
 
-| Parâmetro | Valor |
+## Fonemização bilíngue — sem troca de narrador
+
+A narração usa as tags e o léxico editorial existentes, sem alterar o HTML visível:
+
+```html
+<p>O padrão <span lang="en-US">Bulkhead</span> evita falhas em cascata.</p>
+```
+
+- Texto sem `lang` recebe eSpeak G2P `pt-br`, assim como `lang="pt-BR"`.
+- `lang="en-US"` recebe eSpeak G2P `en-us`.
+- O `speechMarkup` de `title` e `dek` recebe a mesma lógica.
+- O léxico `content/tts-lexicon.json` pode sobrescrever texto falado e idioma
+  (`speak` + `lang`); siglas sem entrada são soletradas em PT-BR.
+- `data-tts-say`, `data-tts-mode="spell"` e `"word"` prevalecem
+  sobre o léxico, conforme `docs/TTS.md`.
+- Menus, código, controles e outros trechos não narrativos continuam excluídos.
+- As porções em português e inglês são convertidas para **uma mesma sequência
+  de fonemas em cada frase**. O Kokoro sintetiza essa sequência em uma chamada
+  **sempre com Dora** — não há segunda voz ou emenda de WAVs.
+
+O modelo é multilíngue, mas a naturalidade de um som inglês com a voz brasileira
+precisa ser conferida ouvindo os MP3s. Não há conversão fonética automática de
+nomes sem tags.
+
+## Preset de locução
+
+| Configuração | Valor |
 |---|---|
-| Voz única | `pf_dora` para todo o artigo |
-| Fonemização | `EspeakG2P(language="pt-br")` |
-| Precisão | `kokoro-v1.0.onnx` FP32 |
-| Velocidade | `0.95` |
-| Segmentação | até 240 caracteres por síntese, priorizando pontuação e palavras |
-| Pausa dentro do parágrafo | 180 ms |
-| Pausa depois de parágrafo | 450 ms |
-| Pausa após seção/título | 800 ms |
-| WAV intermediário | 24 kHz, 16-bit PCM mono |
-| MP3 | 96 kbps mono, normalização -19 LUFS / pico -1 dBTP |
-| CPU | 4 threads de inferência, runner Ubuntu, timeout de 60 min |
+| Modelo | `kokoro-v1.0.onnx`, FP32 |
+| Voz | `pf_dora` para PT-BR e EN-US |
+| G2P | `EspeakG2P(pt-br)` e `EspeakG2P(en-us)` |
+| Velocidade | 0.95 |
+| Blocos de síntese | até ~240 caracteres, evitando cortes de palavra |
+| Pausa dentro do bloco | 180 ms |
+| Pausa ao final de parágrafo | 450 ms |
+| Pausa após título ou seção | 800 ms |
+| Áudio interno | WAV PCM mono 24 kHz |
+| Publicação | MP3 96 kbps, -19 LUFS, TP -1 dB |
+| Infraestrutura | GitHub-hosted Ubuntu, CPU 4 threads, timeout 60 min |
 
-As pausas, a normalização de volume e a compressão são implementadas no pipeline;
-o Kokoro não possui um botão nativo chamado "narração editorial".
+As pausas e a normalização são feitas pelo pipeline, não por um preset
+nativo do Kokoro.
 
-O texto é extraído por `tools/tts/precommit.py`, com o mesmo léxico
-`content/tts-lexicon.json`, `speechMarkup` e ignorando menus, blocos de
-código e outros componentes não narrativos. As tags `lang="en-US"` **não**
-causam troca de voz: Dora pronuncia o texto inteiro com G2P brasileiro.
-Revise especialmente termos ingleses e siglas.
+## Automático: novos artigos após o deploy
 
-## Geração automática
+A workflow [Pages](../.github/workflows/pages.yml) chama
+[Publish Tech Topics audio (Kokoro Dora)](../.github/workflows/kokoro-audio.yml)
+**após o deploy bem-sucedido na `main`**.
+Somente novos arquivos `content/articles/<slug>.json` adicionados pelo push
+são publicados; mudanças em artigos existentes não refazem áudios.
 
-Após um **deploy bem-sucedido do Pages** em push na `main`,
-[pages.yml](../.github/workflows/pages.yml) chama
-[kokoro-audio.yml](../.github/workflows/kokoro-audio.yml).
-A seleção encontra **apenas artigos JSON novos**, não edições.
-O áudio é publicado na Release `tts-<slug>` com asset `<slug>.mp3`.
+Cada artigo recebe uma GitHub Release `tts-<slug>` e o arquivo `<slug>.mp3`.
+Releases existentes nunca são substituídas automaticamente.
 
-**Proteção de histórico:** Releases existentes não são sobrescritas na
-publicação automática. A Release de `bulkhead`, produzida com Piper, permanece
-intacta até aprovação humana explícita de uma substituição.
+## Manual: escolher artigo por nome ou o mais recente
 
-O workflow antigo [Piper](../.github/workflows/piper-audio.yml) permanece
-disponível manualmente como fallback; ele não é mais invocado
-automaticamente em novos deploys.
+Abra [Actions → Publish Tech Topics audio (Kokoro Dora)](https://github.com/joaovpimenta/tech-topics/actions/workflows/kokoro-audio.yml)
+e clique em **Run workflow**, branch `main`.
 
-## Comparação A/B antes de substituir o áudio
+Campo **article**:
 
-[Compare Kokoro Dora versus Piper Cadu](../.github/workflows/kokoro-compare.yml)
-roda nas Pull Requests relacionadas a Kokoro e pode ser iniciado manualmente.
-O job prepara **a mesma amostra de ~1.200 caracteres** de `bulkhead` para:
-- Kokoro Dora FP32, 0.95;
-- Piper Cadu medium.
+- `bulkhead` ou `Bulkhead`;
+- `Four Golden Signals` ou `four-golden-signals`;
+- título completo de um artigo;
+- **vazio** ou `latest`: escolher o artigo com maior `publishedAt`
+  entre os JSONs da `main`; não é o commit mais recentemente editado.
 
-Os dois MP3s usam o mesmo alvo de volume e bitrate de 96 kbps.
-As métricas objetivas de tempo de síntese, duração e fator tempo-real aparecem
-na seção **Job summary**; os arquivos e o roteiro ficam em
-**Artifacts → tts-compare-bulkhead-<run id>**, por 14 dias.
+Se um nome corresponder a mais de um título, a execução falha com aviso
+de ambiguidade, em vez de escolher um silenciosamente.
 
-O teste não afirma superioridade de um modelo. A avaliação auditiva de
-pronúncia, sotaque, naturalidade e transições ainda é humana.
-Um trecho curto reduz custo, mas não substitui o teste de artigo completo.
+Campo **mode**:
+- **`preview` (padrão)**: sintetiza os primeiros ~1.200 caracteres em CPU;
+  publica MP3 e relatório de fonemas como `Actions → Artifacts` por 14 dias.
+  Não cria nem altera Releases.
+- **`publish`**: sintetiza o artigo completo e cria uma Release.
+  Se ela já existe, é preservada; `replace_existing=true` permite
+  substituir somente quando solicitado manualmente.
 
-## Execução manual
+Exemplo para testar a palavra *Bulkhead*: `article=bulkhead`,
+`mode=preview`. Para atualizar o áudio antigo depois de ouvi-lo:
+`article=bulkhead`, `mode=publish`, `replace_existing=true`.
 
-Abra [Publish Tech Topics audio (Kokoro Dora)](https://github.com/joaovpimenta/tech-topics/actions/workflows/kokoro-audio.yml)
-em **Actions → Run workflow**, selecione `main`, informe o slug (por exemplo
-`bulkhead`) e um modo:
+## Validação e custo
 
-- `compare` (padrão): gera MP3s comparáveis Kokoro/Piper **apenas como
-  artifacts**, sem publicar nem sobrescrever Releases.
-- `publish`: sintetiza **todo o artigo** e cria a Release `tts-<slug>`.
-  Se a Release já existir, por padrão ela fica inalterada; marque
-  `replace_existing=true` **somente após ouvir e aprovar** o novo MP3.
+A validação geral de PR em [Validate Tech Topics](../.github/workflows/validate.yml)
+executa os testes leves de seleção manual, idiomas, léxico, corte de blocos,
+exceções locais e integridade dos artigos **uma vez em Ubuntu**. Não baixa
+o modelo Kokoro e não gera MP3 no CI, para reduzir o uso de CPU e o tempo
+das revisões. Para testar a síntese real com a voz Dora e as tags inglesas,
+use o modo `preview` do único workflow manual Kokoro: ele produz o áudio
+e o relatório de fonemas sem alterar Releases.
 
-## Custo e segurança operacional
+Dependências fixadas:
+`kokoro-onnx==0.6.1`, `misaki-fork==0.9.6`,
+`phonemizer-fork==3.3.2`, `espeakng-loader==0.2.4`,
+`soundfile==0.13.1`, além de `espeak-ng` e `ffmpeg`.
+Nenhum token externo ou GPU. São usadas 4 threads CPU e o modelo
+FP32 é carregado uma vez por artigo. A medição de tempo de inferência
+fica em `<slug>.metrics.json`.
 
-A workflow usa `actions/cache` para guardar modelo FP32 (~326 MB)
-e arquivo de vozes (~28 MB), fixados nos assets oficiais `model-files-v1.1`.
-Dependências Python com versões fixas: `kokoro-onnx==0.6.1`,
-`misaki-fork==0.9.6`, `phonemizer-fork==3.3.2`,
-`espeakng-loader==0.2.4`, `soundfile==0.13.1`. Precisa de
-`espeak-ng` e `ffmpeg` no runner. Nenhuma chave de serviço externo é
-necessária. `GITHUB_TOKEN` publica Releases com permissão `contents:write`.
-Revisar tempos reais em Jobs e o uso do GitHub Actions antes de aumentar volume
-de geração. Modelo carregado **uma vez por artigo**, não por parágrafo.
+A melhoria de pronúncia só é considerada aprovada editorialmente após
+comparar o áudio novo com o anterior. O roteiro de narração/podcast é
+um projeto separado e não está incorporado neste fluxo.
 
-Modelo Kokoro: Apache 2.0. Pacote `kokoro-onnx`: MIT.
-
-Fontes de implementação:
+Fontes:
 - https://github.com/thewh1teagle/kokoro-onnx/blob/main/examples/portuguese.py
-- https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.1
 - https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md
