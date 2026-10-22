@@ -6,6 +6,12 @@ O Tech Topics usa **somente Kokoro-82M v1.0 (FP32 / ONNX)**, voz
 O modelo e a voz são mantidos em cache. Piper não faz mais parte
 dos workflows de narração.
 
+**A leitura pelo TTS nativo do navegador/dispositivo continua disponível** no
+site pelo botão **Ouvir artigo** (`speech.js`, Web Speech API), independente
+dos MP3s publicados. A validação normal executa apenas um **smoke test**
+rápido e simulado para confirmar a chamada de síntese PT-BR/EN-US; não depende
+de drivers de áudio, navegadores instalados nem de uma matriz de sistemas.
+
 ## Fonemização bilíngue — sem troca de narrador
 
 A narração usa as tags e o léxico editorial existentes, sem alterar o HTML visível:
