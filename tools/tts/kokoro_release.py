@@ -229,53 +229,132 @@ def split_runs(runs: list[dict], max_chars: int = MAX_CHARS_PER_CHUNK) -> list[l
     return chunks
 
 
-def split_runs_adaptive(
-    runs: list[dict], target_chars: int = 240, max_chars: int = 300,
-    min_chars: int = 140,
-) -> list[list[dict]]:
-    """Prefer sentence boundaries near 240 characters; cap at 300.
+def punctuation_boundary(token: str) -> str | None:
+    """Classify phrase boundaries without treating every comma as a sentence."""
+    stripped = token.rstrip().rstrip('"\u201d\u2019\'\u00bb)]}')
+    if not stripped:
+        return None
+    if stripped.endswith((".", "!", "?", "\u2026")):
+        if stripped.lower() in {"sr.", "sra.", "dr.", "dra.", "prof.", "vs.", "ex.", "fig."}:
+            return None
+        return "sentence"
+    if stripped.endswith((",", ";", ":")):
+        return "clause"
+    return None
 
-    The model limit is expressed in phonemes, not characters. Keep the
-    character ceiling conservative and preserve multilingual runs, entire
-    words, punctuation and the original reading order.
+
+def split_runs_adaptive(
+    runs: list[dict], target_chars: int = 240, max_chars: int = 320,
+    min_chars: int = 80,
+) -> list[list[dict]]:
+    """Sentence-first synthesis, comma-aware splitting only when necessary.
+
+    Keep *every* complete sentence as one chunk when it fits max_chars.
+    If a sentence exceeds max_chars, split at the last suitable comma,
+    semicolon or colon in the allowed window. Only fall back to a word
+    boundary when no natural clause break exists. Never cut through a
+    word, alter language spans, or merge across paragraph boundaries.
+
+    320 characters are a heuristic, not the model's phoneme-token limit.
+    A second, actual-token preflight happens before inference in compare mode.
     """
+    if not 0 < min_chars <= target_chars <= max_chars:
+        raise ValueError("Invalid adaptive chunk limits")
     tokens = tokenize_runs(runs)
     if not tokens:
         return []
-    if sum(len(item["text"]) for item in tokens) <= max_chars:
-        return [clean_runs(runs)]
+
+    # First identify complete grammatical sentences, disregarding length.
+    sentences: list[list[dict]] = []
+    current: list[dict] = []
+    for token in tokens:
+        current.append(token)
+        if punctuation_boundary(token["text"]) == "sentence":
+            sentences.append(current)
+            current = []
+    if current:
+        sentences.append(current)
+
     chunks: list[list[dict]] = []
-    index = 0
-    while index < len(tokens):
-        choices = []
-        size = 0
-        for end in range(index, len(tokens)):
-            size += len(tokens[end]["text"])
-            if size > max_chars:
-                break
-            remaining = sum(len(t["text"]) for t in tokens[end + 1:])
-            punctuation = tokens[end]["text"].rstrip()
-            tail = punctuation.rstrip(chr(34) + chr(39) + "”")[-1:]
-            sentence = tail in (".", "!", "?")
-            clause = tail in (";", ":", ",")
-            penalty = 0 if sentence else 35 if clause else 85
-            if 0 < remaining < min_chars:
-                penalty += 30
-            score = abs(size - target_chars) + penalty
-            if size >= min_chars or end == len(tokens) - 1:
-                choices.append((score, end + 1))
-        stop = min(choices)[1] if choices else index + 1
-        chunk: list[dict] = []
-        for token in tokens[index:stop]:
-            append_run(chunk, token["text"].lstrip() if not chunk else token["text"], token["lang"])
-        chunks.append(clean_runs(chunk))
-        index = stop
+    for sentence in sentences:
+        index = 0
+        while index < len(sentence):
+            remaining = sentence[index:]
+            size = sum(len(t["text"]) for t in remaining)
+            if size <= max_chars:
+                end = len(sentence)
+            else:
+                length = 0
+                allowed = []
+                clause_ends = []
+                for i in range(index, len(sentence)):
+                    length += len(sentence[i]["text"])
+                    if length > max_chars:
+                        break
+                    allowed.append((length, i + 1))
+                    if length >= min_chars and punctuation_boundary(sentence[i]["text"]) == "clause":
+                        clause_ends.append((length, i + 1))
+                if not allowed:
+                    raise ValueError("Uma palavra isolada excede o limite de 320 caracteres.")
+                # Maximize semantic context at a natural comma, if possible.
+                end = (clause_ends[-1] if clause_ends else allowed[-1])[1]
+            result: list[dict] = []
+            for token in sentence[index:end]:
+                append_run(result, token["text"].lstrip() if not result else token["text"],
+                           token["lang"])
+            chunks.append(clean_runs(result))
+            index = end
     return chunks
+
+
+def fit_segments_to_phoneme_budget(
+    segments: list[dict], phonemizers: dict, tokenizer, max_tokens: int = 450,
+) -> list[dict]:
+    """Enforce a model-token safety margin after real PT/EN phonemization.
+
+    Using 450 (vs Kokoro's ~510 limit) avoids internal hidden splits. If a
+    320-character sentence has unusually dense phonemes, split it again
+    at a clause boundary if possible, preserving original block_index.
+    """
+    output: list[dict] = []
+    pending = list(segments)
+    while pending:
+        item = pending.pop(0)
+        phonemes, _ = phonemize_runs(item["runs"], phonemizers)
+        try:
+            tokens = tokenizer.tokenize(phonemes, limit=None)
+        except TypeError:
+            tokens = tokenizer.tokenize(phonemes)
+        if len(tokens) <= max_tokens:
+            output.append(item)
+            continue
+        current_length = len(item["text"])
+        # Progressively halve the bound, preferring natural clause breaks.
+        new_cap = max(48, current_length // 2)
+        parts = split_runs_adaptive(
+            item["runs"], target_chars=max(32, min(160, new_cap)),
+            max_chars=new_cap, min_chars=min(48, new_cap),
+        )
+        if len(parts) < 2:
+            raise ValueError(f"Impossível reduzir trecho de {len(tokens)} tokens sem cortar palavra.")
+        replacements = []
+        for i, part in enumerate(parts):
+            text = "".join(run["text"] for run in part)
+            replacements.append({
+                **item, "text": text, "runs": part,
+                "pause_after_seconds": (
+                    item["pause_after_seconds"] if i == len(parts) - 1 else 0.02
+                ),
+                "split_reason": "phoneme_budget",
+            })
+        pending[:0] = replacements
+    return output
 
 
 def segments_for_article(
     article: dict, lexicon: dict, max_chars: int = 0,
     preset: str = "atual", first_body_paragraphs: int = 0,
+    sentence_aware: bool = False,
 ) -> list[dict]:
     settings = NARRATION_PRESETS[preset]
     blocks = article_blocks(article, lexicon)
@@ -290,7 +369,7 @@ def segments_for_article(
     segments: list[dict] = []
     total = 0
     for block_index, block in enumerate(blocks):
-        chunks = (split_runs_adaptive(block["runs"]) if settings["adaptive_chunks"]
+        chunks = (split_runs_adaptive(block["runs"]) if sentence_aware or settings["adaptive_chunks"]
                   else split_runs(block["runs"]))
         for j, chunk in enumerate(chunks):
             if max_chars and total >= max_chars:
@@ -302,7 +381,18 @@ def segments_for_article(
                 "runs": chunk,
                 "pause_after_seconds": (
                     settings["section_pause"] if block["section"] else settings["paragraph_pause"]
-                ) if j == len(chunks) - 1 else settings["chunk_pause"],
+                ) if j == len(chunks) - 1 else (
+                    # The cut is *inside* a long sentence: do not add an
+                    # artificial breath on top of the comma prosody.
+                    min(settings["chunk_pause"], 0.02)
+                    if (sentence_aware or settings["adaptive_chunks"])
+                    and punctuation_boundary(text) == "clause"
+                    else settings["chunk_pause"]
+                ),
+                "split_reason": (
+                    "paragraph_end" if j == len(chunks) - 1 else
+                    (punctuation_boundary(text) or "word_fallback")
+                ),
             })
             total += len(text)
         if max_chars and total >= max_chars:
