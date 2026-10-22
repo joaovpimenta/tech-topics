@@ -83,6 +83,9 @@ async function main() {
       assert(await page.locator("#recording-skip").isVisible(), "paragraph skip available when release has chapters");
       await page.locator("#recording-skip").click();
       assert.equal(await page.locator("#article-recording").evaluate(element => element.currentTime), 35);
+      assert(await page.locator("#recording-previous").isVisible(), "previous paragraph control visible");
+      await page.locator("#recording-previous").click();
+      assert.equal(await page.locator("#article-recording").evaluate(element => element.currentTime), 0);
       const dock = await page.evaluate(() => ({
         title: document.querySelector("#recording-title").textContent,
         duration: document.querySelector("#recording-duration").textContent,
