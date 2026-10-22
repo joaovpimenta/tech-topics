@@ -38,10 +38,10 @@ Para tarefas sobre Kokoro, comece em [docs/KOKORO_ACTIONS.md](docs/KOKORO_ACTION
 - A narração pública mantém **somente `pf_dora`** e a fonemização PT-BR/EN-US. A decisão editorial é **Equilibrado 1.00** para futuras gerações; conferir a PR técnica #58 antes de presumir sua incorporação à `main`.
 - A divisão acústica é **interna ao parágrafo**, com contagem dos tokens reais após G2P (alvo ~300, máximo 350; também proteger a string fonética contra repartição interna na biblioteca). Nunca transformar chunks técnicos em falsos capítulos.
 - `trim=True` explícito, pausa de 25 ms nos cortes internos; **`continuous=False`**, a não ser que haja prova de duração no ONNX e teste de qualidade, conforme ADR 0001.
-- O formato de novas gerações usa MP3 mono 24 kHz com `loudnorm` atual; a PR #58 propõe **128 kbps**. Comparar codecs usando **o mesmo WAV**, sem invocar novamente Kokoro por bitrate.
+- O formato de novas gerações usa MP3 mono 24 kHz com `loudnorm` atual; a PR #58 já integrou **128 kbps** à `main`. Comparar codecs usando **o mesmo WAV**, sem invocar novamente Kokoro por bitrate.
 - Não disparar `publish` para artigos com Release existente sem autorização explícita de substituição. Alterações no site não regeneram texto/áudio; PRs rodam testes rápidos, sem inferência pesada. `profile` e `compare` são testes manuais.
 - O profiling real em Bulkhead indicou ~99,6% de CPU nos quatro núcleos; **não paralelizar 2–3 Kokoros por runner** sem benchmark novo.
-- Conferir se a PR #53 (player unificado, clique, highlight e scroll) foi mesclada antes de tratá-la como funcionalidade publicada.
+- O código do player unificado (PR #53) está na `main`: clique, destaque e scroll por bloco dependem dos capítulos correspondentes; validar a experiência no navegador antes de declarar QA visual concluído.
 - Nenhuma alteração deve ser mesclada sem autorização humana explícita. Validação automatizada não substitui **escuta auditiva** nem confirma integridade de Releases.
 
 ## Execução
