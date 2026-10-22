@@ -31,12 +31,13 @@ on:
         required: false
         default: ""
       mode:
-        description: "preview: trecho curto; compare: 9 versões do título + 1º parágrafo; profile: CPU; publish: Release"
+        description: "preview: trecho curto; review: artigo integral sem Release; compare: 9 versões; profile: CPU; publish: Release"
         type: choice
         required: true
         default: preview
         options:
           - preview
+          - review
           - compare
           - profile
           - publish
@@ -130,7 +131,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "$MODE" in preview|compare|profile|publish) ;; *) echo "Invalid mode: $MODE" >&2; exit 1;; esac
+          case "$MODE" in preview|review|compare|profile|publish) ;; *) echo "Invalid mode: $MODE" >&2; exit 1;; esac
           if [ "$MODE" = compare ] && [ "$GITHUB_EVENT_NAME" != workflow_dispatch ]; then
             echo "A/B compare is manual-only and must never run after a site deploy." >&2
             exit 1
@@ -336,6 +337,68 @@ jobs:
             .audio/${{ matrix.slug }}.chapters.json
             .audio/${{ matrix.slug }}.metrics.json
           retention-days: 14
+          if-no-files-found: error
+
+      - name: Validate full-length review candidate (do not publish)
+        if: steps.policy.outputs.skip != 'true' && env.MODE == 'review'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          slug = os.environ["ARTICLE_SLUG"]
+          base = Path(".audio") / slug
+          segments = json.loads(base.with_suffix(".segments.json").read_text(encoding="utf-8"))
+          chapters = json.loads(base.with_suffix(".chapters.json").read_text(encoding="utf-8"))
+          metrics = json.loads(base.with_suffix(".metrics.json").read_text(encoding="utf-8"))
+          assert segments and chapters["chapters"], "Full review must contain segments and chapters"
+          block_ids = [s["block_index"] for s in segments]
+          chapter_ids = [c["block_index"] for c in chapters["chapters"]]
+          assert chapter_ids == list(dict.fromkeys(block_ids)), "Missing or extra chapter boundaries"
+          assert chapter_ids == list(range(len(chapter_ids))), "Chapter IDs not contiguous"
+          assert all(c["start"] >= 0 for c in chapters["chapters"]), "Invalid chapter timestamps"
+          assert all(a["start"] < b["start"] for a, b in zip(chapters["chapters"], chapters["chapters"][1:])), "Invalid chapter ordering"
+          assert metrics["preset"] == "equilibrado" and metrics["speed"] == 1.0
+          assert metrics["max_tokens"] == 350 and metrics["token_budget_enabled"]
+          assert metrics["continuous"] is False
+          assert all(isinstance(s.get("token_count"), int) and 0 < s["token_count"] <= 350 for s in segments)
+          assert all(0 < s["phoneme_length"] <= 500 for s in segments)
+          probe = json.loads(subprocess.check_output([
+              "ffprobe", "-v", "error", "-show_entries",
+              "format=duration,bit_rate:stream=codec_name,sample_rate,channels", "-of", "json",
+              str(base.with_suffix(".mp3"))], text=True))
+          stream = probe["streams"][0]
+          assert stream["codec_name"] == "mp3" and stream["sample_rate"] == "24000" and stream["channels"] == 1
+          bitrate = int(probe["format"]["bit_rate"])
+          assert 120000 <= bitrate <= 136000, f"Unexpected bitrate: {bitrate}"
+          audio_seconds = float(probe["format"]["duration"])
+          assert chapters["chapters"][-1]["start"] < audio_seconds
+          print(f"PASS review: {slug}: {len(segments)} segments, {len(chapter_ids)} chapters, "
+                f"{audio_seconds:.1f} s, {bitrate} bps")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write(f"### Revisão integral: {slug} (NÃO PUBLICADA)\\n\\n")
+              summary.write(f"- {len(segments)} segmentos; {len(chapter_ids)} capítulos\\n")
+              summary.write(f"- MP3 {audio_seconds:.1f} s, bitrate {bitrate / 1000:.1f} kbps\\n")
+              summary.write("- Dora equilibrado-100, 350 tokens, sem alteração de Release\\n")
+          PY
+          cd .audio
+          sha256sum "$ARTICLE_SLUG.mp3" "$ARTICLE_SLUG.chapters.json" "$ARTICLE_SLUG.metrics.json" > "$ARTICLE_SLUG.sha256"
+
+      - name: Upload complete candidate for human listening (no Releases)
+        if: steps.policy.outputs.skip != 'true' && env.MODE == 'review'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kokoro-dora-review-${{ matrix.slug }}-${{ github.run_id }}
+          path: |
+            .audio/${{ matrix.slug }}.mp3
+            .audio/${{ matrix.slug }}.chapters.json
+            .audio/${{ matrix.slug }}.segments.json
+            .audio/${{ matrix.slug }}.metrics.json
+            .audio/${{ matrix.slug }}.txt
+            .audio/${{ matrix.slug }}.md
+            .audio/${{ matrix.slug }}.sha256
+          retention-days: 30
           if-no-files-found: error
 
       - name: Attach paragraph timestamps to public Release notes
