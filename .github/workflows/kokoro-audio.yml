@@ -31,12 +31,13 @@ on:
         required: false
         default: ""
       mode:
-        description: "Prévia curta sem Release ou publicação do áudio completo"
+        description: "preview: amostra; profile: artigo completo só para medições; publish: criar Release"
         type: choice
         required: true
         default: preview
         options:
           - preview
+          - profile
           - publish
       replace_existing:
         description: "Substituir MP3 de Release existente? Apenas no modo publish"
@@ -112,7 +113,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "$MODE" in preview|publish) ;; *) echo "Invalid mode: $MODE" >&2; exit 1;; esac
+          case "$MODE" in preview|profile|publish) ;; *) echo "Invalid mode: $MODE" >&2; exit 1;; esac
           if [ "$MODE" = publish ] && [ "$REPLACE_EXISTING" != true ] && \
              gh release view "tts-$ARTICLE_SLUG" >/dev/null 2>&1; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -176,23 +177,45 @@ jobs:
               --slug "$ARTICLE_SLUG" --output-dir .audio
           fi
 
-      - name: Generate single-voice mixed-language WAV and MP3 on CPU
+      - name: Generate single-voice mixed-language WAV (and MP3 outside profiling)
         if: steps.policy.outputs.skip != 'true'
         shell: bash
         run: |
           set -euo pipefail
+          extra=()
+          if [ "$MODE" = profile ]; then extra+=(--profile); fi
           time python tools/tts/kokoro_release.py synthesize \
             --slug "$ARTICLE_SLUG" --output-dir .audio \
             --model .cache/kokoro/kokoro-v1.0.onnx \
-            --voices .cache/kokoro/voices-v1.0.bin
-          ffmpeg -hide_banner -loglevel error -y \
-            -i ".audio/$ARTICLE_SLUG.wav" \
-            -af "loudnorm=I=-19:TP=-1:LRA=11" \
-            -ar 24000 -ac 1 -c:a libmp3lame -b:a 96k \
-            ".audio/$ARTICLE_SLUG.mp3"
-          test -s ".audio/$ARTICLE_SLUG.mp3"
-          ffprobe -v error -show_entries format=duration \
-            -of default=noprint_wrappers=1:nokey=1 ".audio/$ARTICLE_SLUG.mp3"
+            --voices .cache/kokoro/voices-v1.0.bin "${extra[@]}"
+          if [ "$MODE" != profile ]; then
+            ffmpeg -hide_banner -loglevel error -y \
+              -i ".audio/$ARTICLE_SLUG.wav" \
+              -af "loudnorm=I=-19:TP=-1:LRA=11" \
+              -ar 24000 -ac 1 -c:a libmp3lame -b:a 96k \
+              ".audio/$ARTICLE_SLUG.mp3"
+            test -s ".audio/$ARTICLE_SLUG.mp3"
+            ffprobe -v error -show_entries format=duration \
+              -of default=noprint_wrappers=1:nokey=1 ".audio/$ARTICLE_SLUG.mp3"
+          fi
+
+      - name: Summarize CPU headroom for potential intra-run parallelism
+        if: steps.policy.outputs.skip != 'true' && env.MODE == 'profile'
+        shell: bash
+        run: |
+          python tools/tts/cpu_profile.py ".audio/$ARTICLE_SLUG.cpu-profile.json" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload CPU and memory profile (no MP3 release)
+        if: steps.policy.outputs.skip != 'true' && env.MODE == 'profile'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kokoro-cpu-profile-${{ matrix.slug }}-${{ github.run_id }}
+          path: |
+            .audio/${{ matrix.slug }}.cpu-profile.json
+            .audio/${{ matrix.slug }}.metrics.json
+            .audio/${{ matrix.slug }}.chapters.json
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Upload preview for listening (without modifying Releases)
         if: steps.policy.outputs.skip != 'true' && env.MODE == 'preview'
@@ -242,5 +265,5 @@ jobs:
           else
             gh release create "$tag" ".audio/$ARTICLE_SLUG.mp3" ".audio/$ARTICLE_SLUG.chapters.json" \
               --target "$GITHUB_SHA" --title "Tech Topics Áudio — $title" \
-              --notes-file ".audio/$ARTICLE_SLUG.md" --latest=false
+              --notes-file ".audio/$ARTICLE_SLUG.release.md" --latest=false
           fi
