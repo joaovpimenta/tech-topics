@@ -1,7 +1,8 @@
 (function (root) {
   "use strict";
 
-  const API_ROOT = "https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-";
+  const MEDIA_API_ROOT = "https://api.github.com/repos/joaovpimenta/tech-topics/contents/audio/";
+  const RELEASE_API_ROOT = "https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-";
   const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
   function formatTime(seconds) {
@@ -15,18 +16,44 @@
 
   async function findAudio(slug, fetchImpl = root.fetch) {
     if (!SLUG.test(slug)) throw new Error("Slug de áudio inválida.");
-    const response = await fetchImpl(API_ROOT + encodeURIComponent(slug), {
+    const name = `${slug}.mp3`;
+    const options = {
       headers: { Accept: "application/vnd.github+json" },
       cache: "no-store"
-    });
-    if (response.status === 404) return null;
-    if (!response.ok) throw new Error("Consulta à Release indisponível.");
-    const release = await response.json();
-    const name = `${slug}.mp3`;
-    const asset = release.assets?.find(item => item.name === name && item.state !== "deleted");
-    // Trust the GitHub API only for the existence check; the asset URL is fixed
-    // to this public repository to prevent arbitrary redirects.
-    return asset ? `https://github.com/joaovpimenta/tech-topics/releases/download/tts-${slug}/${name}` : null;
+    };
+    let repositoryError = null;
+    try {
+      // Media commits are stored in a separate, unprotected 'audio' branch.
+      // The API confirms the exact file exists before displaying Play.
+      const response = await fetchImpl(`${MEDIA_API_ROOT}${name}?ref=audio`, options);
+      if (response.ok) {
+        const file = await response.json();
+        if (file.type === "file" && file.name === name && Number(file.size) > 0) {
+          const revision = /^[a-f0-9]{40}$/i.test(file.sha || "") ? `?v=${file.sha}` : "";
+          return `https://raw.githubusercontent.com/joaovpimenta/tech-topics/audio/audio/${name}${revision}`;
+        }
+      } else if (response.status !== 404) {
+        throw new Error("Consulta ao áudio no repositório indisponível.");
+      }
+    } catch (error) {
+      repositoryError = error;
+    }
+
+    // Backwards compatible with older audio releases (including Piper files),
+    // and with the release fallback for files too large to commit.
+    try {
+      const response = await fetchImpl(RELEASE_API_ROOT + encodeURIComponent(slug), options);
+      if (response.status === 404) {
+        if (repositoryError) throw repositoryError;
+        return null;
+      }
+      if (!response.ok) throw new Error("Consulta à Release indisponível.");
+      const release = await response.json();
+      const asset = release.assets?.find(item => item.name === name && item.state !== "deleted");
+      return asset ? `https://github.com/joaovpimenta/tech-topics/releases/download/tts-${slug}/${name}` : null;
+    } catch (error) {
+      throw repositoryError || error;
+    }
   }
 
   function createPlayer({ document, navigator, article, cover, audio, fetchAudio = findAudio, stopDevice = () => {} }) {
