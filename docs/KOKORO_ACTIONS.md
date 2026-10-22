@@ -1,12 +1,11 @@
 # Kokoro Dora — narração automática e manual com PT-BR + inglês
 
 O Tech Topics usa **somente Kokoro-82M v1.0 (FP32 / ONNX)**, voz
-`pf_dora`, CPU em GitHub Actions. **Aprovado para novas gerações na
-PR #58:** preset `equilibrado`, velocidade **1.00**, alvo de 300/teto
-de 350 tokens fonéticos e MP3 **128 kbps**, mono 24 kHz, com a mesma
-normalização -19 LUFS (TP -1 dB). Enquanto a PR #58 não estiver
-mesclada, a `main` segue com velocidade 0.95, MP3 96 kbps e
-segmentação anterior na geração `publish`.
+`pf_dora`, CPU em GitHub Actions. **Padrão vigente na `main` (PR #58):** preset `equilibrado`,
+velocidade **1.00**, alvo de 300/teto de 350 tokens reais após G2P,
+MP3 **128 kbps**, mono 24 kHz e `loudnorm=I=-19:TP=-1:LRA=11`.
+Releases antigas permanecem intactas; a comparação 96/128/160 kbps
+usa o mesmo WAV normalizado e não altera o padrão de publicação.
 O modelo e a voz são mantidos em cache. Piper não faz mais parte
 dos workflows de narração.
 
@@ -47,22 +46,21 @@ nomes sem tags.
 | Modelo | `kokoro-v1.0.onnx`, FP32 |
 | Voz | `pf_dora` para PT-BR e EN-US |
 | G2P | `EspeakG2P(pt-br)` e `EspeakG2P(en-us)` |
-| Velocidade | 0.95 |
-| Blocos de síntese | até ~240 caracteres, evitando cortes de palavra |
-| Pausa dentro do bloco | 180 ms |
-| Pausa ao final de parágrafo | 450 ms |
-| Pausa após título ou seção | 800 ms |
+| Velocidade | 1.00 (`equilibrado-100`) |
+| Blocos de síntese | alvo 300/teto 350 tokens reais; guarda de 500 caracteres fonéticos |
+| Cortes internos necessários | 25 ms; priorizar frase completa e pontuação |
+| Pausa normal entre chunks | 140 ms |
+| Pausa ao final de parágrafo | 380 ms |
+| Pausa após título ou seção | 700 ms |
 | Áudio interno | WAV PCM mono 24 kHz |
-| Publicação | MP3 96 kbps, -19 LUFS, TP -1 dB |
+| Publicação | MP3 128 kbps, -19 LUFS, TP -1 dB |
 | Infraestrutura | GitHub-hosted Ubuntu, CPU 4 threads, timeout 60 min |
 
-**Tabela acima: configuração histórica, antes da PR #58.** Para as
-configurações escolhidas para geração futura, consulte
-[ADR 0001](adr/0001-kokoro-dora-prosody-and-encoding.md). A PR #58
-ativa `equilibrado-100` no preparo e na inferência, tokenizador
-antes do Kokoro (350 tokens e guarda fonética 500), corte de frase
-por pontuação com 25 ms, `trim=True` e `continuous=False`;
-MP3 de novos assets em 128 kbps mantendo `loudnorm=-19 LUFS`.
+**Configuração vigente para novos assets.** Consulte o
+[ADR 0001](adr/0001-kokoro-dora-prosody-and-encoding.md) para a escolha
+`equilibrado-100`, tokenização antes da inferência, `trim=True`,
+`continuous=False`, limites fonéticos e comparações auditivas.
+O antigo 0.95 / 96 kbps permanece somente como referência histórica.
 
 As pausas e a normalização são feitas pelo pipeline, não por um preset
 nativo do Kokoro.
@@ -133,7 +131,7 @@ A opção manual `compare` testa a **voz fixa `pf_dora`**, somente no
 Compara as três velocidades `0.95`, `1.00`, `1.05` cruzadas com os
 três perfis de pausas `atual`, `equilibrado`, `fluido`.
 
-A opção aprovada preliminarmente na escuta foi **Equilibrado 1.00**:
+A opção aprovada na escuta e adotada para novas publicações é **Equilibrado 1.00**:
 pausa de parágrafo 380 ms, pausa depois de título 700 ms, e 140 ms
 entre sentenças agrupadas em chamadas diferentes. No `compare`, as
 emendas obrigatórias no meio de uma frase usam **25 ms** de silêncio.
@@ -143,7 +141,7 @@ emendas obrigatórias no meio de uma frase usam **25 ms** de silêncio.
 A fonemização PT-BR/EN-US acontece **antes de `kokoro.create()`**.
 O pipeline usa `kokoro.tokenizer.tokenize(fonemas, limit=None)`
 para contar tokens reais e escolher cortes antes da inferência.
-**Não existe limite de 320 caracteres editoriais nessa comparação.**
+**Não existe limite de 320 caracteres editoriais na preparação de novas sínteses, inclusive em `publish`.**
 
 - **Alvo de contexto:** 300 tokens, agregando sentenças curtas do mesmo
   parágrafo quando cabe e preservando sentenças completas.
@@ -162,13 +160,13 @@ para contar tokens reais e escolher cortes antes da inferência.
 
 ### Compressão sem inferência extra
 
-A fonte permanece WAV mono PCM a 24 kHz. O MP3 normal do projeto é
-**96 kbps CBR**, com `loudnorm=I=-19:TP=-1:LRA=11`. No `compare`,
+A fonte permanece WAV mono PCM a 24 kHz. O MP3 de novas publicações é
+**128 kbps CBR**, com `loudnorm=I=-19:TP=-1:LRA=11`. No `compare`,
 além dos nove MP3s, o workflow produz do **mesmo WAV Equilibrado 1.00**:
 
 | Arquivo | Compressão |
 |---|---|
-| `equilibrado-100/bulkhead.mp3` | 96 kbps MP3 (referência atual) |
+| `equilibrado-100/bulkhead.mp3` | 96 kbps MP3 (referência histórica do `compare`) |
 | `equilibrado-100/bulkhead-128k.mp3` | 128 kbps MP3 |
 | `equilibrado-100/bulkhead-160k.mp3` | 160 kbps MP3 |
 | `equilibrado-100/bulkhead-lossless.wav` | WAV PCM sem perdas, após a mesma normalização |
@@ -178,10 +176,10 @@ normalização. Se a diferença entre o MP3 e o WAV for mínima, aumentar
 bitrate não corrigirá problemas de pronúncia, prosódia ou recortes:
 apenas reduzirá os artefatos da compressão, aumentando o arquivo.
 
-A versão normal `publish` e o `profile` mantêm seus parâmetros antigos
-até aprovação de escuta e autorização de publicação. Nenhuma Release
-existente é sobrescrita por `compare`, e o controle de publicação
-manual permanece em `replace_existing=true`.
+`publish` e `preview` já usam Equilibrado 1.00 e MP3 128 kbps.
+`profile` é manual e não produz Release; `compare` testa variantes sem
+publicar. Nenhuma Release existente é sobrescrita implicitamente;
+substituição exige `mode=publish` com `replace_existing=true` manual.
 
 ### E o modo `continuous`?
 
@@ -238,9 +236,9 @@ O profiling não ativa multiprocessamento nem muda o áudio.
 
 ## ADRs e decisões de governança
 
-- [ADR 0001 — Prosódia, 350 tokens, trim, bitrate e continuous](adr/0001-kokoro-dora-prosody-and-encoding.md): perfil Dora Equilibrado 1.00 **aceito**, implementação proposta na PR #58.
+- [ADR 0001 — Prosódia, 350 tokens, trim, bitrate e continuous](adr/0001-kokoro-dora-prosody-and-encoding.md): perfil Dora Equilibrado 1.00 **aceito**, implementação integrada à `main` na PR #58.
 - [ADR 0002 — Profiling, CPU saturada e skip](adr/0002-kokoro-execution-cost-and-parallelism.md): uma instância × quatro threads; nenhuma síntese redundante para artigo/Release existentes.
-- [ADR 0003 — Player único e capítulos](adr/0003-unified-article-audio-and-chapter-synchronization.md): decisão proposta na PR #53, ainda não incorporada; sincronização por `block_index`.
+- [ADR 0003 — Player único e capítulos](adr/0003-unified-article-audio-and-chapter-synchronization.md): decisão implementada na PR #53; sincronização por `block_index`, sujeita à compatibilidade dos capítulos.
 
 A melhoria de qualidade de 96 para 128 kbps é uma decisão de
 **codificação para novos arquivos**, não uma garantia de diferença audível.
