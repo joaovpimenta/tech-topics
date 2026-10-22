@@ -45,3 +45,35 @@ Consulte os documentos detalhados somente na etapa em que forem necessários:
 ## Validação automatizada
 
 A qualidade estrutural dos artigos é validada por `scripts/lint-articles.mjs` e pelos testes do projeto. A workflow `Validate Tech Topics` roda em Pull Requests; na `main`, o job de validação da workflow do GitHub Pages roda antes do deploy. Não considere um artigo pronto enquanto a validação não passar. Regras subjetivas, como rigor factual, qualidade da metáfora e aparência de aquarela, continuam exigindo revisão editorial ou visual humana.
+
+## Mudanças em áudio, TTS e workflows
+
+Para trabalhos de áudio, leia primeiro [docs/KOKORO_ACTIONS.md](docs/KOKORO_ACTIONS.md)
+e somente os [ADRs específicos](docs/adr/) relacionados, em vez de
+recarregar todo o contexto editorial. A [issue de handoff #56](https://github.com/joaovpimenta/tech-topics/issues/56)
+registra as decisões e os pontos ainda pendentes de aprovação.
+
+- A voz gravada do projeto é **`pf_dora`** com fonemização PT-BR/EN-US.
+  O **`equilibrado-100`** foi preferido em testes curtos, mas isso
+  **não é autorização** para alterar `publish`, mesclar PR ou
+  substituir MP3s publicados.
+- `compare` e `profile` são manuais e não modificam Releases.
+  Evite usar `publish` para investigar CPU, chunking ou bitrate.
+  `replace_existing=true` exige consentimento específico.
+- A divisão para **inferência** por frases/tokens não pode mudar a
+  divisão editorial **por parágrafos** usada por `chapters.json`,
+  destaque e navegação do player. Antes da inferência, meça tokens
+  pelo tokenizer do próprio Kokoro após fonemização; preserve todo o texto,
+  spans de idioma, pontuação e índices dos blocos.
+- Para comparar codecs, gere os formatos a partir de **um único WAV
+  normalizado**. Registre bitrate, tamanho e duração; a diferença
+  perceptiva só é aprovada após escuta.
+- Não gere artigo ou MP3 antigo novamente apenas porque o código
+  do site mudou. Respeite o skip por slug/Release e o estado do
+  workflow existente.
+- A CPU do runner está aproximadamente saturada em 1×4 threads;
+  não ative concorrência intra-run sem benchmark de qualidade,
+  tempo total e memória.
+- Confira estado atual das PRs, CI e ADRs antes de relatar algo
+  como publicado; [ADR 0003](docs/adr/0003-unified-audio-player-paragraph-sync.md)
+  descreve o player único **como proposta até a PR #53 ser integrada**.
