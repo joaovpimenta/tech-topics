@@ -32,3 +32,79 @@ jobs:
         run: node scripts/validate-site.mjs
         env:
           TECH_TOPICS_REQUIRE_TTS_TESTS: "1"
+
+  # One-off quality review for this PR only; never modifies existing Releases.
+  bulkhead-review:
+    name: Bulkhead Kokoro — full MP3 listening artifact
+    if: ${{ github.event_name == 'pull_request' && github.head_ref == 'feat/bulkhead-audio-sync-20261022' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      OMP_NUM_THREADS: "4"
+      OPENBLAS_NUM_THREADS: "4"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+      - name: Install CPU-only Kokoro and audio tooling
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends espeak-ng libespeak-ng1 ffmpeg
+          python -m pip install "kokoro-onnx==0.6.1" "misaki-fork==0.9.6" "phonemizer-fork==3.3.2" "espeakng-loader==0.2.4" "soundfile==0.13.1"
+      - uses: actions/cache@v4
+        with:
+          path: .cache/kokoro
+          key: kokoro-v1.0-fp32-voices-model-files-v1.1
+      - name: Load FP32 model and prepare all Bulkhead paragraphs
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/kokoro
+          base="https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1"
+          for file in kokoro-v1.0.onnx voices-v1.0.bin; do
+            if [ ! -s ".cache/kokoro/$file" ]; then
+              curl --fail --location --retry 3 --silent --show-error "$base/$file" -o ".cache/kokoro/$file"
+            fi
+          done
+          test "$(stat -c '%s' .cache/kokoro/kokoro-v1.0.onnx)" -gt 250000000
+          test "$(stat -c '%s' .cache/kokoro/voices-v1.0.bin)" -gt 20000000
+          python tools/tts/kokoro_release.py prepare --slug bulkhead --output-dir .audio
+      - name: Synthesize full article and inspect paragraph timing
+        run: |
+          set -euo pipefail
+          python tools/tts/kokoro_release.py synthesize --slug bulkhead --output-dir .audio \
+            --model .cache/kokoro/kokoro-v1.0.onnx --voices .cache/kokoro/voices-v1.0.bin
+          ffmpeg -hide_banner -loglevel error -y -i .audio/bulkhead.wav \
+            -af "loudnorm=I=-19:TP=-1:LRA=11" -ar 24000 -ac 1 \
+            -c:a libmp3lame -b:a 96k .audio/bulkhead.mp3
+          ffprobe -v error -show_entries format=duration \
+            -of default=noprint_wrappers=1:nokey=1 .audio/bulkhead.mp3
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path(".audio")
+          segments = json.loads((root / "bulkhead.segments.json").read_text())
+          chapters = json.loads((root / "bulkhead.chapters.json").read_text())["chapters"]
+          metrics = json.loads((root / "bulkhead.metrics.json").read_text())
+          starts = [item["start"] for item in chapters]
+          ids = [item["block_index"] for item in chapters]
+          assert starts and starts[0] == 0
+          assert all(b > a for a, b in zip(starts, starts[1:]))
+          assert ids == sorted(set(ids))
+          assert len(chapters) <= len(segments)
+          assert starts[-1] < metrics["audio_seconds"]
+          print(f"QUALITY CHECK: {len(chapters)} source blocks, {len(segments)} synthesis chunks, {metrics['audio_seconds']} seconds, voice {metrics['voice']}, RTF {metrics['real_time_factor']}")
+          PY
+      - name: Publish Bulkhead MP3 for listening without replacing Release
+        uses: actions/upload-artifact@v4
+        with:
+          name: bulkhead-kokoro-full-paragraph-review
+          path: |
+            .audio/bulkhead.mp3
+            .audio/bulkhead.chapters.json
+            .audio/bulkhead.metrics.json
+            .audio/bulkhead.segments.json
+          if-no-files-found: error
+          retention-days: 14
