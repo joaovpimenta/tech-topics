@@ -31,7 +31,7 @@ on:
         required: false
         default: ""
       mode:
-        description: "preview: trecho curto; compare: 3 versões de 2 parágrafos; profile: CPU; publish: Release"
+        description: "preview: trecho curto; compare: 9 versões do título + 1º parágrafo; profile: CPU; publish: Release"
         type: choice
         required: true
         default: preview
