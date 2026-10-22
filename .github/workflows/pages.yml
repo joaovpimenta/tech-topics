@@ -16,6 +16,8 @@ jobs:
   validate:
     name: Validate before deploy
     runs-on: ubuntu-latest
+    outputs:
+      new_article_slugs: ${{ steps.new_articles.outputs.slugs }}
     permissions:
       contents: read
     steps:
@@ -35,6 +37,22 @@ jobs:
         run: node scripts/validate-site.mjs
         env:
           TECH_TOPICS_REQUIRE_TTS_TESTS: "1"
+      - name: Detect newly published article JSONs (not page/code edits)
+        id: new_articles
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          slugs="$(python tools/tts/article_selection.py --before "$BEFORE_SHA" --after "$AFTER_SHA")"
+          echo "slugs=$slugs" >> "$GITHUB_OUTPUT"
+          if [ "$slugs" = '[]' ]; then
+            echo "No new article: skip Kokoro; deploy site changes only." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "New articles (Kokoro eligible): $slugs" >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Upload validated site artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -56,8 +74,11 @@ jobs:
 
   publish-audio:
     name: Publish new article audio after successful deploy
-    if: github.event_name == 'push'
-    needs: deploy
+    if: >-
+      github.event_name == 'push' &&
+      needs.validate.outputs.new_article_slugs != '' &&
+      needs.validate.outputs.new_article_slugs != '[]'
+    needs: [validate, deploy]
     permissions:
       contents: write
     uses: ./.github/workflows/kokoro-audio.yml
