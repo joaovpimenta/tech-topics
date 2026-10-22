@@ -100,7 +100,7 @@ Publique na branch `main` com mensagem de commit descritiva, conforme o fluxo vi
 
 O workflow do GitHub Pages deve terminar com sucesso antes de declarar a publicação concluída.
 
-Na publicação agendada, a Action `Select next Tech Topics article` seleciona outra pauta da [fila editorial](TOPIC_QUEUE.md) após o deploy bem-sucedido. Confirme o estado dessa Action e o comentário de seleção; se a fila estiver vazia, registre a limitação sem confundir o status do deploy do artigo com o preparo da próxima execução.
+Na publicação agendada, a Action `Select next Tech Topics article` seleciona outra pauta da [fila editorial](TOPIC_QUEUE.md) depois de um push que **adiciona um novo JSON de artigo**, não após mudanças apenas no código do site. Confirme o estado dessa Action e o comentário de seleção; se a fila estiver vazia, registre a limitação sem confundir o status do deploy do artigo com o preparo da próxima execução.
 
 Se ocorrer uma falha:
 
@@ -126,7 +126,7 @@ Ao concluir uma publicação de artigo, informe brevemente:
 
 A workflow `Validate Tech Topics` executa em Pull Requests e sob acionamento manual. Em pushes para `main`, a workflow de Pages executa a mesma validação antes do deploy e publica o artefato validado, sem reconstruí-lo na etapa de deploy.
 
-Os checks de PR executam a validação em Ubuntu, usando a versão declarada em `.node-version`; a proteção de branch continua exigindo `Content and application lint`. A workflow de Pages envia somente `dist/`. A seleção da fila continua ocorrendo depois de um deploy bem-sucedido; mudança de tooling não autoriza substituir uma seleção pendente.
+Os checks de PR executam a validação em Ubuntu, usando a versão declarada em `.node-version`; a proteção de branch continua exigindo `Content and application lint`. A workflow de Pages envia somente `dist/`. A seleção automática da fila ocorre apenas após inclusão de novo JSON de artigo; mudanças de código, CSS ou JavaScript não autorizam outra seleção e não reprocessam a narração publicada.
 
 A proteção da `main` exige o check estável `Content and application lint`. Esse check agrega a matriz do PR e só passa quando todas as plataformas passam; não renomeie sem atualizar a proteção correspondente.
 
