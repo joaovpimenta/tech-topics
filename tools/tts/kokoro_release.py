@@ -425,6 +425,7 @@ def phonemize_runs(runs: list[dict], phonemizers: dict) -> tuple[str, list[dict]
 def prepare(
     slug: str, output_dir: Path, max_chars: int = 0,
     preset: str = "atual", first_body_paragraphs: int = 0,
+    sentence_aware: bool = False,
 ) -> None:
     if max_chars < 0:
         raise ValueError("--max-chars deve ser >= 0")
@@ -432,6 +433,7 @@ def prepare(
     segments = segments_for_article(
         article, load_lexicon(), max_chars, preset=preset,
         first_body_paragraphs=first_body_paragraphs,
+        sentence_aware=sentence_aware,
     )
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / f"{slug}.segments.json").write_text(
@@ -460,6 +462,7 @@ def synthesize(
     slug: str, output_dir: Path, model: Path, voices: Path,
     profile: bool = False, preset: str = "atual",
     shared_engine: dict | None = None, speed: float | None = None,
+    enforce_token_budget: bool = False,
 ) -> None:
     import numpy as np
     import onnxruntime as ort
@@ -490,6 +493,16 @@ def synthesize(
         }
         if shared_engine is not None:
             shared_engine.update({"kokoro": kokoro, "phonemizers": phonemizers})
+    if enforce_token_budget:
+        segments = fit_segments_to_phoneme_budget(
+            segments, phonemizers, kokoro.tokenizer, max_tokens=450
+        )
+        (output_dir / f"{slug}.segments.json").write_text(
+            json.dumps(segments, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        (output_dir / f"{slug}.txt").write_text(
+            "\n".join(item["text"] for item in segments) + "\n", encoding="utf-8"
+        )
     start = time.perf_counter()
     sampler = None
     if profile:
@@ -599,9 +612,10 @@ def compare_presets(slug: str, output_dir: Path, model: Path, voices: Path) -> N
         for speed in COMPARE_SPEEDS:
             label = f"{preset}-{round(speed * 100):03d}"
             folder = output_dir / label
-            prepare(slug, folder, preset=preset, first_body_paragraphs=1)
+            prepare(slug, folder, preset=preset, first_body_paragraphs=1,
+                    sentence_aware=True)
             synthesize(slug, folder, model, voices, preset=preset,
-                       shared_engine=shared, speed=speed)
+                       shared_engine=shared, speed=speed, enforce_token_budget=True)
             metrics = json.loads(
                 (folder / f"{slug}.metrics.json").read_text(encoding="utf-8")
             )
