@@ -170,6 +170,20 @@ Cada artigo pode oferecer duas formas independentes de escuta:
   animado, velocidade, fechamento e, quando houver marcadores, avanço ao
   **próximo parágrafo** em vez de salto arbitrário por segundos.
   O botão "Ouvir daqui" não faz mais parte do cabeçalho.
+- Quando os marcadores da Release identificam exatamente os blocos do HTML,
+  o site destaca o bloco em reprodução, acompanha sua posição por rolagem
+  suave e permite iniciar a escuta clicando no próprio parágrafo. O menu
+  do player inclui **Acompanhar parágrafo** (ativado por padrão) para
+  permitir desabilitar a rolagem. O clique ignora links, código e
+  texto selecionado, preservando navegação e cópia. O player oferece
+  **parágrafo anterior** e **próximo parágrafo**, inclusive nos controles
+  Media Session quando suportados pelo navegador.
+- O JSON de capítulos contém `block_index` gerado no mesmo percurso
+  editorial que a narração, sem alterar a síntese. Caso o número ou
+  a ordem dos blocos do artigo não correspondam aos marcadores,
+  a sincronização visual é desabilitada para evitar destacar o
+  texto errado; áudio e seek continuam funcionando. Áudios antigos
+  sem capítulos não habilitam os comandos de parágrafo.
 
 O navegador consulta
 `https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-<slug>`
