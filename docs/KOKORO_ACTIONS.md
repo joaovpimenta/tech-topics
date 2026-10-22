@@ -1,8 +1,12 @@
 # Kokoro Dora — narração automática e manual com PT-BR + inglês
 
 O Tech Topics usa **somente Kokoro-82M v1.0 (FP32 / ONNX)**, voz
-`pf_dora`, CPU em GitHub Actions. Velocidade `0.95`, áudio mono
-24 kHz, MP3 96 kbps normalizado para -19 LUFS (TP -1 dB).
+`pf_dora`, CPU em GitHub Actions. **Aprovado para novas gerações na
+PR #58:** preset `equilibrado`, velocidade **1.00**, alvo de 300/teto
+de 350 tokens fonéticos e MP3 **128 kbps**, mono 24 kHz, com a mesma
+normalização -19 LUFS (TP -1 dB). Enquanto a PR #58 não estiver
+mesclada, a `main` segue com velocidade 0.95, MP3 96 kbps e
+segmentação anterior na geração `publish`.
 O modelo e a voz são mantidos em cache. Piper não faz mais parte
 dos workflows de narração.
 
@@ -51,6 +55,14 @@ nomes sem tags.
 | Áudio interno | WAV PCM mono 24 kHz |
 | Publicação | MP3 96 kbps, -19 LUFS, TP -1 dB |
 | Infraestrutura | GitHub-hosted Ubuntu, CPU 4 threads, timeout 60 min |
+
+**Tabela acima: configuração histórica, antes da PR #58.** Para as
+configurações escolhidas para geração futura, consulte
+[ADR 0001](adr/0001-kokoro-dora-prosody-and-encoding.md). A PR #58
+ativa `equilibrado-100` no preparo e na inferência, tokenizador
+antes do Kokoro (350 tokens e guarda fonética 500), corte de frase
+por pontuação com 25 ms, `trim=True` e `continuous=False`;
+MP3 de novos assets em 128 kbps mantendo `loudnorm=-19 LUFS`.
 
 As pausas e a normalização são feitas pelo pipeline, não por um preset
 nativo do Kokoro.
@@ -223,6 +235,18 @@ repetida no início do job como proteção contra duas execuções concorrentes.
 
 O modo normal continua com um único Kokoro CPU FP32 e `pf_dora`.
 O profiling não ativa multiprocessamento nem muda o áudio.
+
+## ADRs e decisões de governança
+
+- [ADR 0001 — Prosódia, 350 tokens, trim, bitrate e continuous](adr/0001-kokoro-dora-prosody-and-encoding.md): perfil Dora Equilibrado 1.00 **aceito**, implementação proposta na PR #58.
+- [ADR 0002 — Profiling, CPU saturada e skip](adr/0002-kokoro-execution-cost-and-parallelism.md): uma instância × quatro threads; nenhuma síntese redundante para artigo/Release existentes.
+- [ADR 0003 — Player único e capítulos](adr/0003-unified-article-audio-and-chapter-synchronization.md): decisão proposta na PR #53, ainda não incorporada; sincronização por `block_index`.
+
+A melhoria de qualidade de 96 para 128 kbps é uma decisão de
+**codificação para novos arquivos**, não uma garantia de diferença audível.
+O `compare` já permite ouvir 96/128/160 e WAV a partir do mesmo
+áudio-fonte. Conservar os arquivos antigos até autorização explícita
+de substituição; nenhuma mudança de bitrate por si só regrava Releases.
 
 ## Validação e custo
 
