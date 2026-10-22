@@ -59,8 +59,8 @@ def publish(
     run_git("config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com", cwd=repository)
     target = f"audio/{slug}.mp3"
     # All changes happen in a scratch branch; 'main' remains unchanged.
-    scratch = "tts-audio-upload"
     for attempt in range(1, retries + 1):
+        scratch = f"tts-audio-upload-{attempt}"
         result = run_git("ls-remote", "--heads", remote, "refs/heads/audio", cwd=repository, check=False)
         if result.returncode != 0:
             print(f"Falha consultando branch audio: {result.stderr.strip()}", file=sys.stderr)
@@ -76,8 +76,6 @@ def publish(
                 return "skipped"
         else:
             # Only media files live in the orphan branch; no copy of the site.
-            if run_git("show-ref", "--verify", "--quiet", f"refs/heads/{scratch}", cwd=repository, check=False).returncode == 0:
-                run_git("branch", "-D", scratch, cwd=repository)
             run_git("switch", "--orphan", scratch, cwd=repository)
 
         destination = repository / target
