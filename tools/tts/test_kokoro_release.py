@@ -151,7 +151,7 @@ class KokoroReleaseTests(unittest.TestCase):
             self.assertTrue(any(r["lang"] == "en-us" for s in segments for r in s["runs"]))
             self.assertIn("EN-US", (root / "output/teste.md").read_text(encoding="utf-8"))
 
-    def test_compare_uses_only_two_body_paragraphs_and_identical_words(self):
+    def test_compare_uses_title_and_first_metaphor_paragraph_with_identical_words(self):
         article = {
             "title": "Bulkhead",
             "dek": "Descrição",
@@ -167,11 +167,13 @@ class KokoroReleaseTests(unittest.TestCase):
         texts = []
         for preset in kokoro_release.NARRATION_PRESETS:
             segments = kokoro_release.segments_for_article(
-                article, self.lexicon, preset=preset, first_body_paragraphs=2)
+                article, self.lexicon, preset=preset, first_body_paragraphs=1)
             self.assertEqual(set(s["block_index"] for s in segments), {0, 1})
+            self.assertTrue(segments[0]["text"].startswith("Bulkhead"))
             self.assertTrue(any(r["lang"] == "en-us" for s in segments for r in s["runs"]))
             narrated = " ".join(" ".join(s["text"] for s in segments).split())
             self.assertNotIn("terceiro", narrated)
+            self.assertNotIn("segundo parágrafo", narrated)
             self.assertNotIn("Descrição", narrated)
             texts.append(narrated)
         self.assertEqual(len(set(texts)), 1, "variants must read exactly the same body text")
@@ -196,6 +198,7 @@ class KokoroReleaseTests(unittest.TestCase):
     def test_presets_keep_dora_and_original_as_unchanged_reference(self):
         names = list(kokoro_release.NARRATION_PRESETS)
         self.assertEqual(names, ["atual", "equilibrado", "fluido"])
+        self.assertEqual(kokoro_release.COMPARE_SPEEDS, (0.95, 1.00, 1.05))
         self.assertEqual(kokoro_release.VOICE, "pf_dora")
         current = kokoro_release.NARRATION_PRESETS["atual"]
         self.assertEqual(current["speed"], kokoro_release.SPEED)
@@ -211,11 +214,12 @@ class KokoroReleaseTests(unittest.TestCase):
             root = Path(temp)
             seen = []
             def fake_prepare(slug, output_dir, **kwargs):
-                self.assertEqual(kwargs["first_body_paragraphs"], 2)
+                self.assertEqual(kwargs["first_body_paragraphs"], 1)
                 output_dir.mkdir(parents=True)
                 seen.append((kwargs["preset"], output_dir))
             def fake_synthesize(slug, output_dir, model, voices, **kwargs):
-                self.assertEqual(kwargs["preset"], output_dir.name)
+                self.assertEqual(kwargs["preset"], output_dir.name.rsplit("-", 1)[0])
+                self.assertIn(kwargs["speed"], (0.95, 1.00, 1.05))
                 shared = kwargs["shared_engine"]
                 shared.setdefault("kokoro", object())
                 self.assertEqual(id(shared), shared_id[0] if shared_id else id(shared))
@@ -231,10 +235,14 @@ class KokoroReleaseTests(unittest.TestCase):
                     "bulkhead", root / "compare", root / "model.onnx", root / "voices.bin")
             manifest = json.loads((root / "compare/comparison.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["voice"], "pf_dora")
-            self.assertEqual(manifest["paragraphs"], 2)
-            self.assertEqual([v["name"] for v in manifest["variants"]],
-                             ["atual", "equilibrado", "fluido"])
-            self.assertEqual(len(seen), 3)
+            self.assertEqual(manifest["paragraphs"], 1)
+            self.assertEqual(manifest["selection"], "title_plus_first_body_paragraph")
+            self.assertEqual(manifest["speeds"], [0.95, 1.0, 1.05])
+            self.assertEqual([v["name"] for v in manifest["variants"]], [
+                f"{preset}-{speed}" for preset in ("atual", "equilibrado", "fluido")
+                for speed in ("095", "100", "105")
+            ])
+            self.assertEqual(len(seen), 9)
 
     def test_voice_speed_and_languages(self):
         self.assertEqual(kokoro_release.VOICE, "pf_dora")
