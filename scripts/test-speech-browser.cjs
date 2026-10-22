@@ -38,6 +38,21 @@ async function main() {
       window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
     });
     await page.route("https://**/*", route => route.abort());
+    await page.route("https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-*", route =>
+      route.fulfill({ status: 200, contentType: "application/json",
+        body: JSON.stringify({ assets: [{ name: "cqrs-projecoes-e-consistencia.mp3", state: "uploaded" }] }) }));
+    await page.addInitScript(() => {
+      // Simulate playback rather than requiring audio hardware or downloading an MP3.
+      HTMLMediaElement.prototype.play = function () {
+        Object.defineProperty(this, "paused", { configurable: true, value: false });
+        this.dispatchEvent(new Event("play"));
+        return Promise.resolve();
+      };
+      HTMLMediaElement.prototype.pause = function () {
+        Object.defineProperty(this, "paused", { configurable: true, value: true });
+        this.dispatchEvent(new Event("pause"));
+      };
+    });
     for (const width of [1280, 375]) {
       await page.setViewportSize({ width, height: 800 });
       await page.goto(`${base}/article.html?slug=cqrs-projecoes-e-consistencia`);
@@ -51,6 +66,28 @@ async function main() {
       assert(active.spoken.length > 0);
       await page.locator("#speech-stop").click();
       assert(await page.locator("#speech-player").isHidden());
+      assert.equal(await page.locator("#speech-from-here").count(), 0);
+      await page.locator("#listen-recording").waitFor({ state: "visible" });
+      await page.evaluate(() => {
+        const recording = document.querySelector("#article-recording");
+        Object.defineProperty(recording, "duration", { configurable: true, value: 125 });
+        recording.dispatchEvent(new Event("durationchange"));
+      });
+      await page.locator("#listen-recording").click();
+      await page.locator("#recording-player").waitFor({ state: "visible" });
+      const dock = await page.evaluate(() => ({
+        title: document.querySelector("#recording-title").textContent,
+        duration: document.querySelector("#recording-duration").textContent,
+        bounds: document.querySelector("#recording-player").getBoundingClientRect().toJSON(),
+        viewport: { width: innerWidth, height: innerHeight }
+      }));
+      assert.match(dock.title, /CQRS/i);
+      assert.equal(dock.duration, "2:05");
+      assert(dock.bounds.bottom <= dock.viewport.height && dock.bounds.left >= 0, "recorded audio dock stays within viewport");
+      assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "recording controls do not overflow");
+      await page.locator("#listen-article").click();
+      assert(await page.locator("#recording-player").isHidden(), "starting device TTS closes MP3 dock");
+      await page.locator("#speech-stop").click();
     }
     assert.deepEqual(errors, []);
     console.log("PASS: actual article loads with pronunciation, toolbar, desktop/mobile layout and clean stop.");
