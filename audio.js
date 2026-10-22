@@ -94,15 +94,14 @@
     function configureSession() {
       if (!session) return;
       if (typeof root.MediaMetadata === "function") {
-        session.metadata = new root.MediaMetadata({
-          title: article.title,
-          artist: "Tech Topics · Narração",
-          album: "Tech Topics",
-          artwork: [{
-            src: new URL(cover.src, document.baseURI).href,
-            sizes: "512x512"
-          }]
-        });
+        try {
+          session.metadata = new root.MediaMetadata({
+            title: article.title,
+            artist: "Tech Topics · Narração",
+            album: "Tech Topics",
+            artwork: [{ src: new URL(cover.src, document.baseURI).href }]
+          });
+        } catch (_) { /* Invalid metadata must never prevent MP3 playback. */ }
       }
       const handlers = {
         play: () => { void play(); },
