@@ -28,7 +28,9 @@ from precommit import (
 VOICE = "pf_dora"
 LANG = "pt-br"
 ENGLISH = "en-us"
-SPEED = 0.95
+SPEED = 0.95  # Historical baseline for "atual", retained for comparisons.
+DEFAULT_PRESET = "equilibrado"
+DEFAULT_BITRATE_KBPS = 128
 MAX_CHARS_PER_CHUNK = 240
 PARAGRAPH_PAUSE_SECONDS = 0.45
 SECTION_PAUSE_SECONDS = 0.80
@@ -44,7 +46,7 @@ NARRATION_PRESETS = {
         "adaptive_chunks": False,
     },
     "equilibrado": {
-        "speed": 0.95, "paragraph_pause": 0.38, "section_pause": 0.70,
+        "speed": 1.00, "paragraph_pause": 0.38, "section_pause": 0.70,
         "chunk_pause": 0.14, "sentence_pause": 0.22, "clause_pause": 0.08,
         "adaptive_chunks": True,
     },
@@ -512,8 +514,8 @@ def phonemize_runs(runs: list[dict], phonemizers: dict) -> tuple[str, list[dict]
 
 def prepare(
     slug: str, output_dir: Path, max_chars: int = 0,
-    preset: str = "atual", first_body_paragraphs: int = 0,
-    sentence_aware: bool = False,
+    preset: str = DEFAULT_PRESET, first_body_paragraphs: int = 0,
+    sentence_aware: bool = True,
 ) -> None:
     if max_chars < 0:
         raise ValueError("--max-chars deve ser >= 0")
@@ -534,7 +536,7 @@ def prepare(
         f"Áudio do artigo **{article['title']}** do Tech Topics.\n\n"
         f"Artigo: https://joaovpimenta.github.io/tech-topics/article.html?slug={slug}\n\n"
         "Gerado no GitHub Actions com Kokoro-82M v1.0 FP32, "
-        f"voz única {VOICE}, velocidade {SPEED}, fonemização PT-BR + EN-US "
+        f"voz única {VOICE}, velocidade {NARRATION_PRESETS[preset]['speed']}, fonemização PT-BR + EN-US "
         "respeitando as tags e o léxico editorial; MP3 mono 96 kbps.\n"
         "A qualidade e a pronúncia precisam de revisão auditiva.\n"
     )
@@ -548,9 +550,9 @@ def prepare(
 
 def synthesize(
     slug: str, output_dir: Path, model: Path, voices: Path,
-    profile: bool = False, preset: str = "atual",
+    profile: bool = False, preset: str = DEFAULT_PRESET,
     shared_engine: dict | None = None, speed: float | None = None,
-    enforce_token_budget: bool = False,
+    enforce_token_budget: bool = True,
 ) -> None:
     import numpy as np
     import onnxruntime as ort
@@ -612,6 +614,7 @@ def synthesize(
             if block_id != last_block:
                 chapters.append({
                     "start": round(generated_samples / SAMPLE_RATE, 3),
+                    "block_index": block_id,
                     "label": item["text"][:96]
                 })
                 last_block = block_id
@@ -624,7 +627,8 @@ def synthesize(
             # PT-BR and English phonemes in ONE call, always with Dora.
             audio, sample_rate = kokoro.create(
                 phonemes, voice=VOICE, speed=selected_speed, is_phonemes=True,
-                trim=True,  # Explicit: already the upstream default.
+                trim=True,  # Upstream default; keep on to avoid edge silence.
+                continuous=False,  # Requires valid duration outputs; see ADR 0001.
                 sentence_pause=settings["sentence_pause"],
                 clause_pause=settings["clause_pause"],
             )
@@ -671,6 +675,12 @@ def synthesize(
         "english_examples": english_samples[:20],
         "speed": selected_speed,
         "preset": preset,
+        "token_budget_enabled": enforce_token_budget,
+        "max_tokens": 350 if enforce_token_budget else None,
+        "target_tokens": 300 if enforce_token_budget else None,
+        "token_counts": [item.get("token_count") for item in segments] if enforce_token_budget else None,
+        "continuous": False,
+        "has_model_timings": bool(getattr(kokoro, "has_timings", False)),
         "parameters": settings,
         "segments": len(segments),
         "audio_seconds": round(duration, 2),
@@ -730,7 +740,7 @@ def main() -> None:
     parser.add_argument("--slug", required=True)
     parser.add_argument("--output-dir", type=Path, default=Path(".audio"))
     parser.add_argument("--max-chars", type=int, default=0)
-    parser.add_argument("--preset", choices=list(NARRATION_PRESETS), default="atual")
+    parser.add_argument("--preset", choices=list(NARRATION_PRESETS), default=DEFAULT_PRESET)
     parser.add_argument("--first-body-paragraphs", type=int, default=0)
     parser.add_argument("--model", type=Path)
     parser.add_argument("--voices", type=Path)

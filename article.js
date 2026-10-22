@@ -188,20 +188,22 @@ async function showArticle(article) {
   } catch (error) {
     pronunciationUnavailable = true;
   }
-  const devicePlayer = window.TechTopicsSpeech.mount({ document, lexicon });
-  const recordingPlayer = window.TechTopicsAudio.createPlayer({
+  let recordingPlayer = null;
+  const devicePlayer = window.TechTopicsSpeech.mount({
+    document, lexicon, dockMode: true,
+    onStatus: snapshot => recordingPlayer?.deviceChanged(snapshot)
+  });
+  recordingPlayer = window.TechTopicsAudio.createPlayer({
     document,
     navigator,
     article,
     cover,
     audio: document.querySelector("#article-recording"),
-    stopDevice: () => devicePlayer?.stop(""),
+    devicePlayer,
     startDevice: () => {
-      if (devicePlayer) devicePlayer.toggle();
-      else document.querySelector("#recording-status").textContent = "O navegador não oferece leitura por voz.";
+      document.querySelector("#recording-status").textContent = "O navegador não oferece leitura por voz.";
     }
   });
-  document.addEventListener("tech-topics:device-tts-start", () => recordingPlayer.stop());
   void recordingPlayer.discover();
   if (pronunciationUnavailable) document.querySelector("#listen-status").textContent = "Pronúncias personalizadas indisponíveis; siglas serão soletradas.";
   setupShareControls(article);

@@ -170,6 +170,20 @@ Cada artigo pode oferecer duas formas independentes de escuta:
   animado, velocidade, fechamento e, quando houver marcadores, avanço ao
   **próximo parágrafo** em vez de salto arbitrário por segundos.
   O botão "Ouvir daqui" não faz mais parte do cabeçalho.
+- Quando os marcadores da Release identificam exatamente os blocos do HTML,
+  o site destaca o bloco em reprodução, acompanha sua posição por rolagem
+  suave e permite iniciar a escuta clicando no próprio parágrafo. O menu
+  do player inclui **Acompanhar parágrafo** (ativado por padrão) para
+  permitir desabilitar a rolagem. O clique ignora links, código e
+  texto selecionado, preservando navegação e cópia. O player oferece
+  **parágrafo anterior** e **próximo parágrafo**, inclusive nos controles
+  Media Session quando suportados pelo navegador.
+- O JSON de capítulos contém `block_index` gerado no mesmo percurso
+  editorial que a narração, sem alterar a síntese. Caso o número ou
+  a ordem dos blocos do artigo não correspondam aos marcadores,
+  a sincronização visual é desabilitada para evitar destacar o
+  texto errado; áudio e seek continuam funcionando. Áudios antigos
+  sem capítulos não habilitam os comandos de parágrafo.
 
 O navegador consulta
 `https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-<slug>`
@@ -196,3 +210,36 @@ Os testes rápidos `scripts/test-audio.cjs` verificam consulta à Release,
 playback, tempo, busca, velocidade e Media Session sem precisar de
 hardware de áudio. `scripts/test-speech.cjs` continua cobrindo o TTS
 nativo. O teste visual em navegador é opcional.
+
+### Player único para áudio gravado e voz do dispositivo
+
+A interface publicada mantém **um único miniplayer inferior branco e verde**,
+com capa do banner do artigo, título, play/pause, velocidade, fechar,
+parágrafo anterior/próximo e opção **Acompanhar parágrafo**. Os três pontos
+trocam entre **áudio gravado** (MP3 Kokoro/Piper, quando disponível) e
+**voz do dispositivo** (Web Speech API), sem abrir outra barra. Alternar
+o motor interrompe a reprodução anterior. O botão **Ouvir artigo**
+prefere MP3 quando encontrado; caso não haja MP3, usa voz nativa.
+
+Na reprodução de MP3, o progresso mostra **tempo decorrido e duração real**,
+com busca por tempo e controles Media Session quando compatíveis. No TTS
+nativo, a Web Speech API não fornece duração nem timestamps do áudio:
+o progresso corresponde ao **trecho atual / total de trechos**, e a barra
+permite selecionar o bloco para leitura. Não exibimos tempo estimado
+como se fosse a duração real.
+
+As duas fontes destacam o trecho falado no corpo do artigo, fazem rolagem
+automática opcional, aceitam clique ou Enter em um parágrafo e usam os
+mesmos botões anterior/próximo. Interações em links, seleções de texto
+e blocos de código não devem iniciar narração. A leitura nativa preserva
+a pronúncia PT-BR/EN-US, léxico e destaques de palavras quando a voz
+disponibiliza eventos `boundary`.
+
+O player nativo depende dos recursos de cada navegador e não possui
+garantia de execução em segundo plano; os MP3s continuam usando o elemento
+HTML `audio` e a Media Session API para integração com o sistema.
+
+O áudio revisado de Bulkhead confirmou a qualidade perceptiva da
+segmentação atual; os marcadores editoriais não alteram o áudio acústico.
+As Releases antigas continuam preservadas até que uma regeneração
+seja solicitada explicitamente.
