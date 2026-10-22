@@ -297,3 +297,103 @@ test("chapter-to-DOM drift disables unsafe text highlighting without blocking au
   assert.equal(audio.currentTime, 30);
   assert.equal(paragraph.scrolls, 0);
 });
+
+
+test("same bottom dock controls native synthesis, chapter seeking, speed, and switch back to MP3", async () => {
+  const ids = ["listen-recording", "recording-player", "recording-title", "recording-subtitle",
+    "recording-cover", "recording-ring", "recording-play", "recording-previous", "recording-skip",
+    "recording-follow", "recording-close", "recording-seek", "recording-elapsed",
+    "recording-duration", "recording-rate", "recording-status", "listen-article"];
+  const nodes = Object.fromEntries(ids.map(id => ["#" + id, new Element()]));
+  const menu = { open: true };
+  const first = new ReadingNode("h1", "Bulkhead");
+  const intro = new ReadingNode("p", "Introdução");
+  const paragraph = new ReadingNode("p", "Parágrafo seguinte");
+  nodes["#recording-follow"].checked = true;
+  const doc = {
+    visibilityState: "visible",
+    baseURI: "https://joaovpimenta.github.io/tech-topics/article.html",
+    querySelector(selector) {
+      return ({
+        "#article-heading": first,
+        "#article-dek": intro,
+        "#article-body": new ReadingNode("article", "", [paragraph]),
+        ".recording-options": menu
+      })[selector] || nodes[selector];
+    },
+    body: { classList: { toggle() {} } }
+  };
+  const audio = new AudioMock();
+  let controller;
+  let deviceRate = 1;
+  const blocks = [first, intro, paragraph].map(node => ({ node }));
+  let snap = { state: "idle", blockIndex: 0, count: blocks.length };
+  const updates = [];
+  const device = {
+    blocks,
+    snapshot: () => ({ ...snap }),
+    start(index = 0) {
+      snap = { ...snap, state: "speaking", blockIndex: index };
+      updates.push(["start", index]);
+      controller.deviceChanged(this.snapshot());
+    },
+    toggle() {
+      if (snap.state === "idle") return this.start();
+      snap = { ...snap, state: snap.state === "speaking" ? "paused" : "speaking" };
+      controller.deviceChanged(this.snapshot());
+    },
+    seek(index) {
+      snap = { ...snap, blockIndex: index };
+      controller.deviceChanged(this.snapshot());
+    },
+    next() { this.seek(Math.min(blocks.length - 1, snap.blockIndex + 1)); },
+    previous() { this.seek(Math.max(0, snap.blockIndex - 1)); },
+    stop() {
+      snap = { ...snap, state: "idle", blockIndex: 0 };
+      controller.deviceChanged(this.snapshot());
+    },
+    getRate: () => deviceRate,
+    setRate(value) { deviceRate = value; controller.deviceChanged(this.snapshot()); }
+  };
+  controller = createPlayer({
+    document: doc, navigator: {},
+    article: { slug: "bulkhead", title: "Bulkhead" },
+    cover: { src: "assets/bulkhead/cover.jpg" }, audio, devicePlayer: device,
+    fetchAudio: async () => ({ url: "https://example.org/bulkhead.mp3",
+      chapters: [{ start: 0, block_index: 0 }, { start: 12, block_index: 1 }, { start: 30, block_index: 2 }] })
+  });
+  await controller.discover();
+  // The single header button starts the MP3 by default.
+  nodes["#listen-recording"].click();
+  await Promise.resolve();
+  assert.equal(controller.snapshot().mode, "recorded");
+  nodes["#listen-article"].click();
+  assert.equal(controller.snapshot().mode, "device");
+  assert.equal(nodes["#recording-player"].hidden, false);
+  assert.equal(nodes["#recording-subtitle"].textContent, "Tech Topics · Voz do dispositivo");
+  assert.equal(nodes["#recording-play"].dataset.playing, "true");
+  assert.equal(audio.paused, true, "MP3 paused when device synth starts");
+  nodes["#recording-skip"].click();
+  assert.equal(snap.blockIndex, 1);
+  assert(intro.classes.has("recording-block-active"));
+  nodes["#recording-previous"].click();
+  assert.equal(snap.blockIndex, 0);
+  paragraph.click();
+  assert.equal(snap.blockIndex, 2, "clicking a paragraph keeps native source");
+  assert.equal(controller.snapshot().mode, "device");
+  assert.deepEqual(updates.at(-1), ["start", 2]);
+  nodes["#recording-rate"].click();
+  assert.equal(deviceRate, 1.25);
+  nodes["#recording-play"].click();
+  assert.equal(nodes["#recording-play"].dataset.playing, "false");
+  assert.equal(nodes["#recording-elapsed"].textContent, "3/3");
+  nodes["#recording-play"].click();
+  assert.equal(nodes["#recording-play"].dataset.playing, "true");
+  nodes["#listen-article"].click();
+  await Promise.resolve();
+  assert.equal(controller.snapshot().mode, "recorded");
+  assert.equal(snap.state, "idle", "native synthesis stops when MP3 takes over");
+  assert.equal(nodes["#recording-player"].hidden, false);
+  nodes["#recording-close"].click();
+  assert.equal(nodes["#recording-player"].hidden, true);
+});
