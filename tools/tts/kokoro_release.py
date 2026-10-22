@@ -550,7 +550,7 @@ def prepare(
 
 def synthesize(
     slug: str, output_dir: Path, model: Path, voices: Path,
-    profile: bool = False, preset: str = DEFAULT_PRESET,
+    preset: str = DEFAULT_PRESET,
     shared_engine: dict | None = None, speed: float | None = None,
     enforce_token_budget: bool = True,
 ) -> None:
@@ -596,11 +596,6 @@ def synthesize(
             "\n".join(item["text"] for item in segments) + "\n", encoding="utf-8"
         )
     start = time.perf_counter()
-    sampler = None
-    if profile:
-        from cpu_profile import CpuSampler
-        sampler = CpuSampler(interval=1.0).start()
-    segment_timing: list[dict] = []
     generated_samples = 0
     english_samples: list[dict] = []
     chapters: list[dict] = []
@@ -618,12 +613,10 @@ def synthesize(
                     "label": item["text"][:96]
                 })
                 last_block = block_id
-            g2p_started = time.perf_counter() if profile else 0.0
             phonemes, examples = phonemize_runs(item["runs"], phonemizers)
             english_samples.extend(examples)
             if not phonemes:
                 raise ValueError(f"Segmento {i}: fonemas vazios")
-            inference_started = time.perf_counter() if profile else 0.0
             # PT-BR and English phonemes in ONE call, always with Dora.
             audio, sample_rate = kokoro.create(
                 phonemes, voice=VOICE, speed=selected_speed, is_phonemes=True,
@@ -632,16 +625,6 @@ def synthesize(
                 sentence_pause=settings["sentence_pause"],
                 clause_pause=settings["clause_pause"],
             )
-            if profile:
-                finished = time.perf_counter()
-                segment_timing.append({
-                    "segment": i,
-                    "block_index": item.get("block_index", i - 1),
-                    "characters": len(item["text"]),
-                    "phonemization_seconds": round(inference_started - g2p_started, 3),
-                    "inference_seconds": round(finished - inference_started, 3),
-                    "audio_seconds": round(len(audio) / SAMPLE_RATE, 3),
-                })
             if sample_rate != SAMPLE_RATE or len(audio) == 0:
                 raise ValueError(f"Áudio inválido no segmento {i}: {sample_rate}")
             wav.write(audio)
@@ -654,13 +637,6 @@ def synthesize(
 
     duration = generated_samples / SAMPLE_RATE
     elapsed = time.perf_counter() - start
-    if sampler:
-        profile_report = sampler.stop(segment_timing)
-        (output_dir / f"{slug}.cpu-profile.json").write_text(
-            json.dumps(profile_report, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
-        print(json.dumps(profile_report["summary"], ensure_ascii=False), flush=True)
     (output_dir / f"{slug}.chapters.json").write_text(
         json.dumps({"version": 1, "chapters": chapters}, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8"
@@ -744,8 +720,6 @@ def main() -> None:
     parser.add_argument("--first-body-paragraphs", type=int, default=0)
     parser.add_argument("--model", type=Path)
     parser.add_argument("--voices", type=Path)
-    parser.add_argument("--profile", action="store_true",
-                        help="Amostrar CPU, RSS e tempos por segmento; sintetiza sem paralelismo")
     args = parser.parse_args()
     if args.command == "prepare":
         prepare(args.slug, args.output_dir, args.max_chars,
@@ -757,7 +731,7 @@ def main() -> None:
             compare_presets(args.slug, args.output_dir, args.model, args.voices)
         else:
             synthesize(args.slug, args.output_dir, args.model, args.voices,
-                       profile=args.profile, preset=args.preset)
+                       preset=args.preset)
 
 
 if __name__ == "__main__":
