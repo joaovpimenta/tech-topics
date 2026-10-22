@@ -225,8 +225,8 @@ class KokoroReleaseTests(unittest.TestCase):
                     json.dumps({"audio_seconds": 12.5, "synthesis_seconds": 5.0,
                                 "segments": 3}), encoding="utf-8")
             shared_id = []
-            with patch.object(kokoro_release, "prepare", side_effect=fake_prepare), \\
-                 patch.object(kokoro_release, "synthesize", side_effect=fake_synthesize):
+            with (patch.object(kokoro_release, "prepare", side_effect=fake_prepare),
+                  patch.object(kokoro_release, "synthesize", side_effect=fake_synthesize)):
                 kokoro_release.compare_presets(
                     "bulkhead", root / "compare", root / "model.onnx", root / "voices.bin")
             manifest = json.loads((root / "compare/comparison.json").read_text(encoding="utf-8"))
