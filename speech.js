@@ -116,6 +116,7 @@
   }
 
   function createPlayer({ blocks, synthesis, Utterance, onChange = () => {}, onWord = () => {} }) {
+    let rate = 1;
     let state = "idle";
     let blockIndex = 0;
     let segmentIndex = 0;
@@ -143,7 +144,8 @@
       const utterance = new Utterance(segment.text);
       active = utterance;
       utterance.lang = segment.lang;
-      utterance.rate = utterance.pitch = 1;
+      utterance.rate = rate;
+      utterance.pitch = 1;
       const voices = synthesis.getVoices();
       const language = segment.lang.toLowerCase();
       const voice = voices.find(item => item.lang.toLowerCase() === language)
@@ -200,19 +202,43 @@
       }
       notify();
     }
-    return { snapshot, start, toggle, seek, next: () => seek(blockIndex + 1), previous: () => seek(blockIndex - 1), stop };
+    function setRate(speed) {
+      if (!Number.isFinite(speed) || speed < 0.5 || speed > 2) return;
+      if (speed === rate) return;
+      rate = speed;
+      if (state === "speaking" || state === "paused") start(blockIndex, state === "paused");
+      else notify();
+    }
+    return { snapshot, start, toggle, seek, next: () => seek(blockIndex + 1), previous: () => seek(blockIndex - 1), stop, setRate, getRate: () => rate };
   }
 
-  function mount({ document, lexicon = {}, synthesis = root.speechSynthesis, Utterance = root.SpeechSynthesisUtterance }) {
+  function mount({ document, lexicon = {}, synthesis = root.speechSynthesis, Utterance = root.SpeechSynthesisUtterance, dockMode = false, onStatus = () => {} }) {
     const button = document.querySelector("#listen-article");
     const status = document.querySelector("#listen-status");
     const bar = document.querySelector("#speech-player");
     if (!synthesis || !Utterance) {
-      button.hidden = true;
+      if (!dockMode) button.hidden = true;
       status.textContent = "Leitura em voz alta não é compatível com este navegador.";
       return null;
     }
     const blocks = buildBlocks([document.querySelector("#article-heading"), document.querySelector("#article-dek"), document.querySelector("#article-body")], lexicon);
+    if (dockMode) {
+      let highlightedWords = [];
+      const player = createPlayer({
+        blocks, synthesis, Utterance,
+        onWord(nodes) {
+          highlightedWords.forEach(node => node.classList.remove("tts-word-active"));
+          highlightedWords = [...new Set(nodes)];
+          highlightedWords.forEach(node => node.classList.add("tts-word-active"));
+        },
+        onChange(snapshot) {
+          status.textContent = snapshot.message || "";
+          onStatus(snapshot);
+        }
+      });
+      document.defaultView.addEventListener("pagehide", () => player.stop(""));
+      return Object.assign(player, { blocks });
+    }
     const play = document.querySelector("#speech-play");
     const previous = document.querySelector("#speech-previous");
     const next = document.querySelector("#speech-next");

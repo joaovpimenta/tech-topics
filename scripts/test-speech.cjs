@@ -98,3 +98,21 @@ test("device TTS smoke: browser synthesis speaks PT-BR and English without MP3",
   utterances[1].onend();
   assert.equal(player.snapshot().state, "idle");
 });
+
+
+test("native narration rate is adjustable through shared player without losing paragraph position", () => {
+  const { player, utterances } = playerFixture();
+  player.start(1);
+  assert.equal(utterances.at(-1).rate, 1);
+  player.setRate(1.25);
+  assert.equal(player.getRate(), 1.25);
+  assert.equal(player.snapshot().blockIndex, 1);
+  assert.equal(utterances.at(-1).rate, 1.25);
+  assert.equal(utterances.at(-1).text, "Três");
+  player.toggle();
+  player.setRate(1.5);
+  assert.equal(player.snapshot().state, "paused");
+  assert.equal(player.getRate(), 1.5);
+  player.toggle();
+  assert.equal(player.snapshot().state, "speaking");
+});

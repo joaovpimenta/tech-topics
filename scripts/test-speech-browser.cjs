@@ -60,17 +60,9 @@ async function main() {
     for (const width of [1280, 375]) {
       await page.setViewportSize({ width, height: 800 });
       await page.goto(`${base}/article.html?slug=cqrs-projecoes-e-consistencia`);
-      await page.waitForSelector(".tts-readable");
-      await page.evaluate(() => document.querySelector("#listen-article").click());
-      await page.waitForSelector("#speech-player:not([hidden])");
+      await page.waitForSelector(".recording-readable");
+      assert.equal(await page.locator("#speech-player").count(), 0, "only bottom player exists");
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `no document overflow at ${width}px`);
-      await page.locator("#article-body p.tts-readable").first().click();
-      const active = await page.evaluate(() => ({ top: document.querySelector(".tts-block-active").getBoundingClientRect().top, barBottom: document.querySelector("#speech-player").getBoundingClientRect().bottom, spoken: window.testUtterances.at(-1).text }));
-      assert(active.top >= active.barBottom, `active paragraph clears toolbar at ${width}px`);
-      assert(active.spoken.length > 0);
-      await page.locator("#speech-stop").click();
-      assert(await page.locator("#speech-player").isHidden());
-      assert.equal(await page.locator("#speech-from-here").count(), 0);
       await page.locator("#listen-recording").waitFor({ state: "visible" });
       await page.evaluate(() => {
         const recording = document.querySelector("#article-recording");
@@ -79,10 +71,12 @@ async function main() {
       });
       await page.locator("#listen-recording").click();
       await page.locator("#recording-player").waitFor({ state: "visible" });
-      assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "true", "pause icon must appear when playing");
-      assert(await page.locator("#recording-skip").isVisible(), "paragraph skip available when release has chapters");
+      assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "true");
+      assert(await page.locator("#recording-skip").isVisible(), "chapter skip visible");
       await page.locator("#recording-skip").click();
       assert.equal(await page.locator("#article-recording").evaluate(element => element.currentTime), 35);
+      await page.locator("#recording-previous").click();
+      assert.equal(await page.locator("#article-recording").evaluate(element => element.currentTime), 0);
       const dock = await page.evaluate(() => ({
         title: document.querySelector("#recording-title").textContent,
         duration: document.querySelector("#recording-duration").textContent,
@@ -91,12 +85,31 @@ async function main() {
       }));
       assert.match(dock.title, /CQRS/i);
       assert.equal(dock.duration, "2:05");
-      assert(dock.bounds.bottom <= dock.viewport.height && dock.bounds.left >= 0, "recorded audio dock stays within viewport");
-      assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "recording controls do not overflow");
+      assert(dock.bounds.bottom <= dock.viewport.height && dock.bounds.left >= 0, "bottom dock visible");
+      assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "recording controls don't overflow");
+
+      // Switching engines retains the very same bottom dock and artwork.
       await page.locator(".recording-options summary").click();
       await page.locator("#listen-article").click();
-      assert(await page.locator("#recording-player").isHidden(), "starting device TTS closes MP3 dock");
-      await page.locator("#speech-stop").click();
+      assert(await page.locator("#recording-player").isVisible(), "native TTS reuses bottom dock");
+      assert.match(await page.locator("#recording-subtitle").innerText(), /Voz do dispositivo/);
+      assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "true");
+      assert(await page.locator(".recording-block-active").count() > 0, "native paragraph highlighted");
+      const utterancesBefore = await page.evaluate(() => window.testUtterances.length);
+      await page.locator("#article-body p.recording-readable").first().click();
+      assert(await page.evaluate(() => window.testUtterances.length) > utterancesBefore, "click paragraph starts device TTS at that paragraph");
+      await page.locator("#recording-skip").click();
+      assert(await page.locator("#recording-elapsed").innerText() !== "0:00", "native player reports paragraph instead of fake time");
+      await page.locator("#recording-play").click();
+      assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "false", "native pause changes icon");
+      await page.locator("#recording-play").click();
+      assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "true", "native resume changes icon");
+      await page.locator(".recording-options summary").click();
+      await page.locator("#listen-article").click();
+      assert.match(await page.locator("#recording-subtitle").innerText(), /Narração/);
+      assert.equal(await page.locator("#recording-player").isVisible(), true, "return to MP3 in same dock");
+      await page.locator("#recording-close").click();
+      assert(await page.locator("#recording-player").isHidden());
     }
     assert.deepEqual(errors, []);
     console.log("PASS: actual article loads with pronunciation, toolbar, desktop/mobile layout and clean stop.");

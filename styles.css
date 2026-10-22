@@ -341,3 +341,40 @@ a:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid
 @media (prefers-reduced-motion: reduce) {
   .recording-play, .recording-play svg { transition: none; }
 }
+
+/* Audio/text sync: share the site's paragraph highlight with native narration. */
+.recording-readable { cursor: pointer; scroll-margin-block: 110px; }
+.recording-block-active {
+  background: #edf5f1;
+  box-shadow: -4px 0 var(--accent);
+  border-radius: 2px;
+}
+.recording-follow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  font-size: 13px;
+  color: var(--ink);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.recording-follow input { width: 17px; height: 17px; accent-color: var(--accent); }
+.recording-options-menu { min-width: 235px; }
+@media (max-width: 600px) {
+  .recording-dock {
+    display: grid;
+    grid-template-columns: 49px minmax(0, 1fr);
+    grid-template-areas: "cover info" "actions actions";
+    row-gap: 6px;
+    min-height: 118px;
+    border-radius: 16px;
+  }
+  .recording-cover-ring { grid-area: cover; }
+  .recording-info { grid-area: info; }
+  .recording-actions { grid-area: actions; justify-content: space-between; width: 100%; }
+  .recording-open .site-footer { padding-bottom: 150px; }
+}
+@media (max-width: 380px) {
+  .recording-dock { grid-template-columns: 41px minmax(0, 1fr); gap: 5px; }
+}
