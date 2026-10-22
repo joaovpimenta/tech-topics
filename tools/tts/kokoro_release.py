@@ -259,7 +259,8 @@ def split_runs_adaptive(
             sentence = tail in (".", "!", "?")
             clause = tail in (";", ":", ",")
             penalty = 0 if sentence else 35 if clause else 85
-            penalty += 30 if 0 < remaining < min_chars
+            if 0 < remaining < min_chars:
+                penalty += 30
             score = abs(size - target_chars) + penalty
             if size >= min_chars or end == len(tokens) - 1:
                 choices.append((score, end + 1))
