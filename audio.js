@@ -17,7 +17,11 @@
     if (data?.version !== 1 || !Array.isArray(data.chapters)) return [];
     const chapters = data.chapters
       .filter(item => item && Number.isFinite(item.start) && item.start >= 0)
-      .map(item => ({ start: item.start, label: typeof item.label === "string" ? item.label : "" }));
+      .map(item => ({
+        start: item.start,
+        blockIndex: Number.isSafeInteger(item.block_index) && item.block_index >= 0 ? item.block_index : null,
+        label: typeof item.label === "string" ? item.label : ""
+      }));
     if (chapters.length < 2 || chapters.some((chapter, i) => i && chapter.start <= chapters[i - 1].start)) return [];
     return chapters;
   }
@@ -62,6 +66,31 @@
     return normalizedChapters(data);
   }
 
+  // Mirror the narration block traversal in kokoro_release.article_blocks().
+  // Never guess a text/audio correspondence if the lists have drifted.
+  function readingNodes(document) {
+    const nodes = [];
+    for (const id of ["#article-heading", "#article-dek"]) {
+      const element = document.querySelector(id);
+      if (element?.textContent?.trim()) nodes.push(element);
+    }
+    const root = document.querySelector("#article-body");
+    const ignored = "pre,code,nav,button,details,script,style,svg,[hidden],[aria-hidden='true'],[data-tts-ignore],.article-back,.fgs-toc,.fgs-simulator,.fgs-formula,.mermaid-diagram,.mermaid-fallback";
+    const block = "h2,h3,h4,p,figcaption,th,td";
+    function visit(element) {
+      if (element.nodeType !== 1 || element.matches(ignored)) return;
+      const standaloneList = element.matches("li") && !element.querySelector("p");
+      const standaloneCallout = element.matches("div.article-callout") && !element.querySelector("p");
+      if (element.matches(block) || standaloneList || standaloneCallout) {
+        if (element.textContent?.trim()) nodes.push(element);
+        return;
+      }
+      for (const child of element.children) visit(child);
+    }
+    if (root) for (const child of root.children) visit(child);
+    return nodes;
+  }
+
   function createPlayer({ document, navigator, article, cover, audio, fetchAudio = lookupAudio, fetchChapters = loadChapters, stopDevice = () => {}, startDevice = () => {} }) {
     const button = document.querySelector("#listen-recording");
     const dock = document.querySelector("#recording-player");
@@ -70,7 +99,9 @@
     const image = document.querySelector("#recording-cover");
     const ring = document.querySelector("#recording-ring");
     const playButton = document.querySelector("#recording-play");
+    const previousButton = document.querySelector("#recording-previous");
     const skip = document.querySelector("#recording-skip");
+    const follow = document.querySelector("#recording-follow");
     const closeButton = document.querySelector("#recording-close");
     const seek = document.querySelector("#recording-seek");
     const elapsed = document.querySelector("#recording-elapsed");
@@ -80,11 +111,64 @@
     const session = navigator.mediaSession;
     let available = false;
     let chapters = [];
+    let chapterNodes = [];
+    let activeNode = null;
+    let activeIndex = -1;
     let open = false;
     let seeking = false;
 
     function setStatus(message) {
       status.textContent = message || "";
+    }
+    function currentChapterIndex() {
+      let index = 0;
+      for (let i = 0; i < chapters.length; i += 1) {
+        if (chapters[i].start > audio.currentTime + 0.08) break;
+        index = i;
+      }
+      return index;
+    }
+    function clearHighlight() {
+      activeNode?.classList.remove("recording-block-active");
+      activeNode = null;
+      activeIndex = -1;
+    }
+    function followChapter() {
+      if (!open || !chapterNodes.length || audio.ended) {
+        clearHighlight();
+        return;
+      }
+      const index = currentChapterIndex();
+      if (index === activeIndex) return;
+      clearHighlight();
+      activeIndex = index;
+      activeNode = chapterNodes[index];
+      activeNode?.classList.add("recording-block-active");
+      if (activeNode && follow?.checked && document.visibilityState !== "hidden") {
+        activeNode.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+    function attachChapters() {
+      const elements = readingNodes(document);
+      if (elements.length !== chapters.length || !chapters.every((chapter, index) =>
+        chapter.blockIndex === null || chapter.blockIndex === index)) return;
+      chapterNodes = elements;
+      for (const [index, node] of chapterNodes.entries()) {
+        node.classList.add("recording-readable");
+        if (!node.hasAttribute("tabindex")) node.tabIndex = 0;
+        node.addEventListener("click", event => seekFromArticle(index, event));
+        node.addEventListener("keydown", event => {
+          if (event.key === "Enter") seekFromArticle(index, event);
+        });
+      }
+    }
+    function seekFromArticle(index, event) {
+      if (!available || !chapters[index]) return;
+      if (event.target.closest("a,button,input,select,textarea,summary,pre,code,[contenteditable=true]")) return;
+      if (document.getSelection?.()?.toString()) return;
+      if (event.type === "keydown") event.preventDefault();
+      seekTo(chapters[index].start);
+      if (audio.paused || !open) void play();
     }
     function nextParagraph() {
       const target = chapters.find(chapter => chapter.start > audio.currentTime + 0.7);
@@ -113,8 +197,10 @@
       button.setAttribute("aria-label", playing ? "Pausar áudio do artigo" : "Ouvir áudio do artigo");
       button.setAttribute("aria-pressed", String(playing));
       button.querySelector(".recording-button-label").textContent = "Ouvir artigo";
-      skip.hidden = chapters.length < 2;
+      previousButton.hidden = skip.hidden = chapters.length < 2;
+      previousButton.disabled = chapters.length < 2 || current < 0.7;
       skip.disabled = !chapters.some(chapter => chapter.start > current + 0.7);
+      followChapter();
       document.body.classList.toggle("recording-open", open);
       dock.hidden = !open;
       if (session) session.playbackState = playing ? "playing" : open ? "paused" : "none";
@@ -192,6 +278,7 @@
       open = false;
       clearSession();
       render();
+      clearHighlight();
       setStatus("");
     }
     function stop() {
@@ -207,6 +294,12 @@
       else void play();
     });
     skip.addEventListener("click", nextParagraph);
+    previousButton.addEventListener("click", previousParagraph);
+    follow?.addEventListener("change", () => {
+      if (follow.checked && activeNode && document.visibilityState !== "hidden") {
+        activeNode.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
     closeButton.addEventListener("click", close);
     seek.addEventListener("input", () => {
       seeking = true;
@@ -252,12 +345,15 @@
         audio.src = typeof source === "string" ? source : source.url;
         available = true;
         if (typeof source === "object") {
-          chapters = Array.isArray(source.chapters) ? normalizedChapters({ version: 1, chapters: source.chapters }) : [];
+          chapters = Array.isArray(source.chapters) ? normalizedChapters({ version: 1, chapters: source.chapters.map(item => ({
+            ...item, block_index: item.blockIndex ?? item.block_index
+          })) }) : [];
           if (!chapters.length && source.chaptersUrl) {
             try { chapters = await fetchChapters(source.chaptersUrl); }
             catch (_) { chapters = []; }
           }
         }
+        if (chapters.length) attachChapters();
         render();
       } catch (_) {
         setStatus("Não foi possível verificar se existe áudio gravado.");
@@ -267,7 +363,7 @@
     return { discover, play, stop, close, snapshot: () => ({ available, open, playing: !audio.paused }) };
   }
 
-  const api = { findAudio, lookupAudio, loadChapters, chaptersFromNotes, formatTime, createPlayer };
+  const api = { findAudio, lookupAudio, loadChapters, chaptersFromNotes, readingNodes, formatTime, createPlayer };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.TechTopicsAudio = api;
 })(globalThis);
