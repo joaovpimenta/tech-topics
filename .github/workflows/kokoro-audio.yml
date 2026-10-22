@@ -31,14 +31,14 @@ on:
         required: false
         default: ""
       mode:
-        description: "preview: trecho curto; compare: 9 versões do título + 1º parágrafo; profile: CPU; publish: Release"
+        description: "preview: trecho curto; review: artigo integral sem Release; compare: 9 versões; publish: Release"
         type: choice
         required: true
         default: preview
         options:
           - preview
+          - review
           - compare
-          - profile
           - publish
       replace_existing:
         description: "Substituir MP3 de Release existente? Apenas no modo publish"
@@ -85,7 +85,7 @@ jobs:
             slugs="$(python tools/tts/article_selection.py --before "$BEFORE_SHA" --after "$AFTER_SHA")"
           fi
           # Release exists? Don't even schedule an audio matrix job. Explicit
-          # preview/profile and replace_existing=true remain allowed.
+          # preview/review and replace_existing=true remain allowed.
           if [ "$SELECT_MODE" = publish ] && [ "$REPLACE_EXISTING" != true ]; then
             selected='[]'
             while IFS= read -r slug; do
@@ -130,7 +130,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "$MODE" in preview|compare|profile|publish) ;; *) echo "Invalid mode: $MODE" >&2; exit 1;; esac
+          case "$MODE" in preview|review|compare|publish) ;; *) echo "Invalid mode: $MODE" >&2; exit 1;; esac
           if [ "$MODE" = compare ] && [ "$GITHUB_EVENT_NAME" != workflow_dispatch ]; then
             echo "A/B compare is manual-only and must never run after a site deploy." >&2
             exit 1
@@ -200,7 +200,7 @@ jobs:
               --slug "$ARTICLE_SLUG" --output-dir .audio
           fi
 
-      - name: Generate single-voice mixed-language WAV (and MP3 outside profiling)
+      - name: Generate single-voice mixed-language WAV and MP3
         if: steps.policy.outputs.skip != 'true'
         shell: bash
         run: |
@@ -245,22 +245,18 @@ jobs:
               --slug "$ARTICLE_SLUG" --directory ".audio/compare/equilibrado-100" \
               | tee -a "$GITHUB_STEP_SUMMARY"
           else
-            extra=()
-            if [ "$MODE" = profile ]; then extra+=(--profile); fi
             time python tools/tts/kokoro_release.py synthesize \
               --slug "$ARTICLE_SLUG" --output-dir .audio \
               --model .cache/kokoro/kokoro-v1.0.onnx \
-              --voices .cache/kokoro/voices-v1.0.bin "${extra[@]}"
-            if [ "$MODE" != profile ]; then
-              ffmpeg -hide_banner -loglevel error -y \
-                -i ".audio/$ARTICLE_SLUG.wav" \
-                -af "loudnorm=I=-19:TP=-1:LRA=11" \
-                -ar 24000 -ac 1 -c:a libmp3lame -b:a 128k \
-                ".audio/$ARTICLE_SLUG.mp3"
-              test -s ".audio/$ARTICLE_SLUG.mp3"
-              ffprobe -v error -show_entries format=duration \
-                -of default=noprint_wrappers=1:nokey=1 ".audio/$ARTICLE_SLUG.mp3"
-            fi
+              --voices .cache/kokoro/voices-v1.0.bin
+            ffmpeg -hide_banner -loglevel error -y \
+              -i ".audio/$ARTICLE_SLUG.wav" \
+              -af "loudnorm=I=-19:TP=-1:LRA=11" \
+              -ar 24000 -ac 1 -c:a libmp3lame -b:a 128k \
+              ".audio/$ARTICLE_SLUG.mp3"
+            test -s ".audio/$ARTICLE_SLUG.mp3"
+            ffprobe -v error -show_entries format=duration \
+              -of default=noprint_wrappers=1:nokey=1 ".audio/$ARTICLE_SLUG.mp3"
           fi
 
       - name: Summarize Dora listening comparison
@@ -307,24 +303,6 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
-      - name: Summarize CPU headroom for potential intra-run parallelism
-        if: steps.policy.outputs.skip != 'true' && env.MODE == 'profile'
-        shell: bash
-        run: |
-          python tools/tts/cpu_profile.py ".audio/$ARTICLE_SLUG.cpu-profile.json" | tee -a "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload CPU and memory profile (no MP3 release)
-        if: steps.policy.outputs.skip != 'true' && env.MODE == 'profile'
-        uses: actions/upload-artifact@v4
-        with:
-          name: kokoro-cpu-profile-${{ matrix.slug }}-${{ github.run_id }}
-          path: |
-            .audio/${{ matrix.slug }}.cpu-profile.json
-            .audio/${{ matrix.slug }}.metrics.json
-            .audio/${{ matrix.slug }}.chapters.json
-          retention-days: 14
-          if-no-files-found: error
-
       - name: Upload preview for listening (without modifying Releases)
         if: steps.policy.outputs.skip != 'true' && env.MODE == 'preview'
         uses: actions/upload-artifact@v4
@@ -336,6 +314,68 @@ jobs:
             .audio/${{ matrix.slug }}.chapters.json
             .audio/${{ matrix.slug }}.metrics.json
           retention-days: 14
+          if-no-files-found: error
+
+      - name: Validate full-length review candidate (do not publish)
+        if: steps.policy.outputs.skip != 'true' && env.MODE == 'review'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          slug = os.environ["ARTICLE_SLUG"]
+          base = Path(".audio") / slug
+          segments = json.loads(base.with_suffix(".segments.json").read_text(encoding="utf-8"))
+          chapters = json.loads(base.with_suffix(".chapters.json").read_text(encoding="utf-8"))
+          metrics = json.loads(base.with_suffix(".metrics.json").read_text(encoding="utf-8"))
+          assert segments and chapters["chapters"], "Full review must contain segments and chapters"
+          block_ids = [s["block_index"] for s in segments]
+          chapter_ids = [c["block_index"] for c in chapters["chapters"]]
+          assert chapter_ids == list(dict.fromkeys(block_ids)), "Missing or extra chapter boundaries"
+          assert chapter_ids == list(range(len(chapter_ids))), "Chapter IDs not contiguous"
+          assert all(c["start"] >= 0 for c in chapters["chapters"]), "Invalid chapter timestamps"
+          assert all(a["start"] < b["start"] for a, b in zip(chapters["chapters"], chapters["chapters"][1:])), "Invalid chapter ordering"
+          assert metrics["preset"] == "equilibrado" and metrics["speed"] == 1.0
+          assert metrics["max_tokens"] == 350 and metrics["token_budget_enabled"]
+          assert metrics["continuous"] is False
+          assert all(isinstance(s.get("token_count"), int) and 0 < s["token_count"] <= 350 for s in segments)
+          assert all(0 < s["phoneme_length"] <= 500 for s in segments)
+          probe = json.loads(subprocess.check_output([
+              "ffprobe", "-v", "error", "-show_entries",
+              "format=duration,bit_rate:stream=codec_name,sample_rate,channels", "-of", "json",
+              str(base.with_suffix(".mp3"))], text=True))
+          stream = probe["streams"][0]
+          assert stream["codec_name"] == "mp3" and stream["sample_rate"] == "24000" and stream["channels"] == 1
+          bitrate = int(probe["format"]["bit_rate"])
+          assert 120000 <= bitrate <= 136000, f"Unexpected bitrate: {bitrate}"
+          audio_seconds = float(probe["format"]["duration"])
+          assert chapters["chapters"][-1]["start"] < audio_seconds
+          print(f"PASS review: {slug}: {len(segments)} segments, {len(chapter_ids)} chapters, "
+                f"{audio_seconds:.1f} s, {bitrate} bps")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write(f"### Revisão integral: {slug} (NÃO PUBLICADA)\\n\\n")
+              summary.write(f"- {len(segments)} segmentos; {len(chapter_ids)} capítulos\\n")
+              summary.write(f"- MP3 {audio_seconds:.1f} s, bitrate {bitrate / 1000:.1f} kbps\\n")
+              summary.write("- Dora equilibrado-100, 350 tokens, sem alteração de Release\\n")
+          PY
+          cd .audio
+          sha256sum "$ARTICLE_SLUG.mp3" "$ARTICLE_SLUG.chapters.json" "$ARTICLE_SLUG.metrics.json" > "$ARTICLE_SLUG.sha256"
+
+      - name: Upload complete candidate for human listening (no Releases)
+        if: steps.policy.outputs.skip != 'true' && env.MODE == 'review'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kokoro-dora-review-${{ matrix.slug }}-${{ github.run_id }}
+          path: |
+            .audio/${{ matrix.slug }}.mp3
+            .audio/${{ matrix.slug }}.chapters.json
+            .audio/${{ matrix.slug }}.segments.json
+            .audio/${{ matrix.slug }}.metrics.json
+            .audio/${{ matrix.slug }}.txt
+            .audio/${{ matrix.slug }}.md
+            .audio/${{ matrix.slug }}.sha256
+          retention-days: 30
           if-no-files-found: error
 
       - name: Attach paragraph timestamps to public Release notes

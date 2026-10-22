@@ -10,7 +10,7 @@ Leia somente o ramo que corresponde à tarefa:
 - **Build, workflows ou publicação:** [PUBLISHING.md](../PUBLISHING.md). `scripts/validate-site.mjs` valida e gera; `scripts/build-site.mjs` empacota o estado já gerado em `dist/`.
 - **Fila ou seleção:** [TOPIC_QUEUE.md](../TOPIC_QUEUE.md). A consulta JSON da fila não publica comentários; mantenha curadoria e seleção separadas.
 - **Narração local ou hook:** [tools/tts/README.md](../../tools/tts/README.md); pronúncia do navegador está em [TTS.md](../TTS.md).
-- **Narração pública Kokoro/Actions:** [KOKORO_ACTIONS.md](../KOKORO_ACTIONS.md); decisões em [ADR 0001 (Dora/tokens/codecs)](../adr/0001-kokoro-dora-prosody-and-encoding.md), [ADR 0002 (CPU e skips)](../adr/0002-kokoro-execution-cost-and-parallelism.md) e [ADR 0003 (player/capítulos)](../adr/0003-unified-article-audio-and-chapter-synchronization.md).
+- **Narração pública Kokoro/Actions:** [KOKORO_ACTIONS.md](../KOKORO_ACTIONS.md); decisões em [ADR 0001 (Dora/tokens/codecs)](../adr/0001-kokoro-dora-prosody-and-encoding.md), [ADR 0002 (execução e skips)](../adr/0002-kokoro-execution-cost-and-parallelism.md) e [ADR 0003 (player/capítulos)](../adr/0003-unified-article-audio-and-chapter-synchronization.md).
 - **Issues, spec ou manutenção:** [issue-tracker.md](issue-tracker.md) e [spec aprovada](../specs/agent-automation.md).
 
 ## Mapa de mudanças

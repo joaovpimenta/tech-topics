@@ -104,21 +104,19 @@ Campo **mode**:
 - **`preview` (padrão)**: sintetiza os primeiros ~1.200 caracteres em CPU;
   publica MP3 e relatório de fonemas como `Actions → Artifacts` por 14 dias.
   Não cria nem altera Releases.
+- **`review`**: sintetiza **o artigo completo** com o preset de produção,
+  exporta MP3 128 kbps, capítulos e métricas como um **Artifact de revisão
+  por 30 dias** (inclui SHA-256). Verifica codec, 350 tokens e sequência dos
+  capítulos. **Não cria nem altera Releases**, incluindo artigos que já
+  possuem `tts-<slug>`; use este modo para validar Bulkhead antes de
+  qualquer substituição ou backfill.
 - **`publish`**: sintetiza o artigo completo e cria uma Release.
   Se ela já existe, é preservada; `replace_existing=true` permite
   substituir somente quando solicitado manualmente.
 - **`compare`**: produz nove amostras curtas para escuta, cruzando
   três configurações de prosódia e velocidades 0.95/1.00/1.05;
   não publica nem substitui Releases (detalhes abaixo).
-- **`profile`**: sintetiza **o artigo completo uma única vez**, ainda de forma
-  sequencial, sem gerar MP3, sem criar/substituir Release e sem executar um
-  benchmark paralelo automaticamente. Salva `<slug>.cpu-profile.json`,
-  `<slug>.metrics.json` e `<slug>.chapters.json` como artefato de Actions
-  por 14 dias e mostra resumo em **GITHUB_STEP_SUMMARY**.
-  O relatório amostra a cada segundo CPU da inferência nativa,
-  afinidade/quota efetiva do runner, RSS máximo e tempos por segmento.
-  Um indicador conservador aponta se vale **investigar** 2 instâncias;
-  não significa que paralelismo já traga ganho.
+Para revisão integral antes do backfill: `article=bulkhead`, `mode=review`, `replace_existing=false`. Acesse o artifact `kokoro-dora-review-bulkhead-*`, valide duração, pausas, pronúncia, volume e capítulos em navegador. A aprovação auditiva e de interface antecede qualquer substituição da Release histórica.
 
 Exemplo para testar a palavra *Bulkhead*: `article=bulkhead`,
 `mode=preview`. Para atualizar o áudio antigo depois de ouvi-lo:
@@ -177,8 +175,7 @@ bitrate não corrigirá problemas de pronúncia, prosódia ou recortes:
 apenas reduzirá os artefatos da compressão, aumentando o arquivo.
 
 `publish` e `preview` já usam Equilibrado 1.00 e MP3 128 kbps.
-`profile` é manual e não produz Release; `compare` testa variantes sem
-publicar. Nenhuma Release existente é sobrescrita implicitamente;
+`review` e `compare` geram Artifacts sem publicar Releases. Nenhuma Release existente é sobrescrita implicitamente;
 substituição exige `mode=publish` com `replace_existing=true` manual.
 
 ### E o modo `continuous`?
@@ -213,31 +210,23 @@ selecionam outro tópico. A seleção por comentário autorizado ou
 
 Mesmo havendo um artigo novo, o workflow de áudio confere as Releases
 `tts-<slug>` **antes de criar jobs de síntese**. Release já existente
-faz skip por padrão. `preview` e `profile` são solicitações manuais
+faz skip por padrão. `preview` e `review` são solicitações manuais
 intencionais e podem rodar um artigo existente; `publish` só substitui
 áudio existente com `replace_existing=true`. A checagem de Release é
 repetida no início do job como proteção contra duas execuções concorrentes.
 
-## Como analisar possível paralelismo dentro do runner
+## Configuração de execução
 
-1. Execute **Run workflow → main**, `article=bulkhead`,
-   `mode=profile` (uma medição de referência por artigo; não publique áudio).
-2. Abra a execução e leia o resumo de CPU/RSS. Baixe o artefato
-   `kokoro-cpu-profile-bulkhead-<run_id>` para ver as amostras ao longo
-   do tempo, inferências por segmento e o fator de tempo real.
-3. Se CPU p90 estiver abaixo de 75% e média abaixo de 55% do orçamento
-   do runner, com amostras suficientes, vale criar **outro experimento**
-   com duas instâncias limitadas a 1–2 threads cada, comparando tempo
-   total, memória e qualidade. Caso contrário, não há indício suficiente
-   de CPU ociosa. Três instâncias não devem ser padrão sem números.
-
-O modo normal continua com um único Kokoro CPU FP32 e `pf_dora`.
-O profiling não ativa multiprocessamento nem muda o áudio.
+Cada job de síntese utiliza uma instância Kokoro FP32 com quatro threads
+em um runner. O profiling de CPU e memória e o modo `profile` foram
+removidos para simplificar a operação. O relatório normal
+`<slug>.metrics.json` permanece disponível com duração e tempo total
+da síntese para suporte e validação, sem coleta contínua de CPU/RSS.
 
 ## ADRs e decisões de governança
 
 - [ADR 0001 — Prosódia, 350 tokens, trim, bitrate e continuous](adr/0001-kokoro-dora-prosody-and-encoding.md): perfil Dora Equilibrado 1.00 **aceito**, implementação integrada à `main` na PR #58.
-- [ADR 0002 — Profiling, CPU saturada e skip](adr/0002-kokoro-execution-cost-and-parallelism.md): uma instância × quatro threads; nenhuma síntese redundante para artigo/Release existentes.
+- [ADR 0002 — Execução, concorrência e skip](adr/0002-kokoro-execution-cost-and-parallelism.md): uma instância × quatro threads; nenhuma síntese redundante para artigo/Release existentes.
 - [ADR 0003 — Player único e capítulos](adr/0003-unified-article-audio-and-chapter-synchronization.md): decisão implementada na PR #53; sincronização por `block_index`, sujeita à compatibilidade dos capítulos.
 
 A melhoria de qualidade de 96 para 128 kbps é uma decisão de
@@ -261,8 +250,8 @@ Dependências fixadas:
 `phonemizer-fork==3.3.2`, `espeakng-loader==0.2.4`,
 `soundfile==0.13.1`, além de `espeak-ng` e `ffmpeg`.
 Nenhum token externo ou GPU. São usadas 4 threads CPU e o modelo
-FP32 é carregado uma vez por artigo. A medição de tempo de inferência
-fica em `<slug>.metrics.json`.
+FP32 é carregado uma vez por artigo. As métricas gerais de duração e tempo total da síntese
+ficam em `<slug>.metrics.json`.
 
 A melhoria de pronúncia só é considerada aprovada editorialmente após
 comparar o áudio novo com o anterior. O roteiro de narração/podcast é
