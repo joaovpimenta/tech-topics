@@ -36,6 +36,7 @@ CHUNK_PAUSE_SECONDS = 0.18
 SAMPLE_RATE = 24000
 
 # Listening-only presets. No change to default published Dora narration.
+COMPARE_SPEEDS = (0.95, 1.00, 1.05)
 NARRATION_PRESETS = {
     "atual": {
         "speed": 0.95, "paragraph_pause": 0.45, "section_pause": 0.80,
@@ -43,12 +44,12 @@ NARRATION_PRESETS = {
         "adaptive_chunks": False,
     },
     "equilibrado": {
-        "speed": 0.98, "paragraph_pause": 0.38, "section_pause": 0.70,
+        "speed": 0.95, "paragraph_pause": 0.38, "section_pause": 0.70,
         "chunk_pause": 0.14, "sentence_pause": 0.22, "clause_pause": 0.08,
         "adaptive_chunks": True,
     },
     "fluido": {
-        "speed": 1.02, "paragraph_pause": 0.30, "section_pause": 0.65,
+        "speed": 0.95, "paragraph_pause": 0.30, "section_pause": 0.65,
         "chunk_pause": 0.10, "sentence_pause": 0.18, "clause_pause": 0.06,
         "adaptive_chunks": True,
     },
@@ -278,8 +279,13 @@ def segments_for_article(
     settings = NARRATION_PRESETS[preset]
     blocks = article_blocks(article, lexicon)
     if first_body_paragraphs:
-        # Compare only the same first two real body paragraphs, not title/dek.
-        blocks = [block for block in blocks if block["tag"] == "p"][:first_body_paragraphs]
+        # Preserve the spoken title and choose only the opening narrative <p>.
+        # Exclude the dek, callouts, section headings and subsequent paragraphs.
+        titles = [block for block in blocks if block["tag"] == "title"]
+        paragraphs = [block for block in blocks if block["tag"] == "p"][:first_body_paragraphs]
+        if len(titles) != 1 or len(paragraphs) != first_body_paragraphs:
+            raise ValueError("Comparação requer título e parágrafo introdutório narráveis.")
+        blocks = titles + paragraphs
     segments: list[dict] = []
     total = 0
     for block_index, block in enumerate(blocks):
@@ -362,7 +368,7 @@ def prepare(
 def synthesize(
     slug: str, output_dir: Path, model: Path, voices: Path,
     profile: bool = False, preset: str = "atual",
-    shared_engine: dict | None = None,
+    shared_engine: dict | None = None, speed: float | None = None,
 ) -> None:
     import numpy as np
     import onnxruntime as ort
@@ -374,6 +380,9 @@ def synthesize(
     if not segments:
         raise ValueError("Nenhum segmento preparado.")
     settings = NARRATION_PRESETS[preset]
+    selected_speed = settings["speed"] if speed is None else speed
+    if not 0.5 <= selected_speed <= 2.0:
+        raise ValueError("Velocidade precisa ficar entre 0.5 e 2.0.")
     if shared_engine is not None and "kokoro" in shared_engine:
         kokoro = shared_engine["kokoro"]
         phonemizers = shared_engine["phonemizers"]
@@ -420,7 +429,7 @@ def synthesize(
             inference_started = time.perf_counter() if profile else 0.0
             # PT-BR and English phonemes in ONE call, always with Dora.
             audio, sample_rate = kokoro.create(
-                phonemes, voice=VOICE, speed=settings["speed"], is_phonemes=True,
+                phonemes, voice=VOICE, speed=selected_speed, is_phonemes=True,
                 sentence_pause=settings["sentence_pause"],
                 clause_pause=settings["clause_pause"],
             )
@@ -465,7 +474,7 @@ def synthesize(
         "languages": [LANG, ENGLISH],
         "english_runs": len(english_samples),
         "english_examples": english_samples[:20],
-        "speed": settings["speed"],
+        "speed": selected_speed,
         "preset": preset,
         "parameters": settings,
         "segments": len(segments),
@@ -481,29 +490,39 @@ def synthesize(
 
 
 def compare_presets(slug: str, output_dir: Path, model: Path, voices: Path) -> None:
-    """Render the first two body paragraphs for three Dora-only presets.
+    """Render one intro paragraph plus title for 3 prosodies x 3 speeds.
 
-    Reuse a single ONNX session and phonemizers across all variants. No
-    article Release is read or written by this operation.
+    Preserving the same model, narrator, lexicon and text across 9 variants
+    lets the user evaluate speed separately from pause/chunking settings.
+    The ONNX session and phonemizers are initialized only once.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     shared: dict = {}
     manifest = {
-        "slug": slug, "voice": VOICE, "paragraphs": 2,
+        "slug": slug, "voice": VOICE,
+        "selection": "title_plus_first_body_paragraph",
+        "paragraphs": 1, "speeds": list(COMPARE_SPEEDS),
         "presets": NARRATION_PRESETS, "variants": [],
     }
     for preset in NARRATION_PRESETS:
-        folder = output_dir / preset
-        prepare(slug, folder, preset=preset, first_body_paragraphs=2)
-        synthesize(slug, folder, model, voices, preset=preset, shared_engine=shared)
-        metrics = json.loads((folder / f"{slug}.metrics.json").read_text(encoding="utf-8"))
-        manifest["variants"].append({
-            "name": preset,
-            "audio_seconds": metrics["audio_seconds"],
-            "synthesis_seconds": metrics["synthesis_seconds"],
-            "segment_count": metrics["segments"],
-            "file": f"{preset}/{slug}.mp3",
-        })
+        for speed in COMPARE_SPEEDS:
+            label = f"{preset}-{round(speed * 100):03d}"
+            folder = output_dir / label
+            prepare(slug, folder, preset=preset, first_body_paragraphs=1)
+            synthesize(slug, folder, model, voices, preset=preset,
+                       shared_engine=shared, speed=speed)
+            metrics = json.loads(
+                (folder / f"{slug}.metrics.json").read_text(encoding="utf-8")
+            )
+            manifest["variants"].append({
+                "name": label,
+                "preset": preset,
+                "speed": speed,
+                "audio_seconds": metrics["audio_seconds"],
+                "synthesis_seconds": metrics["synthesis_seconds"],
+                "segment_count": metrics["segments"],
+                "file": f"{label}/{slug}.mp3",
+            })
     (output_dir / "comparison.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
