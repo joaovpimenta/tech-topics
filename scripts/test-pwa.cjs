@@ -192,6 +192,20 @@ async function testOrdering() {
   });
   assert(scrollPrevented, "active long-press must not scroll the page");
   assert(favorite.classList.contains("is-targeted"), "target icon must highlight under the finger");
+  const shareTarget = popup.children[3].children[2];
+  hovered = shareTarget;
+  docListeners.touchmove({
+    changedTouches: [touch(2, 170, 215)],
+    preventDefault() {}
+  });
+  assert(!favorite.classList.contains("is-targeted"), "previously highlighted action must reset");
+  assert(shareTarget.classList.contains("is-targeted"), "drag highlights the newly selected action");
+  hovered = favorite;
+  docListeners.touchmove({
+    changedTouches: [touch(2, 160, 215)],
+    preventDefault() {}
+  });
+  assert(favorite.classList.contains("is-targeted"), "dragging back restores the favorite highlight");
   endTouch(touch(2, 160, 215), favorite);
   assert.deepEqual(JSON.parse(stored.get("tech-topics:favorites:v1")), []);
 
@@ -243,6 +257,9 @@ async function testOrdering() {
   for (const page of [home, article]) assert(page.includes('src="header.js'), "shared star widget script is loaded");
   assert(styles.includes("user-drag: none"), "native image/link drag is disabled");
   assert(styles.includes(".article-quick-actions .quick-icon"), "preview action targets are styled");
+  assert(styles.includes(".article-quick-actions .quick-icon.is-targeted"), "dragging must fill and enlarge the selected icon");
+  assert(styles.includes(".article-quick-actions .quick-read.is-targeted"), "read button has target feedback");
+  assert(styles.includes("@media (prefers-reduced-motion: reduce)"), "gesture effects respect reduced motion");
   assert(styles.includes("object-fit: contain"), "covers must use contain instead of crop");
   assert(styles.includes(".quick-cover"), "quick menu cover must preserve full artwork");
   const manifest = JSON.parse(readFileSync("manifest.webmanifest", "utf8"));

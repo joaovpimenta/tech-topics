@@ -248,6 +248,16 @@ test("article controls keep favorites and sharing icon-only, accessible, and con
     "the speed control must stay visible on narrow screens");
   assert.match(css, /\.article-page \.inline-recording\s*\{[^}]*background:\s*var\(--paper\)/s,
     "the inline player has a white editorial background");
+  assert.match(css, /\.article-page \.article-actions\s*\{\s*display:\s*grid;[\s\S]*?grid-template-columns:\s*minmax\(0,\s*460px\) max-content;/,
+    "audio and social actions share an aligned row");
+  assert.match(css, /\.article-page \.inline-recording\s*\{[^}]*height:\s*40px;/s,
+    "the inline player has the same height as action buttons");
+  assert.match(css, /\.article-page \.article-icon-button\s*\{[^}]*width:\s*40px;[^}]*height:\s*40px;/s,
+    "like and share have equal 40px dimensions");
+  assert.match(css, /@media \(max-width:\s*620px\)\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\) max-content;/,
+    "mobile shrinks the player, never moving buttons to another row");
+  assert.match(css, /\.article-page \.inline-recording-skip\[hidden\]\s*\{\s*display:\s*none;/,
+    "hidden chapter controls do not consume horizontal space");
   assert.match(html, /id="recording-player"/);
   assert.match(script, /tech-topics:favorites:v1/, "articles use the exact home favorite storage key");
   assert.match(script, /localStorage\.setItem\(FAVORITES_KEY/, "favorite click persists locally");

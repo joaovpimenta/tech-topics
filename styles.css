@@ -747,3 +747,163 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
   .article-quick-actions { padding: 14px; gap: 8px; }
   .article-quick-actions .quick-icon { flex-basis: 48px; width: 48px; height: 48px; }
 }
+
+/* Article actions: one aligned row with a compact audio surface.
+   The player may shrink; the two social controls retain equal 40px targets. */
+.article-page .article-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 460px) max-content;
+  justify-content: start;
+  align-items: center;
+  gap: 0 8px;
+  margin-top: 17px;
+}
+.article-page .inline-recording-anchor {
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+}
+.article-page .inline-recording {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  min-height: 40px;
+  gap: 5px;
+  padding: 0;
+  flex-wrap: nowrap;
+}
+.article-page .inline-recording-play {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+}
+.article-page .inline-recording-skip {
+  flex: 0 0 23px;
+  width: 23px;
+  height: 38px;
+}
+.article-page .inline-recording-skip[hidden] { display: none; }
+.article-page .inline-recording-seek {
+  flex: 1 1 24px;
+  width: 0;
+  min-width: 12px;
+}
+.article-page .inline-recording-rate {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 38px;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+}
+.article-page .inline-recording-elapsed,
+.article-page .inline-recording-duration {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.article-page .article-social-actions {
+  display: flex;
+  align-items: center;
+  justify-self: start;
+  height: 40px;
+  margin: 0;
+  gap: 6px;
+}
+.article-page .article-icon-button {
+  box-sizing: border-box;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+}
+.article-page .article-actions > .listen-status,
+.article-page .article-actions > .share-status {
+  grid-column: 1 / -1;
+  flex-basis: auto;
+}
+.article-page .article-actions > span:empty { display: none; }
+
+@media (max-width: 620px) {
+  .article-page .article-actions {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    column-gap: 7px;
+  }
+  .article-page .inline-recording { gap: 3px; }
+  .article-page .inline-recording-play {
+    flex-basis: 36px;
+    width: 36px;
+    height: 36px;
+  }
+  .article-page .inline-recording-skip {
+    flex-basis: 21px;
+    width: 21px;
+    height: 36px;
+  }
+  .article-page .inline-recording-rate {
+    flex-basis: 36px;
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+  }
+  .article-page .inline-recording-elapsed,
+  .article-page .inline-recording-duration { font-size: 11px; }
+  .article-page .article-social-actions { gap: 5px; margin: 0; }
+}
+@media (max-width: 380px) {
+  /* Keep the progress seek and speed on narrow devices; chapter jumps
+     remain available in the floating player on these screens. */
+  .article-page .inline-recording-skip { display: none; }
+  .article-page .inline-recording { gap: 3px; }
+  .article-page .article-icon-button {
+    flex-basis: 38px;
+    width: 38px;
+    height: 40px;
+  }
+}
+
+/* Gesture selection: animate only the highlighted action without
+   moving its hit target or changing the selected action's semantics. */
+.article-quick-actions [data-quick-action] {
+  transform: scale(1);
+  transform-origin: center;
+  transition: transform 150ms ease-out, background-color 150ms ease-out,
+    border-color 150ms ease-out, color 150ms ease-out, box-shadow 150ms ease-out;
+}
+.article-quick-actions .quick-read.is-targeted,
+.article-quick-actions .quick-read:hover,
+.article-quick-actions .quick-read:focus-visible {
+  background: #1c6654;
+  border-color: #1c6654;
+  color: #fff;
+  box-shadow: 0 0 0 4px #277d6930;
+  transform: scale(1.035);
+  filter: none;
+}
+.article-quick-actions .quick-icon.is-targeted,
+.article-quick-actions .quick-icon:hover,
+.article-quick-actions .quick-icon:focus-visible {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 3px 13px #277d6940;
+  transform: scale(1.1);
+  filter: none;
+}
+.article-quick-actions .favorite-button.is-targeted svg,
+.article-quick-actions .favorite-button:hover svg,
+.article-quick-actions .favorite-button:focus-visible svg {
+  fill: currentColor;
+}
+@media (prefers-reduced-motion: reduce) {
+  .article-quick-actions [data-quick-action] { transition: none; }
+  .article-quick-actions .quick-read.is-targeted,
+  .article-quick-actions .quick-read:hover,
+  .article-quick-actions .quick-read:focus-visible,
+  .article-quick-actions .quick-icon.is-targeted,
+  .article-quick-actions .quick-icon:hover,
+  .article-quick-actions .quick-icon:focus-visible { transform: none; }
+}
+
+/* Author-level display rules must respect the native hidden attribute. */
+.article-page .article-actions[hidden],
+.article-quick-actions[hidden] { display: none; }
