@@ -9,7 +9,7 @@ Leia somente o ramo que corresponde à tarefa:
 - **Artigo:** fluxo editorial de `AGENTS.md`; o compositor lista catálogo e módulos sem carregar artigos completos.
 - **Build, workflows ou publicação:** [PUBLISHING.md](../PUBLISHING.md). `scripts/validate-site.mjs` valida e gera; `scripts/build-site.mjs` empacota o estado já gerado em `dist/`.
 - **Fila ou seleção:** [TOPIC_QUEUE.md](../TOPIC_QUEUE.md). A consulta JSON da fila não publica comentários; mantenha curadoria e seleção separadas.
-- **Narração local ou hook:** [tools/tts/README.md](../../tools/tts/README.md); pronúncia do navegador está em [TTS.md](../TTS.md).
+- **Planejador de áudio independente de engine:** [tools/tts/README.md](../../tools/tts/README.md) e [ADR 0004](../adr/0004-tts-segmentation-backend-boundary.md); a pronúncia da voz do dispositivo continua em [TTS.md](../TTS.md).
 - **Narração pública Kokoro/Actions:** [KOKORO_ACTIONS.md](../KOKORO_ACTIONS.md); decisões em [ADR 0001 (Dora/tokens/codecs)](../adr/0001-kokoro-dora-prosody-and-encoding.md), [ADR 0002 (execução e skips)](../adr/0002-kokoro-execution-cost-and-parallelism.md) e [ADR 0003 (player/capítulos)](../adr/0003-unified-article-audio-and-chapter-synchronization.md).
 - **Issues, spec ou manutenção:** [issue-tracker.md](issue-tracker.md) e [spec aprovada](../specs/agent-automation.md).
 
@@ -20,7 +20,7 @@ Leia somente o ramo que corresponde à tarefa:
 - `scripts/lib/`: regras compartilhadas de contratos, geração, fila e empacotamento. Teste pela interface usada pelos comandos.
 - `scripts/`: entrypoints e suites determinísticas; `validate-site.mjs` coordena os gates usados localmente e na CI.
 - `.github/workflows/`: eventos, permissões e encadeamento; lógica de conteúdo permanece nos módulos testados.
-- `tools/tts/` e `.githooks/`: rotina local de narração; dados privados ficam em `.local/`.
+- `tools/tts/narration_text.py`: extração HTML/léxico; `tools/tts/segmentation.py`: planejamento de frases e cortes; `tools/tts/kokoro_release.py`: adapter de Kokoro. Não há mais hook/sintetizador Chatterbox.
 - Arquivos JS/HTML/CSS na raiz: navegador, PWA e layout editorial.
 
 ## Verificação e entrega

@@ -1,64 +1,47 @@
-# Narração local antes do commit
+# TTS: arquitetura e execução
 
-O pre-commit exige uma narração Chatterbox válida para os artigos JSON staged em `content/articles/`. O comando manual e o hook usam `precommit.py check`. A síntese do navegador continua sendo o player público; voz, roteiro temporário, WAV e metadata do Chatterbox ficam em `.local/tts/`, ignorada pelo Git.
+## Motor ativo
 
-## Preparar um clone
+**Somente Kokoro ONNX FP32 / pf_dora** produz arquivos de áudio neste repositório.
+Não há Chatterbox, clonagem de voz, hook TTS de pre-commit nem obrigação de
+sintetizar áudio ao criar/editar artigos. A voz Web Speech API do navegador
+é independente e permanece disponível ao visitante.
 
-Use Python 3.11 ou superior para ferramentas e testes. Para a síntese, use um ambiente local compatível com as dependências do Chatterbox (`torch`, `torchaudio`, `chatterbox-tts`). O preparo não instala pacotes nem baixa modelos.
+## Camadas
 
-1. Crie os diretórios e um config inicial, preservando configuração já existente:
+| Camada | Arquivo | Responsabilidade |
+|---|---|---|
+| Contrato editorial | `narration_text.py` | Extrair blocos HTML, idioma, léxico, soletração e texto narrável |
+| Planejamento acústico | `segmentation.py` | Separar frases, orçar chunks, tratar vírgulas e palavras, preservar `block_index` e `sentence_index`, definir pausas |
+| Driver | `kokoro_release.py` | Preparar G2P PT-BR/EN-US, injetar a função de orçamento (tokens/fonemas) no planejador e invocar ONNX |
+| Montagem | `kokoro_release.py` (WAV/chapters) e `ffmpeg` no workflow | Concatenar PCM e pausas, obter timestamps por amostras, normalizar, publicar MP3 e capítulos v2 |
 
-   ```powershell
-   python tools/tts/precommit.py prepare --json
-   ```
+`segmentation.plan_segments(segments, measure_runs, ...)` aceita callback que
+recebe runs de idioma e retorna `(token_count, phoneme_length)`. O planejador
+**não importa** modelos/ONNX/fonemizadores. Em futura substituição de modelo,
+implementar outro adapter sem reescrever marcação de frases e geração de
+capítulos. O driver Kokoro fornece `kokoro.tokenizer.tokenize(phonemes,
+limit=None)` com fonemização, mantendo o teto de 350 tokens e a guarda de
+500 caracteres fonéticos. Frase curta = inferência única; frase longa =
+vários chunks, mas o mesmo marcador lógico. Pausa de 25ms dentro da frase.
 
-2. Escolha em `.local/tts/config.json` uma amostra WAV local, completa:
+## Uso
 
-   ```json
-   {
-     "voice": ".local/tts/voices/minha-voz.wav",
-     "generation": { "chunk_chars": 280, "pause_ms": 300 }
-   }
-   ```
+O workflow [Kokoro audio](../../.github/workflows/kokoro-audio.yml) fornece
+`preview` (curto), `review` (artigo integral sem Release), `compare` e
+`publish`; consulte [KOKORO_ACTIONS.md](../../docs/KOKORO_ACTIONS.md).
+**Não dispare nenhum modo que sintetize áudio enquanto a pausa de
+gerações estiver vigente.** Atualizações em `tools/tts/` e documentação
+não disparam áudio automaticamente.
 
-   Um caminho absoluto também funciona. `TECH_TOPICS_TTS_VOICE` prevalece sobre `voice` no config. Os parâmetros opcionais de `generation` correspondem aos argumentos do gerador, usando `_` nos nomes compostos; consulte `python tools/tts/test_chatterbox.py --help`. O idioma local permanece `pt`.
+Teste rápido, sem ONNX/modelo:
 
-3. Execute o diagnóstico com o mesmo Python que executará o hook:
-
-   ```powershell
-   python tools/tts/precommit.py doctor --json
-   ```
-
-   Ele retorna checks de voz, parâmetros, arquivos privados e disponibilidade das bibliotecas, sem importar modelos ou sintetizar. `ok=false` produz código de saída 1. `hook.enabled` informa separadamente a ativação do hook; disponibilidade das bibliotecas não garante compatibilidade binária ou qualidade da síntese.
-
-4. Ative explicitamente o hook neste clone:
-
-   ```powershell
-   python tools/tts/precommit.py prepare --install-hook --json
-   ```
-
-   O comando configura `core.hooksPath=.githooks` localmente. Pode ser repetido e recusa substituir outro diretório de hooks. Para integrar hooks próprios, invoque `precommit.py check` no pre-commit existente.
-
-O hook escolhe `.venv/Scripts/python.exe` no Windows, `.venv/bin/python` em Unix ou `python3`/`python` do PATH. Quando usar `.venv`, troque `python` nos comandos acima pelo executável desse ambiente. Ao versionar o hook, preserve sua permissão Unix com `git add --chmod=+x .githooks/pre-commit`.
-
-## Verificar os artigos preparados
-
-```powershell
-python tools/tts/precommit.py check --json
-```
-
-O comando examina a versão no índice Git, preservando alterações ainda não staged. Ignora `index.json`, remoções de artigos e conteúdo não narrativo como código, controles, navegação e simuladores. O JSON lista cada slug e se houve reutilização; o progresso da síntese sai em stderr.
-
-Cada WAV possui metadata local com hashes da narração, bytes da voz, parâmetros efetivos, extrator, gerador, versões das dependências e áudio final. Alterações nesses dados invalidam o cache. WAV sem metadata, corrompido ou truncado também exige geração. Mudanças que não alteram a prosa narrada podem reutilizar áudio. Para forçar regeneração, remova apenas `.local/tts/output/<slug>.json`.
-
-A extração segue a [política de pronúncia](../../docs/TTS.md#siglas-abreviações-e-pronúncias-especiais), incluindo soletração padrão e léxico. O check usa o léxico staged, preservando edições ainda fora do índice; mudanças na pronúncia resultante invalidam o áudio na próxima verificação do artigo.
-
-A síntese Chatterbox local agora usa uma frase por inferência e só subdivide frases longas com `chunk_chars`, reunindo seus pedaços com 25 ms. Pausas de frases usam `pause_ms`. A geração escreve num WAV temporário, valida seus chunks e só então substitui o áudio final e grava a metadata. Falha ou interrupção deixa o cache inválido. Amostra ausente, configuração inválida, arquivos privados no índice ou falha na síntese bloqueiam o commit. O comando não adiciona áudio ao Git nem o publica. Para uma exceção consciente à política local, o Git aceita `git commit --no-verify`.
-
-## Testar sem síntese
-
-```powershell
+```sh
 python -m unittest discover -s tools/tts -p 'test_*.py'
+node scripts/validate-site.mjs
 ```
 
-Os testes usam somente a biblioteca padrão e Git, com repositórios isolados sob `.local/tts/tests/`; não importam Torch, carregam modelos ou usam a voz configurada do clone. A CI pode executá-los sem instalar as dependências de síntese. Revisão humana do WAV continua necessária para avaliar pronúncia e qualidade da voz.
+A documentação de decisão está no [ADR 0004](../../docs/adr/0004-tts-segmentation-backend-boundary.md).
+Caso seu clone ainda tenha `core.hooksPath=.githooks` configurado pelo
+fluxo antigo, ele pode ser desativado com `git config --local --unset
+core.hooksPath`; respeite outros hooks locais antes de alterar.

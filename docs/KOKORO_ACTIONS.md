@@ -15,6 +15,21 @@ dos MP3s publicados. A validação normal executa apenas um **smoke test**
 rápido e simulado para confirmar a chamada de síntese PT-BR/EN-US; não depende
 de drivers de áudio, navegadores instalados nem de uma matriz de sistemas.
 
+## Arquitetura independente do motor
+
+A preparação e a segmentação de frases são responsáveis por definir **o que
+é narrado** e **como dividir** cada frase. `narration_text.py` extrai texto
+e pronúncia editorial; `segmentation.py` é o planejador sem dependência
+do modelo. `kokoro_release.py` usa o modelo somente para capacidade real
+G2P/tokenizador e geração acústica. A montagem atribui timestamps com base
+nas amostras WAV resultantes, preservando o par `(block_index, sentence_index)`.
+Veja [ADR 0004](adr/0004-tts-segmentation-backend-boundary.md).
+
+**Somente o Kokoro gera áudio** no projeto. A geração Chatterbox, os hooks de
+pré-commit e a dependência de voz privada foram removidos. O navegador ainda
+pode oferecer Web Speech API como opção de leitura no dispositivo, sem produzir
+MP3s.
+
 ## Fonemização bilíngue — sem troca de narrador
 
 A narração usa as tags e o léxico editorial existentes, sem alterar o HTML visível:
