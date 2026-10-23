@@ -24,7 +24,7 @@ Após finalizar a abertura, use `node scripts/compose-cover-brief.mjs` para extr
 
 ## Onde cada regra deve ficar
 
-- Decisão que exige julgamento durante a escrita: `editorial/AUTHORING.md`.
+- Decisão que exige julgamento durante a escrita: `editorial/AUTHORING.md` (inclusive fala de código inline e significado contextual de setas).
 - Lente analítica reutilizável de um domínio: `frameworks/`.
 - Forma de organizar um tipo de entrega: `tasks/`.
 - Invariante objetiva: script de lint ou teste, com explicação humana em `docs/`.
