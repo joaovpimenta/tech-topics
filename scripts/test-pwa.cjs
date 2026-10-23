@@ -65,6 +65,8 @@ async function testOrdering() {
   let hovered = null;
   const navigated = [];
   const shared = [];
+  const vibrations = [];
+  const mockNavigator = { share: async data => { shared.push(data); }, vibrate: ms => { vibrations.push(ms); return true; } };
   const setTimer = fn => { const id = ++timerId; timers.set(id, fn); return id; };
   const runTimers = () => { for (const [id, fn] of [...timers]) { timers.delete(id); fn(); } };
   function element() {
@@ -114,7 +116,7 @@ async function testOrdering() {
     innerWidth: 375, innerHeight: 750, location: { search: "", assign(path) { navigated.push(path); } }
   };
   vm.runInNewContext(readFileSync("app.js", "utf8"), {
-    document, window, navigator: { share: async data => { shared.push(data); } },
+    document, window, navigator: mockNavigator,
     URL, URLSearchParams, Intl, Date, Math, setTimeout: setTimer, clearTimeout: id => timers.delete(id),
     localStorage: { getItem: key => stored.get(key) || null, setItem: (key, value) => stored.set(key, value) },
     fetch: async path => {
@@ -151,8 +153,8 @@ async function testOrdering() {
   const card = nodes.get("#recent-list").children[0];
   const popup = nodes.get("#article-quick-actions");
   const touch = (identifier, x, y) => ({ identifier, clientX: x, clientY: y });
-  const startTouch = (id = 1) => {
-    const point = touch(id, 120, 310);
+  const startTouch = (id = 1, x = 120, y = 310) => {
+    const point = touch(id, x, y);
     card.listeners.touchstart({
       touches: [point], changedTouches: [point], target: { closest() { return null; } }
     });
@@ -163,6 +165,14 @@ async function testOrdering() {
     assert.equal(popup.children[0].draggable, false);
     assert.equal(popup.children[2].children[0].textContent, "Arquitetura");
     assert.match(popup.children[2].children.at(-1).textContent, /Solte fora para fechar/);
+    if (y >= 260) {
+      assert.equal(popup.classList.contains("quick-actions-below"), false,
+        "gesture previews in mid-page must keep actions above the finger");
+      assert.equal(popup.classList.contains("quick-actions-compact"), true,
+        "preview must shrink its cover when available space above the finger is limited");
+      assert(Math.abs(Number.parseFloat(popup.style.top) + Number.parseFloat(popup.style.height) - y) <= 24,
+        "action row must stay near the original touch point instead of below a 500px preview");
+    }
     return point;
   };
   const endTouch = (point, actionTarget = null) => {
@@ -192,6 +202,15 @@ async function testOrdering() {
   });
   assert(scrollPrevented, "active long-press must not scroll the page");
   assert(favorite.classList.contains("is-targeted"), "target icon must highlight under the finger");
+  assert.deepEqual(vibrations, [12], "first selection must deliver one short haptic tick");
+  assert.equal(popup.dataset.activeAction, "favorite");
+  assert.equal(popup.children[2].children.at(-1).textContent, "Solte para alternar favorito.");
+  docListeners.touchmove({ changedTouches: [touch(2, 160, 215)], preventDefault() {} });
+  assert.deepEqual(vibrations, [12], "remaining over the same action must not repeatedly vibrate");
+  favorite.getBoundingClientRect = () => ({ left: 130, right: 177, top: 194, bottom: 240 });
+  hovered = null;
+  docListeners.touchmove({ changedTouches: [touch(2, 158, 218)], preventDefault() {} });
+  assert(favorite.classList.contains("is-targeted"), "coordinate fallback must target a button even if elementFromPoint misses its SVG");
   const shareTarget = popup.children[3].children[2];
   hovered = shareTarget;
   docListeners.touchmove({
@@ -200,12 +219,15 @@ async function testOrdering() {
   });
   assert(!favorite.classList.contains("is-targeted"), "previously highlighted action must reset");
   assert(shareTarget.classList.contains("is-targeted"), "drag highlights the newly selected action");
+  assert.deepEqual(vibrations, [12, 12], "moving to another action produces exactly one new haptic tick");
+  assert.equal(popup.children[2].children.at(-1).textContent, "Solte para compartilhar.");
   hovered = favorite;
   docListeners.touchmove({
     changedTouches: [touch(2, 160, 215)],
     preventDefault() {}
   });
   assert(favorite.classList.contains("is-targeted"), "dragging back restores the favorite highlight");
+  assert.deepEqual(vibrations, [12, 12, 12], "returning to an action produces one haptic tick");
   endTouch(touch(2, 160, 215), favorite);
   assert.deepEqual(JSON.parse(stored.get("tech-topics:favorites:v1")), []);
 
@@ -220,6 +242,25 @@ async function testOrdering() {
   await new Promise(setImmediate);
   assert.equal(shared.length, 1);
   assert.equal(shared[0].url, "https://example.com/tech-topics/article.html?slug=newest");
+
+  // Near the top of the viewport, actions move to the first row and the
+  // instruction asks users to drag down instead of reaching offscreen.
+  const nearTop = startTouch(6, 120, 130);
+  assert(popup.classList.contains("quick-actions-below"));
+  assert(Number.parseFloat(popup.style.top) > 130);
+  assert.match(popup.children[2].children.at(-1).textContent, /Arraste para baixo/);
+  endTouch(nearTop, null);
+  assert(!popup.classList.contains("quick-actions-below"), "closing clears the placement state");
+
+  // No browser vibration API: action selection must still show visual feedback.
+  delete mockNavigator.vibrate;
+  startTouch(7);
+  const visualOnly = popup.children[3].children[0];
+  hovered = visualOnly;
+  docListeners.touchmove({ changedTouches: [touch(7, 100, 255)], preventDefault() {} });
+  assert(visualOnly.classList.contains("is-targeted"));
+  assert.equal(vibrations.length, 3, "visual feedback works without haptic support");
+  endTouch(touch(7, 120, 310), null);
 
   // Starting a normal scroll before the hold threshold cancels the menu.
   const scrollCard = nodes.get("#recent-list").children[1];
@@ -259,6 +300,13 @@ async function testOrdering() {
   assert(styles.includes(".article-quick-actions .quick-icon"), "preview action targets are styled");
   assert(styles.includes(".article-quick-actions .quick-icon.is-targeted"), "dragging must fill and enlarge the selected icon");
   assert(styles.includes(".article-quick-actions .quick-read.is-targeted"), "read button has target feedback");
+  assert(styles.includes(".article-quick-actions.quick-actions-below .quick-controls"),
+    "action row must be first when the gesture begins near the top of the screen");
+  assert(styles.includes(".article-quick-actions.quick-actions-compact .quick-cover"),
+    "previews must compress rather than move the actions away from the touch origin");
+  assert(styles.includes(".article-quick-actions[data-active-action]"),
+    "the gesture hint must also react to drag targets");
+  assert(styles.includes("0 0 0 5px"), "selected icons must have a visible halo beyond the fingertip");
   assert(styles.includes("@media (prefers-reduced-motion: reduce)"), "gesture effects respect reduced motion");
   assert(styles.includes("object-fit: contain"), "covers must use contain instead of crop");
   assert(styles.includes(".quick-cover"), "quick menu cover must preserve full artwork");
