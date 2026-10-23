@@ -103,22 +103,53 @@ def test_press_drag(browser, base):
                 page.wait_for_timeout(18)
             x, y = target_x, target_y
 
-        for action in ("read", "favorite", "share"):
+        assert popup.get_attribute("data-gesture-active") is not None, "held gesture disables sticky CSS hover"
+        # Move forward, backward, and through actions already hovered. A
+        # previous action must lose not just its class but its *rendered* halo.
+        sequence = ("read", "favorite", "share", "favorite", "read", "share")
+        for action in sequence:
             target = page.locator('[data-quick-action="' + action + '"]')
             bounds = target.bounding_box()
             assert bounds and bounds["height"] >= 40, ("missing target", action)
             move_to(round(bounds["x"] + bounds["width"] / 2), round(bounds["y"] + bounds["height"] / 2))
-            assert "is-targeted" in (target.get_attribute("class") or ""), ("no visual highlight", action)
-            color = target.evaluate("(el) => getComputedStyle(el).backgroundColor")
-            assert color != "rgba(0, 0, 0, 0)", ("no visible fill", action)
-            assert popup.get_attribute("data-active-action") == action, ("wrong action state", action)
+            page.wait_for_timeout(200)  # allow transition to settle
+            assert popup.get_attribute("data-active-action") == action, ("stuck action state", action)
+            active = page.locator("#article-quick-actions .is-targeted")
+            assert active.count() == 1, ("more than one highlighted action", action)
+            assert active.first.get_attribute("data-quick-action") == action, ("stale highlight class", action)
+            for candidate in ("read", "favorite", "share"):
+                element = page.locator('[data-quick-action="' + candidate + '"]')
+                computed = element.evaluate("""(el) => ({
+                  shadow: getComputedStyle(el).boxShadow,
+                  background: getComputedStyle(el).backgroundColor
+                })""")
+                if candidate != action:
+                    assert computed["shadow"] == "none", (
+                        "previous button retains visual glow after finger leaves", action, candidate, computed)
+                else:
+                    assert computed["shadow"] != "none", ("active button has no visual halo", action, computed)
+            pulses_before = len(page.evaluate("window.__vibrations"))
+            cdp.send("Input.dispatchTouchEvent", {
+                "type": "touchMove", "touchPoints": [{"x": x, "y": y}]
+            })
+            page.wait_for_timeout(40)
+            assert len(page.evaluate("window.__vibrations")) == pulses_before, (
+                "stationary touch retriggers vibration", action)
         pulses = page.evaluate("window.__vibrations")
-        assert len(pulses) >= 3 and all(pulse == 12 for pulse in pulses), ("no transition haptics", pulses)
+        assert len(pulses) >= 6 and all(pulse == 12 for pulse in pulses), ("missing transition haptics", pulses)
         move_to(2, 2)
+        page.wait_for_timeout(200)
+        assert popup.get_attribute("data-active-action") == "", "leaving controls must clear active action"
+        assert page.locator("#article-quick-actions .is-targeted").count() == 0, (
+            "visual highlight must clear when finger leaves all buttons")
+        for candidate in ("read", "favorite", "share"):
+            shadow = page.locator('[data-quick-action="' + candidate + '"]').evaluate(
+                "(el) => getComputedStyle(el).boxShadow")
+            assert shadow == "none", ("stuck CSS hover after leaving popup", candidate, shadow)
         cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
         assert not popup.is_visible(), "release outside must close preview"
         assert page.evaluate("localStorage.getItem('tech-topics:favorites:v1')") in (None, "[]"), "release outside must not favorite"
-        print("PASS: Chromium touch press/drag selects all three actions with visual and haptic feedback")
+        print("PASS: Chromium touch drag switches read/favorite/share in both directions, clearing stale halos")
     finally:
         page.close()
 
