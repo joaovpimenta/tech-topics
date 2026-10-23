@@ -55,6 +55,47 @@
       !/^(?:sr|sra|dr|dra|prof|vs|ex|fig)\.$/iu.test(value);
   }
 
+  // A Custom Highlight covers the entire DOM Range, including whitespace
+  // text nodes between word spans and across inline markup. Styling each
+  // .tts-word individually leaves visible unhighlighted gaps between words.
+  function createSentenceHighlighter(document, fallbackClass = "tts-sentence-active") {
+    const key = "tech-topics-current-sentence";
+    const view = document?.defaultView;
+    const registry = view?.CSS?.highlights;
+    const Highlight = view?.Highlight;
+    let fallbackWords = [];
+
+    function clear() {
+      registry?.delete?.(key);
+      fallbackWords.forEach(word => word.classList.remove(fallbackClass));
+      fallbackWords = [];
+    }
+
+    function set(words) {
+      clear();
+      if (!words?.length) return false;
+      if (registry?.set && typeof Highlight === "function" &&
+          typeof document.createRange === "function") {
+        try {
+          const range = document.createRange();
+          range.setStartBefore(words[0]);
+          range.setEndAfter(words[words.length - 1]);
+          registry.set(key, new Highlight(range));
+          return true;
+        } catch (_) {
+          registry.delete?.(key);
+        }
+      }
+      // Older browsers fall back to word highlights rather than an
+      // inaccurate whole-paragraph highlight.
+      fallbackWords = [...new Set(words)];
+      fallbackWords.forEach(word => word.classList.add(fallbackClass));
+      return false;
+    }
+
+    return { set, clear };
+  }
+
   function buildBlocks(roots, lexicon = {}) {
     const pieces = [];
     function visit(node, owner, language) {
@@ -273,6 +314,7 @@
     let selectedIndex = 0;
     let highlightedBlock = null;
     let highlightedSentence = [];
+    const sentenceHighlighter = createSentenceHighlighter(document);
     let highlightedWords = [];
     let wasSpeaking = false;
     function measureBar() {
@@ -306,9 +348,8 @@
       const currentBlock = idle ? null : blocks[blockIndex]?.node;
       const currentSentence = idle ? [] : blocks[blockIndex]?.words || [];
       if (highlightedSentence !== currentSentence) {
-        highlightedSentence.forEach(node => node.classList.remove("tts-sentence-active"));
         highlightedSentence = currentSentence;
-        highlightedSentence.forEach(node => node.classList.add("tts-sentence-active"));
+        sentenceHighlighter.set(currentSentence);
       }
       if (highlightedBlock !== currentBlock) {
         highlightedBlock?.classList.remove("tts-block-active");
@@ -362,7 +403,7 @@
     return player;
   }
 
-  const api = { pronounce, spell, validateLexicon, isSentenceBoundary, createPlayer, buildBlocks, mount };
+  const api = { pronounce, spell, validateLexicon, isSentenceBoundary, createSentenceHighlighter, createPlayer, buildBlocks, mount };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.TechTopicsSpeech = api;
 })(globalThis);
