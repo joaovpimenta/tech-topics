@@ -263,6 +263,34 @@ test("article controls keep favorites and sharing icon-only, accessible, and con
   assert.match(script, /localStorage\.setItem\(FAVORITES_KEY/, "favorite click persists locally");
 });
 
+test("responsive inline transport and floating dock share a compact visual contract", () => {
+  const fs = require("node:fs");
+  const css = fs.readFileSync("styles.css", "utf8");
+  const html = fs.readFileSync("article.html", "utf8");
+  const home = fs.readFileSync("index.html", "utf8");
+  const styles = css.slice(css.indexOf("/* Compact transport: seek is the only compressible control."));
+  assert.ok(styles.startsWith("/* Compact transport:"),
+    "the responsive constraints must be present after older mobile rules");
+  assert.match(styles, /\.article-page \.inline-recording-seek\s*\{[^}]*flex:\s*1 1 0px;[^}]*min-width:\s*0;/s,
+    "the seek input, not the speed/favorite/share buttons, absorbs narrow widths");
+  assert.match(styles, /\.article-page \.article-social-actions\s*\{\s*flex-wrap:\s*nowrap;/,
+    "like and share remain side by side");
+  assert.match(styles, /\.article-page \.recording-dock\s*\{[^}]*display:\s*flex;/s,
+    "the floating player must be compact on one row");
+  assert.match(styles, /\.article-page \.recording-cover-ring\s*\{\s*display:\s*none;/,
+    "no bulky cover image in the scroll player");
+  assert.match(styles, /\.article-page \.recording-info,\s*\.article-page \.recording-progress,\s*\.article-page \.recording-actions\s*\{\s*display:\s*contents;/,
+    "the floating controls and progress share one row without changing event targets");
+  assert.match(styles, /\.article-page \.recording-dock #recording-seek\s*\{[^}]*flex:\s*1 1 0px;[^}]*min-width:\s*0;/s,
+    "the floating progress track also shrinks first");
+  assert.match(styles, /\.article-page \.recording-dock \.recording-play\s*\{[^}]*border-radius:\s*50%;[^}]*background:\s*var\(--accent\);/s,
+    "the floating play button uses the inline green circle");
+  assert.match(styles, /\.article-page \.recording-dock \.recording-rate\s*\{[^}]*border:\s*1px solid var\(--line\);/s,
+    "the floating speed control matches the inline outlined chip");
+  assert.match(html, /styles\.css\?v=20261023-responsive-audio-dock/);
+  assert.match(home, /styles\.css\?v=20261023-responsive-audio-dock/);
+});
+
 test("release chapter metadata is available through CORS-safe GitHub API response", async () => {
   const body = "\n<!-- TECH_TOPICS_CHAPTERS_V1\n" +
     JSON.stringify({ version: 1, chapters: [{ start: 0 }, { start: 18.45 }, { start: 43 }] }) +
