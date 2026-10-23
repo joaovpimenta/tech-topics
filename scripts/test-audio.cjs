@@ -405,7 +405,7 @@ test("sentence metadata v2 supports repeated editorial blocks with different tim
     { start: 9.8, block_index: 1, sentence_index: 1 },
     { start: 15.1, block_index: 1, sentence_index: 2 }
   ] };
-  const body = "<!-- TECH_TOPICS_CHAPTERS_V1\\n" + JSON.stringify(data) + "\\n-->";
+  const body = "<!-- TECH_TOPICS_CHAPTERS_V1\n" + JSON.stringify(data) + "\n-->";
   const chapters = chaptersFromNotes(body);
   assert.equal(chapters.length, 4);
   assert.deepEqual(chapters.map(ch => ch.sentenceIndex), [0, 0, 1, 2]);
