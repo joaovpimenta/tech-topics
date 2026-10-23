@@ -1,7 +1,6 @@
 """Real Chromium geometry + touch-input regression; run with Playwright installed."""
 from __future__ import annotations
 
-import contextlib
 import functools
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -129,7 +128,7 @@ if __name__ == "__main__":
     server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    with contextlib.closing(server):
+    try:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
             try:
@@ -138,4 +137,6 @@ if __name__ == "__main__":
                 test_press_drag(browser, base)
             finally:
                 browser.close()
+    finally:
         server.shutdown()
+        server.server_close()
