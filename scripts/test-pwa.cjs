@@ -58,21 +58,46 @@ async function testWorker() {
 
 async function testOrdering() {
   const nodes = new Map();
+  const docListeners = {};
+  const timers = new Map();
+  let timerId = 0;
+  let hovered = null;
+  const navigated = [];
+  const shared = [];
+  const setTimer = fn => { const id = ++timerId; timers.set(id, fn); return id; };
+  const runTimers = () => { for (const [id, fn] of [...timers]) { timers.delete(id); fn(); } };
   function element() {
     const listeners = {};
+    const classes = new Set();
     return {
-      hidden: true, value: "", checked: false, children: [], listeners, dataset: {}, classList: { add() {}, toggle() {} },
+      hidden: true, value: "", checked: false, children: [], listeners, dataset: {}, style: {},
+      classList: {
+        add(value) { classes.add(value); },
+        toggle(value, enabled) { if (enabled) classes.add(value); else classes.delete(value); },
+        contains(value) { return classes.has(value); }
+      },
       setAttribute() {}, append(...items) { this.children.push(...items); },
       replaceChildren(...items) { this.children = items; },
       addEventListener(type, callback) { listeners[type] = callback; },
-      querySelector() { return null; }, appendChild(node) { this.children.push(node); },
+      appendChild(node) { this.children.push(node); },
+      querySelectorAll(selector) {
+        if (selector !== "[data-quick-action]") return [];
+        return this.children.flatMap(node => node.children || []).filter(node => node.dataset?.quickAction);
+      },
+      contains(item) { return this === item || this.children.some(child => child === item || child.contains?.(item)); },
+      closest(selector) { return selector === "[data-quick-action]" && this.dataset.quickAction ? this : null; },
+      getBoundingClientRect() { return { left: 5, top: 10, bottom: 350, width: 300, height: 150 }; },
+      focus() { this.focused = true; },
       get childElementCount() { return this.children.length; }
     };
   }
   const document = {
     baseURI: "https://example.com/tech-topics/",
+    documentElement: { clientWidth: 375, clientHeight: 750 },
     createElement: element,
     createElementNS: element,
+    elementFromPoint() { return hovered; },
+    addEventListener(type, listener) { docListeners[type] = listener; },
     querySelector(selector) { if (!nodes.has(selector)) nodes.set(selector, element()); return nodes.get(selector); }
   };
   const records = [
@@ -83,9 +108,12 @@ async function testOrdering() {
   ];
   const stored = new Map();
   const calls = [];
+  const window = {
+    innerWidth: 375, innerHeight: 750, location: { search: "", assign(path) { navigated.push(path); } }
+  };
   vm.runInNewContext(readFileSync("app.js", "utf8"), {
-    document, window: { location: { search: "" } }, navigator: {},
-    URL, URLSearchParams, Intl, setTimeout, clearTimeout,
+    document, window, navigator: { share: async data => { shared.push(data); } },
+    URL, URLSearchParams, Intl, Date, Math, setTimeout: setTimer, clearTimeout: id => timers.delete(id),
     localStorage: { getItem: key => stored.get(key) || null, setItem: (key, value) => stored.set(key, value) },
     fetch: async path => {
       calls.push(path);
@@ -100,8 +128,9 @@ async function testOrdering() {
     "article.html?slug=middle", "article.html?slug=old"
   ]);
   assert(!calls.some(path => /content\/articles\/(?!catalog\.json)/.test(path)), "home must not fetch full articles");
-  const card = nodes.get("#recent-list").children[0];
-  card.children[2].children[0].listeners.click();
+
+  const originalCard = nodes.get("#recent-list").children[0];
+  originalCard.children[2].children[0].listeners.click();
   assert.deepEqual(JSON.parse(stored.get("tech-topics:favorites:v1")), ["newest"]);
   const filter = nodes.get("#favorites-only");
   filter.checked = true;
@@ -113,6 +142,85 @@ async function testOrdering() {
   search.value = "Antigo";
   search.listeners.input();
   assert.deepEqual(urls(), ["article.html?slug=old"]);
+  search.value = "";
+  search.listeners.input();
+
+  // A press-and-hold alone shows the menu, but releasing away does nothing.
+  const card = nodes.get("#recent-list").children[0];
+  const popup = nodes.get("#article-quick-actions");
+  const touch = (identifier, x, y) => ({ identifier, clientX: x, clientY: y });
+  const startTouch = (id = 1) => {
+    const point = touch(id, 120, 310);
+    card.listeners.touchstart({
+      touches: [point], changedTouches: [point], target: { closest() { return null; } }
+    });
+    runTimers();
+    assert.equal(popup.hidden, false, "hold must show quick actions");
+    return point;
+  };
+  const endTouch = (point, actionTarget = null) => {
+    hovered = actionTarget;
+    let prevented = false;
+    docListeners.touchend({
+      changedTouches: [point],
+      preventDefault() { prevented = true; }
+    });
+    assert.equal(prevented, true, "long-press release prevents an accidental article click");
+    assert.equal(popup.hidden, true, "menu must close on release");
+    hovered = null;
+  };
+  const storedBefore = stored.get("tech-topics:favorites:v1");
+  endTouch(startTouch(), null);
+  assert.equal(stored.get("tech-topics:favorites:v1"), storedBefore);
+  assert.deepEqual(navigated, []);
+
+  // Sliding onto the heart before release toggles a local favorite exactly once.
+  startTouch(2);
+  let favorite = popup.children[2].children[1];
+  hovered = favorite;
+  let scrollPrevented = false;
+  docListeners.touchmove({
+    changedTouches: [touch(2, 160, 215)],
+    preventDefault() { scrollPrevented = true; }
+  });
+  assert(scrollPrevented, "active long-press must not scroll the page");
+  assert(favorite.classList.contains("is-targeted"), "target icon must highlight under the finger");
+  endTouch(touch(2, 160, 215), favorite);
+  assert.deepEqual(JSON.parse(stored.get("tech-topics:favorites:v1")), []);
+
+  // Sliding onto Read navigates only when released on the button.
+  startTouch(3);
+  endTouch(touch(3, 120, 215), popup.children[2].children[0]);
+  assert.deepEqual(navigated, ["article.html?slug=newest"]);
+
+  // Share uses the exact article URL and returns to the closed state.
+  startTouch(4);
+  endTouch(touch(4, 190, 215), popup.children[2].children[2]);
+  await new Promise(setImmediate);
+  assert.equal(shared.length, 1);
+  assert.equal(shared[0].url, "https://example.com/tech-topics/article.html?slug=newest");
+
+  // Starting a normal scroll before the hold threshold cancels the menu.
+  const scrollCard = nodes.get("#recent-list").children[1];
+  scrollCard.listeners.touchstart({
+    touches: [touch(5, 120, 310)], changedTouches: [touch(5, 120, 310)],
+    target: { closest() { return null; } }
+  });
+  docListeners.touchmove({ changedTouches: [touch(5, 120, 270)], preventDefault() {} });
+  runTimers();
+  assert.equal(popup.hidden, true, "scroll must not activate the quick menu");
+
+  // Keyboard users can open, activate and close the same menu.
+  let prevented = false;
+  card.listeners.keydown({ key: "Enter", target: card, preventDefault() { prevented = true; } });
+  assert(prevented);
+  assert.equal(popup.hidden, false);
+  popup.children[2].children[0].listeners.click();
+  assert.equal(popup.hidden, true);
+  assert.equal(navigated.length, 2);
+  card.listeners.keydown({ key: "Enter", target: card, preventDefault() {} });
+  docListeners.keydown({ key: "Escape" });
+  assert.equal(popup.hidden, true);
 }
 
 (async () => {
@@ -124,5 +232,5 @@ async function testOrdering() {
   for (const icon of manifest.icons) assert(existsSync(icon.src));
   for (const file of ["index.html", "article.html"]) assert(readFileSync(file, "utf8").includes('rel="manifest"'));
   await testWorker(); await testOrdering();
-  console.log("PASS: manifest, scoped install/cache cleanup, network refresh, offline article/query/JSON fallback, newest-first ordering.");
+  console.log("PASS: manifest, scoped install/cache cleanup, network refresh, offline article/query/JSON fallback, favorites, press-drag-release, keyboard access and newest-first ordering.");
 })().catch(error => { console.error(error); process.exitCode = 1; });

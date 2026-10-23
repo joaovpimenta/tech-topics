@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20261023-home" />
+    <link rel="stylesheet" href="styles.css?v=20261023-quick-actions" />
   </head>
   <body>
     <a class="skip-link" href="#recent-posts">Ir para os artigos</a>
@@ -62,12 +62,8 @@
       </section>
     </main>
 
-    <dialog class="article-preview" id="article-preview" aria-labelledby="preview-heading">
-      <div class="preview-shell">
-        <button type="button" class="preview-close" aria-label="Fechar prévia" title="Fechar prévia">×</button>
-        <div id="preview-body"></div>
-      </div>
-    </dialog>
+    <div class="article-quick-actions" id="article-quick-actions" role="group"
+      aria-label="Ações rápidas do artigo" hidden></div>
 
     <footer class="site-footer">
       <div class="footer-inner">
@@ -75,7 +71,7 @@
         <button id="install-app" class="header-link install-app" type="button" hidden>Instalar app</button>
       </div>
     </footer>
-    <script src="app.js?v=20261023-home"></script>
+    <script src="app.js?v=20261023-quick-actions"></script>
     <script src="pwa.js"></script>
   </body>
 </html>
