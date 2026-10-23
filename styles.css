@@ -861,6 +861,32 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
   }
 }
 
+/* Place the action row beside the touch origin, not at the bottom of a
+   tall preview. Near the viewport top, the row moves to the first slot so
+   the user can drag down instead of needing to reach offscreen. */
+.article-quick-actions.quick-actions-below {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+}
+.article-quick-actions.quick-actions-below .quick-controls {
+  grid-row: 1;
+  padding-top: 0;
+  padding-bottom: 11px;
+  border-top: 0;
+  border-bottom: 1px solid var(--line);
+}
+.article-quick-actions.quick-actions-below .quick-cover { grid-row: 2; }
+.article-quick-actions.quick-actions-below .quick-title { grid-row: 3; }
+.article-quick-actions.quick-actions-below .quick-description { grid-row: 4; }
+.article-quick-actions.quick-actions-compact {
+  padding: 12px;
+  gap: 6px;
+}
+.article-quick-actions.quick-actions-compact .quick-cover { height: clamp(55px, 10dvh, 90px); }
+.article-quick-actions.quick-actions-compact .quick-title { font-size: 17px; line-height: 1.2; }
+.article-quick-actions.quick-actions-compact .quick-controls { padding-top: 6px; }
+.article-quick-actions.quick-actions-compact .quick-summary,
+.article-quick-actions.quick-actions-compact .quick-excerpt { font-size: 12px; line-height: 1.4; }
+
 /* Gesture selection: animate only the highlighted action without
    moving its hit target or changing the selected action's semantics. */
 .article-quick-actions [data-quick-action] {
@@ -888,6 +914,19 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
   box-shadow: 0 3px 13px #277d6940;
   transform: scale(1.1);
   filter: none;
+}
+/* A selected action must be legible even when a finger covers the icon. */
+.article-quick-actions .quick-icon.is-targeted {
+  transform: scale(1.14);
+  box-shadow: 0 0 0 5px #277d6940, 0 5px 16px #277d6959;
+}
+.article-quick-actions .quick-read.is-targeted {
+  transform: scale(1.055);
+  box-shadow: 0 0 0 4px #277d6940, 0 5px 16px #277d693d;
+}
+.article-quick-actions[data-active-action]:not([data-active-action=""]) .quick-hint {
+  color: var(--accent);
+  font-weight: 700;
 }
 .article-quick-actions .favorite-button.is-targeted svg,
 .article-quick-actions .favorite-button:hover svg,
