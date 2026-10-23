@@ -1,7 +1,7 @@
 merinda-editorial-journal.tar.gz
 generated_images/
 assets/four-golden-signals-cover.png
-## Python / TTS local
+## Arquivos locais ignorados (legado e dados de desenvolvimento)
 .venv/
 .local/
 __pycache__/

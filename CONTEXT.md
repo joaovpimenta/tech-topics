@@ -16,11 +16,11 @@ Vocabulário do fluxo editorial de Tech Topics.
 
 **Brief de artigo**: contrato de escrita composto para uma pauta, com uma task e as lentes de domínio selecionadas.
 
-**Narração local**: áudio privado para revisão do artigo; distinto da leitura em voz alta oferecida no site.
+**Pré-visualização de narração:** Artifact opcional gerado pelo Kokoro em `preview` ou `review`, sem publicação. Não há sintetizador local Chatterbox nem exigência de áudio em hooks de commit.
 
 ## Vocabulário de narração pública
 
-**Áudio publicado:** MP3 do Kokoro disponibilizado como asset de uma Release `tts-<slug>`. Não confundir com a narração local privada Chatterbox nem com a voz do dispositivo no navegador.
+**Áudio publicado:** MP3 do Kokoro disponibilizado como asset de uma Release `tts-<slug>`. Não confundir com a voz de síntese Web Speech do navegador.
 
 **Voz do dispositivo:** síntese pela Web Speech API, executada localmente no browser e sujeita às vozes/limitações do sistema. O player deve manter a mesma interface visual do MP3, sem inventar duração.
 
@@ -30,7 +30,7 @@ Vocabulário do fluxo editorial de Tech Topics.
 
 **Parágrafo editorial (bloco):** contêiner estável do HTML, identificado por `block_index`. A navegação e o destaque ocorrem agora em **frases**, identificadas por `sentence_index` dentro de cada bloco e timestamp real do WAV; o schema novo é `version=2`.
 
-**Chunk de síntese:** uma frase completa por inferência quando couber nos limites fonéticos. Se não couber, a frase vira vários chunks unidos com 25 ms, mas continua com o mesmo marcador de frase. Vírgulas não são controles navegáveis.
+**Chunk de síntese:** divisão independente em `segmentation.py`; uma frase completa por inferência quando couber nos limites fonéticos. Caso contrário, divide em chunks que preservam `(block_index, sentence_index)` e pausa interna de 25 ms. O adapter `kokoro_release.py` mede capacidade usando G2P/tokenizador Kokoro, mas não decide as regras editoriais. Vírgulas não são controles navegáveis.
 
 **Tokens fonéticos:** IDs obtidos de `kokoro.tokenizer.tokenize(phonemes, limit=None)`, depois da fonemização PT-BR/EN-US, **antes** da síntese. Teto de 350 por inferência e alvo de 300; não são caracteres editoriais. Há outra restrição independente de ~510 caracteres na *string fonética* tratada internamente pelo `kokoro-onnx`, protegida por guarda de 500.
 

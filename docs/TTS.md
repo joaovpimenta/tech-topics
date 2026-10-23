@@ -132,11 +132,18 @@ O destaque de palavra depende de eventos `boundary` da voz instalada. Expansões
 
 O léxico e `speech.js` fazem parte do pacote público e do precache; mudanças neles renovam a versão da PWA. Os artigos existentes recebem a política central de pronúncia, sem substituir seu texto visível por grafias fonéticas.
 
-## Revisão com narração local
+## Revisão de áudio sem publicação
 
-Para preparar o Chatterbox, diagnosticar voz e dependências ou validar narração antes de um commit, consulte [o fluxo TTS local](../tools/tts/README.md). Esse fluxo usa o conteúdo staged e mantém voz e áudio privados; sua saída serve à revisão humana e não altera o player público.
+Para ouvir uma narração sem publicar, execute o workflow Kokoro com
+`mode=preview` (trecho curto) ou `mode=review` (artigo completo), e consulte
+os Artifacts de GitHub Actions. Apenas a engine **Kokoro** produz novos
+arquivos de áudio. A regra de extração do texto e o planejamento de frases
+são módulos neutros; consulte [ADR 0004](adr/0004-tts-segmentation-backend-boundary.md)
+e [tools/tts/README.md](../tools/tts/README.md).
 
-O roteiro local aplica a mesma precedência de pronúncia. No pre-commit, tanto o artigo quanto o léxico vêm do índice Git. Uma mudança na fala resultante invalida o cache daquele artigo na próxima verificação; alterar apenas uma entrada não utilizada preserva o áudio. O sintetizador local mantém sua voz/configuração em português e não reproduz a troca de vozes do navegador.
+A antiga síntese Chatterbox anterior ao commit, sua exigência de voz privada
+e seu hook foram descontinuados. `node scripts/validate-site.mjs` continua
+validando conteúdo e testes TTS sem sintetizar áudio.
 
 ## Geração de MP3 pelo Kokoro no GitHub Actions
 
@@ -216,7 +223,7 @@ nativo. O teste visual em navegador é opcional.
 A interface publicada mantém **um único miniplayer inferior branco e verde**,
 com capa do banner do artigo, título, play/pause, velocidade, fechar,
 frase anterior/próxima e opção **Acompanhar frase**. Os três pontos
-trocam entre **áudio gravado** (MP3 Kokoro/Piper, quando disponível) e
+trocam entre **áudio gravado** (MP3 Kokoro, quando disponível) e
 **voz do dispositivo** (Web Speech API), sem abrir outra barra. Alternar
 o motor interrompe a reprodução anterior. O botão **Ouvir artigo**
 prefere MP3 quando encontrado; caso não haja MP3, usa voz nativa.
