@@ -149,6 +149,7 @@ test("inline article player and floating dock share one audio session across scr
   const ids = [
     "listen-recording", "inline-recording-anchor", "inline-recording-seek",
     "inline-recording-elapsed", "inline-recording-duration", "inline-recording-rate",
+    "inline-recording-previous", "inline-recording-next",
     "recording-player", "recording-title", "recording-subtitle", "recording-cover",
     "recording-ring", "recording-play", "recording-previous", "recording-skip",
     "recording-follow", "recording-close", "recording-seek",
@@ -177,9 +178,12 @@ test("inline article player and floating dock share one audio session across scr
       document: doc, navigator: {},
       article: { slug: "bulkhead", title: "Bulkhead" },
       cover: { src: "assets/bulkhead/cover.jpg" }, audio,
-      fetchAudio: async () => ({ url: "https://example.org/bulkhead.mp3" })
+      fetchAudio: async () => ({ url: "https://example.org/bulkhead.mp3",
+        chapters: [{ start: 0 }, { start: 30 }, { start: 80 }] })
     });
     await player.discover();
+    assert.equal(nodes["#inline-recording-next"].hidden, false);
+    assert.equal(nodes["#inline-recording-previous"].hidden, false);
     assert.equal(nodes["#recording-player"].hidden, true, "dock starts hidden");
     nodes["#listen-recording"].click();
     await Promise.resolve();
@@ -198,6 +202,11 @@ test("inline article player and floating dock share one audio session across scr
     assert.equal(audio.currentTime, 52.5);
     nodes["#inline-recording-rate"].click();
     assert.equal(audio.playbackRate, 1.25);
+    assert.equal(nodes["#inline-recording-rate"].textContent, "1.25×");
+    nodes["#inline-recording-next"].click();
+    assert.equal(audio.currentTime, 80);
+    nodes["#inline-recording-previous"].click();
+    assert.equal(audio.currentTime, 30);
 
     observer.emit(false);
     assert.equal(nodes["#recording-player"].hidden, false, "scrolled away displays dock");
@@ -231,6 +240,14 @@ test("article controls keep favorites and sharing icon-only, accessible, and con
   assert.match(html, /id="share-article"[^>]*aria-label="Compartilhar artigo"/);
   assert.match(html, /id="inline-recording-anchor"/);
   assert.match(html, /id="inline-recording-seek"/);
+  assert.match(html, /id="inline-recording-rate"/);
+  assert.match(html, /id="inline-recording-previous"/);
+  assert.match(html, /id="inline-recording-next"/);
+  const css = fs.readFileSync("styles.css", "utf8");
+  assert.match(css, /\.article-page \.inline-recording-rate\s*\{[^}]*display:\s*inline-grid/s,
+    "the speed control must stay visible on narrow screens");
+  assert.match(css, /\.article-page \.inline-recording\s*\{[^}]*background:\s*var\(--paper\)/s,
+    "the inline player has a white editorial background");
   assert.match(html, /id="recording-player"/);
   assert.match(script, /tech-topics:favorites:v1/, "articles use the exact home favorite storage key");
   assert.match(script, /localStorage\.setItem\(FAVORITES_KEY/, "favorite click persists locally");

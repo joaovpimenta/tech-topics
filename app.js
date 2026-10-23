@@ -7,7 +7,6 @@ const emptyState = document.querySelector("#empty-state");
 const loadMore = document.querySelector("#load-more");
 const quickActions = document.querySelector("#article-quick-actions");
 const shareStatus = document.querySelector("#share-status");
-const starCount = document.querySelector("#github-stars");
 const articleUrl = article => "article.html?slug=" + encodeURIComponent(article.slug);
 const normalize = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
 const FAVORITES_KEY = "tech-topics:favorites:v1";
@@ -98,6 +97,7 @@ function closeQuickActions() {
     quickActions.replaceChildren();
   }
   quickMode = null;
+  document.body.classList.remove("quick-gesture-active");
 }
 
 function quickActionAt(x, y) {
@@ -123,8 +123,16 @@ function openQuickActions(article, favoriteButton, x, y, mode = "gesture") {
   cover.alt = article.alt || article.title;
   cover.loading = "lazy";
   cover.decoding = "async";
-  const title = element("p", "quick-title", article.title);
-  const summary = element("p", "quick-summary", article.dek || article.excerpt || "");
+  cover.draggable = false;
+  const title = element("h2", "quick-title", article.title);
+  title.id = "quick-preview-title";
+  const summary = element("div", "quick-description");
+  const meta = element("p", "quick-meta", [article.category, article.read].filter(Boolean).join(" · "));
+  const dek = element("p", "quick-summary", article.dek || article.excerpt || "");
+  const excerpt = article.dek && article.excerpt && article.excerpt !== article.dek
+    ? element("p", "quick-excerpt", article.excerpt) : null;
+  const hint = element("p", "quick-hint", "Arraste até uma ação e solte. Solte fora para fechar.");
+  summary.append(...[meta, dek, excerpt, hint].filter(Boolean));
   const controls = element("div", "quick-controls");
 
   const read = element("button", "quick-read", "Ler artigo");
@@ -158,10 +166,12 @@ function openQuickActions(article, favoriteButton, x, y, mode = "gesture") {
   const viewportW = window.innerWidth || document.documentElement.clientWidth;
   const viewportH = window.innerHeight || document.documentElement.clientHeight;
   const left = Math.min(Math.max(10, x - width / 2), Math.max(10, viewportW - width - 10));
-  const above = y - height - 22;
-  const top = above >= 12 ? above : Math.min(viewportH - height - 12, y + 26);
+  // Keep the action row close to the original finger when space allows.
+  // Clamp inside the viewport; the rest of the panel remains a safe cancel area.
+  const top = Math.min(Math.max(12, y - height + 48), Math.max(12, viewportH - height - 12));
   quickActions.style.left = left + "px";
-  quickActions.style.top = Math.max(10, top) + "px";
+  quickActions.style.top = top + "px";
+  document.body.classList.toggle("quick-gesture-active", mode === "gesture");
 
   const perform = name => {
     closeQuickActions();
@@ -274,6 +284,8 @@ function articleCard(article, index) {
   image.alt = article.alt || article.title;
   image.loading = index < 2 ? "eager" : "lazy";
   image.decoding = "async";
+  image.draggable = false;
+  imageLink.draggable = false;
   if (index === 0) image.fetchPriority = "high";
   imageLink.append(image);
 
@@ -306,6 +318,10 @@ function articleCard(article, index) {
   share.addEventListener("click", () => shareArticle(article));
   actions.append(like, share);
   card.append(imageLink, copy, actions);
+  // Disable native image/link dragging and the browser's long-press menu.
+  // The card's custom hold-to-preview interaction must own this gesture.
+  card.addEventListener("dragstart", event => event.preventDefault());
+  card.addEventListener("selectstart", event => event.preventDefault());
 
   card.addEventListener("touchstart", event => {
     if (event.touches.length !== 1 || event.target.closest("button")) return;
@@ -317,7 +333,7 @@ function articleCard(article, index) {
     armGesture(article, like, event.clientX, event.clientY, "pointer", event.pointerId);
   });
   card.addEventListener("contextmenu", event => {
-    if (gesture?.article === article) event.preventDefault();
+    if (!event.target.closest("button")) event.preventDefault();
   });
   card.addEventListener("keydown", event => {
     if (event.target !== card || (event.key !== " " && event.key !== "Enter")) return;
@@ -378,27 +394,6 @@ async function loadArticles() {
   } finally { list.setAttribute("aria-busy", "false"); }
 }
 
-async function loadGithubStars() {
-  if (!starCount) return;
-  const key = "tech-topics:github-stars:v1";
-  try {
-    const saved = JSON.parse(localStorage.getItem(key) || "null");
-    if (saved && Number.isInteger(saved.stars)) {
-      starCount.textContent = new Intl.NumberFormat("pt-BR", { notation: "compact" }).format(saved.stars);
-      if (Date.now() - saved.updated < 6 * 60 * 60 * 1000) return;
-    }
-  } catch (_) { /* Continue without cached data. */ }
-  try {
-    const response = await fetch("https://api.github.com/repos/joaovpimenta/tech-topics", { headers: { Accept: "application/vnd.github+json" } });
-    if (!response.ok) return;
-    const data = await response.json();
-    if (!Number.isInteger(data.stargazers_count)) return;
-    starCount.textContent = new Intl.NumberFormat("pt-BR", { notation: "compact" }).format(data.stargazers_count);
-    try { localStorage.setItem(key, JSON.stringify({ stars: data.stargazers_count, updated: Date.now() })); }
-    catch (_) {}
-  } catch (_) { /* GitHub API is best-effort and never blocks the home. */ }
-}
-
 searchInput.addEventListener("input", renderArchive);
 loadMore.addEventListener("click", renderBatch);
 if ("IntersectionObserver" in window) {
@@ -410,4 +405,3 @@ if ("IntersectionObserver" in window) {
 const initialQuery = new URLSearchParams(window.location.search).get("q");
 if (initialQuery) searchInput.value = initialQuery;
 loadArticles();
-loadGithubStars();

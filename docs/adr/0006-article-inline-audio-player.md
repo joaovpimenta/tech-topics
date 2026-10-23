@@ -25,3 +25,8 @@ A página de artigo exibiu até agora um botão grande “Ouvir artigo”, abrin
 - Confirmar favorito persistido no mesmo navegador e compartilhamento nativo/cópia do link.
 - Validar modo de voz do dispositivo, capítulos, scroll, modo mobile e ausência de autoplay.
 - A referência visual final da barra pode orientar ajustes de espaçamento e ícones sem mudar este contrato funcional.
+
+## Revisão de interface — 2026-10-23
+
+- A top bar de artigo e home têm a mesma hierarquia (Tech Topics, pesquisa e GitHub com estrelas). A pesquisa dentro do artigo encaminha para `index.html?q=...`, onde é resolvida pelo catálogo leve. O carregamento das estrelas fica em `header.js`, compartilhado e com cache local.
+- A barra de áudio embutida deve ser branca, sem caixa verde/borda de contêiner. O botão play/pause circular usa o verde do site; velocidade permanece visível **inclusive em telas estreitas**. Os controles de trecho anterior/próximo aparecem quando houver capítulos; dock flutuante e barra compartilham a mesma sessão.
