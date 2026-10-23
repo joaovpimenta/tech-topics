@@ -301,6 +301,11 @@ async function testOrdering() {
 }
 
 (async () => {
+  const catalog = JSON.parse(readFileSync("assets/articles-catalog.json", "utf8"));
+  assert(catalog.length > 0 && catalog.every(article => typeof article.opening === "string" && article.opening.length > 0),
+    "build must publish the opening paragraph of every article in the lightweight catalog");
+  assert(catalog.every(article => !/<\\/?(?:p|span|strong|a|code)\\b/i.test(article.opening)),
+    "opening paragraphs must be plain display text without article HTML tags");
   const home = readFileSync("index.html", "utf8");
   const styles = readFileSync("styles.css", "utf8");
   assert(!home.includes('id="favorites-only"'), "home has no favorites filter");
