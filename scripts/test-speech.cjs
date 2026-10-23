@@ -116,3 +116,10 @@ test("native narration rate is adjustable through shared player without losing p
   player.toggle();
   assert.equal(player.snapshot().state, "speaking");
 });
+
+test("sentence detection keeps commas and abbreviations together", () => {
+  assert.equal(speech.isSentenceBoundary("API,"), false);
+  assert.equal(speech.isSentenceBoundary("Dr."), false);
+  assert.equal(speech.isSentenceBoundary("resiliência."), true);
+  assert.equal(speech.isSentenceBoundary("continua!"), true);
+});
