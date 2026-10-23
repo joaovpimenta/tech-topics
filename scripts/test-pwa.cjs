@@ -76,6 +76,7 @@ async function testOrdering() {
       hidden: true, value: "", checked: false, children: [], listeners, dataset: {}, style: {},
       classList: {
         add(value) { classes.add(value); },
+        remove(value) { classes.delete(value); },
         toggle(value, enabled) { if (enabled) classes.add(value); else classes.delete(value); },
         contains(value) { return classes.has(value); }
       },
@@ -89,7 +90,15 @@ async function testOrdering() {
       },
       contains(item) { return this === item || this.children.some(child => child === item || child.contains?.(item)); },
       closest(selector) { return selector === "[data-quick-action]" && this.dataset.quickAction ? this : null; },
-      getBoundingClientRect() { return { left: 5, top: 10, bottom: 350, width: 300, height: 150 }; },
+      getBoundingClientRect() {
+        const slots = {
+          read: { left: 66, right: 136, top: 190, bottom: 245 },
+          favorite: { left: 145, right: 190, top: 190, bottom: 245 },
+          share: { left: 200, right: 245, top: 190, bottom: 245 }
+        };
+        const rect = slots[this.dataset.quickAction] || { left: 5, right: 305, top: 10, bottom: 350 };
+        return { ...rect, width: rect.right - rect.left, height: rect.bottom - rect.top };
+      },
       focus() { this.focused = true; },
       get childElementCount() { return this.children.length; }
     };
@@ -222,14 +231,14 @@ async function testOrdering() {
   assert.equal(popup.children[2].children.at(-1).textContent, "Solte para alternar favorito.");
   docListeners.touchmove({ changedTouches: [touch(2, 160, 215)], preventDefault() {} });
   assert.deepEqual(vibrations, [12], "remaining over the same action must not repeatedly vibrate");
-  favorite.getBoundingClientRect = () => ({ left: 130, right: 177, top: 194, bottom: 240 });
+  favorite.getBoundingClientRect = () => ({ left: 130, right: 177, top: 194, bottom: 240, width: 47, height: 46 });
   hovered = null;
   docListeners.touchmove({ changedTouches: [touch(2, 158, 218)], preventDefault() {} });
   assert(favorite.classList.contains("is-targeted"), "coordinate fallback must target a button even if elementFromPoint misses its SVG");
   const shareTarget = popup.children[3].children[2];
   hovered = shareTarget;
   docListeners.touchmove({
-    changedTouches: [touch(2, 170, 215)],
+    changedTouches: [touch(2, 215, 215)],
     preventDefault() {}
   });
   assert(!favorite.classList.contains("is-targeted"), "previously highlighted action must reset");
@@ -253,7 +262,7 @@ async function testOrdering() {
 
   // Share uses the exact article URL and returns to the closed state.
   startTouch(4);
-  endTouch(touch(4, 190, 215), popup.children[3].children[2]);
+  endTouch(touch(4, 215, 215), popup.children[3].children[2]);
   await new Promise(setImmediate);
   assert.equal(shared.length, 1);
   assert.equal(shared[0].url, "https://example.com/tech-topics/article.html?slug=newest");
@@ -272,10 +281,21 @@ async function testOrdering() {
   startTouch(7);
   const visualOnly = popup.children[3].children[0];
   hovered = visualOnly;
-  docListeners.touchmove({ changedTouches: [touch(7, 100, 255)], preventDefault() {} });
+  docListeners.touchmove({ changedTouches: [touch(7, 100, 215)], preventDefault() {} });
   assert(visualOnly.classList.contains("is-targeted"));
   assert.equal(vibrations.length, 3, "visual feedback works without haptic support");
   endTouch(touch(7, 120, 310), null);
+
+  // If the mobile browser cancels the drag after long-press, preserve a
+  // tappable preview instead of silently dropping all action feedback.
+  startTouch(9);
+  docListeners.touchcancel({ changedTouches: [touch(9, 120, 310)] });
+  assert.equal(popup.hidden, false, "native touchcancel retains tappable actions");
+  assert.equal(popup.children[2].children.at(-1).textContent,
+    "Toque em uma ação para continuar ou pressione Escape para fechar.");
+  popup.children[3].children[1].listeners.click();
+  assert.equal(popup.hidden, true);
+  assert.deepEqual(JSON.parse(stored.get("tech-topics:favorites:v1")), ["newest"]);
 
   // Starting a normal scroll before the hold threshold cancels the menu.
   const scrollCard = nodes.get("#recent-list").children[1];

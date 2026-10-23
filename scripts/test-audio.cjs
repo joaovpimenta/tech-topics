@@ -293,27 +293,32 @@ test("responsive inline transport and floating dock share a compact visual contr
   assert.equal(articleCss, homeCss, "both pages must use the same stylesheet revision");
 });
 
-test("narrow article player hides timeline, never navigation, speed or social actions", () => {
+test("inline transport reserves speed, chapter controls and social actions before optional progress", () => {
   const fs = require("node:fs");
   const css = fs.readFileSync("styles.css", "utf8");
   const html = fs.readFileSync("article.html", "utf8");
-  const responsive = css.slice(css.indexOf("/* The embedded player and article actions occupy separate grid tracks."));
-  assert.ok(responsive.startsWith("/* The embedded player"),
-    "the optional timeline rules must override older mobile declarations");
+  const audioScript = fs.readFileSync("audio.js", "utf8");
+  const layout = css.slice(css.indexOf("/* Single-row transport."));
+  assert.ok(layout.startsWith("/* Single-row transport."));
+  assert.match(layout, /\.article-page \.inline-recording-timeline\[hidden\]\s*\{\s*display:\s*none !important;/,
+    "the entire timeline, rather than only the range track, must disappear");
+  assert.match(layout, /\.article-page \.inline-recording-rate\s*\{[^}]*flex:\s*0 0 52px;[^}]*min-width:\s*52px;/s,
+    "speed labels such as 1.25× get fixed width");
+  assert.match(layout, /\.article-page \.inline-recording-play,\s*\.article-page \.inline-recording-skip,\s*\.article-page \.inline-recording-rate\s*\{\s*flex-shrink:\s*0;/,
+    "all transport controls have priority over the timeline");
+  assert.match(layout, /\.article-page \.inline-recording-timeline\s*\{[^}]*flex:\s*1 1 0px;[^}]*min-width:\s*0;/s,
+    "progress alone consumes the remaining space");
   assert.match(css, /\.article-page \.inline-recording-skip:not\(\[hidden\]\)\s*\{\s*display:\s*grid;/,
-    "chapter arrows remain available on the smallest phones");
-  assert.doesNotMatch(css, /\.article-page \.inline-recording-skip\s*\{\s*display:\s*none;/,
-    "no media rule may remove navigation to make room for the timeline");
-  assert.match(responsive, /\.article-page \.inline-recording-anchor\s*\{\s*container:\s*inline-audio \/ inline-size;/,
-    "the breakpoint must depend on the actual player width, not the entire viewport");
-  assert.match(responsive, /@container inline-audio \(max-width:\s*272px\)\s*\{\s*\.article-page \.inline-recording-seek,\s*\.article-page \.inline-recording-elapsed,\s*\.article-page \.inline-recording-duration\s*\{\s*display:\s*none;/,
-    "progress, elapsed time and duration vanish together when there is no room");
-  assert.match(responsive, /\.article-page \.inline-recording-rate\s*\{\s*margin-left:\s*auto;/,
-    "speed stays aligned next to the separate favorite and share column");
-  assert.match(responsive, /@supports not \(container-type:\s*inline-size\)/,
-    "older browsers receive a viewport-based fallback");
-  assert.match(responsive, /@media \(max-width:\s*620px\)[\s\S]*?flex:\s*0 0 42px;/,
-    "variable speed labels must have sufficient width");
+    "chapter controls remain visible on small phones");
+  assert.match(html, /id="inline-recording-timeline" hidden/,
+    "the optional timeline starts hidden to prevent first-paint overlap");
+  assert.match(audioScript, /function updateInlineTimeline\(\)/);
+  assert.match(audioScript, /new root\.ResizeObserver\(updateInlineTimeline\)\.observe\(inlineAnchor\)/,
+    "timeline visibility must react to actual article layout changes");
+  assert.match(audioScript, /const minTimeline = Math\.max\(120, Math\.ceil\(labels \* 7\) \+ 64\)/,
+    "duration labels must contribute to required space");
+  assert.match(audioScript, /inlineTimeline\.hidden = !fits;/,
+    "the timeline is hidden instead of allowing progress to overlap fixed buttons");
   for (const id of ["listen-recording", "inline-recording-previous", "inline-recording-next",
     "inline-recording-rate", "favorite-article", "share-article"]) {
     assert.match(html, new RegExp('id="' + id + '"'));

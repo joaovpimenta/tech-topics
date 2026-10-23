@@ -108,19 +108,23 @@ function closeQuickActions() {
 
 function quickActionAt(x, y, slop = 0) {
   if (!quickActions || quickActions.hidden) return null;
-  // The original card owns the touch stream, so event.target is not the
-  // popup button. Hit-test by viewport coordinates, including SVG children.
-  const target = document.elementFromPoint?.(x, y);
-  const button = target?.closest?.("[data-quick-action]");
-  if (button && quickActions.contains(button)) return button;
-  // A small tolerance makes selection stable at action edges while moving.
-  // Releases use exact hit-testing to keep "soltar fora" a safe cancellation.
-  for (const candidate of quickActions.querySelectorAll("[data-quick-action]")) {
-    const rect = candidate.getBoundingClientRect();
-    if (x >= rect.left - slop && x <= rect.right + slop &&
-        y >= rect.top - slop && y <= rect.bottom + slop) return candidate;
+  // Touch events remain owned by the original card even when the finger
+  // travels over the popup. Geometry, not event.target or CSS :hover, selects
+  // the action. Resolve a nearest hit so enlarged halos cannot steal touches.
+  let nearest = null;
+  let distance = Infinity;
+  for (const button of quickActions.querySelectorAll("[data-quick-action]")) {
+    const rect = button.getBoundingClientRect();
+    if (!rect.width || !rect.height) continue;
+    const dx = Math.max(rect.left - x, 0, x - rect.right);
+    const dy = Math.max(rect.top - y, 0, y - rect.bottom);
+    const squared = dx * dx + dy * dy;
+    if (squared <= slop * slop && squared < distance) {
+      nearest = button;
+      distance = squared;
+    }
   }
-  return null;
+  return nearest;
 }
 
 function highlightQuickAction(x, y) {
@@ -227,11 +231,24 @@ function openQuickActions(article, favoriteButton, x, y, mode = "gesture") {
   // Gesture actions are resolved on release, not via a synthetic click.
   quickActions.performAction = perform;
   if (mode === "keyboard") read.focus();
+  else highlightQuickAction(x, y); // immediate visual feedback if opened under a button
 }
 
-function cancelGesture() {
+function cancelGesture(nativeCancel = false) {
   if (gesture?.timer) clearTimeout(gesture.timer);
-  if (gesture?.active) closeQuickActions();
+  if (gesture?.active) {
+    if (nativeCancel && quickActions && !quickActions.hidden) {
+      // Some mobile engines take ownership of a vertical pan after long-press
+      // and emit touchcancel. Keep the preview tappable instead of discarding it.
+      quickMode = "keyboard";
+      document.body.classList.remove("quick-gesture-active");
+      for (const button of quickActions.querySelectorAll("[data-quick-action]")) {
+        button.classList.remove("is-targeted");
+      }
+      quickActions.dataset.activeAction = "";
+      if (quickHint) quickHint.textContent = "Toque em uma ação para continuar ou pressione Escape para fechar.";
+    } else closeQuickActions();
+  }
   gesture = null;
 }
 
@@ -280,15 +297,15 @@ document.addEventListener("touchmove", event => {
   if (!touch) return;
   if (gesture.active) event.preventDefault();
   moveGesture(touch.clientX, touch.clientY);
-}, { passive: false });
+}, { capture: true, passive: false });
 document.addEventListener("touchend", event => {
   if (gesture?.kind !== "touch") return;
   const touch = [...event.changedTouches].find(t => t.identifier === gesture.id);
   if (touch && endGesture(touch.clientX, touch.clientY)) event.preventDefault();
-}, { passive: false });
+}, { capture: true, passive: false });
 document.addEventListener("touchcancel", event => {
-  if (gesture?.kind === "touch" && [...event.changedTouches].some(t => t.identifier === gesture.id)) cancelGesture();
-});
+  if (gesture?.kind === "touch" && [...event.changedTouches].some(t => t.identifier === gesture.id)) cancelGesture(true);
+}, { capture: true });
 document.addEventListener("pointermove", event => {
   if (gesture?.kind === "pointer" && gesture.id === event.pointerId) moveGesture(event.clientX, event.clientY);
 });

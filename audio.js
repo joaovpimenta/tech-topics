@@ -96,6 +96,8 @@
   function createPlayer({ document, navigator, article, cover, audio, fetchAudio = lookupAudio, fetchChapters = loadChapters, devicePlayer = null, stopDevice = () => {}, startDevice = () => {} }) {
     const button = document.querySelector("#listen-recording");
     const inlineAnchor = document.querySelector("#inline-recording-anchor");
+    const inlineTimeline = document.querySelector("#inline-recording-timeline");
+    const inlinePlayer = document.querySelector("#inline-recording");
     const inlineSeek = document.querySelector("#inline-recording-seek");
     const inlineElapsed = document.querySelector("#inline-recording-elapsed");
     const inlineDuration = document.querySelector("#inline-recording-duration");
@@ -139,6 +141,38 @@
     let seeking = false;
     let inlineSeeking = false;
     let inlineVisible = true;
+    // The transport buttons are never allowed to shrink or overlap the social
+    // actions. Progress is an all-or-nothing accessory, measured after the
+    // actual article grid allocates space and whenever its size changes.
+    function updateInlineTimeline() {
+      if (!inlineTimeline || !inlineAnchor || !inlinePlayer) return;
+      const width = inlineAnchor.getBoundingClientRect?.().width || 0;
+      if (!width) return; // article controls are still hidden during loading
+      const gap = Number.parseFloat(root.getComputedStyle?.(inlinePlayer)?.gap) || 5;
+      const controls = [button, inlinePrevious, inlineNext, inlineRate]
+        .filter(node => node && !node.hidden);
+      const defaults = [36, 22, 22, 52];
+      const used = controls.reduce((total, node) => {
+        const index = node === button ? 0 : node === inlineRate ? 3 : node === inlinePrevious ? 1 : 2;
+        return total + (node.getBoundingClientRect?.().width || defaults[index]);
+      }, 0);
+      // Label lengths vary ("0:00", "1:25:00", "por trecho") and speed
+      // labels vary ("1×", "1.25×", "2×"). Reserve a usable 56px seek track.
+      const labels = (inlineElapsed?.textContent?.length || 4) +
+        (inlineDuration?.textContent?.length || 5);
+      const minTimeline = Math.max(120, Math.ceil(labels * 7) + 64);
+      const fits = width >= used + minTimeline + gap * controls.length + 2;
+      inlineTimeline.hidden = !fits;
+      inlinePlayer.classList.toggle("has-timeline", fits);
+    }
+
+    if (inlineAnchor && inlineTimeline) {
+      if (typeof root.ResizeObserver === "function") {
+        new root.ResizeObserver(updateInlineTimeline).observe(inlineAnchor);
+      }
+      root.addEventListener?.("resize", updateInlineTimeline);
+    }
+
 
     function updateDockVisibility() {
       // One audio element owns both interfaces; the existing bottom dock only
@@ -358,6 +392,7 @@
         deviceSwitch.hidden = native ? !available : !devicePlayer;
       }
       if (sourceMenu) sourceMenu.hidden = !available || !devicePlayer;
+      updateInlineTimeline();
       followChapter();
       updateDockVisibility();
       if (session && !native) session.playbackState = playing ? "playing" : open ? "paused" : "none";
