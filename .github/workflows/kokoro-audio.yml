@@ -368,10 +368,16 @@ jobs:
           chapters = json.loads(base.with_suffix(".chapters.json").read_text(encoding="utf-8"))
           metrics = json.loads(base.with_suffix(".metrics.json").read_text(encoding="utf-8"))
           assert segments and chapters["chapters"], "Full review must contain segments and chapters"
-          block_ids = [s["block_index"] for s in segments]
-          chapter_ids = [c["block_index"] for c in chapters["chapters"]]
-          assert chapter_ids == list(dict.fromkeys(block_ids)), "Missing or extra chapter boundaries"
-          assert chapter_ids == list(range(len(chapter_ids))), "Chapter IDs not contiguous"
+          assert chapters["version"] == 2, "Expected sentence-level chapter metadata"
+          segment_keys = [(s["block_index"], s["sentence_index"]) for s in segments]
+          chapter_keys = [(c["block_index"], c["sentence_index"]) for c in chapters["chapters"]]
+          assert chapter_keys == list(dict.fromkeys(segment_keys)), "Sentence boundaries do not match inferred audio"
+          blocks = list(dict.fromkeys(block for block, _ in chapter_keys))
+          assert blocks == list(range(len(blocks))), "Editorial blocks not contiguous"
+          for block in blocks:
+              ids = [sentence for index, sentence in chapter_keys if index == block]
+              assert ids == list(range(len(ids))), f"Sentence indices not contiguous in block {block}"
+          chapter_ids = chapter_keys
           assert all(c["start"] >= 0 for c in chapters["chapters"]), "Invalid chapter timestamps"
           assert all(a["start"] < b["start"] for a, b in zip(chapters["chapters"], chapters["chapters"][1:])), "Invalid chapter ordering"
           assert metrics["preset"] == "equilibrado" and metrics["speed"] == 1.0
