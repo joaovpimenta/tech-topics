@@ -90,27 +90,57 @@ async function shareArticle(article) {
 let gesture = null;
 let quickMode = null;
 let suppressedClickUntil = 0;
+let quickHint = null;
 
 function closeQuickActions() {
   if (quickActions) {
     quickActions.hidden = true;
     quickActions.replaceChildren();
+    quickActions.style.height = "";
+    quickActions.classList.toggle("quick-actions-below", false);
+    quickActions.classList.toggle("quick-actions-compact", false);
+    delete quickActions.dataset.activeAction;
   }
+  quickHint = null;
   quickMode = null;
   document.body.classList.remove("quick-gesture-active");
 }
 
-function quickActionAt(x, y) {
-  if (!quickActions || quickActions.hidden || !document.elementFromPoint) return null;
-  const target = document.elementFromPoint(x, y);
+function quickActionAt(x, y, slop = 0) {
+  if (!quickActions || quickActions.hidden) return null;
+  // The original card owns the touch stream, so event.target is not the
+  // popup button. Hit-test by viewport coordinates, including SVG children.
+  const target = document.elementFromPoint?.(x, y);
   const button = target?.closest?.("[data-quick-action]");
-  return button && quickActions.contains(button) ? button : null;
+  if (button && quickActions.contains(button)) return button;
+  // A small tolerance makes selection stable at action edges while moving.
+  // Releases use exact hit-testing to keep "soltar fora" a safe cancellation.
+  for (const candidate of quickActions.querySelectorAll("[data-quick-action]")) {
+    const rect = candidate.getBoundingClientRect();
+    if (x >= rect.left - slop && x <= rect.right + slop &&
+        y >= rect.top - slop && y <= rect.bottom + slop) return candidate;
+  }
+  return null;
 }
 
 function highlightQuickAction(x, y) {
-  const hovered = quickActionAt(x, y);
+  const hovered = quickActionAt(x, y, 8);
+  const name = hovered?.dataset.quickAction || "";
   for (const button of quickActions.querySelectorAll("[data-quick-action]")) {
     button.classList.toggle("is-targeted", button === hovered);
+  }
+  if (gesture?.active && gesture.highlightedAction !== name) {
+    gesture.highlightedAction = name;
+    quickActions.dataset.activeAction = name;
+    if (quickHint) quickHint.textContent = name
+      ? ({ read: "Solte para ler o artigo.", favorite: "Solte para alternar favorito.",
+           share: "Solte para compartilhar." })[name]
+      : "Arraste até uma ação e solte. Solte fora para fechar.";
+    // Short haptic tick only when entering a *new* action, not on every move.
+    // Web Vibration is unsupported on iOS and may be disabled by the device.
+    if (name && gesture.kind === "touch" && typeof navigator.vibrate === "function") {
+      try { navigator.vibrate(12); } catch (_) { /* Haptics are best effort. */ }
+    }
   }
   return hovered;
 }
@@ -132,6 +162,7 @@ function openQuickActions(article, favoriteButton, x, y, mode = "gesture") {
   const excerpt = article.dek && article.excerpt && article.excerpt !== article.dek
     ? element("p", "quick-excerpt", article.excerpt) : null;
   const hint = element("p", "quick-hint", "Arraste até uma ação e solte. Solte fora para fechar.");
+  quickHint = hint;
   summary.append(...[meta, dek, excerpt, hint].filter(Boolean));
   const controls = element("div", "quick-controls");
 
@@ -159,16 +190,25 @@ function openQuickActions(article, favoriteButton, x, y, mode = "gesture") {
   quickActions.hidden = false;
   quickMode = mode;
 
-  // Position above the point of contact so dragging *up* selects an action.
-  const bounds = quickActions.getBoundingClientRect();
-  const width = bounds.width || 300;
-  const height = bounds.height || 150;
+  // Keep the action row within a short drag from the original finger.
+  // A 500px popup clamped to the top of a phone used to put the actions
+  // *below* the finger even though the gesture asks users to drag upwards.
   const viewportW = window.innerWidth || document.documentElement.clientWidth;
   const viewportH = window.innerHeight || document.documentElement.clientHeight;
-  const left = Math.min(Math.max(10, x - width / 2), Math.max(10, viewportW - width - 10));
-  // Keep the action row close to the original finger when space allows.
-  // Clamp inside the viewport; the rest of the panel remains a safe cancel area.
-  const top = Math.min(Math.max(12, y - height + 48), Math.max(12, viewportH - height - 12));
+  const popupWidth = quickActions.getBoundingClientRect().width || 300;
+  const left = Math.min(Math.max(10, x - popupWidth / 2), Math.max(10, viewportW - popupWidth - 10));
+  const maxHeight = Math.min(500, viewportH - 24);
+  const below = mode === "gesture" && y < 260;
+  const height = mode === "gesture"
+    ? Math.max(120, Math.min(maxHeight, below ? viewportH - y - 24 : y - 12))
+    : maxHeight;
+  if (mode === "gesture") quickActions.style.height = height + "px";
+  quickActions.classList.toggle("quick-actions-below", below);
+  quickActions.classList.toggle("quick-actions-compact", mode === "gesture" && !below && height < 355);
+  const top = below ? y + 12 : mode === "gesture"
+    ? Math.min(Math.max(12, y - height + 12), Math.max(12, viewportH - height - 12))
+    : Math.min(Math.max(12, y - height + 48), Math.max(12, viewportH - height - 12));
+  if (below) hint.textContent = "Arraste para baixo até uma ação e solte. Solte fora para fechar.";
   quickActions.style.left = left + "px";
   quickActions.style.top = top + "px";
   document.body.classList.toggle("quick-gesture-active", mode === "gesture");
@@ -197,7 +237,7 @@ function cancelGesture() {
 
 function armGesture(article, favoriteButton, x, y, kind, id) {
   cancelGesture();
-  gesture = { article, favoriteButton, x, y, kind, id, active: false };
+  gesture = { article, favoriteButton, x, y, kind, id, active: false, highlightedAction: "" };
   const current = gesture;
   current.timer = setTimeout(() => {
     if (gesture !== current) return;
