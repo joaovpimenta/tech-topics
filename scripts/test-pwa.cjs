@@ -169,6 +169,7 @@ async function testOrdering() {
     });
     runTimers();
     assert.equal(popup.hidden, false, "hold must show quick actions");
+    assert.equal(popup.dataset.gestureActive, "", "held gestures disable native CSS hover styles");
     assert.equal(popup.children[0].src, "assets/newest.jpg", "quick menu shows the original article cover");
     assert.equal(popup.children[3].children[0].textContent, "Ler artigo");
     assert.equal(popup.children[0].draggable, false);
@@ -218,6 +219,10 @@ async function testOrdering() {
   // Sliding onto the heart before release toggles a local favorite exactly once.
   startTouch(2);
   let favorite = popup.children[3].children[1];
+  // The former highlighted Read button may enlarge into Favorite's area.
+  // Geometry must choose the closest *new* action, not DOM order.
+  const readTarget = popup.children[3].children[0];
+  readTarget.getBoundingClientRect = () => ({ left: 65, right: 174, top: 190, bottom: 245, width: 109, height: 55 });
   hovered = favorite;
   let scrollPrevented = false;
   docListeners.touchmove({
@@ -226,6 +231,7 @@ async function testOrdering() {
   });
   assert(scrollPrevented, "active long-press must not scroll the page");
   assert(favorite.classList.contains("is-targeted"), "target icon must highlight under the finger");
+  assert(!readTarget.classList.contains("is-targeted"), "overlapping scaled Read rectangle cannot pin selection on Read");
   assert.deepEqual(vibrations, [12], "first selection must deliver one short haptic tick");
   assert.equal(popup.dataset.activeAction, "favorite");
   assert.equal(popup.children[2].children.at(-1).textContent, "Solte para alternar favorito.");
@@ -243,6 +249,7 @@ async function testOrdering() {
   });
   assert(!favorite.classList.contains("is-targeted"), "previously highlighted action must reset");
   assert(shareTarget.classList.contains("is-targeted"), "drag highlights the newly selected action");
+  assert(!readTarget.classList.contains("is-targeted"), "moving away clears the previous Read action");
   assert.deepEqual(vibrations, [12, 12], "moving to another action produces exactly one new haptic tick");
   assert.equal(popup.children[2].children.at(-1).textContent, "Solte para compartilhar.");
   hovered = favorite;
@@ -251,6 +258,7 @@ async function testOrdering() {
     preventDefault() {}
   });
   assert(favorite.classList.contains("is-targeted"), "dragging back restores the favorite highlight");
+  assert(!shareTarget.classList.contains("is-targeted"), "Share loses highlight after dragging back to Favorite");
   assert.deepEqual(vibrations, [12, 12, 12], "returning to an action produces one haptic tick");
   endTouch(touch(2, 160, 215), favorite);
   assert.deepEqual(JSON.parse(stored.get("tech-topics:favorites:v1")), []);
@@ -293,6 +301,7 @@ async function testOrdering() {
   assert.equal(popup.hidden, false, "native touchcancel retains tappable actions");
   assert.equal(popup.children[2].children.at(-1).textContent,
     "Toque em uma ação para continuar ou pressione Escape para fechar.");
+  assert.equal(popup.dataset.gestureActive, undefined, "native gesture cancellation re-enables keyboard/tap mode");
   popup.children[3].children[1].listeners.click();
   assert.equal(popup.hidden, true);
   assert.deepEqual(JSON.parse(stored.get("tech-topics:favorites:v1")), ["newest"]);
@@ -348,6 +357,10 @@ async function testOrdering() {
     "the gesture hint must also react to drag targets");
   assert(styles.includes("0 0 0 5px"), "selected icons must have a visible halo beyond the fingertip");
   assert(styles.includes("@media (prefers-reduced-motion: reduce)"), "gesture effects respect reduced motion");
+  assert(styles.includes("@media (hover: hover) and (pointer: fine)"),
+    "CSS :hover is only active for mouse or trackpad, not touch");
+  assert(styles.includes(":not([data-gesture-active]) .quick-read:hover"),
+    "CSS :hover cannot pin a button while press-and-drag is active");
   assert(styles.includes("object-fit: contain"), "covers must use contain instead of crop");
   assert(styles.includes(".quick-cover"), "quick menu cover must preserve full artwork");
   assert(styles.includes(".article-quick-actions .quick-opening"), "opening prose has an explicit reading style");
