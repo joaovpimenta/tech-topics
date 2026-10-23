@@ -71,7 +71,7 @@ def test_player(browser, base):
 
 def test_press_drag(browser, base):
     page = browser.new_page(viewport={"width": 390, "height": 800}, has_touch=True, is_mobile=True)
-    page.add_init_script("""() => {
+    page.add_init_script("""(() => {
       window.__vibrations = [];
       Object.defineProperty(navigator, 'vibrate', {
         configurable: true, value: milliseconds => {
@@ -79,7 +79,7 @@ def test_press_drag(browser, base):
           return true;
         }
       });
-    }""")
+    })()""")
     try:
         page.goto(base + "/index.html", wait_until="domcontentloaded")
         card = page.locator(".recent-item").first
