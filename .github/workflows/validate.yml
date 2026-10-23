@@ -36,8 +36,10 @@ jobs:
   sentence-preview-oneoff:
     name: Real Kokoro sentence sample (temporary)
     if: github.head_ref == 'feat/tts-sentence-navigation-20261022'
+    # Reusable Kokoro workflow includes a publish-capable job even though
+    # this particular run uses safe preview mode (no Release writes).
     permissions:
-      contents: read
+      contents: write
     uses: ./.github/workflows/kokoro-audio.yml
     with:
       article: bulkhead
