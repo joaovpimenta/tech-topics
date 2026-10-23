@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20261023-opening-preview" />
+    <link rel="stylesheet" href="styles.css?v=20261023-player-fit-gesture" />
   </head>
   <body class="article-page">
     <a class="skip-link" href="#article-root">Ir para o artigo</a>
@@ -58,9 +58,11 @@
               <button type="button" id="inline-recording-next" class="inline-recording-skip" aria-label="Próximo trecho" title="Próximo trecho" hidden disabled>
                 <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 5 9 7-9 7V5Z"/><path d="M18 5v14"/></svg>
               </button>
-              <span class="inline-recording-elapsed" id="inline-recording-elapsed">0:00</span>
-              <input type="range" id="inline-recording-seek" min="0" max="1000" value="0" step="1" aria-label="Posição da narração" disabled />
-              <span class="inline-recording-duration" id="inline-recording-duration">–:––</span>
+              <div class="inline-recording-timeline" id="inline-recording-timeline" hidden>
+                <span class="inline-recording-elapsed" id="inline-recording-elapsed">0:00</span>
+                <input class="inline-recording-seek" type="range" id="inline-recording-seek" min="0" max="1000" value="0" step="1" aria-label="Posição da narração" disabled />
+                <span class="inline-recording-duration" id="inline-recording-duration">–:––</span>
+              </div>
               <button type="button" class="inline-recording-rate" id="inline-recording-rate" title="Alterar velocidade" aria-label="Velocidade da narração: 1 vez">1×</button>
             </div>
           </div>
