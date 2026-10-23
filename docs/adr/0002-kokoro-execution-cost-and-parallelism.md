@@ -13,7 +13,7 @@ A medição histórica de Bulkhead [#39823281725](https://github.com/joaovpiment
 - **Manter uma instância** do Kokoro ONNX FP32 por artigo, com `intra_op_num_threads=4`, usando a voz `pf_dora`.
 - **Não** iniciar duas ou três instâncias concorrentes no mesmo runner por padrão. Se houver justificativa, comparar em experimento separado `1×4 threads` com `2×2 threads`, mantendo mesmo texto, modelo, qualidade, memória e configuração de CPU.
 - Não oferecer `mode=profile`, coleta periódica de CPU/RSS nem jobs de profiling. Preservar métricas simples de duração e tempo total da síntese.
-- Preservar filtros de execução: alteração de código/CSS do site pode fazer deploy, mas não recria artigo nem sintetiza áudio; alterações em artigos existentes **não** disparam nova geração; selecionar áudio apenas para JSON de artigo **novo**.
+- Preservar filtros de execução: código/CSS podem fazer deploy sem TTS. A síntese automática genérica (incluindo artigos novos) está congelada. Exceção autorizada: atualizar somente MP3 de artigos **existentes** cujo conteúdo de fala/idiomas/aliases mudou, após deploy Pages, com job por slug, backup e `replace_existing=true`.
 - **Release `tts-<slug>` existente:** skip antes de criar job pesado e conferir novamente antes de publicar. Substituição requer `mode=publish` e `replace_existing=true` explicitamente informados no GitHub Actions.
 - `mode=compare` usa amostras curtas e reutiliza a mesma sessão ONNX; diferenças entre 96/128/160 kbps devem partir do **mesmo WAV**, evitando inferência redundante.
 
