@@ -190,7 +190,7 @@
             if (event.key === "Enter") seekFromArticle(node, event);
           });
         }
-      });
+      }
     }
     function seekFromArticle(node, event) {
       if (event.target.closest("a,button,input,select,textarea,summary,pre,code,[contenteditable=true]")) return;
