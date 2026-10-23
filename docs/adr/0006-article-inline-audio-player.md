@@ -36,3 +36,9 @@ A página de artigo exibiu até agora um botão grande “Ouvir artigo”, abrin
 - Renderizar o player embutido, favorito e compartilhamento **na mesma linha**. A área do player cresce até 460 px no desktop e encolhe quando o viewport estreita, sem obrigar os botões sociais a quebrar para uma segunda linha.
 - Usar 40 px como altura comum do player e dos botões de favorito/compartilhar. Play/pause, velocidade e ações continuam acessíveis. Em larguras muito estreitas, esconder somente os atalhos de salto entre capítulos dentro da barra, que permanecem no dock flutuante.
 - No menu de toque prolongado da home, usar a classe `is-targeted` já associada à posição do dedo para destacar a ação selecionada com preenchimento, sombra e ampliação discreta, sem deslocar a área clicável. A transição deve respeitar `prefers-reduced-motion`.
+
+## Correção responsiva — 2026-10-23
+
+- A prioridade em qualquer largura é manter, **na mesma linha**, play/pause, anterior/próximo (quando houver capítulos), velocidade, favorito e compartilhar. O player e os controles sociais ocupam colunas distintas; a velocidade nunca deve invadir o botão de favorito.
+- A barra de progresso, o tempo decorrido e a duração são **opcionais** no player embutido: quando o próprio player fica com largura de até 272 px, ocultá-los juntos usando container query. Em navegadores antigos, aplicar fallback por largura do viewport. Não esconder navegação de capítulos apenas para dar espaço ao progresso.
+- Reservar largura para rótulos de velocidade como `1.25×` e alinhar esse botão à borda direita do player quando o progresso estiver oculto. Validar visualmente com controles de capítulos presentes em 320, 360, 390, 400 e 430 px, e verificar ausência de interseção das áreas clicáveis.

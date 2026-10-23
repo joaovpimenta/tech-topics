@@ -852,7 +852,8 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
 @media (max-width: 380px) {
   /* Keep the progress seek and speed on narrow devices; chapter jumps
      remain available in the floating player on these screens. */
-  .article-page .inline-recording-skip { display: none; }
+  /* Chapter navigation remains available; the timeline yields instead. */
+  .article-page .inline-recording-skip:not([hidden]) { display: grid; }
   .article-page .inline-recording { gap: 3px; }
   .article-page .article-icon-button {
     flex-basis: 38px;
@@ -1076,5 +1077,40 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
   .article-page .recording-dock .recording-close {
     flex-basis: 22px;
     width: 22px;
+  }
+}
+
+/* The embedded player and article actions occupy separate grid tracks.
+   Only the seek/timestamps are optional: never let the native range input,
+   even with a 0px flex minimum, paint beneath the favorite button. */
+.article-page .inline-recording-anchor {
+  container: inline-audio / inline-size;
+}
+.article-page .inline-recording-rate {
+  box-sizing: border-box;
+  overflow: hidden;
+}
+@media (max-width: 620px) {
+  .article-page .inline-recording-rate {
+    flex: 0 0 42px;
+    width: 42px;
+    min-width: 42px;
+  }
+}
+@container inline-audio (max-width: 272px) {
+  .article-page .inline-recording-seek,
+  .article-page .inline-recording-elapsed,
+  .article-page .inline-recording-duration {
+    display: none;
+  }
+  .article-page .inline-recording-rate { margin-left: auto; }
+}
+/* Browser fallback for engines without size container queries. */
+@supports not (container-type: inline-size) {
+  @media (max-width: 410px) {
+    .article-page .inline-recording-seek,
+    .article-page .inline-recording-elapsed,
+    .article-page .inline-recording-duration { display: none; }
+    .article-page .inline-recording-rate { margin-left: auto; }
   }
 }
