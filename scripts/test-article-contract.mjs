@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { validateArticleCatalog, validateSpeechDirective } from "./lib/article-contract.mjs";
+import { extractOpeningParagraph } from "./lib/catalog-opening.mjs";
 
 const article = {
   slug: "fixture", language: "pt-BR", title: "Fixture", category: "Backend",
@@ -19,4 +20,17 @@ assert.match(validate({ ...article, bodyHtml: "<p><img src='assets/<span lang=\"
 assert.match(validate({ ...article, publishedAt: "2026-02-30" })[0].message, /valid ISO/);
 assert.match(validate({ ...article, image: "assets/other/cover.jpg" })[0].message, /image must point/);
 assert.ok(validateArticleCatalog([{ file: "fixture.json", article }, { file: "fixture.json", article }]).some(error => /duplicate article/.test(error.message)));
+// The preview must use the first displayed paragraph, not a summary or the
+// next block's text. Inline formatting and HTML entities are plain text.
+assert.equal(
+  extractOpeningParagraph('  <p>Pense num <strong>garçom</strong> que anota um pedido &amp; avisa a <span lang="en-US">cozinha</span>. É a abertura inteira.</p><p>Segundo parágrafo.</p>'),
+  "Pense num garçom que anota um pedido & avisa a cozinha. É a abertura inteira."
+);
+assert.equal(
+  extractOpeningParagraph('<p>Não corte o texto: 1 &lt; 2, &#8594; entrega, &#x2014; retomada.<br>Última frase.</p><h2>Seção</h2>'),
+  "Não corte o texto: 1 < 2, → entrega, — retomada. Última frase."
+);
+assert.equal(extractOpeningParagraph('<div><p>Não é abertura válida.</p></div>'), "");
+assert.equal(extractOpeningParagraph(null), "");
+
 console.log("PASS: article contract rejects corrupt URL attributes, invalid dates, covers and duplicates");

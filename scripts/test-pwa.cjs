@@ -107,7 +107,7 @@ async function testOrdering() {
   const records = [
     { slug: "old", publishedAt: "2026-09-10", title: "Antigo", image: "assets/old.jpg", excerpt: "Introdução", category: "Arquitetura" },
     { slug: "new", publishedAt: "2026-09-12", title: "Novo", image: "assets/new.jpg", excerpt: "Evolução", category: "Arquitetura", addedAt: "2026-09-12T09:00:00Z" },
-    { slug: "newest", publishedAt: "2026-09-12", title: "Mais novo no mesmo dia", image: "assets/newest.jpg", excerpt: "Conceito", category: "Arquitetura", addedAt: "2026-09-12T12:00:00Z" },
+    { slug: "newest", publishedAt: "2026-09-12", title: "Mais novo no mesmo dia", image: "assets/newest.jpg", excerpt: "Conceito", dek: "Descrição curta", opening: "Imagine um sistema distribuído em que dois serviços precisam concordar. A analogia inicial deve aparecer por inteiro na prévia.", category: "Arquitetura", addedAt: "2026-09-12T12:00:00Z" },
     { slug: "middle", publishedAt: "2026-09-11", title: "Intermediário", image: "assets/middle.jpg", excerpt: "Detalhes", category: "Arquitetura" }
   ];
   const stored = new Map();
@@ -164,6 +164,9 @@ async function testOrdering() {
     assert.equal(popup.children[3].children[0].textContent, "Ler artigo");
     assert.equal(popup.children[0].draggable, false);
     assert.equal(popup.children[2].children[0].textContent, "Arquitetura");
+    assert.equal(popup.children[2].children[1].textContent,
+      "Imagine um sistema distribuído em que dois serviços precisam concordar. A analogia inicial deve aparecer por inteiro na prévia.",
+      "the preview must display the full opening allegory, not the card excerpt or dek");
     assert.match(popup.children[2].children.at(-1).textContent, /Solte fora para fechar/);
     if (y >= 260) {
       assert.equal(popup.classList.contains("quick-actions-below"), false,
@@ -190,6 +193,18 @@ async function testOrdering() {
   endTouch(startTouch(), null);
   assert.equal(stored.get("tech-topics:favorites:v1"), storedBefore);
   assert.deepEqual(navigated, []);
+
+  // Older cached catalogs still show a meaningful fallback, without fetching
+  // the full article. Its card has an excerpt but no opening field.
+  const olderCard = nodes.get("#recent-list").children[1];
+  const fallbackTouch = touch(8, 120, 310);
+  olderCard.listeners.touchstart({
+    touches: [fallbackTouch], changedTouches: [fallbackTouch],
+    target: { closest() { return null; } }
+  });
+  runTimers();
+  assert.equal(popup.children[2].children[1].textContent, "Evolução");
+  endTouch(fallbackTouch, null);
 
   // Sliding onto the heart before release toggles a local favorite exactly once.
   startTouch(2);
@@ -286,6 +301,11 @@ async function testOrdering() {
 }
 
 (async () => {
+  const catalog = JSON.parse(readFileSync("assets/articles-catalog.json", "utf8"));
+  assert(catalog.length > 0 && catalog.every(article => typeof article.opening === "string" && article.opening.length > 0),
+    "build must publish the opening paragraph of every article in the lightweight catalog");
+  assert(catalog.every(article => !/<\/?(?:p|span|strong|a|code)\b/i.test(article.opening)),
+    "opening paragraphs must be plain display text without article HTML tags");
   const home = readFileSync("index.html", "utf8");
   const styles = readFileSync("styles.css", "utf8");
   assert(!home.includes('id="favorites-only"'), "home has no favorites filter");
@@ -310,6 +330,10 @@ async function testOrdering() {
   assert(styles.includes("@media (prefers-reduced-motion: reduce)"), "gesture effects respect reduced motion");
   assert(styles.includes("object-fit: contain"), "covers must use contain instead of crop");
   assert(styles.includes(".quick-cover"), "quick menu cover must preserve full artwork");
+  assert(styles.includes(".article-quick-actions .quick-opening"), "opening prose has an explicit reading style");
+  assert(styles.includes(".article-quick-actions .quick-description"), "text can use remaining preview space");
+  assert(styles.includes(".article-quick-actions.quick-actions-below .quick-controls"),
+    "opening text must not displace the gesture actions when the preview opens below the finger");
   const manifest = JSON.parse(readFileSync("manifest.webmanifest", "utf8"));
   assert.equal(manifest.display, "standalone");
   assert.equal(manifest.scope, "./");

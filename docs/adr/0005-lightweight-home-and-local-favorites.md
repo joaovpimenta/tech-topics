@@ -9,7 +9,7 @@ A home buscava `content/articles/index.json` e então todos os JSONs completos v
 
 ## Decisão
 
-1. `scripts/build-articles.mjs` passa a gerar `assets/articles-catalog.json` a partir dos artigos validados, contendo somente `slug`, datas, título, categoria, imagem, texto alternativo, `dek`, `excerpt` e tempo de leitura. Não incluir `bodyHtml`, capítulos de áudio, MP3 ou campos do corpo integral.
+1. `scripts/build-articles.mjs` passa a gerar `assets/articles-catalog.json` a partir dos artigos validados, contendo somente `slug`, datas, título, categoria, imagem, texto alternativo, `dek`, `excerpt`, **a abertura textual completa do primeiro parágrafo** (`opening`) e tempo de leitura. Não incluir `bodyHtml`, capítulos de áudio, MP3 ou campos do corpo integral.
 2. A home realiza uma única requisição ao catálogo compacto e renderiza o primeiro lote de seis artigos imediatamente. Os seguintes são acrescentados sob demanda por `IntersectionObserver`, com botão acessível de fallback. As imagens usam `loading=lazy` fora da primeira dobra.
 3. O precache contém arquivos essenciais e o catálogo, **não** JSONs completos de artigos nem capas. Recursos abertos posteriormente podem entrar no cache de runtime existente do service worker. O uso offline de um artigo depende de o recurso ter sido visitado anteriormente.
 4. Pesquisa baseada exclusivamente nos metadados já carregados, com campo na barra superior inspirado no padrão de aplicativos móveis. O GitHub mostra o total de **estrelas do repositório** consultado de forma independente e best-effort, com cache local de seis horas.
@@ -38,3 +38,10 @@ A home buscava `content/articles/index.json` e então todos os JSONs completos v
 - Selecionar continuamente a ação por coordenadas do dedo, incluindo SVGs internos e tolerância pequena nas bordas durante o movimento. A confirmação usa hit-test sem tolerância no ponto de soltura para não executar uma ação fora do botão.
 - Ao entrar ou trocar de ação, realçar o botão com preenchimento, escala, halo e instrução de soltura. Vibração curta (12 ms) somente na transição, quando `navigator.vibrate` estiver disponível; não bloquear a experiência em Safari/iOS ou quando a vibração estiver desativada. Respeitar `prefers-reduced-motion` e manter teclado acessível.
 - Testar transição entre Ler, favorito e compartilhar; ausência de vibração repetida enquanto o dedo fica parado; cancelamento fora dos botões; posição na metade e no topo do viewport; fallback visual sem API de vibração.
+
+## Refinamento de prévia longa — 2026-10-23
+
+- Ao pressionar e segurar, a prévia apresenta a **alegoria de abertura** extraída do primeiro `<p>` de `bodyHtml`, sem substituir pelo `dek` nem pelo `excerpt` resumido. O campo `opening` é texto simples calculado em `scripts/build-articles.mjs` para cada artigo publicado e armazenado somente no catálogo leve; jamais carregar o JSON completo em cada toque.
+- Remover marcação inline e decodificar entidades HTML para preservar a leitura visível do parágrafo integral. No cliente, usar `textContent` para impedir que a prévia interprete marcação HTML.
+- Reservar espaço vertical para o texto: mostrar a capa inteira como miniatura ao lado do título, introdução em região rolável e ações Ler/Favoritar/Compartilhar fixas na borda acessível ao gesto. Quando o catálogo ainda estiver em cache sem `opening`, recorrer ao `dek`/`excerpt`.
+- Validar o campo para todos os artigos no build, garantir ausência de marcação HTML e impedir novas buscas por JSON integral ao abrir a prévia.

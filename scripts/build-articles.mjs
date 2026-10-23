@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { validateArticleCatalog } from "./lib/article-contract.mjs";
+import { extractOpeningParagraph } from "./lib/catalog-opening.mjs";
 
 const run = promisify(execFile);
 
@@ -39,15 +40,16 @@ for (const { file, article } of articles) {
   records.push({
     slug: article.slug, path: `content/articles/${file}`, publishedAt: article.publishedAt, addedAt,
     title: article.title, category: article.category, date: article.date, read: article.read,
-    image: article.image, alt: article.alt, excerpt: article.excerpt, dek: article.dek
+    image: article.image, alt: article.alt, excerpt: article.excerpt, dek: article.dek,
+    opening: extractOpeningParagraph(article.bodyHtml)
   });
 }
 
 records.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || (Date.parse(b.addedAt) || 0) - (Date.parse(a.addedAt) || 0) || a.slug.localeCompare(b.slug));
 const manifest = records.map(({ slug, path, addedAt }) => ({ slug, path, addedAt }));
 await writeFile(path.join(articlesDir, "index.json"), `${JSON.stringify(manifest, null, 2)}\n`);
-const catalog = records.map(({ slug, publishedAt, addedAt, title, category, date, read, image, alt, excerpt, dek }) =>
-  ({ slug, publishedAt, addedAt, title, category, date, read, image, alt, excerpt, dek }));
+const catalog = records.map(({ slug, publishedAt, addedAt, title, category, date, read, image, alt, excerpt, dek, opening }) =>
+  ({ slug, publishedAt, addedAt, title, category, date, read, image, alt, excerpt, dek, opening }));
 await writeFile(path.join(root, "assets", "articles-catalog.json"), `${JSON.stringify(catalog, null, 2)}\n`);
 console.log(`Built lightweight article catalog and manifest with ${manifest.length} article(s).`);
 
