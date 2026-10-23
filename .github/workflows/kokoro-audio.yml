@@ -27,12 +27,6 @@ on:
         type: boolean
         required: false
         default: false
-  # One-shot automatic migration on merge with [tts-backfill-v2].
-  # Manual workflow dispatch remains available for missing or failed articles.
-  push:
-    branches: ["main"]
-    paths:
-      - ".github/workflows/kokoro-audio.yml"
   workflow_dispatch:
     inputs:
       article:
@@ -67,10 +61,6 @@ permissions:
 jobs:
   select:
     name: Select article(s)
-    if: >-
-      github.event_name != 'push' ||
-      inputs.after_sha != '' ||
-      contains(github.event.head_commit.message, '[tts-backfill-v2]')
     runs-on: ubuntu-latest
     outputs:
       slugs: ${{ steps.resolve.outputs.slugs }}
@@ -90,8 +80,8 @@ jobs:
           BEFORE_SHA: ${{ inputs.before_sha }}
           AFTER_SHA: ${{ inputs.after_sha }}
           SELECT_MODE: ${{ inputs.mode || 'publish' }}
-          BACKFILL_ALL: ${{ inputs.all_articles || (inputs.after_sha == '' && github.event_name == 'push' && contains(github.event.head_commit.message, '[tts-backfill-v2]')) || 'false' }}
-          REPLACE_EXISTING: ${{ inputs.replace_existing || (inputs.after_sha == '' && github.event_name == 'push' && contains(github.event.head_commit.message, '[tts-backfill-v2]')) || 'false' }}
+          BACKFILL_ALL: ${{ inputs.all_articles || 'false' }}
+          REPLACE_EXISTING: ${{ inputs.replace_existing || 'false' }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
@@ -156,7 +146,7 @@ jobs:
     env:
       ARTICLE_SLUG: ${{ matrix.slug }}
       MODE: ${{ inputs.mode || 'publish' }}
-      REPLACE_EXISTING: ${{ inputs.replace_existing || (inputs.after_sha == '' && github.event_name == 'push' && contains(github.event.head_commit.message, '[tts-backfill-v2]')) || 'false' }}
+      REPLACE_EXISTING: ${{ inputs.replace_existing || 'false' }}
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       OMP_NUM_THREADS: "4"

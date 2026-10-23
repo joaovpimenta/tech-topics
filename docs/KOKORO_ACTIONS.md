@@ -176,7 +176,7 @@ bitrate não corrigirá problemas de pronúncia, prosódia ou recortes:
 apenas reduzirá os artefatos da compressão, aumentando o arquivo.
 
 `publish` e `preview` já usam Equilibrado 1.00 e MP3 128 kbps.
-`review` e `compare` geram Artifacts sem publicar Releases. O backfill aprovado usa `all_articles=true` com `mode=publish` e `replace_existing=true`: revisa todos os artigos publicados, pula os que já têm schema v2 e guarda backups dos MP3 antigos como Artifacts de 90 dias antes de substituí-los. A migração inicial é disparada uma única vez no merge com marcador `[tts-backfill-v2]`; runs normais do Pages não fazem backfill. Nenhuma Release existente é sobrescrita implicitamente fora dessa operação expressamente aprovada;
+`review` e `compare` geram Artifacts sem publicar Releases. O backfill aprovado usa `all_articles=true` com `mode=publish` e `replace_existing=true`: revisa todos os artigos publicados, pula os que já têm schema v2 e guarda backups dos MP3 antigos como Artifacts de 90 dias antes de substituí-los. A migração inicial foi iniciada no merge da PR #66, run [#39883809928](https://github.com/joaovpimenta/tech-topics/actions/runs/39883809928). O gatilho automático de uso único foi removido após o disparo; novos backfills e retries usam o comando manual `workflow_dispatch` com `all_articles=true`, `mode=publish` e `replace_existing=true`. Runs normais do Pages não fazem backfill. Nenhuma Release existente é sobrescrita implicitamente fora dessa operação expressamente aprovada;
 substituição exige `mode=publish` com `replace_existing=true` manual.
 
 ### E o modo `continuous`?
