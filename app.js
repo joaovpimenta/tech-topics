@@ -167,6 +167,7 @@ function articleCard(article, index) {
       timer = null;
       suppressClick = true;
       openPreview(article);
+      setTimeout(() => { suppressClick = false; }, 850);
     }, 550);
   });
   card.addEventListener("contextmenu", event => { if (event.pointerType === "touch") event.preventDefault(); });

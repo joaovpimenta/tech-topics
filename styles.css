@@ -441,3 +441,8 @@ body:not(.article-page) .site-header { position: sticky; top: 0; z-index: 15; ba
   .top-search { padding: 0 9px; }
 }
 @media (prefers-reduced-motion: reduce) { .card-icon-button { transition: none; } }
+
+/* Keep installation available without crowding the mobile search bar. */
+body:not(.article-page) .footer-inner { gap: 16px; flex-wrap: wrap; }
+body:not(.article-page) .footer-inner .install-app { margin-left: auto; }
+@media (pointer: coarse) { .recent-item { -webkit-touch-callout: none; } .recent-image, .recent-copy { -webkit-user-select: none; user-select: none; } }
