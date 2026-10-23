@@ -76,6 +76,7 @@ async function testOrdering() {
       hidden: true, value: "", checked: false, children: [], listeners, dataset: {}, style: {},
       classList: {
         add(value) { classes.add(value); },
+        remove(value) { classes.delete(value); },
         toggle(value, enabled) { if (enabled) classes.add(value); else classes.delete(value); },
         contains(value) { return classes.has(value); }
       },
