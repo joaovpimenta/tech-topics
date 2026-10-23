@@ -1,3 +1,10 @@
+> **Pausa de geração (23/10/2026):** novos jobs TTS estão bloqueados na
+> Action por `jobs.select.if: false`. Nem `publish`, `preview`, `review`,
+> `compare` ou a geração por novo artigo podem iniciar inferência enquanto
+> o bloqueio persistir. O lote antigo [#39883809928](https://github.com/joaovpimenta/tech-topics/actions/runs/39883809928)
+> usa um commit anterior e **não é afetado retroativamente**. Para retomar
+> novas gerações, é necessária instrução explícita e remoção do bloqueio.
+
 # Kokoro Dora — narração automática e manual com PT-BR + inglês
 
 O Tech Topics usa **somente Kokoro-82M v1.0 (FP32 / ONNX)**, voz

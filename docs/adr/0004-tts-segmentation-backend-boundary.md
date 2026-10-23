@@ -33,3 +33,11 @@
 ## Referências
 
 [ADR 0001](0001-kokoro-dora-prosody-and-encoding.md), [ADR 0003](0003-unified-article-audio-and-chapter-synchronization.md) e [issue #64](https://github.com/joaovpimenta/tech-topics/issues/64).
+
+## Operação temporária: congelamento de novos jobs (23/10/2026)
+
+A implementação foi integrada com geração **pausada** para novos disparos.
+A Action usa `jobs.select.if: false` até instrução explícita de retomada.
+Isso não altera jobs já iniciados sob commits anteriores nem modifica
+Releases. Não confundir bloqueio de novos jobs com cancelamento da matriz
+antiga [#39883809928](https://github.com/joaovpimenta/tech-topics/actions/runs/39883809928).
