@@ -158,12 +158,12 @@ function openQuickActions(article, favoriteButton, x, y, mode = "gesture") {
   title.id = "quick-preview-title";
   const summary = element("div", "quick-description");
   const meta = element("p", "quick-meta", [article.category, article.read].filter(Boolean).join(" · "));
-  const dek = element("p", "quick-summary", article.dek || article.excerpt || "");
-  const excerpt = article.dek && article.excerpt && article.excerpt !== article.dek
-    ? element("p", "quick-excerpt", article.excerpt) : null;
+  // Prioritize the article's own opening allegory rather than duplicating the
+  // card excerpt or the header dek. All text comes from the lightweight catalog.
+  const opening = element("p", "quick-opening", article.opening || article.dek || article.excerpt || "");
   const hint = element("p", "quick-hint", "Arraste até uma ação e solte. Solte fora para fechar.");
   quickHint = hint;
-  summary.append(...[meta, dek, excerpt, hint].filter(Boolean));
+  summary.append(meta, opening, hint);
   const controls = element("div", "quick-controls");
 
   const read = element("button", "quick-read", "Ler artigo");
