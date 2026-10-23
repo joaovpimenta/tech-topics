@@ -3,6 +3,17 @@ name: Build and deploy Tech Topics to GitHub Pages
 on:
   push:
     branches: ["main"]
+    # Changes limited to tooling/docs do not affect the published site.
+    paths-ignore:
+      - "docs/**"
+      - "README.md"
+      - "AGENTS.md"
+      - "CONTEXT.md"
+      - "generation/**"
+      - "tools/tts/**"
+      - ".github/workflows/validate.yml"
+      - ".github/workflows/select-next-topic.yml"
+      - ".github/workflows/kokoro-audio.yml"
   workflow_dispatch:
 
 permissions:
@@ -85,3 +96,15 @@ jobs:
     with:
       before_sha: ${{ github.event.before }}
       after_sha: ${{ github.sha }}
+
+  select-next-topic:
+    name: Select next editorial topic after deploy
+    if: >-
+      github.event_name == 'push' &&
+      needs.validate.outputs.new_article_slugs != '' &&
+      needs.validate.outputs.new_article_slugs != '[]'
+    needs: [validate, deploy]
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/select-next-topic.yml

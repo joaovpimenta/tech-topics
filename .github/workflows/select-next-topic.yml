@@ -1,10 +1,8 @@
 name: Select next Tech Topics article
 
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "content/articles/*.json"
+  # Called by Pages only when a newly added article deployed successfully.
+  workflow_call:
   issue_comment:
     types: [created]
   workflow_dispatch:
@@ -30,30 +28,11 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-      - name: Detect whether this push actually added an article
-        id: additions
-        if: github.event_name == 'push'
-        shell: bash
-        env:
-          BEFORE_SHA: ${{ github.event.before }}
-          AFTER_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          slugs="$(python3 tools/tts/article_selection.py --before "$BEFORE_SHA" --after "$AFTER_SHA")"
-          if [ "$slugs" = '[]' ]; then
-            echo "has_new=false" >> "$GITHUB_OUTPUT"
-            echo "Only existing articles changed; no new editorial selection." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "has_new=true" >> "$GITHUB_OUTPUT"
-            echo "New articles: $slugs" >> "$GITHUB_STEP_SUMMARY"
-          fi
       - name: Set up Node.js
-        if: github.event_name != 'push' || steps.additions.outputs.has_new == 'true'
         uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
       - name: Select one unpublished candidate
-        if: github.event_name != 'push' || steps.additions.outputs.has_new == 'true'
         run: node scripts/select-next-topic.mjs --json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
