@@ -75,13 +75,14 @@ são publicados; mudanças em artigos existentes não refazem áudios.
 
 Cada artigo recebe uma GitHub Release `tts-<slug>` com `<slug>.mp3`
 e `<slug>.chapters.json`. O Kokoro grava os instantes de início de cada
-bloco narrativo (título, subtítulo, seção ou parágrafo) a partir das amostras
-WAV, e publica os mesmos marcadores nas notas da Release. O site consulta
-essas notas pela API do GitHub e permite pular ao próximo parágrafo sem
+frase completa nas amostras WAV, identificando `block_index` e
+`sentence_index` em `version=2`. Frases longas repartidas em vários chunks
+mantêm um marcador lógico. O site consulta os marcadores nas notas da Release
+e permite pular à próxima frase sem
 depender de uma requisição JSON cross-origin à hospedagem dos assets.
 Releases existentes nunca são substituídas automaticamente.
 **Áudios antigos sem esses marcadores continuam tocando, mas não podem
-pular parágrafos com precisão até serem regenerados manualmente com
+pular frases com precisão até serem regenerados em schema v2 com
 `mode=publish` e `replace_existing=true`.**
 
 ## Manual: escolher artigo por nome ou o mais recente
@@ -131,7 +132,7 @@ três perfis de pausas `atual`, `equilibrado`, `fluido`.
 
 A opção aprovada na escuta e adotada para novas publicações é **Equilibrado 1.00**:
 pausa de parágrafo 380 ms, pausa depois de título 700 ms, e 140 ms
-entre sentenças agrupadas em chamadas diferentes. No `compare`, as
+entre sentenças distintas. No `compare`, as
 emendas obrigatórias no meio de uma frase usam **25 ms** de silêncio.
 
 ### Chunking por tokens reais antes do TTS
@@ -149,8 +150,9 @@ para contar tokens reais e escolher cortes antes da inferência.
   produzida pelo G2P, pois `kokoro-onnx` divide internamente em
   510 caracteres fonéticos. É um limite diferente de caracteres do
   texto do artigo ou tokens do vocabulário; ambos precisam ser aferidos.
-- Os `block_index` da narração permanecem associados aos parágrafos
-  originais para o player, mesmo com múltiplos chunks no mesmo parágrafo.
+- Os `block_index` permanecem associados ao parágrafo original; `sentence_index`
+  identifica cada frase dentro dele. Fragmentos de uma frase longa compartilham
+  a mesma unidade de navegação e destaque no player.
 - A biblioteca já utiliza `trim=True` por padrão; o pipeline o envia
   explicitamente. Isso remove silêncio da borda dos lotes da biblioteca,
   não significa corte semântico de frases.
@@ -226,7 +228,7 @@ da síntese para suporte e validação, sem coleta contínua de CPU/RSS.
 
 - [ADR 0001 — Prosódia, 350 tokens, trim, bitrate e continuous](adr/0001-kokoro-dora-prosody-and-encoding.md): perfil Dora Equilibrado 1.00 **aceito**, implementação integrada à `main` na PR #58.
 - [ADR 0002 — Execução, concorrência e skip](adr/0002-kokoro-execution-cost-and-parallelism.md): uma instância × quatro threads; nenhuma síntese redundante para artigo/Release existentes.
-- [ADR 0003 — Player único e capítulos](adr/0003-unified-article-audio-and-chapter-synchronization.md): decisão implementada na PR #53; sincronização por `block_index`, sujeita à compatibilidade dos capítulos.
+- [ADR 0003 — Player único e capítulos](adr/0003-unified-article-audio-and-chapter-synchronization.md): sincronização por par `(block_index, sentence_index)` no schema v2, com fallback v1 por bloco.
 
 A melhoria de qualidade de 96 para 128 kbps é uma decisão de
 **codificação para novos arquivos**, não uma garantia de diferença audível.

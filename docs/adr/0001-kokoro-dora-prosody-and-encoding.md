@@ -29,11 +29,10 @@ A síntese bilíngue é fonemizada primeiro com eSpeak PT-BR/EN-US e
   Existe também uma **segunda guarda independente de 500 caracteres da string
   fonética** (não 500 caracteres editoriais), já que a biblioteca faz
   repartição interna quando encontra ~510 caracteres fonéticos.
-- **Faixa-alvo operacional:** cerca de **300 tokens** (faixa menor pode favorecer frases curtas). Pode-se agrupar frases
-  adjacentes **dentro do mesmo parágrafo**, desde que não ultrapassem
-  350 e não mudem a ordem/idioma/pontuação. Evitar chunks com menos
-  de 20 tokens quando a fusão natural for possível; títulos e
-  parágrafos curtos permanecem exceções legítimas.
+- **Faixa-alvo operacional:** até **300 tokens** para uma frase, sem
+  juntar frases curtas apenas para preencher contexto. A unidade navegável
+  passou a ser a frase completa; frases longas podem gerar múltiplas inferências
+  dentro do mesmo `(block_index, sentence_index)`.
 - **Preservar frase completa** sempre que ela couber no orçamento de
   350 tokens. Não dividir apenas porque excede 320 caracteres.
 - **Frase com mais de 350 tokens:** dividir preferencialmente na última
@@ -45,8 +44,8 @@ A síntese bilíngue é fonemizada primeiro com eSpeak PT-BR/EN-US e
   interna de uma mesma frase. Manter pausa normal de parágrafo no
   fim do bloco. Evitar contar duas vezes a mesma pausa.
 - **Invariantes:** concatenação normalizada dos segmentos idêntica ao
-  texto de entrada; nenhum chunk com mais de 350 tokens; mesma
-  sequência de `block_index` para a navegação e destaque do player.
+  texto de entrada; nenhum chunk com mais de 350 tokens; mesmo par
+  `(block_index, sentence_index)` para os pedaços internos da frase.
 - Registrar `phoneme_token_count`, `split_reason` e quantidade de
   cortes internos por parágrafo nos metadados do comparativo.
 
@@ -65,7 +64,7 @@ sobre trechos que excedem o teto.
   consoantes ou respirações cortadas. Caso haja problemas, fazer
   diagnóstico curto `trim=True` × `trim=False`, sem promover
   `False` automaticamente.
-- Metadados e marcadores de parágrafos continuam calculados a partir
+- Metadados e marcadores de frases são calculados a partir
   do número real de amostras após a síntese e todas as pausas.
 
 ### 3. Qualidade do MP3 e normalização
@@ -152,5 +151,5 @@ Referências:
 **Critérios de aceite:** voz sempre `pf_dora`; velocidade `1.00`;
 texto preservado incluindo inglês e léxico; 350 tokens no máximo
 por inferência; pontos de emenda aceitáveis; MP3 sem distorção;
-marcadores por parágrafo corretos; geração comparativa sem publicação
+marcadores por frase (`version=2`) corretos; geração comparativa sem publicação
 e sem recomputações desnecessárias.

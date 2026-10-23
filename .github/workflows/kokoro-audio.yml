@@ -460,7 +460,15 @@ jobs:
           chapters = json.loads((directory / f"{slug}.chapters.json").read_text(encoding="utf-8"))
           notes = (directory / f"{slug}.md").read_text(encoding="utf-8")
           notes += "\n<!-- TECH_TOPICS_CHAPTERS_V1\n"
-          notes += json.dumps(chapters, ensure_ascii=False, separators=(",", ":"))
+          # Keep Release API bodies compact; full labels remain in chapters.json.
+          public_chapters = {
+              "version": chapters["version"],
+              "chapters": [
+                  {key: chapter[key] for key in ("start", "block_index", "sentence_index")}
+                  for chapter in chapters["chapters"]
+              ],
+          }
+          notes += json.dumps(public_chapters, ensure_ascii=False, separators=(",", ":"))
           notes += "\n-->\n"
           (directory / f"{slug}.release.md").write_text(notes, encoding="utf-8")
           PY
@@ -485,3 +493,16 @@ jobs:
               --target "$GITHUB_SHA" --title "Tech Topics Áudio — $title" \
               --notes-file ".audio/$ARTICLE_SLUG.release.md" --latest=false
           fi
+
+      - name: Verify public sentence metadata and assets
+        if: steps.policy.outputs.skip != 'true' && env.MODE == 'publish'
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "tts-$ARTICLE_SLUG" --json body,assets \
+            | jq -e --arg slug "$ARTICLE_SLUG" '
+                (.body | contains("\"version\":2")) and
+                (([.assets[].name] | index($slug + ".mp3")) != null) and
+                (([.assets[].name] | index($slug + ".chapters.json")) != null)
+              ' >/dev/null
+          echo "Published $ARTICLE_SLUG: sentence chapters v2 + MP3 verified." >> "$GITHUB_STEP_SUMMARY"

@@ -24,6 +24,7 @@
         label: typeof item.label === "string" ? item.label : ""
       }));
     if (chapters.length < 2 || chapters.some((chapter, i) => i && chapter.start <= chapters[i - 1].start)) return [];
+    if (data.version === 2 && chapters.some(chapter => chapter.blockIndex === null || chapter.sentenceIndex === null)) return [];
     return chapters;
   }
 
@@ -161,7 +162,7 @@
       if (activeWords.length) activeWords.forEach(node => node.classList.add("recording-sentence-active"));
       else activeNode?.classList.add("recording-block-active");
       if (activeNode && follow?.checked && document.visibilityState !== "hidden") {
-        activeNode.scrollIntoView({ behavior: "smooth", block: "center" });
+        (activeWords[0] || activeNode).scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
     function attachChapters() {
@@ -396,7 +397,7 @@
     previousButton.addEventListener("click", previousParagraph);
     follow?.addEventListener("change", () => {
       if (follow.checked && activeNode && document.visibilityState !== "hidden") {
-        activeNode.scrollIntoView({ behavior: "smooth", block: "center" });
+        (activeWords[0] || activeNode).scrollIntoView({ behavior: "smooth", block: "center" });
       }
     });
     closeButton.addEventListener("click", close);

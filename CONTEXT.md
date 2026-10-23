@@ -28,9 +28,9 @@ Vocabulário do fluxo editorial de Tech Topics.
 
 **Preset aprovado:** `equilibrado`, velocidade `1.00`, pausas de parágrafo/section 380/700 ms. O `atual` de 0.95 permanece como baseline histórico; incorporar o preset depende de PR técnica, não de decisão textual isolada.
 
-**Parágrafo editorial (bloco):** unidade estável do artigo HTML a ser destacada, clicada e navegada. Seus marcadores de começo são identificados por `block_index` e timestamp WAV.
+**Parágrafo editorial (bloco):** contêiner estável do HTML, identificado por `block_index`. A navegação e o destaque ocorrem agora em **frases**, identificadas por `sentence_index` dentro de cada bloco e timestamp real do WAV; o schema novo é `version=2`.
 
-**Chunk de síntese:** unidade temporária de inferência acústica, idealmente uma ou mais frases completas dentro de um mesmo bloco editorial. Pode haver várias inferências por parágrafo sem criar capítulos extras.
+**Chunk de síntese:** uma frase completa por inferência quando couber nos limites fonéticos. Se não couber, a frase vira vários chunks unidos com 25 ms, mas continua com o mesmo marcador de frase. Vírgulas não são controles navegáveis.
 
 **Tokens fonéticos:** IDs obtidos de `kokoro.tokenizer.tokenize(phonemes, limit=None)`, depois da fonemização PT-BR/EN-US, **antes** da síntese. Teto de 350 por inferência e alvo de 300; não são caracteres editoriais. Há outra restrição independente de ~510 caracteres na *string fonética* tratada internamente pelo `kokoro-onnx`, protegida por guarda de 500.
 
