@@ -100,7 +100,7 @@ Publique na branch `main` com mensagem de commit descritiva, conforme o fluxo vi
 
 O workflow do GitHub Pages deve terminar com sucesso antes de declarar a publicação concluída.
 
-Na publicação agendada, a Action `Select next Tech Topics article` seleciona outra pauta da [fila editorial](TOPIC_QUEUE.md) depois de um push que **adiciona um novo JSON de artigo**, não após mudanças apenas no código do site. Confirme o estado dessa Action e o comentário de seleção; se a fila estiver vazia, registre a limitação sem confundir o status do deploy do artigo com o preparo da próxima execução.
+Na publicação agendada, o job reutilizável `Select next Tech Topics article` escolhe a próxima pauta da [fila editorial](TOPIC_QUEUE.md) **após o deploy bem-sucedido do Pages** e somente se o push adicionou um novo JSON de artigo. Mudanças apenas de código ou documentação não acionam a seleção. Confirme o estado dessa Action e o comentário de seleção; se a fila estiver vazia, registre a limitação sem confundir o status do deploy do artigo com o preparo da próxima execução.
 
 Se ocorrer uma falha:
 
@@ -124,7 +124,7 @@ Ao concluir uma publicação de artigo, informe brevemente:
 
 ## Esteira de validação
 
-A workflow `Validate Tech Topics` executa em Pull Requests e sob acionamento manual. Em pushes para `main`, a workflow de Pages executa a mesma validação antes do deploy e publica o artefato validado, sem reconstruí-lo na etapa de deploy.
+A workflow `Validate Tech Topics` executa em Pull Requests e sob acionamento manual. Em pushes relevantes para o site na `main`, a workflow de Pages executa a mesma validação antes do deploy e publica o artefato validado, sem reconstruí-lo na etapa de deploy. Pushes que modificam exclusivamente documentação, registry editorial, ferramentas TTS ou workflows de suporte (não o Pages) não disparam um novo build do site.
 
 Os checks de PR executam a validação em Ubuntu, usando a versão declarada em `.node-version`; a proteção de branch continua exigindo `Content and application lint`. A workflow de Pages envia somente `dist/`. A seleção automática da fila ocorre apenas após inclusão de novo JSON de artigo; mudanças de código, CSS ou JavaScript não autorizam outra seleção e não reprocessam a narração publicada.
 
