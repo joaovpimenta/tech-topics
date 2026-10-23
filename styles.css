@@ -1103,6 +1103,7 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
   .article-page .inline-recording-duration {
     display: none;
   }
+  .article-page .inline-recording-rate { margin-left: auto; }
 }
 /* Browser fallback for engines without size container queries. */
 @supports not (container-type: inline-size) {
@@ -1110,5 +1111,6 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
     .article-page .inline-recording-seek,
     .article-page .inline-recording-elapsed,
     .article-page .inline-recording-duration { display: none; }
+    .article-page .inline-recording-rate { margin-left: auto; }
   }
 }
