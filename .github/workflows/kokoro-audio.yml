@@ -27,6 +27,11 @@ on:
         type: boolean
         required: false
         default: false
+      refresh_existing:
+        # Only changed narration after successful Pages deploy may refresh a Release.
+        type: boolean
+        required: false
+        default: false
   workflow_dispatch:
     inputs:
       article:
@@ -60,9 +65,10 @@ permissions:
 
 jobs:
   select:
-    # TTS PAUSED for all new invocations. One-off retry #39935122581
-    # was queued using an earlier commit; this change does not interrupt it.
-    if: ${{ false }}
+    # Frozen for all manual, backfill and new-article synthesis.
+    # Restricted exception: edited existing articles, on main after Pages,
+    # selected from their actual spoken-language diff.
+    if: ${{ inputs.refresh_existing == true && github.event_name == 'push' && github.ref == 'refs/heads/main' && inputs.before_sha != '' && inputs.after_sha != '' && inputs.replace_existing == true }}
     name: Select article(s)
     runs-on: ubuntu-latest
     outputs:
@@ -84,12 +90,19 @@ jobs:
           AFTER_SHA: ${{ inputs.after_sha }}
           SELECT_MODE: ${{ inputs.mode || 'publish' }}
           BACKFILL_ALL: ${{ inputs.all_articles || 'false' }}
+          REFRESH_EXISTING: ${{ inputs.refresh_existing || 'false' }}
           REPLACE_EXISTING: ${{ inputs.replace_existing || 'false' }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          if [ "$BACKFILL_ALL" = true ]; then
+          if [ "$REFRESH_EXISTING" = true ]; then
+            test "$EVENT_NAME" = push && test "$SELECT_MODE" = publish
+            test "$REPLACE_EXISTING" = true
+            test -n "$BEFORE_SHA" && test -n "$AFTER_SHA"
+            slugs="$(python tools/tts/article_selection.py --before "$BEFORE_SHA" --after "$AFTER_SHA" --spoken-changes)"
+            echo "Narration changes selected: $slugs" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$BACKFILL_ALL" = true ]; then
             if [ "$SELECT_MODE" != publish ] || [ "$REPLACE_EXISTING" != true ]; then
               echo "Backfill requires mode=publish and replace_existing=true." >&2
               exit 1

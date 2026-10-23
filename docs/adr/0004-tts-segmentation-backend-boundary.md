@@ -51,3 +51,12 @@ da frase. Runs contendo letras/dígitos cuja fonemização seja vazia **continua
 falhando**. A regra de divisão e os limites de tokens do planejador não mudam.
 Essa política impede que pontuação silenciosa interrompa uma síntese inteira.
 Nenhuma geração foi iniciada para aplicar a correção.
+
+## Exceção editorial aprovada (23/10/2026)
+
+O congelamento permanece para modos manuais, backfill, comparações e artigos
+novos. Após deploy Pages de modificação no JSON de artigo **existente**,
+é permitido renovar somente slugs cujo contrato narrável efetivamente mudou
+(texto, idioma, `data-tts-say`, pausas). A assinatura de fala é calculada
+sem inferência. Cada artigo gera job específico com backup e substituição
+pareada do MP3 e capítulos v2. Ver auditoria [#75](https://github.com/joaovpimenta/tech-topics/issues/75).

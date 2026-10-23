@@ -93,6 +93,40 @@ class ArticleSelectionTests(unittest.TestCase):
             after = git("rev-parse", "HEAD")
             self.assertEqual(article_selection.added_slugs(before, after, root), [])
 
+
+    def test_spoken_changes_ignore_images_and_select_only_voice_edits(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            def git(*args):
+                return subprocess.run(["git", *args], cwd=root, check=True,
+                                      capture_output=True, text=True).stdout.strip()
+            git("init"); git("config", "user.email", "test@example.com")
+            git("config", "user.name", "Test")
+            directory = root / "content" / "articles"
+            directory.mkdir(parents=True)
+            def save(slug, body, image="old.jpg"):
+                (directory / (slug + ".json")).write_text(json.dumps({
+                    "slug": slug, "language": "pt-BR", "title": slug,
+                    "dek": "Explicação.", "bodyHtml": body, "image": image
+                }), encoding="utf-8")
+            save("bulkhead", "<p>Banco → broker.</p>")
+            save("cqrs", "<p>Outra frase.</p>")
+            git("add", "."); git("commit", "-m", "initial")
+            one = git("rev-parse", "HEAD")
+            save("bulkhead", "<p>Banco → broker.</p>", "new.jpg")
+            git("add", "."); git("commit", "-m", "image")
+            two = git("rev-parse", "HEAD")
+            self.assertEqual(article_selection.spoken_changes(one, two, root), [])
+            save("bulkhead", '<p>Banco <span data-tts-say="para o">→</span> broker.</p>', "new.jpg")
+            git("add", "."); git("commit", "-m", "alias")
+            three = git("rev-parse", "HEAD")
+            self.assertEqual(article_selection.spoken_changes(two, three, root), ["bulkhead"])
+            save("bulkhead", '<p>Banco <span data-tts-say="para o">→</span> <span lang="en-US">broker</span>.</p>', "new.jpg")
+            git("add", "."); git("commit", "-m", "language")
+            four = git("rev-parse", "HEAD")
+            self.assertEqual(article_selection.spoken_changes(three, four, root), ["bulkhead"])
+            self.assertEqual(article_selection.added_slugs(one, four, root), [])
+
     def test_only_added_jsons_trigger_automatic_workflow(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

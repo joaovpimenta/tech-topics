@@ -29,6 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new_article_slugs: ${{ steps.new_articles.outputs.slugs }}
+      changed_speech_slugs: ${{ steps.changed_speech.outputs.slugs }}
     permissions:
       contents: read
     steps:
@@ -64,6 +65,18 @@ jobs:
           else
             echo "New articles (Kokoro eligible): $slugs" >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Detect edited articles whose spoken narration changed
+        id: changed_speech
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          slugs="$(python tools/tts/article_selection.py --before "$BEFORE_SHA" --after "$AFTER_SHA" --spoken-changes)"
+          echo "slugs=$slugs" >> "$GITHUB_OUTPUT"
+          echo "Existing articles with changed speech: $slugs" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload validated site artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -96,6 +109,23 @@ jobs:
     with:
       before_sha: ${{ github.event.before }}
       after_sha: ${{ github.sha }}
+
+  republish-edited-audio:
+    name: Rebuild only changed spoken audio after deploy
+    if: >-
+      github.event_name == 'push' &&
+      needs.validate.outputs.changed_speech_slugs != '' &&
+      needs.validate.outputs.changed_speech_slugs != '[]'
+    needs: [validate, deploy]
+    permissions:
+      contents: write
+    uses: ./.github/workflows/kokoro-audio.yml
+    with:
+      before_sha: ${{ github.event.before }}
+      after_sha: ${{ github.sha }}
+      mode: publish
+      replace_existing: true
+      refresh_existing: true
 
   select-next-topic:
     name: Select next editorial topic after deploy

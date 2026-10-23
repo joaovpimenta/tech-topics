@@ -1,7 +1,7 @@
-> **Pausa de geração (23/10/2026):** novos jobs TTS estão bloqueados na
-> Action por `jobs.select.if: false`. Nem `publish`, `preview`, `review`,
-> `compare` ou a geração por novo artigo podem iniciar inferência enquanto
-> o bloqueio persistir. O lote antigo [#39883809928](https://github.com/joaovpimenta/tech-topics/actions/runs/39883809928)
+> **Pausa seletiva:** todos os disparos manuais, backfills e síntese
+> de artigos novos continuam bloqueados. Exceção editorial autorizada:
+> quando um artigo existente muda sua fala (texto, `lang`, `data-tts-say`),
+> o Pages faz deploy e regenera somente o MP3 e `chapters.json` daquele slug. O lote antigo [#39883809928](https://github.com/joaovpimenta/tech-topics/actions/runs/39883809928)
 > usa um commit anterior e **não é afetado retroativamente**. Para retomar
 > novas gerações, é necessária instrução explícita e remoção do bloqueio.
 
@@ -296,3 +296,17 @@ vazia continua sendo erro. Regressão baseada nos jobs de
 [#39883809928](https://github.com/joaovpimenta/tech-topics/actions/runs/39883809928).
 
 A pausa atual de geração continua em vigor; esta correção não dispara síntese.
+
+## Sincronização seletiva após alterações editoriais
+
+A validação Pages executa `article_selection.py --spoken-changes`
+sobre o diff do push. Compara texto narrável, spans de idioma e pausas,
+sem executar Kokoro. Imagem, CSS, metadados, diagrams ou conteúdo ignorado
+pelo TTS não criam novos jobs. Depois de deploy bem-sucedido, somente
+`refresh_existing=true` vindo do Pages em `main` é autorizado:
+revalida o diff e agenda **um job por slug alterado** com
+`replace_existing=true`, limitado a 2 em paralelo. Antes de substituir,
+guarda a Release antiga em Artifact por 90 dias; publica juntos MP3 e
+`chapters.json` v2, verificando ambos. A exceção não libera
+workflow_dispatch, backfill nem geração de novos artigos. Acompanhe
+[issue #75](https://github.com/joaovpimenta/tech-topics/issues/75).
