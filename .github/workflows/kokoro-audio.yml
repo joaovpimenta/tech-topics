@@ -27,11 +27,6 @@ on:
         type: boolean
         required: false
         default: false
-      retry_failed_only:
-        # Privileged one-off: does not exist as workflow_dispatch input.
-        type: boolean
-        required: false
-        default: false
   workflow_dispatch:
     inputs:
       article:
@@ -65,10 +60,9 @@ permissions:
 
 jobs:
   select:
-    # Temporary allowlist: exactly two articles that failed the v2 backfill.
-    # All ordinary workflow_call/workflow_dispatch inputs still remain frozen.
-    # Remove this one-off exception after both runs have started.
-    if: ${{ inputs.retry_failed_only == true && github.ref == 'refs/heads/main' && (inputs.article == 'github-governance-as-code' || inputs.article == 'retries-backoff-jitter') }}
+    # TTS PAUSED for all new invocations. One-off retry #39935122581
+    # was queued using an earlier commit; this change does not interrupt it.
+    if: ${{ false }}
     name: Select article(s)
     runs-on: ubuntu-latest
     outputs:
