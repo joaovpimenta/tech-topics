@@ -45,3 +45,9 @@ A home buscava `content/articles/index.json` e então todos os JSONs completos v
 - Remover marcação inline e decodificar entidades HTML para preservar a leitura visível do parágrafo integral. No cliente, usar `textContent` para impedir que a prévia interprete marcação HTML.
 - Reservar espaço vertical para o texto: mostrar a capa inteira como miniatura ao lado do título, introdução em região rolável e ações Ler/Favoritar/Compartilhar fixas na borda acessível ao gesto. Quando o catálogo ainda estiver em cache sem `opening`, recorrer ao `dek`/`excerpt`.
 - Validar o campo para todos os artigos no build, garantir ausência de marcação HTML e impedir novas buscas por JSON integral ao abrir a prévia.
+
+## Ajuste definitivo da interação por gesto — 2026-10-23
+
+- A ação sob o dedo é resolvida por `getBoundingClientRect()` de cada botão, não por `:hover` nem por `event.target`/retargeting. O gesto conserva a identidade do contato e recebe `touchmove`, `touchend` e `touchcancel` na fase de captura, com prevenção de scroll somente após os 480 ms de pressão.
+- O primeiro contato com um alvo real ativa `is-targeted`, preenchimento, escala, halo e texto de soltura; trocar de alvo atualiza a seleção e vibra apenas uma vez por mudança em dispositivos que suportam `navigator.vibrate`. O feedback visual é obrigatório mesmo sem vibração (iOS/Safari).
+- Se o navegador cancelar o gesto após o menu estar aberto, preservar o pop-up em modo tocável, permitindo selecionar diretamente uma ação ou fechar com Escape. Em release fora dos alvos, cancelar normalmente. Testes devem usar toque físico simulado por Chromium/DevTools, não mockar o elemento sob o dedo.
