@@ -5,9 +5,7 @@ const count = document.querySelector("#article-count");
 const status = document.querySelector("#archive-status");
 const emptyState = document.querySelector("#empty-state");
 const loadMore = document.querySelector("#load-more");
-const favoritesOnly = document.querySelector("#favorites-only");
-const preview = document.querySelector("#article-preview");
-const previewBody = document.querySelector("#preview-body");
+const quickActions = document.querySelector("#article-quick-actions");
 const shareStatus = document.querySelector("#share-status");
 const starCount = document.querySelector("#github-stars");
 const articleUrl = article => "article.html?slug=" + encodeURIComponent(article.slug);
@@ -31,8 +29,7 @@ function toggleFavorite(slug, button) {
   else favorites.add(slug);
   try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites])); }
   catch (_) { /* Private browsing or full storage: keep the in-memory selection. */ }
-  if (favoritesOnly.checked) renderArchive();
-  else if (button) {
+  if (button) {
     const selected = favorites.has(slug);
     button.classList.toggle("is-favorite", selected);
     button.setAttribute("aria-pressed", String(selected));
@@ -72,24 +69,6 @@ function dateLabel(article) {
   return Number.isNaN(date.getTime()) ? (article.date || "") : new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeZone: "UTC" }).format(date);
 }
 
-function openPreview(article) {
-  if (!preview || !previewBody || typeof preview.showModal !== "function") return;
-  const cover = element("img", "preview-image");
-  cover.src = article.image;
-  cover.alt = article.alt || "";
-  cover.loading = "lazy";
-  const category = element("p", "eyebrow", article.category);
-  const heading = element("h2", "", article.title);
-  heading.id = "preview-heading";
-  const dek = element("p", "preview-summary", article.dek || article.excerpt || "");
-  const excerpt = article.dek && article.excerpt && article.dek !== article.excerpt
-    ? element("p", "preview-excerpt", article.excerpt) : null;
-  const meta = element("p", "post-meta", [dateLabel(article), article.read].filter(Boolean).join(" · "));
-  const read = element("a", "preview-read", "Ler artigo");
-  read.href = articleUrl(article);
-  previewBody.replaceChildren(...[cover, category, heading, dek, excerpt, meta, read].filter(Boolean));
-  preview.showModal();
-}
 
 async function shareArticle(article) {
   const url = new URL(articleUrl(article), document.baseURI).href;
@@ -107,10 +86,186 @@ async function shareArticle(article) {
   }
 }
 
+// The quick-action menu is transient for touch/mouse gestures: it stays visible
+// only while the original press is held. Keyboard access uses the same controls.
+let gesture = null;
+let quickMode = null;
+let suppressedClickUntil = 0;
+
+function closeQuickActions() {
+  if (quickActions) {
+    quickActions.hidden = true;
+    quickActions.replaceChildren();
+  }
+  quickMode = null;
+}
+
+function quickActionAt(x, y) {
+  if (!quickActions || quickActions.hidden || !document.elementFromPoint) return null;
+  const target = document.elementFromPoint(x, y);
+  const button = target?.closest?.("[data-quick-action]");
+  return button && quickActions.contains(button) ? button : null;
+}
+
+function highlightQuickAction(x, y) {
+  const hovered = quickActionAt(x, y);
+  for (const button of quickActions.querySelectorAll("[data-quick-action]")) {
+    button.classList.toggle("is-targeted", button === hovered);
+  }
+  return hovered;
+}
+
+function openQuickActions(article, favoriteButton, x, y, mode = "gesture") {
+  if (!quickActions) return;
+  closeQuickActions();
+  const cover = element("img", "quick-cover");
+  cover.src = article.image;
+  cover.alt = article.alt || article.title;
+  cover.loading = "lazy";
+  cover.decoding = "async";
+  const title = element("p", "quick-title", article.title);
+  const summary = element("p", "quick-summary", article.dek || article.excerpt || "");
+  const controls = element("div", "quick-controls");
+
+  const read = element("button", "quick-read", "Ler artigo");
+  read.type = "button";
+  read.dataset.quickAction = "read";
+  read.setAttribute("aria-label", "Ler " + article.title);
+
+  const like = element("button", "card-icon-button favorite-button quick-icon");
+  like.type = "button";
+  like.dataset.quickAction = "favorite";
+  const selected = favorites.has(article.slug);
+  like.setAttribute("aria-label", (selected ? "Remover dos favoritos: " : "Adicionar aos favoritos: ") + article.title);
+  like.setAttribute("aria-pressed", String(selected));
+  if (selected) like.classList.add("is-favorite");
+  like.append(icon("heart"));
+
+  const share = element("button", "card-icon-button quick-icon");
+  share.type = "button";
+  share.dataset.quickAction = "share";
+  share.setAttribute("aria-label", "Compartilhar " + article.title);
+  share.append(icon("share"));
+  controls.append(read, like, share);
+  quickActions.replaceChildren(cover, title, summary, controls);
+  quickActions.hidden = false;
+  quickMode = mode;
+
+  // Position above the point of contact so dragging *up* selects an action.
+  const bounds = quickActions.getBoundingClientRect();
+  const width = bounds.width || 300;
+  const height = bounds.height || 150;
+  const viewportW = window.innerWidth || document.documentElement.clientWidth;
+  const viewportH = window.innerHeight || document.documentElement.clientHeight;
+  const left = Math.min(Math.max(10, x - width / 2), Math.max(10, viewportW - width - 10));
+  const above = y - height - 22;
+  const top = above >= 12 ? above : Math.min(viewportH - height - 12, y + 26);
+  quickActions.style.left = left + "px";
+  quickActions.style.top = Math.max(10, top) + "px";
+
+  const perform = name => {
+    closeQuickActions();
+    if (name === "read") window.location.assign(articleUrl(article));
+    else if (name === "favorite") toggleFavorite(article.slug, favoriteButton);
+    else if (name === "share") shareArticle(article);
+  };
+  for (const button of controls.children) {
+    button.addEventListener("click", () => {
+      if (quickMode === "keyboard") perform(button.dataset.quickAction);
+    });
+  }
+  // Gesture actions are resolved on release, not via a synthetic click.
+  quickActions.performAction = perform;
+  if (mode === "keyboard") read.focus();
+}
+
+function cancelGesture() {
+  if (gesture?.timer) clearTimeout(gesture.timer);
+  if (gesture?.active) closeQuickActions();
+  gesture = null;
+}
+
+function armGesture(article, favoriteButton, x, y, kind, id) {
+  cancelGesture();
+  gesture = { article, favoriteButton, x, y, kind, id, active: false };
+  const current = gesture;
+  current.timer = setTimeout(() => {
+    if (gesture !== current) return;
+    current.timer = null;
+    current.active = true;
+    openQuickActions(article, favoriteButton, x, y);
+  }, 480);
+}
+
+function moveGesture(x, y) {
+  if (!gesture) return;
+  if (!gesture.active) {
+    if (Math.hypot(x - gesture.x, y - gesture.y) > 12) cancelGesture();
+    return;
+  }
+  highlightQuickAction(x, y);
+}
+
+function endGesture(x, y) {
+  if (!gesture) return false;
+  if (!gesture.active) {
+    cancelGesture();
+    return false;
+  }
+  // Closing without a highlighted/targeted button must never activate one.
+  const action = quickActionAt(x, y)?.dataset.quickAction;
+  const perform = quickActions.performAction;
+  gesture = null;
+  closeQuickActions();
+  suppressedClickUntil = Date.now() + 350;
+  if (action) perform(action);
+  return true;
+}
+
+// Touch events persist across drag even when browsers cancel pointer events
+// to handle scrolling. Prior to the hold threshold, ordinary page scrolling wins.
+document.addEventListener("touchmove", event => {
+  if (gesture?.kind !== "touch") return;
+  const touch = [...event.changedTouches].find(t => t.identifier === gesture.id);
+  if (!touch) return;
+  if (gesture.active) event.preventDefault();
+  moveGesture(touch.clientX, touch.clientY);
+}, { passive: false });
+document.addEventListener("touchend", event => {
+  if (gesture?.kind !== "touch") return;
+  const touch = [...event.changedTouches].find(t => t.identifier === gesture.id);
+  if (touch && endGesture(touch.clientX, touch.clientY)) event.preventDefault();
+}, { passive: false });
+document.addEventListener("touchcancel", event => {
+  if (gesture?.kind === "touch" && [...event.changedTouches].some(t => t.identifier === gesture.id)) cancelGesture();
+});
+document.addEventListener("pointermove", event => {
+  if (gesture?.kind === "pointer" && gesture.id === event.pointerId) moveGesture(event.clientX, event.clientY);
+});
+document.addEventListener("pointerup", event => {
+  if (gesture?.kind !== "pointer" || gesture.id !== event.pointerId) return;
+  if (endGesture(event.clientX, event.clientY)) event.preventDefault();
+});
+document.addEventListener("pointercancel", event => {
+  if (gesture?.kind === "pointer" && gesture.id === event.pointerId) cancelGesture();
+});
+document.addEventListener("click", event => {
+  if (Date.now() < suppressedClickUntil && event.detail !== 0) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}, true);
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && quickMode === "keyboard") closeQuickActions();
+});
+document.addEventListener("pointerdown", event => {
+  if (quickMode === "keyboard" && !quickActions.contains(event.target)) closeQuickActions();
+});
+
 function articleCard(article, index) {
   const card = element("article", "recent-item");
   card.tabIndex = 0;
-  card.title = "Toque e segure ou pressione Espaço para ver uma prévia";
+  card.setAttribute("aria-label", "Ações rápidas para " + article.title + ": segure ou pressione Enter");
   const imageLink = element("a", "recent-image image-link");
   imageLink.href = articleUrl(article);
   imageLink.setAttribute("aria-label", "Ler " + article.title);
@@ -152,40 +307,24 @@ function articleCard(article, index) {
   actions.append(like, share);
   card.append(imageLink, copy, actions);
 
-  let timer;
-  let startX = 0;
-  let startY = 0;
-  let suppressClick = false;
-  const cancel = () => { clearTimeout(timer); timer = null; };
+  card.addEventListener("touchstart", event => {
+    if (event.touches.length !== 1 || event.target.closest("button")) return;
+    const touch = event.changedTouches[0];
+    armGesture(article, like, touch.clientX, touch.clientY, "touch", touch.identifier);
+  }, { passive: true });
   card.addEventListener("pointerdown", event => {
-    if (event.button !== 0) return;
-    if (event.target.closest("button")) return;
-    cancel();
-    startX = event.clientX;
-    startY = event.clientY;
-    timer = setTimeout(() => {
-      timer = null;
-      suppressClick = true;
-      openPreview(article);
-      setTimeout(() => { suppressClick = false; }, 850);
-    }, 550);
+    if (event.pointerType === "touch" || event.button !== 0 || event.target.closest("button")) return;
+    armGesture(article, like, event.clientX, event.clientY, "pointer", event.pointerId);
   });
-  card.addEventListener("contextmenu", event => { if (event.pointerType === "touch") event.preventDefault(); });
-  card.addEventListener("pointermove", event => {
-    if (Math.abs(event.clientX - startX) > 12 || Math.abs(event.clientY - startY) > 12) cancel();
+  card.addEventListener("contextmenu", event => {
+    if (gesture?.article === article) event.preventDefault();
   });
-  for (const type of ["pointerup", "pointercancel", "pointerleave"]) card.addEventListener(type, cancel);
-  card.addEventListener("click", event => {
-    if (!suppressClick) return;
-    suppressClick = false;
-    event.preventDefault();
-    event.stopPropagation();
-  }, true);
   card.addEventListener("keydown", event => {
-    if (event.target === card && (event.key === " " || event.key === "Enter")) {
-      event.preventDefault();
-      openPreview(article);
-    }
+    if (event.target !== card || (event.key !== " " && event.key !== "Enter")) return;
+    event.preventDefault();
+    const bounds = card.getBoundingClientRect();
+    openQuickActions(article, like, bounds.left + bounds.width / 2,
+      Math.min(bounds.bottom - 25, window.innerHeight - 45), "keyboard");
   });
   return card;
 }
@@ -202,12 +341,11 @@ function renderBatch() {
 function renderArchive() {
   const query = normalize(searchInput.value.trim());
   matching = articles.filter(article =>
-    (!favoritesOnly.checked || favorites.has(article.slug)) &&
     normalize([article.title, article.category, article.excerpt, article.dek].join(" ")).includes(query)
   );
   list.replaceChildren();
   visibleCount = 0;
-  count.textContent = (query || favoritesOnly.checked)
+  count.textContent = query
     ? matching.length + " de " + articles.length + " artigos"
     : articles.length + " artigos · mais recentes primeiro";
   emptyState.hidden = matching.length > 0 || articles.length === 0;
@@ -262,12 +400,7 @@ async function loadGithubStars() {
 }
 
 searchInput.addEventListener("input", renderArchive);
-favoritesOnly.addEventListener("change", renderArchive);
 loadMore.addEventListener("click", renderBatch);
-preview?.querySelector(".preview-close")?.addEventListener("click", () => preview.close());
-preview?.addEventListener("click", event => {
-  if (event.target === preview) preview.close();
-});
 if ("IntersectionObserver" in window) {
   observer = new IntersectionObserver(entries => {
     if (entries.some(entry => entry.isIntersecting) && !loadMore.hidden) renderBatch();

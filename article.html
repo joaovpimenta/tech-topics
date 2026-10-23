@@ -17,18 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20261023-sentence-range" />
-    <style>
-      .article-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 24px; }
-      .listen-button, .listen-stop, .share-button { cursor: pointer; border-radius: 3px; padding: 9px 13px; font-weight: 600; }
-      .listen-button { border: 1px solid var(--accent); background: var(--accent); color: #fff; }
-      .listen-stop, .share-button { border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
-      .listen-button:hover { filter: brightness(.94); }
-      .listen-stop:hover, .share-button:hover { border-color: var(--muted); }
-      .listen-button:focus-visible, .listen-stop:focus-visible, .share-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
-      .listen-status, .share-status { color: var(--muted); font-size: 13px; }
-      @media (max-width: 520px) { .listen-status, .share-status { flex-basis: 100%; } }
-    </style>
+    <link rel="stylesheet" href="styles.css?v=20261023-inline-player" />
   </head>
   <body class="article-page">
     <a class="skip-link" href="#article-root">Ir para o artigo</a>
@@ -46,11 +35,27 @@
         <p class="dek" id="article-dek"></p>
         <div class="article-meta" id="article-meta"></div>
         <div class="article-actions" id="article-actions" hidden>
-          <button class="listen-button recording-trigger" id="listen-recording" type="button" aria-pressed="false">
-            <svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-3a9 9 0 0 1 18 0v3"/><rect x="2.5" y="13" width="4.5" height="7" rx="2"/><rect x="17" y="13" width="4.5" height="7" rx="2"/></svg>
-            <span class="recording-button-label">Ouvir artigo</span>
-          </button>
-          <button class="share-button" id="share-article" type="button">Compartilhar</button>
+          <div class="inline-recording-anchor" id="inline-recording-anchor">
+            <div class="inline-recording" id="inline-recording" role="group" aria-label="Player de áudio do artigo">
+              <button class="inline-recording-play recording-trigger" id="listen-recording" type="button" aria-label="Reproduzir narração" aria-pressed="false" data-playing="false">
+                <svg class="recording-icon-play" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5a1 1 0 0 1 1.5-.86l12 7.5a1 1 0 0 1 0 1.72l-12 7.5A1 1 0 0 1 7 19.5z"/></svg>
+                <svg class="recording-icon-pause" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="5" height="16" rx="1.5"/><rect x="14" y="4" width="5" height="16" rx="1.5"/></svg>
+                <span class="recording-button-label visually-hidden">Ouvir artigo</span>
+              </button>
+              <span class="inline-recording-elapsed" id="inline-recording-elapsed">0:00</span>
+              <input type="range" id="inline-recording-seek" min="0" max="1000" value="0" step="1" aria-label="Posição da narração" disabled />
+              <span class="inline-recording-duration" id="inline-recording-duration">–:––</span>
+              <button type="button" class="inline-recording-rate" id="inline-recording-rate" aria-label="Velocidade da narração: 1 vez">1×</button>
+            </div>
+          </div>
+          <div class="article-social-actions">
+            <button class="article-icon-button favorite-button" id="favorite-article" type="button" aria-label="Adicionar artigo aos favoritos" aria-pressed="false" title="Favoritar">
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+            </button>
+            <button class="article-icon-button" id="share-article" type="button" aria-label="Compartilhar artigo" title="Compartilhar">
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V3m0 0L7 8m5-5 5 5M5 13v5a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-5"/></svg>
+            </button>
+          </div>
           <span class="listen-status" id="listen-status" role="status" aria-live="polite"></span>
           <span class="listen-status" id="recording-status" role="status" aria-live="polite"></span>
           <span class="share-status" id="share-status" role="status" aria-live="polite"></span>
@@ -108,8 +113,8 @@
     <script src="fgs-simulator.js"></script>
     <script src="mermaid-theme.js?v=20260920-mermaid"></script>
     <script src="speech.js?v=20261023-sentence-range"></script>
-    <script src="audio.js?v=20261023-sentence-range"></script>
-    <script src="article.js?v=20261022-unified"></script>
+    <script src="audio.js?v=20261023-inline-player"></script>
+    <script src="article.js?v=20261023-inline-player"></script>
     <script src="pwa.js"></script>
   </body>
 </html>

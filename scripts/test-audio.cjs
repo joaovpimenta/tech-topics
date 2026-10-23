@@ -145,6 +145,97 @@ test("recorded MP3 dock: discover, play, time, seek, speed, Media Session and na
   assert.equal(actions.play, null);
 });
 
+test("inline article player and floating dock share one audio session across scroll visibility", async () => {
+  const ids = [
+    "listen-recording", "inline-recording-anchor", "inline-recording-seek",
+    "inline-recording-elapsed", "inline-recording-duration", "inline-recording-rate",
+    "recording-player", "recording-title", "recording-subtitle", "recording-cover",
+    "recording-ring", "recording-play", "recording-previous", "recording-skip",
+    "recording-follow", "recording-close", "recording-seek",
+    "recording-elapsed", "recording-duration", "recording-rate", "recording-status"
+  ];
+  const nodes = Object.fromEntries(ids.map(id => ["#" + id, new Element()]));
+  const classes = new Set();
+  let observer;
+  const oldObserver = globalThis.IntersectionObserver;
+  globalThis.IntersectionObserver = class {
+    constructor(callback) { this.callback = callback; observer = this; }
+    observe(target) { assert.equal(target, nodes["#inline-recording-anchor"]); }
+    emit(visible) { this.callback([{ isIntersecting: visible }]); }
+  };
+  try {
+    const doc = {
+      baseURI: "https://joaovpimenta.github.io/tech-topics/article.html?slug=bulkhead",
+      querySelector: selector => nodes[selector],
+      body: { classList: { toggle(name, active) {
+        if (active) classes.add(name);
+        else classes.delete(name);
+      } } }
+    };
+    const audio = new AudioMock();
+    const player = createPlayer({
+      document: doc, navigator: {},
+      article: { slug: "bulkhead", title: "Bulkhead" },
+      cover: { src: "assets/bulkhead/cover.jpg" }, audio,
+      fetchAudio: async () => ({ url: "https://example.org/bulkhead.mp3" })
+    });
+    await player.discover();
+    assert.equal(nodes["#recording-player"].hidden, true, "dock starts hidden");
+    nodes["#listen-recording"].click();
+    await Promise.resolve();
+    assert.equal(audio.paused, false);
+    assert.equal(nodes["#recording-player"].hidden, true, "inline player owns initial playback");
+    assert.equal(nodes["#listen-recording"].dataset.playing, "true");
+    assert.equal(classes.has("recording-open"), false);
+
+    audio.currentTime = 30;
+    audio.dispatchEvent(new Event("timeupdate"));
+    assert.equal(nodes["#inline-recording-elapsed"].textContent, "0:30");
+    assert.equal(nodes["#inline-recording-duration"].textContent, "1:45");
+    nodes["#inline-recording-seek"].value = "500";
+    nodes["#inline-recording-seek"].dispatchEvent(new Event("input"));
+    nodes["#inline-recording-seek"].dispatchEvent(new Event("change"));
+    assert.equal(audio.currentTime, 52.5);
+    nodes["#inline-recording-rate"].click();
+    assert.equal(audio.playbackRate, 1.25);
+
+    observer.emit(false);
+    assert.equal(nodes["#recording-player"].hidden, false, "scrolled away displays dock");
+    assert.equal(classes.has("recording-open"), true);
+    assert.equal(nodes["#recording-elapsed"].textContent, nodes["#inline-recording-elapsed"].textContent);
+    nodes["#recording-play"].click();
+    assert.equal(audio.paused, true);
+    assert.equal(nodes["#listen-recording"].dataset.playing, "false", "both playback controls stay in sync");
+    observer.emit(true);
+    assert.equal(nodes["#recording-player"].hidden, true, "returning to inline player hides dock");
+    assert.equal(classes.has("recording-open"), false);
+    nodes["#listen-recording"].click();
+    await Promise.resolve();
+    assert.equal(audio.paused, false, "reproduction resumes at its current position");
+    observer.emit(false);
+    nodes["#recording-close"].click();
+    assert.equal(nodes["#recording-player"].hidden, true);
+    assert.equal(classes.has("recording-open"), false);
+    assert.equal(player.snapshot().open, false);
+  } finally {
+    if (oldObserver === undefined) delete globalThis.IntersectionObserver;
+    else globalThis.IntersectionObserver = oldObserver;
+  }
+});
+
+test("article controls keep favorites and sharing icon-only, accessible, and consistent with the home", () => {
+  const fs = require("node:fs");
+  const html = fs.readFileSync("article.html", "utf8");
+  const script = fs.readFileSync("article.js", "utf8");
+  assert.match(html, /id="favorite-article"[^>]*aria-pressed="false"/);
+  assert.match(html, /id="share-article"[^>]*aria-label="Compartilhar artigo"/);
+  assert.match(html, /id="inline-recording-anchor"/);
+  assert.match(html, /id="inline-recording-seek"/);
+  assert.match(html, /id="recording-player"/);
+  assert.match(script, /tech-topics:favorites:v1/, "articles use the exact home favorite storage key");
+  assert.match(script, /localStorage\.setItem\(FAVORITES_KEY/, "favorite click persists locally");
+});
+
 test("release chapter metadata is available through CORS-safe GitHub API response", async () => {
   const body = "\n<!-- TECH_TOPICS_CHAPTERS_V1\n" +
     JSON.stringify({ version: 1, chapters: [{ start: 0 }, { start: 18.45 }, { start: 43 }] }) +
