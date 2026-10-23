@@ -960,16 +960,22 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
 .article-quick-actions.quick-actions-compact .quick-summary,
 .article-quick-actions.quick-actions-compact .quick-excerpt { font-size: 12px; line-height: 1.4; }
 
-/* Gesture selection: animate only the highlighted action without
-   moving its hit target or changing the selected action's semantics. */
+/* Selection during press-and-drag is controlled ONLY by .is-targeted.
+   Android/WebKit can keep :hover on a previous touch target even after
+   touchmove selects another target, which otherwise makes actions look stuck. */
 .article-quick-actions [data-quick-action] {
   transform: scale(1);
   transform-origin: center;
   transition: transform 150ms ease-out, background-color 150ms ease-out,
     border-color 150ms ease-out, color 150ms ease-out, box-shadow 150ms ease-out;
 }
+.article-quick-actions .quick-icon {
+  background: var(--paper);
+  border-color: var(--line);
+  color: var(--muted);
+  box-shadow: none;
+}
 .article-quick-actions .quick-read.is-targeted,
-.article-quick-actions .quick-read:hover,
 .article-quick-actions .quick-read:focus-visible {
   background: #1c6654;
   border-color: #1c6654;
@@ -979,7 +985,6 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
   filter: none;
 }
 .article-quick-actions .quick-icon.is-targeted,
-.article-quick-actions .quick-icon:hover,
 .article-quick-actions .quick-icon:focus-visible {
   background: var(--accent);
   border-color: var(--accent);
@@ -988,7 +993,6 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
   transform: scale(1.1);
   filter: none;
 }
-/* A selected action must be legible even when a finger covers the icon. */
 .article-quick-actions .quick-icon.is-targeted {
   transform: scale(1.14);
   box-shadow: 0 0 0 5px #277d6940, 0 5px 16px #277d6959;
@@ -1002,18 +1006,44 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
   font-weight: 700;
 }
 .article-quick-actions .favorite-button.is-targeted svg,
-.article-quick-actions .favorite-button:hover svg,
 .article-quick-actions .favorite-button:focus-visible svg {
   fill: currentColor;
+}
+/* Ordinary hover is available to mouse/trackpad users outside a held gesture.
+   It never participates in selection while a touch or mouse drag is active. */
+@media (hover: hover) and (pointer: fine) {
+  .article-quick-actions:not([data-gesture-active]) .quick-read:hover {
+    background: #1c6654;
+    border-color: #1c6654;
+    color: #fff;
+    box-shadow: 0 0 0 4px #277d6930;
+    transform: scale(1.035);
+  }
+  .article-quick-actions:not([data-gesture-active]) .quick-icon:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 0 3px 13px #277d6940;
+    transform: scale(1.1);
+  }
+  .article-quick-actions:not([data-gesture-active]) .favorite-button:hover svg {
+    fill: currentColor;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .article-quick-actions [data-quick-action] { transition: none; }
   .article-quick-actions .quick-read.is-targeted,
-  .article-quick-actions .quick-read:hover,
   .article-quick-actions .quick-read:focus-visible,
   .article-quick-actions .quick-icon.is-targeted,
-  .article-quick-actions .quick-icon:hover,
-  .article-quick-actions .quick-icon:focus-visible { transform: none; }
+  .article-quick-actions .quick-icon:focus-visible {
+    transform: none;
+  }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: reduce) {
+  .article-quick-actions:not([data-gesture-active]) .quick-read:hover,
+  .article-quick-actions:not([data-gesture-active]) .quick-icon:hover {
+    transform: none;
+  }
 }
 
 /* Author-level display rules must respect the native hidden attribute. */

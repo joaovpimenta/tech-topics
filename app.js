@@ -100,6 +100,7 @@ function closeQuickActions() {
     quickActions.classList.toggle("quick-actions-below", false);
     quickActions.classList.toggle("quick-actions-compact", false);
     delete quickActions.dataset.activeAction;
+    delete quickActions.dataset.gestureActive;
   }
   quickHint = null;
   quickMode = null;
@@ -113,15 +114,23 @@ function quickActionAt(x, y, slop = 0) {
   // the action. Resolve a nearest hit so enlarged halos cannot steal touches.
   let nearest = null;
   let distance = Infinity;
+  let centerDistance = Infinity;
   for (const button of quickActions.querySelectorAll("[data-quick-action]")) {
     const rect = button.getBoundingClientRect();
     if (!rect.width || !rect.height) continue;
+    // The highlighted button scales up slightly. If its transformed hitbox
+    // overlaps the next button's halo, prefer the target whose center is
+    // closest instead of always preferring the first action in DOM order.
     const dx = Math.max(rect.left - x, 0, x - rect.right);
     const dy = Math.max(rect.top - y, 0, y - rect.bottom);
     const squared = dx * dx + dy * dy;
-    if (squared <= slop * slop && squared < distance) {
+    const centerSquared = (x - (rect.left + rect.right) / 2) ** 2 +
+      (y - (rect.top + rect.bottom) / 2) ** 2;
+    if (squared <= slop * slop &&
+        (squared < distance || (squared === distance && centerSquared < centerDistance))) {
       nearest = button;
       distance = squared;
+      centerDistance = centerSquared;
     }
   }
   return nearest;
@@ -193,6 +202,8 @@ function openQuickActions(article, favoriteButton, x, y, mode = "gesture") {
   quickActions.replaceChildren(cover, title, summary, controls);
   quickActions.hidden = false;
   quickMode = mode;
+  if (mode === "gesture") quickActions.dataset.gestureActive = "";
+  else delete quickActions.dataset.gestureActive;
 
   // Keep the action row within a short drag from the original finger.
   // A 500px popup clamped to the top of a phone used to put the actions
@@ -241,6 +252,7 @@ function cancelGesture(nativeCancel = false) {
       // Some mobile engines take ownership of a vertical pan after long-press
       // and emit touchcancel. Keep the preview tappable instead of discarding it.
       quickMode = "keyboard";
+      delete quickActions.dataset.gestureActive;
       document.body.classList.remove("quick-gesture-active");
       for (const button of quickActions.querySelectorAll("[data-quick-action]")) {
         button.classList.remove("is-targeted");
