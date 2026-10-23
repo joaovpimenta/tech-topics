@@ -42,3 +42,9 @@ A página de artigo exibiu até agora um botão grande “Ouvir artigo”, abrin
 - A prioridade em qualquer largura é manter, **na mesma linha**, play/pause, anterior/próximo (quando houver capítulos), velocidade, favorito e compartilhar. O player e os controles sociais ocupam colunas distintas; a velocidade nunca deve invadir o botão de favorito.
 - A barra de progresso, o tempo decorrido e a duração são **opcionais** no player embutido: quando o próprio player fica com largura de até 272 px, ocultá-los juntos usando container query. Em navegadores antigos, aplicar fallback por largura do viewport. Não esconder navegação de capítulos apenas para dar espaço ao progresso.
 - Reservar largura para rótulos de velocidade como `1.25×` e alinhar esse botão à borda direita do player quando o progresso estiver oculto. Validar visualmente com controles de capítulos presentes em 320, 360, 390, 400 e 430 px, e verificar ausência de interseção das áreas clicáveis.
+
+## Ajuste definitivo de largura — 2026-10-23
+
+- O player embutido mantém sempre play/pause, anterior/próximo (quando existem capítulos), velocidade, favorito e compartilhamento. O progresso e as marcações de tempo passam a formar um único grupo opcional, inicialmente oculto, só exibido quando `ResizeObserver` e a medição real de larguras confirmarem espaço útil para todo o grupo. Não usar somente um breakpoint fixo nem espremer um `input[type=range]` até zero mantendo-o visível.
+- A velocidade tem área própria fixa de 52 px, suportando `1×`, `1.25×`, `1.5×` e `2×`, sem entrar na coluna de favoritos. A interface de progresso segue sincronizada e acessível no player flutuante quando o progresso embutido está oculto.
+- Revisão obrigatória inclui teste automatizado de `getBoundingClientRect()` em Chromium real para vários viewports, com capítulos visíveis e duração longa, verificando colisões de retângulos e ausência de seek de largura zero.
