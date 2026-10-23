@@ -31,3 +31,10 @@ A home buscava `content/articles/index.json` e então todos os JSONs completos v
 - Bloquear arrasto nativo de imagens e links dos cards com `draggable=false`, `dragstart.preventDefault()`, bloqueio de seleção e `-webkit-touch-callout: none`. Preservar `touch-action: pan-y` para rolagem normal **antes** do limiar de pressão longa; depois do limiar, cancelar o movimento padrão para manter o controle do gesto.
 - A prévia por pressão longa deve ser uma superfície maior (até ~440 px de largura e ~500 px de altura, respeitando o viewport), com capa sem corte, título legível, categoria, resumo e três alvos de ação amplos. O conteúdo descritivo pode rolar dentro da prévia, mas a linha de ações permanece visível.
 - Posicionar a linha de ações próxima ao ponto inicial do dedo sempre que possível. Ativar a ação somente se o dedo for solto **sobre** Ler, favoritar ou compartilhar. Soltar em qualquer área restante cancela, sem navegar nem modificar favoritos. Esc e teclado permanecem acessíveis.
+
+## Correção do feedback pressionar–arrastar–soltar — 2026-10-23
+
+- Evitar prévia alta fixada no topo quando isso coloca as ações abaixo do dedo: ajustar a altura à área disponível acima do ponto pressionado; se o toque começar perto da borda superior, posicionar a linha de ações **primeiro**, abaixo do dedo, e atualizar a orientação textual.
+- Selecionar continuamente a ação por coordenadas do dedo, incluindo SVGs internos e tolerância pequena nas bordas durante o movimento. A confirmação usa hit-test sem tolerância no ponto de soltura para não executar uma ação fora do botão.
+- Ao entrar ou trocar de ação, realçar o botão com preenchimento, escala, halo e instrução de soltura. Vibração curta (12 ms) somente na transição, quando `navigator.vibrate` estiver disponível; não bloquear a experiência em Safari/iOS ou quando a vibração estiver desativada. Respeitar `prefers-reduced-motion` e manter teclado acessível.
+- Testar transição entre Ler, favorito e compartilhar; ausência de vibração repetida enquanto o dedo fica parado; cancelamento fora dos botões; posição na metade e no topo do viewport; fallback visual sem API de vibração.
