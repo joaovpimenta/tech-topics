@@ -17,16 +17,23 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20261023-home" />
   </head>
   <body>
     <a class="skip-link" href="#recent-posts">Ir para os artigos</a>
     <header class="site-header">
-      <div class="header-inner">
+      <div class="header-inner home-header-inner">
         <a class="brand" href="index.html" aria-label="Tech Topics — página inicial">Tech Topics</a>
+        <div class="top-search">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
+          <label class="visually-hidden" for="search-input">Buscar artigo</label>
+          <input id="search-input" type="search" placeholder="Buscar artigo" autocomplete="off" enterkeyhint="search" />
+        </div>
         <div class="header-actions">
-          <button id="install-app" class="header-link install-app" type="button" hidden>Instalar app</button>
-          <a class="header-link" href="https://github.com/joaovpimenta/tech-topics">Repositório</a>
+          <a class="github-stars" href="https://github.com/joaovpimenta/tech-topics" target="_blank" rel="noopener noreferrer" aria-label="Ver repositório Tech Topics no GitHub" title="Estrelas do repositório no GitHub">
+            <svg aria-hidden="true" class="github-mark" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            <span class="github-star-label"><span aria-hidden="true">★</span> <span id="github-stars">—</span></span>
+          </a>
         </div>
       </div>
     </header>
@@ -44,24 +51,31 @@
             <h2 id="archive-heading">Todos os artigos</h2>
             <p id="article-count" class="post-meta" aria-live="polite">Carregando o arquivo…</p>
           </div>
-          <div class="archive-search">
-            <label for="search-input">Buscar no arquivo</label>
-            <input id="search-input" type="search" placeholder="Assunto ou palavra-chave" autocomplete="off" />
-          </div>
+          <label class="favorite-filter"><input id="favorites-only" type="checkbox" /><span aria-hidden="true">♡</span> Favoritos</label>
         </div>
         <p id="archive-status" class="archive-status" role="status" hidden></p>
         <div class="recent-list" id="recent-list" aria-busy="true"></div>
+        <button id="load-more" class="load-more" type="button" hidden>Carregar mais artigos</button>
+        <p class="visually-hidden" id="share-status" role="status" aria-live="polite"></p>
         <p id="empty-state" class="empty-state" hidden>Nenhum artigo encontrado. Tente outro termo.</p>
         <noscript><p>Ative o JavaScript para carregar os artigos deste arquivo.</p></noscript>
       </section>
     </main>
 
+    <dialog class="article-preview" id="article-preview" aria-labelledby="preview-heading">
+      <div class="preview-shell">
+        <button type="button" class="preview-close" aria-label="Fechar prévia" title="Fechar prévia">×</button>
+        <div id="preview-body"></div>
+      </div>
+    </dialog>
+
     <footer class="site-footer">
       <div class="footer-inner">
         <p>Tech Topics · Arquivo de arquitetura e engenharia de software</p>
+        <button id="install-app" class="header-link install-app" type="button" hidden>Instalar app</button>
       </div>
     </footer>
-    <script src="app.js?v=20260919-covers"></script>
+    <script src="app.js?v=20261023-home"></script>
     <script src="pwa.js"></script>
   </body>
 </html>
