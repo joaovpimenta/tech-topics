@@ -316,10 +316,9 @@ def fit_segments_to_phoneme_budget(
 ) -> list[dict]:
     """Choose inference boundaries using the *real* Kokoro phoneme tokenizer.
 
-    Each input item remains inside its editorial paragraph (block_index).
-    A complete sentence is preferred; neighbouring short sentences may be
-    combined toward 300 tokens without exceeding 350. For overlong sentences,
-    split at a comma/semicolon/colon, falling back to a word boundary.
+    Each inference belongs to a single sentence in its editorial block.
+    Short sentences are never joined. Long sentences are split at clauses
+    and word boundaries, with a shared (block_index, sentence_index).
 
     The upstream library also splits by phoneme-string length at 510,
     independently of the token count, so protect both budgets. Never
@@ -331,6 +330,7 @@ def fit_segments_to_phoneme_budget(
         raise ValueError("Phoneme text budget must stay below Kokoro's 510 limit")
 
     output: list[dict] = []
+    next_sentence_by_block: dict[int, int] = {}
 
     for item in segments:
         tokens = tokenize_runs(item["runs"])
@@ -370,25 +370,19 @@ def fit_segments_to_phoneme_budget(
         if start < len(tokens):
             sentences.append((start, len(tokens)))
 
-        # Triples: start/end word indices plus the most recent cut type.
-        groups: list[tuple[int, int, str]] = []
+        groups: list[tuple[int, int, str, int]] = []
+        block_id = item.get("block_index", 0)
         for begin, finish in sentences:
+            sentence_index = next_sentence_by_block.get(block_id, 0)
+            next_sentence_by_block[block_id] = sentence_index + 1
             if fits(begin, finish):
-                # A 30-token sentence is not a good stand-alone unit if
-                # the next sentence fits in the same context window.
-                if groups and groups[-1][2] == "sentence":
-                    prev_start, _, _ = groups[-1]
-                    if (measure(prev_start, begin)[0] < target_tokens and
-                            fits(prev_start, finish)):
-                        groups[-1] = (prev_start, finish, "sentence")
-                        continue
-                groups.append((begin, finish, "sentence"))
+                groups.append((begin, finish, "sentence", sentence_index))
                 continue
 
             position = begin
             while position < finish:
                 if fits(position, finish):
-                    groups.append((position, finish, "sentence"))
+                    groups.append((position, finish, "sentence", sentence_index))
                     break
 
                 clause_candidates = [
@@ -417,22 +411,26 @@ def fit_segments_to_phoneme_budget(
                     if cut is None:
                         raise ValueError("Uma palavra ultrapassa o orçamento fonético Kokoro.")
                     kind = "word_fallback"
-                groups.append((position, cut, kind))
+                groups.append((position, cut, kind, sentence_index))
                 position = cut
 
-        for index, (start, end, kind) in enumerate(groups):
+        for index, (start, end, kind, sentence_index) in enumerate(groups):
             runs = runs_for(start, end)
             text = "".join(part["text"] for part in runs)
             last = index == len(groups) - 1
+            ends_sentence = last or groups[index + 1][3] != sentence_index
             output.append({
                 **item, "text": text, "runs": runs,
-                "split_reason": "paragraph_end" if last else kind,
+                "sentence_index": sentence_index,
+                "sentence_start": index == 0 or groups[index - 1][3] != sentence_index,
+                "split_reason": ("paragraph_end" if last else
+                                 "sentence_end" if ends_sentence else kind),
                 "token_count": measure(start, end)[0],
                 "phoneme_length": measure(start, end)[1],
                 "pause_after_seconds": (
                     item["pause_after_seconds"] if last else
-                    internal_pause if kind in {"clause", "word_fallback"} else
-                    item.get("sentence_pause_after_seconds", 0.14)
+                    item.get("sentence_pause_after_seconds", 0.14) if ends_sentence else
+                    internal_pause
                 ),
             })
     return output
@@ -456,8 +454,7 @@ def segments_for_article(
     segments: list[dict] = []
     total = 0
     for block_index, block in enumerate(blocks):
-        # Token-aware A/B: leave each paragraph intact until the model's
-        # real G2P and tokenizer are available immediately before inference.
+        # Defer sentence splitting to G2P/token budget, before inference.
         chunks = ([clean_runs(block["runs"])] if sentence_aware else
                   split_runs_adaptive(block["runs"]) if settings["adaptive_chunks"] else
                   split_runs(block["runs"]))
@@ -599,20 +596,23 @@ def synthesize(
     generated_samples = 0
     english_samples: list[dict] = []
     chapters: list[dict] = []
-    last_block: int | None = None
+    last_unit: tuple[int, int] | None = None
     destination = output_dir / f"{slug}.wav"
     with sf.SoundFile(
         destination, mode="w", samplerate=SAMPLE_RATE, channels=1, subtype="PCM_16"
     ) as wav:
         for i, item in enumerate(segments, start=1):
             block_id = item.get("block_index", i - 1)
-            if block_id != last_block:
+            sentence_id = item.get("sentence_index", 0)
+            unit = (block_id, sentence_id)
+            if unit != last_unit:
                 chapters.append({
                     "start": round(generated_samples / SAMPLE_RATE, 3),
                     "block_index": block_id,
+                    "sentence_index": sentence_id,
                     "label": item["text"][:96]
                 })
-                last_block = block_id
+                last_unit = unit
             phonemes, examples = phonemize_runs(item["runs"], phonemizers)
             english_samples.extend(examples)
             if not phonemes:
@@ -638,7 +638,7 @@ def synthesize(
     duration = generated_samples / SAMPLE_RATE
     elapsed = time.perf_counter() - start
     (output_dir / f"{slug}.chapters.json").write_text(
-        json.dumps({"version": 1, "chapters": chapters}, ensure_ascii=False, indent=2) + "\n",
+        json.dumps({"version": 2, "chapters": chapters}, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8"
     )
     report = {
@@ -659,6 +659,7 @@ def synthesize(
         "has_model_timings": bool(getattr(kokoro, "has_timings", False)),
         "parameters": settings,
         "segments": len(segments),
+        "sentences": len(chapters),
         "audio_seconds": round(duration, 2),
         "synthesis_seconds": round(elapsed, 2),
         "real_time_factor": round(elapsed / duration, 3) if duration else None,

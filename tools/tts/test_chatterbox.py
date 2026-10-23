@@ -3,58 +3,28 @@ import re
 from pathlib import Path
 
 def split_text(text: str, max_chars: int = 280) -> list[str]:
-    """Divide texto em blocos pequenos, tentando preservar frases."""
+    """Synthesize one sentence at a time, only splitting oversized sentences."""
+    if max_chars < 1:
+        raise ValueError("chunk_chars must be positive")
     text = re.sub(r"\r\n?", "\n", text)
     text = re.sub(r"[ \t]+", " ", text)
-    text = re.sub(r"\n{3,}", "\n\n", text).strip()
-
-    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+    paragraphs = [p.strip() for p in re.split(r"\n{2,}", text) if p.strip()]
     chunks = []
-
     for paragraph in paragraphs:
-        sentences = re.split(r"(?<=[.!?])\s+", paragraph)
-        current = ""
-
-        for sentence in sentences:
+        for sentence in re.split(r"(?<=[.!?…])\s+", paragraph):
             sentence = sentence.strip()
             if not sentence:
                 continue
-
-            # Frase individual maior que o limite.
-            if len(sentence) > max_chars:
-                if current:
-                    chunks.append(current)
-                    current = ""
-
-                words = sentence.split()
-                piece = ""
-
-                for word in words:
-                    candidate = f"{piece} {word}".strip()
-                    if len(candidate) <= max_chars:
-                        piece = candidate
-                    else:
-                        if piece:
-                            chunks.append(piece)
-                        piece = word
-
-                if piece:
+            piece = ""
+            for word in sentence.split():
+                candidate = (piece + " " + word).strip()
+                if piece and len(candidate) > max_chars:
                     chunks.append(piece)
-
-                continue
-
-            candidate = f"{current} {sentence}".strip()
-
-            if len(candidate) <= max_chars:
-                current = candidate
-            else:
-                if current:
-                    chunks.append(current)
-                current = sentence
-
-        if current:
-            chunks.append(current)
-
+                    piece = word
+                else:
+                    piece = candidate
+            if piece:
+                chunks.append(piece)
     return chunks
 
 
@@ -215,7 +185,8 @@ def main():
         generated.append(wav)
 
         if index < len(chunks):
-            generated.append(pause)
+            generated.append(pause if chunk.rstrip().endswith((".", "!", "?", "…")) else
+                             torch.zeros((1, int(model.sr * 0.025))))
 
     final_wav = torch.cat(generated, dim=1)
 

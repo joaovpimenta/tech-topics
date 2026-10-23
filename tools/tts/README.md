@@ -53,7 +53,7 @@ Cada WAV possui metadata local com hashes da narração, bytes da voz, parâmetr
 
 A extração segue a [política de pronúncia](../../docs/TTS.md#siglas-abreviações-e-pronúncias-especiais), incluindo soletração padrão e léxico. O check usa o léxico staged, preservando edições ainda fora do índice; mudanças na pronúncia resultante invalidam o áudio na próxima verificação do artigo.
 
-A geração escreve num WAV temporário, valida seus chunks e só então substitui o áudio final e grava a metadata. Falha ou interrupção deixa o cache inválido. Amostra ausente, configuração inválida, arquivos privados no índice ou falha na síntese bloqueiam o commit. O comando não adiciona áudio ao Git nem o publica. Para uma exceção consciente à política local, o Git aceita `git commit --no-verify`.
+A síntese Chatterbox local agora usa uma frase por inferência e só subdivide frases longas com `chunk_chars`, reunindo seus pedaços com 25 ms. Pausas de frases usam `pause_ms`. A geração escreve num WAV temporário, valida seus chunks e só então substitui o áudio final e grava a metadata. Falha ou interrupção deixa o cache inválido. Amostra ausente, configuração inválida, arquivos privados no índice ou falha na síntese bloqueiam o commit. O comando não adiciona áudio ao Git nem o publica. Para uma exceção consciente à política local, o Git aceita `git commit --no-verify`.
 
 ## Testar sem síntese
 
