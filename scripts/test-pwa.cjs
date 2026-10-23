@@ -194,9 +194,17 @@ async function testOrdering() {
   assert.equal(stored.get("tech-topics:favorites:v1"), storedBefore);
   assert.deepEqual(navigated, []);
 
-  // Old catalog entries (before the updated build) still have a useful preview.
-  const missingOpening = { opening: undefined, dek: "Descrição curta" };
-  assert.equal(missingOpening.opening || missingOpening.dek || "Resumo", "Descrição curta");
+  // Older cached catalogs still show a meaningful fallback, without fetching
+  // the full article. Its card has an excerpt but no opening field.
+  const olderCard = nodes.get("#recent-list").children[1];
+  const fallbackTouch = touch(8, 120, 310);
+  olderCard.listeners.touchstart({
+    touches: [fallbackTouch], changedTouches: [fallbackTouch],
+    target: { closest() { return null; } }
+  });
+  runTimers();
+  assert.equal(popup.children[2].children[1].textContent, "Evolução");
+  endTouch(fallbackTouch, null);
 
   // Sliding onto the heart before release toggles a local favorite exactly once.
   startTouch(2);
