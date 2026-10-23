@@ -87,6 +87,44 @@ def added_slugs(before: str, after: str, repository: Path = ROOT) -> list[str]:
     return sorted(slugs)
 
 
+def spoken_changes(before: str, after: str, repository: Path = ROOT) -> list[str]:
+    """Modified existing JSONs whose spoken text, language runs or pauses changed."""
+    if not SHA.fullmatch(before) or not SHA.fullmatch(after) or before == "0" * 40:
+        raise ValueError("SHAs inválidos para revisão de artigos existentes.")
+    raw = subprocess.run(
+        ["git", "diff", "--name-only", "--diff-filter=M", "-z", before, after,
+         "--", "content/articles/"], cwd=repository, check=True,
+        capture_output=True,
+    ).stdout.decode("utf-8")
+    from narration_text import load_lexicon
+    from kokoro_release import segments_for_article
+    lexicon = load_lexicon()
+    selected = []
+    for path in raw.split("\0"):
+        if not path.startswith("content/articles/") or not path.endswith(".json"):
+            continue
+        slug = path[len("content/articles/"):-5]
+        if slug == "index" or not SLUG.fullmatch(slug):
+            continue
+        def at(sha):
+            value = subprocess.run(["git", "show", f"{sha}:{path}"],
+                                   cwd=repository, check=True, capture_output=True,
+                                   text=True, encoding="utf-8").stdout
+            return json.loads(value)
+        old, new = at(before), at(after)
+        if any(v.get("slug") != slug or v.get("language") != "pt-BR"
+               for v in (old, new)):
+            raise ValueError(f"Artigo inválido: {slug}")
+        def signature(obj):
+            units = segments_for_article(obj, lexicon)
+            return [(u["text"],
+                     tuple((r["text"], r["lang"]) for r in u["runs"]),
+                     u["pause_after_seconds"]) for u in units]
+        if signature(old) != signature(new):
+            selected.append(slug)
+    return sorted(set(selected))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     origin = parser.add_mutually_exclusive_group(required=True)
@@ -94,11 +132,16 @@ def main() -> None:
     origin.add_argument("--all", action="store_true", help="Todos os artigos publicados, para backfill manual")
     origin.add_argument("--before", help="SHA do início do push automático")
     parser.add_argument("--after", help="SHA do final do push automático")
+    parser.add_argument("--spoken-changes", action="store_true",
+                        help="Somente conteúdo de fala editado")
     args = parser.parse_args()
+    if args.spoken_changes and not args.before:
+        parser.error("--spoken-changes exige --before e --after")
     if args.before:
         if not args.after:
             parser.error("--after é obrigatório com --before")
-        result = added_slugs(args.before, args.after)
+        result = (spoken_changes(args.before, args.after)
+                  if args.spoken_changes else added_slugs(args.before, args.after))
         for slug in result:
             read_article(slug)
     elif args.all:
