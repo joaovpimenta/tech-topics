@@ -110,7 +110,7 @@ Campo **mode**:
   capítulos. **Não cria nem altera Releases**, incluindo artigos que já
   possuem `tts-<slug>`; use este modo para validar Bulkhead antes de
   qualquer substituição ou backfill.
-- **`publish`**: sintetiza o artigo completo e cria uma Release.
+- **`publish`**: sintetiza o artigo completo com capítulos de **frase** (schema `version=2`) e cria uma Release.
   Se ela já existe, é preservada; `replace_existing=true` permite
   substituir somente quando solicitado manualmente.
 - **`compare`**: produz nove amostras curtas para escuta, cruzando
@@ -136,13 +136,12 @@ emendas obrigatórias no meio de uma frase usam **25 ms** de silêncio.
 
 ### Chunking por tokens reais antes do TTS
 
-A fonemização PT-BR/EN-US acontece **antes de `kokoro.create()`**.
+Cada frase completa é uma unidade de navegação e recebe um timestamp por amostra WAV. Frases curtas **não** são combinadas em uma inferência; frases longas podem usar vários chunks com o mesmo `(block_index, sentence_index)` e junção interna de 25 ms. Vírgulas não criam unidades navegáveis. A fonemização PT-BR/EN-US acontece **antes de `kokoro.create()`**.
 O pipeline usa `kokoro.tokenizer.tokenize(fonemas, limit=None)`
 para contar tokens reais e escolher cortes antes da inferência.
 **Não existe limite de 320 caracteres editoriais na preparação de novas sínteses, inclusive em `publish`.**
 
-- **Alvo de contexto:** 300 tokens, agregando sentenças curtas do mesmo
-  parágrafo quando cabe e preservando sentenças completas.
+- **Alvo de contexto:** 300 tokens para uma frase; frases menores são sintetizadas separadamente, sem agregação com a seguinte.
 - **Teto de inferência:** 350 tokens; acima dele, buscar vírgula,
   ponto e vírgula ou dois-pontos mais próximos do alvo, ou, só como
   alternativa, separar entre palavras. Não separar uma palavra ao meio.
@@ -175,7 +174,7 @@ bitrate não corrigirá problemas de pronúncia, prosódia ou recortes:
 apenas reduzirá os artefatos da compressão, aumentando o arquivo.
 
 `publish` e `preview` já usam Equilibrado 1.00 e MP3 128 kbps.
-`review` e `compare` geram Artifacts sem publicar Releases. Nenhuma Release existente é sobrescrita implicitamente;
+`review` e `compare` geram Artifacts sem publicar Releases. O backfill aprovado usa `all_articles=true` com `mode=publish` e `replace_existing=true`: revisa todos os artigos publicados, pula os que já têm schema v2 e guarda backups dos MP3 antigos como Artifacts de 90 dias antes de substituí-los. A migração inicial é disparada uma única vez no merge com marcador `[tts-backfill-v2]`; runs normais do Pages não fazem backfill. Nenhuma Release existente é sobrescrita implicitamente fora dessa operação expressamente aprovada;
 substituição exige `mode=publish` com `replace_existing=true` manual.
 
 ### E o modo `continuous`?

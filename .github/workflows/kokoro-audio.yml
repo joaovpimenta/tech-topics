@@ -23,6 +23,16 @@ on:
         type: boolean
         required: false
         default: false
+      all_articles:
+        type: boolean
+        required: false
+        default: false
+  # One-shot automatic migration on merge with [tts-backfill-v2].
+  # Manual workflow dispatch remains available for missing or failed articles.
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/kokoro-audio.yml"
   workflow_dispatch:
     inputs:
       article:
@@ -45,6 +55,11 @@ on:
         type: boolean
         required: false
         default: false
+      all_articles:
+        description: "Backfill completo: 18 artigos; exige publish e replace_existing=true"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -52,6 +67,10 @@ permissions:
 jobs:
   select:
     name: Select article(s)
+    if: >-
+      github.event_name != 'push' ||
+      inputs.after_sha != '' ||
+      contains(github.event.head_commit.message, '[tts-backfill-v2]')
     runs-on: ubuntu-latest
     outputs:
       slugs: ${{ steps.resolve.outputs.slugs }}
@@ -71,12 +90,30 @@ jobs:
           BEFORE_SHA: ${{ inputs.before_sha }}
           AFTER_SHA: ${{ inputs.after_sha }}
           SELECT_MODE: ${{ inputs.mode || 'publish' }}
-          REPLACE_EXISTING: ${{ inputs.replace_existing || 'false' }}
+          BACKFILL_ALL: ${{ inputs.all_articles || (inputs.after_sha == '' && github.event_name == 'push' && contains(github.event.head_commit.message, '[tts-backfill-v2]')) || 'false' }}
+          REPLACE_EXISTING: ${{ inputs.replace_existing || (inputs.after_sha == '' && github.event_name == 'push' && contains(github.event.head_commit.message, '[tts-backfill-v2]')) || 'false' }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+          if [ "$BACKFILL_ALL" = true ]; then
+            if [ "$SELECT_MODE" != publish ] || [ "$REPLACE_EXISTING" != true ]; then
+              echo "Backfill requires mode=publish and replace_existing=true." >&2
+              exit 1
+            fi
+            slugs="$(python tools/tts/article_selection.py --all)"
+            # Resume safely: skip existing v2 Releases; v1 and missing remain stale.
+            pending='[]'
+            while IFS= read -r slug; do
+              body="$(gh release view "tts-$slug" --json body --jq '.body' 2>/dev/null || true)"
+              if grep -Eq '"version":[[:space:]]*2' <<< "$body"; then
+                echo "CURRENT $slug: v2 already published." >> "$GITHUB_STEP_SUMMARY"
+              else
+                pending="$(jq -nc --argjson current "$pending" --arg slug "$slug" '$current + [$slug]')"
+              fi
+            done < <(jq -r '.[]' <<< "$slugs")
+            slugs="$pending"
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             slugs="$(python tools/tts/article_selection.py --article "$MANUAL_ARTICLE")"
           elif [ -n "$MANUAL_ARTICLE" ]; then
             slugs="$(python tools/tts/article_selection.py --article "$MANUAL_ARTICLE")"
@@ -110,6 +147,7 @@ jobs:
       contents: write
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         slug: ${{ fromJSON(needs.select.outputs.slugs) }}
     concurrency:
@@ -118,7 +156,7 @@ jobs:
     env:
       ARTICLE_SLUG: ${{ matrix.slug }}
       MODE: ${{ inputs.mode || 'publish' }}
-      REPLACE_EXISTING: ${{ inputs.replace_existing || 'false' }}
+      REPLACE_EXISTING: ${{ inputs.replace_existing || (inputs.after_sha == '' && github.event_name == 'push' && contains(github.event.head_commit.message, '[tts-backfill-v2]')) || 'false' }}
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       OMP_NUM_THREADS: "4"
@@ -378,7 +416,33 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
-      - name: Attach paragraph timestamps to public Release notes
+      - name: Backup previous Release assets before clobber
+        id: backup
+        if: steps.policy.outputs.skip != 'true' && env.MODE == 'publish' && env.REPLACE_EXISTING == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="tts-$ARTICLE_SLUG"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            mkdir -p ".audio/previous/$ARTICLE_SLUG"
+            gh release download "$tag" --dir ".audio/previous/$ARTICLE_SLUG"
+            test -s ".audio/previous/$ARTICLE_SLUG/$ARTICLE_SLUG.mp3"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Saved previous MP3 and metadata for $ARTICLE_SLUG." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Preserve old MP3 before publication
+        if: steps.backup.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tts-previous-${{ matrix.slug }}-${{ github.run_id }}
+          path: .audio/previous/${{ matrix.slug }}/
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Attach sentence timestamps to public Release notes
         if: steps.policy.outputs.skip != 'true' && env.MODE == 'publish'
         shell: bash
         run: |

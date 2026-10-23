@@ -91,6 +91,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     origin = parser.add_mutually_exclusive_group(required=True)
     origin.add_argument("--article", help="Slug, título, ou vazio para o artigo mais recente")
+    origin.add_argument("--all", action="store_true", help="Todos os artigos publicados, para backfill manual")
     origin.add_argument("--before", help="SHA do início do push automático")
     parser.add_argument("--after", help="SHA do final do push automático")
     args = parser.parse_args()
@@ -100,6 +101,8 @@ def main() -> None:
         result = added_slugs(args.before, args.after)
         for slug in result:
             read_article(slug)
+    elif args.all:
+        result = sorted(article["slug"] for article in catalog())
     else:
         result = select_manual(args.article or "")
     print(json.dumps(result, ensure_ascii=False))
