@@ -30,6 +30,9 @@ async function testWorker() {
   handlers.install({ waitUntil(promise) { pending = promise; } }); await pending;
   assert(entries.has("https://example.com/tech-topics/index.html"));
   assert(entries.has("https://example.com/tech-topics/content/articles/index.json"));
+  assert(entries.has("https://example.com/tech-topics/assets/articles-catalog.json"));
+  assert(!entries.has("https://example.com/tech-topics/content/articles/bulkhead.json"), "full articles must not be precached");
+  assert(!entries.has("https://example.com/tech-topics/assets/bulkhead/bulkhead-cover.jpg"), "covers must not be precached");
   const manifestIcons = JSON.parse(readFileSync("manifest.webmanifest", "utf8")).icons;
   for (const icon of manifestIcons) assert(entries.has(new URL(icon.src, "https://example.com/tech-topics/").href), "installable app icon must be available offline: " + icon.src);
   assert(entries.has("https://example.com/tech-topics/favicon.ico"));
@@ -55,20 +58,61 @@ async function testWorker() {
 
 async function testOrdering() {
   const nodes = new Map();
-  const element = () => ({ hidden: true, value: "", children: [], setAttribute() {}, append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; }, addEventListener() {} });
-  const document = { createElement: element, querySelector(selector) { if (!nodes.has(selector)) nodes.set(selector, element()); return nodes.get(selector); } };
+  function element() {
+    const listeners = {};
+    return {
+      hidden: true, value: "", checked: false, children: [], listeners, dataset: {}, classList: { add() {}, toggle() {} },
+      setAttribute() {}, append(...items) { this.children.push(...items); },
+      replaceChildren(...items) { this.children = items; },
+      addEventListener(type, callback) { listeners[type] = callback; },
+      querySelector() { return null; }, appendChild(node) { this.children.push(node); },
+      get childElementCount() { return this.children.length; }
+    };
+  }
+  const document = {
+    baseURI: "https://example.com/tech-topics/",
+    createElement: element,
+    createElementNS: element,
+    querySelector(selector) { if (!nodes.has(selector)) nodes.set(selector, element()); return nodes.get(selector); }
+  };
   const records = [
-    { slug: "old", publishedAt: "2026-09-10", title: "Antigo" },
-    { slug: "new", publishedAt: "2026-09-12", title: "Novo", addedAt: "2026-09-12T09:00:00Z" },
-    { slug: "newest", publishedAt: "2026-09-12", title: "Mais novo no mesmo dia", addedAt: "2026-09-12T12:00:00Z" },
-    { slug: "middle", publishedAt: "2026-09-11", title: "Intermediário" }
+    { slug: "old", publishedAt: "2026-09-10", title: "Antigo", image: "assets/old.jpg", excerpt: "Introdução", category: "Arquitetura" },
+    { slug: "new", publishedAt: "2026-09-12", title: "Novo", image: "assets/new.jpg", excerpt: "Evolução", category: "Arquitetura", addedAt: "2026-09-12T09:00:00Z" },
+    { slug: "newest", publishedAt: "2026-09-12", title: "Mais novo no mesmo dia", image: "assets/newest.jpg", excerpt: "Conceito", category: "Arquitetura", addedAt: "2026-09-12T12:00:00Z" },
+    { slug: "middle", publishedAt: "2026-09-11", title: "Intermediário", image: "assets/middle.jpg", excerpt: "Detalhes", category: "Arquitetura" }
   ];
-  vm.runInNewContext(readFileSync("app.js", "utf8"), { document, Intl,
-    fetch: async path => ({ ok: true, json: async () => path.includes("index.json") ? records.map(article => ({ slug: article.slug, path: article.slug, addedAt: article.addedAt })) : records.find(article => article.slug === path) })
+  const stored = new Map();
+  const calls = [];
+  vm.runInNewContext(readFileSync("app.js", "utf8"), {
+    document, window: { location: { search: "" } }, navigator: {},
+    URL, URLSearchParams, Intl, setTimeout, clearTimeout,
+    localStorage: { getItem: key => stored.get(key) || null, setItem: (key, value) => stored.set(key, value) },
+    fetch: async path => {
+      calls.push(path);
+      if (path === "assets/articles-catalog.json") return { ok: true, json: async () => records };
+      return { ok: false, json: async () => ({}) };
+    }
   });
   await new Promise(setImmediate);
-  const urls = nodes.get("#recent-list").children.map(card => card.children[0].href);
-  assert.deepEqual(urls, ["article.html?slug=newest", "article.html?slug=new", "article.html?slug=middle", "article.html?slug=old"]);
+  const urls = () => nodes.get("#recent-list").children.map(card => card.children[0].href);
+  assert.deepEqual(urls(), [
+    "article.html?slug=newest", "article.html?slug=new",
+    "article.html?slug=middle", "article.html?slug=old"
+  ]);
+  assert(!calls.some(path => /content\/articles\/(?!catalog\.json)/.test(path)), "home must not fetch full articles");
+  const card = nodes.get("#recent-list").children[0];
+  card.children[2].children[0].listeners.click();
+  assert.deepEqual(JSON.parse(stored.get("tech-topics:favorites:v1")), ["newest"]);
+  const filter = nodes.get("#favorites-only");
+  filter.checked = true;
+  filter.listeners.change();
+  assert.deepEqual(urls(), ["article.html?slug=newest"]);
+  filter.checked = false;
+  filter.listeners.change();
+  const search = nodes.get("#search-input");
+  search.value = "Antigo";
+  search.listeners.input();
+  assert.deepEqual(urls(), ["article.html?slug=old"]);
 }
 
 (async () => {
