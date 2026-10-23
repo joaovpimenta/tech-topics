@@ -230,7 +230,7 @@ async function testOrdering() {
   assert.equal(popup.children[2].children.at(-1).textContent, "Solte para alternar favorito.");
   docListeners.touchmove({ changedTouches: [touch(2, 160, 215)], preventDefault() {} });
   assert.deepEqual(vibrations, [12], "remaining over the same action must not repeatedly vibrate");
-  favorite.getBoundingClientRect = () => ({ left: 130, right: 177, top: 194, bottom: 240 });
+  favorite.getBoundingClientRect = () => ({ left: 130, right: 177, top: 194, bottom: 240, width: 47, height: 46 });
   hovered = null;
   docListeners.touchmove({ changedTouches: [touch(2, 158, 218)], preventDefault() {} });
   assert(favorite.classList.contains("is-targeted"), "coordinate fallback must target a button even if elementFromPoint misses its SVG");
