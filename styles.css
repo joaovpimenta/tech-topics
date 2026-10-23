@@ -514,3 +514,91 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
   .recent-copy .post-meta { min-height: 32px; padding-right: 82px; }
   .card-actions { bottom: 10px; right: 3px; padding: 0; background: transparent; }
 }
+
+/* Article inline audio transport: same audio session as the existing floating dock. */
+.article-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 17px;
+}
+.inline-recording-anchor { flex: 1 1 240px; min-width: 0; }
+.inline-recording {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 53px;
+  padding: 7px 10px;
+  border: 1px solid #d7e4db;
+  border-radius: 12px;
+  background: #f4f9f6;
+  color: var(--ink);
+}
+.inline-recording-play {
+  position: relative;
+  display: grid;
+  flex: 0 0 37px;
+  width: 37px;
+  height: 37px;
+  place-items: center;
+  border: 0;
+  border-radius: 11px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+.inline-recording-play svg { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%, -50%); transition: opacity .15s ease; }
+.inline-recording-play .recording-icon-pause { opacity: 0; }
+.inline-recording-play[data-playing="true"] .recording-icon-play { opacity: 0; }
+.inline-recording-play[data-playing="true"] .recording-icon-pause { opacity: 1; }
+.inline-recording-elapsed, .inline-recording-duration {
+  color: var(--muted);
+  font: 12px/1.3 var(--sans);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.inline-recording-seek { flex: 1 1 auto; min-width: 35px; accent-color: var(--accent); cursor: pointer; }
+.inline-recording-seek:disabled { cursor: default; opacity: .6; }
+.inline-recording-rate {
+  flex: none;
+  min-width: 35px;
+  min-height: 33px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.article-social-actions { display: flex; flex: none; gap: 6px; }
+.article-icon-button {
+  display: grid;
+  place-items: center;
+  width: 37px;
+  height: 37px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--muted);
+  cursor: pointer;
+}
+.article-icon-button:hover, .article-icon-button:focus-visible { background: #edf5f1; color: var(--accent); }
+.article-icon-button.is-favorite { color: var(--accent); background: #edf5f1; }
+.article-icon-button.is-favorite svg { fill: currentColor; }
+.inline-recording-play:focus-visible, .inline-recording-seek:focus-visible, .inline-recording-rate:focus-visible, .article-icon-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.article-actions .listen-status, .article-actions .share-status { flex-basis: 100%; color: var(--muted); font-size: 12px; }
+@media (max-width: 520px) {
+  .article-actions { gap: 7px; }
+  .inline-recording-anchor { flex-basis: 190px; }
+  .inline-recording { padding: 5px 7px; gap: 6px; min-height: 47px; }
+  .inline-recording-play { width: 34px; height: 34px; flex-basis: 34px; }
+  .inline-recording-rate { display: none; }
+  .inline-recording-elapsed, .inline-recording-duration { font-size: 11px; }
+  .article-social-actions { gap: 4px; }
+  .article-icon-button { width: 34px; height: 34px; }
+  .article-icon-button svg { width: 18px; height: 18px; }
+}
+@media (prefers-reduced-motion: reduce) { .inline-recording-play svg { transition: none; } }

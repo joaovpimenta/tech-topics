@@ -33,6 +33,40 @@ const articleActions = document.querySelector("#article-actions");
 const shareButton = document.querySelector("#share-article");
 const shareStatus = document.querySelector("#share-status");
 
+const favoriteButton = document.querySelector("#favorite-article");
+const FAVORITES_KEY = "tech-topics:favorites:v1";
+let currentArticleSlug = "";
+const fallbackFavorites = new Set();
+function favoriteSlugs() {
+  try {
+    const values = JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]");
+    return new Set(Array.isArray(values) ? values.filter(value => typeof value === "string") : []);
+  } catch (_) { return new Set(fallbackFavorites); }
+}
+function renderFavoriteButton() {
+  if (!favoriteButton || !currentArticleSlug) return;
+  const selected = favoriteSlugs().has(currentArticleSlug);
+  favoriteButton.classList.toggle("is-favorite", selected);
+  favoriteButton.setAttribute("aria-pressed", String(selected));
+  favoriteButton.setAttribute("aria-label", selected ? "Remover artigo dos favoritos" : "Adicionar artigo aos favoritos");
+  favoriteButton.title = selected ? "Remover dos favoritos" : "Adicionar aos favoritos";
+}
+favoriteButton?.addEventListener("click", () => {
+  if (!currentArticleSlug) return;
+  const updated = favoriteSlugs();
+  if (updated.has(currentArticleSlug)) updated.delete(currentArticleSlug);
+  else updated.add(currentArticleSlug);
+  fallbackFavorites.clear();
+  updated.forEach(slug => fallbackFavorites.add(slug));
+  try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...updated])); }
+  catch (_) { /* Persistência indisponível: mantém favoritos durante esta sessão. */ }
+  renderFavoriteButton();
+});
+window.addEventListener("storage", event => {
+  if (event.key === FAVORITES_KEY) renderFavoriteButton();
+});
+
+
 async function renderMermaidDiagrams() {
   const containers = [...document.querySelectorAll('[data-mermaid="true"]')];
   if (!containers.length) return;
@@ -206,6 +240,8 @@ async function showArticle(article) {
   });
   void recordingPlayer.discover();
   if (pronunciationUnavailable) document.querySelector("#listen-status").textContent = "Pronúncias personalizadas indisponíveis; siglas serão soletradas.";
+  currentArticleSlug = article.slug;
+  renderFavoriteButton();
   setupShareControls(article);
   document.dispatchEvent(new Event("tech-topics:article-ready"));
 }

@@ -95,6 +95,11 @@
 
   function createPlayer({ document, navigator, article, cover, audio, fetchAudio = lookupAudio, fetchChapters = loadChapters, devicePlayer = null, stopDevice = () => {}, startDevice = () => {} }) {
     const button = document.querySelector("#listen-recording");
+    const inlineAnchor = document.querySelector("#inline-recording-anchor");
+    const inlineSeek = document.querySelector("#inline-recording-seek");
+    const inlineElapsed = document.querySelector("#inline-recording-elapsed");
+    const inlineDuration = document.querySelector("#inline-recording-duration");
+    const inlineRate = document.querySelector("#inline-recording-rate");
     const dock = document.querySelector("#recording-player");
     const title = document.querySelector("#recording-title");
     const subtitle = document.querySelector("#recording-subtitle");
@@ -130,6 +135,35 @@
     let mode = null; // "recorded" or "device"; one dock owns both players.
     let deviceState = { state: "idle", blockIndex: 0, count: devicePlayer?.blocks?.length || 0 };
     let seeking = false;
+    let inlineSeeking = false;
+    let inlineVisible = true;
+
+    function updateDockVisibility() {
+      // One audio element owns both interfaces; the existing bottom dock only
+      // appears once the inline player has scrolled outside the viewport.
+      const floating = open && (!inlineAnchor || !inlineVisible);
+      document.body.classList.toggle("recording-open", floating);
+      dock.hidden = !floating;
+    }
+
+    if (inlineAnchor) {
+      if (typeof root.IntersectionObserver === "function") {
+        const observer = new root.IntersectionObserver(entries => {
+          if (!entries.length) return;
+          inlineVisible = entries[0].isIntersecting;
+          updateDockVisibility();
+        }, { threshold: 0 });
+        observer.observe(inlineAnchor);
+      } else if (typeof root.addEventListener === "function") {
+        const refresh = () => {
+          const rect = inlineAnchor.getBoundingClientRect();
+          inlineVisible = rect.bottom > 0 && rect.top < root.innerHeight;
+          updateDockVisibility();
+        };
+        root.addEventListener("scroll", refresh, { passive: true });
+        root.addEventListener("resize", refresh);
+      }
+    }
 
     function setStatus(message) {
       status.textContent = message || "";
@@ -170,7 +204,7 @@
         if (sentenceHighlighter) sentenceHighlighter.set(activeWords);
         else activeWords.forEach(node => node.classList.add("recording-sentence-active"));
       } else activeNode?.classList.add("recording-block-active");
-      if (activeNode && follow?.checked && document.visibilityState !== "hidden") {
+      if (activeNode && follow?.checked && document.visibilityState !== "hidden" && (!inlineAnchor || !inlineVisible)) {
         (activeWords[0] || activeNode).scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
@@ -287,23 +321,35 @@
       playButton.setAttribute("aria-label", playing ? "Pausar narração" : "Reproduzir narração");
       playButton.setAttribute("aria-pressed", String(playing));
       playButton.dataset.playing = String(playing);
-      button.setAttribute("aria-label", playing ? "Pausar áudio do artigo" : "Ouvir artigo");
+      button.setAttribute("aria-label", playing ? "Pausar áudio do artigo" : "Reproduzir áudio do artigo");
       button.setAttribute("aria-pressed", String(playing));
-      button.querySelector(".recording-button-label").textContent = "Ouvir artigo";
+      button.dataset.playing = String(playing);
+      const inlineLabel = button.querySelector(".recording-button-label");
+      if (inlineLabel) inlineLabel.textContent = playing ? "Pausar artigo" : "Ouvir artigo";
+      if (inlineSeek) {
+        if (!inlineSeeking) inlineSeek.value = String(Math.round(fraction * 1000));
+        inlineSeek.disabled = native ? deviceState.count < 2 : total <= 0;
+        inlineSeek.setAttribute("aria-label", native ? "Navegar pelos trechos do artigo" : "Posição da narração");
+      }
+      if (inlineElapsed && !inlineSeeking) inlineElapsed.textContent = native ? devicePosition : formatTime(current);
+      if (inlineDuration) inlineDuration.textContent = native ? "por trecho" : total > 0 ? formatTime(total) : "–:––";
       subtitle.textContent = native ? "Tech Topics · Voz do dispositivo" : "Tech Topics · Narração";
       const count = native ? deviceState.count : chapters.length;
       previousButton.hidden = skip.hidden = count < 2;
       previousButton.disabled = native ? deviceState.blockIndex <= 0 : count < 2 || current < 0.7;
       skip.disabled = native ? deviceState.blockIndex >= count - 1 : !chapters.some(chapter => chapter.start > current + 0.7);
       rate.textContent = `${native ? devicePlayer?.getRate?.() || 1 : audio.playbackRate}×`;
+      if (inlineRate) {
+        inlineRate.textContent = rate.textContent;
+        inlineRate.setAttribute("aria-label", `Velocidade da narração: ${native ? devicePlayer?.getRate?.() || 1 : audio.playbackRate} vezes`);
+      }
       if (deviceSwitch) {
         deviceSwitch.textContent = native ? "Usar áudio gravado" : "Usar voz do dispositivo";
         deviceSwitch.hidden = native ? !available : !devicePlayer;
       }
       if (sourceMenu) sourceMenu.hidden = !available || !devicePlayer;
       followChapter();
-      document.body.classList.toggle("recording-open", open);
-      dock.hidden = !open;
+      updateDockVisibility();
       if (session && !native) session.playbackState = playing ? "playing" : open ? "paused" : "none";
     }
     function updatePosition() {
@@ -422,6 +468,21 @@
       seeking = false;
       render();
     });
+    inlineSeek?.addEventListener("input", () => {
+      inlineSeeking = true;
+      const percent = Number(inlineSeek.value) / 1000;
+      if (inlineElapsed) inlineElapsed.textContent = mode === "device"
+        ? `${Math.round(percent * Math.max(0, deviceState.count - 1)) + 1}/${deviceState.count}`
+        : formatTime(percent * (audio.duration || 0));
+    });
+    inlineSeek?.addEventListener("change", () => {
+      const percent = Number(inlineSeek.value) / 1000;
+      if (mode === "device") devicePlayer?.seek(Math.round(percent * Math.max(0, deviceState.count - 1)));
+      else seekTo(percent * audio.duration);
+      inlineSeeking = false;
+      render();
+    });
+    inlineRate?.addEventListener("click", () => rate.click());
     rate.addEventListener("click", () => {
       const speeds = [1, 1.25, 1.5, 1.75, 2];
       if (mode === "device" && devicePlayer) {
