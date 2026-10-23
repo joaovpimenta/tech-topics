@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import article_selection
 import kokoro_release
-from precommit import article_narration
+from narration_text import article_narration
 
 
 class FakeG2P:
