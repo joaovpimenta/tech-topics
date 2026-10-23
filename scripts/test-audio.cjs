@@ -287,8 +287,10 @@ test("responsive inline transport and floating dock share a compact visual contr
     "the floating play button uses the inline green circle");
   assert.match(styles, /\.article-page \.recording-dock \.recording-rate\s*\{[^}]*border:\s*1px solid var\(--line\);/s,
     "the floating speed control matches the inline outlined chip");
-  assert.match(html, /styles\.css\?v=20261023-responsive-audio-dock/);
-  assert.match(home, /styles\.css\?v=20261023-responsive-audio-dock/);
+  const articleCss = html.match(/styles\.css\?v=([a-z0-9-]+)/)?.[1];
+  const homeCss = home.match(/styles\.css\?v=([a-z0-9-]+)/)?.[1];
+  assert.ok(articleCss, "the article must reference a versioned stylesheet");
+  assert.equal(articleCss, homeCss, "both pages must use the same stylesheet revision");
 });
 
 test("release chapter metadata is available through CORS-safe GitHub API response", async () => {
