@@ -51,3 +51,10 @@ A home buscava `content/articles/index.json` e então todos os JSONs completos v
 - A ação sob o dedo é resolvida por `getBoundingClientRect()` de cada botão, não por `:hover` nem por `event.target`/retargeting. O gesto conserva a identidade do contato e recebe `touchmove`, `touchend` e `touchcancel` na fase de captura, com prevenção de scroll somente após os 480 ms de pressão.
 - O primeiro contato com um alvo real ativa `is-targeted`, preenchimento, escala, halo e texto de soltura; trocar de alvo atualiza a seleção e vibra apenas uma vez por mudança em dispositivos que suportam `navigator.vibrate`. O feedback visual é obrigatório mesmo sem vibração (iOS/Safari).
 - Se o navegador cancelar o gesto após o menu estar aberto, preservar o pop-up em modo tocável, permitindo selecionar diretamente uma ação ou fechar com Escape. Em release fora dos alvos, cancelar normalmente. Testes devem usar toque físico simulado por Chromium/DevTools, não mockar o elemento sob o dedo.
+
+
+## Correção do alvo preso no arrasto — 2026-10-23
+
+- Em Android/WebKit, `:hover` pode continuar ativo no primeiro botão tocado, independentemente de a classe `is-targeted` ter mudado. Durante o gesto, o feedback visual depende **exclusivamente** de `is-targeted` e nunca de `:hover`; hover volta a valer só com ponteiro fino e fora de `data-gesture-active`.
+- O hit-test prefere o botão de centro mais próximo quando áreas ampliadas dos controles se sobrepõem. A ação ativa e o halo precisam acompanhar o dedo nas transições em ambas as direções, removendo sombra/escala do alvo anterior. Vibração ocorre na mudança de ação, não continuamente.
+- Regressão obrigatória em Chromium com toque: Ler → Favoritar → Compartilhar → Favoritar → Ler → Compartilhar → fora da área, verificando classe e `getComputedStyle().boxShadow` de **todos** os botões após cada transição. Conferir também em dispositivo Android real antes de mesclar.
