@@ -293,6 +293,33 @@ test("responsive inline transport and floating dock share a compact visual contr
   assert.equal(articleCss, homeCss, "both pages must use the same stylesheet revision");
 });
 
+test("narrow article player hides timeline, never navigation, speed or social actions", () => {
+  const fs = require("node:fs");
+  const css = fs.readFileSync("styles.css", "utf8");
+  const html = fs.readFileSync("article.html", "utf8");
+  const responsive = css.slice(css.indexOf("/* The embedded player and article actions occupy separate grid tracks."));
+  assert.ok(responsive.startsWith("/* The embedded player"),
+    "the optional timeline rules must override older mobile declarations");
+  assert.match(css, /\.article-page \.inline-recording-skip:not\(\[hidden\]\)\s*\{\s*display:\s*grid;/,
+    "chapter arrows remain available on the smallest phones");
+  assert.doesNotMatch(css, /\.article-page \.inline-recording-skip\s*\{\s*display:\s*none;/,
+    "no media rule may remove navigation to make room for the timeline");
+  assert.match(responsive, /\.article-page \.inline-recording-anchor\s*\{\s*container:\s*inline-audio \/ inline-size;/,
+    "the breakpoint must depend on the actual player width, not the entire viewport");
+  assert.match(responsive, /@container inline-audio \(max-width:\s*272px\)\s*\{\s*\.article-page \.inline-recording-seek,\s*\.article-page \.inline-recording-elapsed,\s*\.article-page \.inline-recording-duration\s*\{\s*display:\s*none;/,
+    "progress, elapsed time and duration vanish together when there is no room");
+  assert.match(responsive, /\.article-page \.inline-recording-rate\s*\{\s*margin-left:\s*auto;/,
+    "speed stays aligned next to the separate favorite and share column");
+  assert.match(responsive, /@supports not \(container-type:\s*inline-size\)/,
+    "older browsers receive a viewport-based fallback");
+  assert.match(responsive, /@media \(max-width:\s*620px\)[\s\S]*?flex:\s*0 0 42px;/,
+    "variable speed labels must have sufficient width");
+  for (const id of ["listen-recording", "inline-recording-previous", "inline-recording-next",
+    "inline-recording-rate", "favorite-article", "share-article"]) {
+    assert.match(html, new RegExp('id="' + id + '"'));
+  }
+});
+
 test("release chapter metadata is available through CORS-safe GitHub API response", async () => {
   const body = "\n<!-- TECH_TOPICS_CHAPTERS_V1\n" +
     JSON.stringify({ version: 1, chapters: [{ start: 0 }, { start: 18.45 }, { start: 43 }] }) +
