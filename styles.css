@@ -1152,37 +1152,74 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
   }
 }
 
-/* The embedded player and article actions occupy separate grid tracks.
-   Only the seek/timestamps are optional: never let the native range input,
-   even with a 0px flex minimum, paint beneath the favorite button. */
+/* Single-row transport. Fixed controls never compete with the optional
+   timeline; audio.js decides whether the complete timeline can fit. */
 .article-page .inline-recording-anchor {
-  container: inline-audio / inline-size;
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+}
+.article-page .inline-recording {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.article-page .inline-recording-play,
+.article-page .inline-recording-skip,
+.article-page .inline-recording-rate {
+  flex-shrink: 0;
 }
 .article-page .inline-recording-rate {
   box-sizing: border-box;
-  overflow: hidden;
+  flex: 0 0 52px;
+  width: 52px;
+  min-width: 52px;
+  max-width: 52px;
+  height: 38px;
+  white-space: nowrap;
+  overflow: visible;
+  margin-left: auto;
+}
+.article-page .inline-recording-timeline {
+  display: flex;
+  align-items: center;
+  flex: 1 1 0px;
+  width: 0;
+  min-width: 0;
+  gap: 5px;
+}
+.article-page .inline-recording-timeline[hidden] {
+  display: none !important;
+}
+.article-page .inline-recording-timeline .inline-recording-seek {
+  flex: 1 1 0px;
+  width: 0;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+}
+.article-page .inline-recording-timeline .inline-recording-elapsed,
+.article-page .inline-recording-timeline .inline-recording-duration {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.article-page .article-social-actions {
+  min-width: max-content;
+  flex-wrap: nowrap;
+  overflow: visible;
 }
 @media (max-width: 620px) {
   .article-page .inline-recording-rate {
-    flex: 0 0 42px;
-    width: 42px;
-    min-width: 42px;
+    flex-basis: 52px;
+    width: 52px;
+    min-width: 52px;
+    height: 36px;
   }
-}
-@container inline-audio (max-width: 272px) {
-  .article-page .inline-recording-seek,
-  .article-page .inline-recording-elapsed,
-  .article-page .inline-recording-duration {
-    display: none;
-  }
-  .article-page .inline-recording-rate { margin-left: auto; }
-}
-/* Browser fallback for engines without size container queries. */
-@supports not (container-type: inline-size) {
-  @media (max-width: 410px) {
-    .article-page .inline-recording-seek,
-    .article-page .inline-recording-elapsed,
-    .article-page .inline-recording-duration { display: none; }
-    .article-page .inline-recording-rate { margin-left: auto; }
-  }
+  .article-page .inline-recording-timeline { gap: 4px; }
 }
