@@ -96,7 +96,8 @@
     let block = null;
     let previousOwner = null;
     let sentenceIndex = 0;
-    for (const piece of pieces) {
+    for (let pieceIndex = 0; pieceIndex < pieces.length; pieceIndex += 1) {
+      const piece = pieces[pieceIndex];
       if (piece.owner !== previousOwner) {
         previousOwner = piece.owner;
         sentenceIndex = 0;
@@ -124,7 +125,12 @@
         if (piece.nodes.length) segment.words.push({ start, end: segment.text.length, nodes: piece.nodes });
       }
       for (const word of piece.nodes) if (!block.words.includes(word)) block.words.push(word);
-      if (piece.nodes.length && isSentenceBoundary(piece.nodes.at(-1).textContent)) {
+      const finalWord = piece.nodes.at(-1);
+      const nextPiece = pieces[pieceIndex + 1];
+      // Replacements such as "API." produce multiple speech pieces for one
+      // visible word; never split before its trailing punctuation is included.
+      const stillSameWord = finalWord && nextPiece?.nodes?.includes(finalWord);
+      if (finalWord && !stillSameWord && isSentenceBoundary(finalWord.textContent)) {
         block = null;
         sentenceIndex += 1;
       }
