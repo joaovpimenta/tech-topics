@@ -75,6 +75,45 @@ class KokoroReleaseTests(unittest.TestCase):
         self.assertTrue(any(r["lang"] == "pt-br" and "agá" in r["text"] for r in runs))
         self.assertTrue(any(r["lang"] == "en-us" and "bâlk" in r["text"] for r in runs))
 
+    def test_opt_in_code_and_arrows_are_spoken_without_changing_language_spans(self):
+        article = {
+            "title": "Teste",
+            "bodyHtml": (
+                '<h3>Banco <span data-tts-say="para o">→</span> '
+                '<span lang="en-US">broker</span></h3>'
+                '<h3><span lang="en-US">Broker</span> '
+                '<span data-tts-say="para o">→</span> banco</h3>'
+                '<p>Um bloco <code lang="en-US" data-tts-say="try catch">'
+                'try/catch</code> não fecha a janela.</p>'
+                '<pre><code data-tts-say="segredo">não narrar</code></pre>'
+            ),
+        }
+        segments = kokoro_release.segments_for_article(article, {})
+        spoken = [segment["text"] for segment in segments]
+        self.assertIn("Banco para o broker", spoken)
+        self.assertIn("Broker para o banco", spoken)
+        self.assertIn("Um bloco try catch não fecha a janela.", spoken)
+        self.assertNotIn("try/catch", " ".join(spoken))
+        self.assertNotIn("→", " ".join(spoken))
+        self.assertNotIn("segredo", " ".join(spoken))
+        code_sentence = next(s for s in segments if "try catch" in s["text"])
+        self.assertTrue(any(r["lang"] == "en-us" and "try catch" in r["text"]
+                            for r in code_sentence["runs"]))
+        self.assertEqual(
+            " ".join(" ".join(spoken).split()),
+            " ".join(article_narration(article, {}).split())
+        )
+
+    def test_transactional_outbox_preserves_code_in_prose(self):
+        article = article_selection.read_article("transactional-outbox")
+        segments = kokoro_release.segments_for_article(article, {})
+        text = " ".join(segment["text"] for segment in segments)
+        self.assertIn("Um bloco try catch não fecha essa janela", text)
+        self.assertIn("Banco para o broker", text)
+        self.assertIn("Broker para o banco", text)
+        self.assertNotIn("seta para a direita", text)
+        self.assertNotIn("try/catch", text)
+
     def test_phonemizer_switches_languages_without_splitting_sentence_audio(self):
         ph = {"pt-br": FakeG2P("PT"), "en-us": FakeG2P("EN")}
         runs = [

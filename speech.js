@@ -40,11 +40,17 @@
   }
 
   const blockSelector = "h1,h2,h3,h4,p,li,figcaption,th,td,.article-callout";
-  const ignoredSelector = "pre,code,nav,button,input,select,textarea,script,style,svg,details,[hidden],[aria-hidden=true],[data-tts-ignore],.fgs-toc,.fgs-simulator,.fgs-formula,.mermaid-diagram,.mermaid-fallback,.article-back";
+  const ignoredSelector = "pre,nav,button,input,select,textarea,script,style,svg,details,[hidden],[aria-hidden=true],[data-tts-ignore],.fgs-toc,.fgs-simulator,.fgs-formula,.mermaid-diagram,.mermaid-fallback,.article-back";
+  // Keep ordinary inline code silent. Read only code with an explicit alias;
+  // <pre> stays ignored (its descendants are never visited).
+  function isNarrationIgnored(node) {
+    return node.matches(ignoredSelector) ||
+      (node.matches("code") && !node.getAttribute("data-tts-say"));
+  }
 
   function readableText(node) {
     if (node.nodeType === 3) return node.nodeValue;
-    if (node.nodeType !== 1 || node.matches(ignoredSelector)) return "";
+    if (node.nodeType !== 1 || isNarrationIgnored(node)) return "";
     if (node.matches("br,hr")) return " ";
     return [...node.childNodes].map(readableText).join("");
   }
@@ -117,7 +123,7 @@
         node.replaceWith(fragment);
         return;
       }
-      if (node.nodeType !== 1 || node.matches(ignoredSelector)) return;
+      if (node.nodeType !== 1 || isNarrationIgnored(node)) return;
       const lang = node.getAttribute("lang") || language;
       const block = node.matches(blockSelector) ? node : owner;
       if (node.matches("br,hr") && block) pieces.push({ owner: block, text: " ", lang, nodes: [] });
@@ -403,7 +409,7 @@
     return player;
   }
 
-  const api = { pronounce, spell, validateLexicon, isSentenceBoundary, createSentenceHighlighter, createPlayer, buildBlocks, mount };
+  const api = { pronounce, spell, validateLexicon, isSentenceBoundary, isNarrationIgnored, createSentenceHighlighter, createPlayer, buildBlocks, mount };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.TechTopicsSpeech = api;
 })(globalThis);

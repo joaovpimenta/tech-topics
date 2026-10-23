@@ -31,6 +31,22 @@ test("mixed-case initialisms and plurals use the same fallback", () => {
   assert.equal(speech.pronounce("mTLS e gRPC", "pt-BR", {}).map(part => part.text).join(""), "ême tê éle ésse e gê érre pê cê");
 });
 
+test("inline code is only narrated when an explicit speech alias exists", () => {
+  function node(tag, alias) {
+    return {
+      matches(selector) {
+        if (selector === "code") return tag === "code";
+        return tag === "pre" && selector.includes("pre");
+      },
+      getAttribute(key) { return key === "data-tts-say" ? alias : null; }
+    };
+  }
+  assert.equal(speech.isNarrationIgnored(node("code", null)), true);
+  assert.equal(speech.isNarrationIgnored(node("code", "")), true);
+  assert.equal(speech.isNarrationIgnored(node("code", "try catch")), false);
+  assert.equal(speech.isNarrationIgnored(node("pre", null)), true);
+});
+
 function playerFixture() {
   const utterances = [];
   const synthesis = { getVoices: () => [], speak: utterance => utterances.push(utterance), cancel() {}, pause() {}, resume() {} };
