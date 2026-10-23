@@ -39,6 +39,14 @@ async function expectFailure(args, pattern) {
   assert.match(result.stdout, /Framework: backend/);
   assert.doesNotMatch(result.stdout, /Framework: observabilidade/);
   assert.ok(Buffer.byteLength(result.stdout) < 32768);
+  // The active authoring module is included in every generated brief:
+  // models must receive TTS aliases for meaningful inline code and arrows.
+  assert.match(result.stdout, /data-tts-say="try catch"/);
+  assert.match(result.stdout, /<code lang="en-US"/);
+  assert.match(result.stdout, /data-tts-say="para o"/);
+  assert.match(result.stdout, /data-tts-say="aumenta"/);
+  assert.match(result.stdout, /data-tts-say="diminuem"/);
+  assert.match(result.stdout, /não traduza símbolos globalmente/);
 
   const cover = await run(process.execPath, [coverComposer], { cwd: root });
   assert.match(cover.stdout, /Style anchor obrigatório/);

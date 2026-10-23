@@ -109,24 +109,47 @@ não fecha essa janela.
 A leitura será “Um bloco try catch não fecha essa janela”, sem soletrar a
 barra. Esse `data-tts-say` funciona como um **alias de fala** equivalente
 em intenção ao `<sub alias="...">` do SSML. É uma convenção do Tech Topics,
-não uma promessa de suporte SSML nativo. `<pre>` continua sempre ignorado,
-mesmo que contenha um `<code data-tts-say>`. Para código extenso, prefira
-explicá-lo em prosa, nunca ler caracteres isolados.
+não uma promessa de suporte SSML nativo. **Use-o quando a expressão inline
+for indispensável para compreender a frase**, por exemplo `try/catch`,
+`SELECT` ou uma operação citada e explicada em prosa; não é necessário
+tornar narráveis todos os identificadores, caminhos ou fragmentos de código.
+O atributo `lang` identifica o idioma da **fala** quando ela diferir do
+português. `<pre>` continua sempre ignorado, mesmo que contenha um
+`<code data-tts-say>`. Para código extenso, prefira explicá-lo em prosa,
+nunca ler caracteres isolados.
 
-A mesma regra vale para setas e símbolos direcionais: **não substitua
-globalmente** `→`, `←` ou operadores, pois seu significado varia conforme
-o contexto. Marque uma leitura natural na ocorrência:
+A mesma regra vale para **setas e símbolos com significado na narrativa**:
+não substitua globalmente `→`, `←`, `↑`, `↓` nem operadores,
+porque a mesma grafia pode significar **fluxo, ordem, mudança de estado,
+implicação, direção física ou variação de uma métrica**. O autor deve
+determinar primeiro o significado da relação e depois escolher uma fala
+natural e gramatical para aquele contexto. Envolva **apenas o símbolo**
+em `<span data-tts-say="...">…</span>`.
 
-```html
-Banco <span data-tts-say="para o">→</span>
-<span lang="en-US">broker</span>
-```
+| Texto visível | Marcação de exemplo | Leitura pretendida |
+| --- | --- | --- |
+| Banco → broker | `Banco <span data-tts-say="para o">→</span> <span lang="en-US">broker</span>` | Banco para o broker |
+| Broker → banco | `<span lang="en-US">Broker</span> <span data-tts-say="para o">→</span> banco` | Broker para o banco |
+| Latência ↑ | `Latência <span data-tts-say="aumenta">↑</span>` | Latência aumenta |
+| Erros ↓ | `Erros <span data-tts-say="diminuem">↓</span>` | Erros diminuem |
+| Serviço ← resposta | `Serviço <span data-tts-say="recebe a">←</span> resposta` | Serviço recebe a resposta |
 
-A apresentação mantém “Banco → broker”, enquanto a síntese fala
-“Banco para o broker”, preservando a pronúncia inglesa do termo
-`broker`. Para fluxo inverso, “Broker → banco” torna-se
-“Broker para o banco”. Em outros contextos, escolha “implica”,
-“resulta em” ou outra leitura semântica apropriada.
+Para setas de movimento físico, “para cima”, “para baixo” ou “para a
+esquerda” podem ser adequados; para encadeamentos técnicos, prefira
+“passa para”, “retorna para”, “resulta em” ou “implica”, conforme o
+significado. Não use “seta para a direita” como fala padrão para fluxo.
+
+**Não marque setas puramente decorativas ou de navegação** nem símbolos
+dentro de código, fórmulas, diagramas ou outros trechos que o TTS já
+ignora. Se uma fórmula ou um diagrama comunicar informação essencial,
+explique-a também em texto narrável. O `data-tts-say` é uma decisão
+editorial **local**, não uma substituição automática aplicada ao site.
+
+**Revisão antes de publicar:** leia mentalmente o parágrafo e cada
+título, legenda e cartão como se fossem falados; se remover um `<code>`
+ou ler o nome de uma seta quebrar a explicação, acrescente o alias
+adequado sem modificar a grafia visual. O lint valida atributos e HTML,
+mas não consegue decidir sozinho o significado de um símbolo.
 
 Também não devem ser narrados índices de navegação, controles interativos,
 simuladores ou conteúdo puramente decorativo. A forma **visível** permanece
