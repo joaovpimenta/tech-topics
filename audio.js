@@ -118,6 +118,12 @@
     let chapterNodes = [];
     let chapterWords = [];
     let activeWords = [];
+    // The speech module is loaded first on article.html. CommonJS fallback
+    // keeps the same highlighter available to the Node regression tests.
+    const highlighterFactory = root.TechTopicsSpeech?.createSentenceHighlighter ||
+      (typeof module !== "undefined" && module.exports ?
+        require("./speech.js").createSentenceHighlighter : null);
+    const sentenceHighlighter = highlighterFactory?.(document, "recording-sentence-active");
     let activeNode = null;
     let activeIndex = -1;
     let open = false;
@@ -138,7 +144,8 @@
     }
     function clearHighlight() {
       activeNode?.classList.remove("recording-block-active");
-      activeWords.forEach(node => node.classList.remove("recording-sentence-active"));
+      sentenceHighlighter?.clear();
+      if (!sentenceHighlighter) activeWords.forEach(node => node.classList.remove("recording-sentence-active"));
       activeWords = [];
       activeNode = null;
       activeIndex = -1;
@@ -159,8 +166,10 @@
       activeNode = target || null;
       activeWords = open && mode === "recorded" ? chapterWords[index] || [] :
         open && mode === "device" ? devicePlayer?.blocks?.[index]?.words || [] : [];
-      if (activeWords.length) activeWords.forEach(node => node.classList.add("recording-sentence-active"));
-      else activeNode?.classList.add("recording-block-active");
+      if (activeWords.length) {
+        if (sentenceHighlighter) sentenceHighlighter.set(activeWords);
+        else activeWords.forEach(node => node.classList.add("recording-sentence-active"));
+      } else activeNode?.classList.add("recording-block-active");
       if (activeNode && follow?.checked && document.visibilityState !== "hidden") {
         (activeWords[0] || activeNode).scrollIntoView({ behavior: "smooth", block: "center" });
       }

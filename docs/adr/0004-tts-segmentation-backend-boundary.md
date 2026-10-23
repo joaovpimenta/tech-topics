@@ -41,3 +41,13 @@ A Action usa `jobs.select.if: false` até instrução explícita de retomada.
 Isso não altera jobs já iniciados sob commits anteriores nem modifica
 Releases. Não confundir bloqueio de novos jobs com cancelamento da matriz
 antiga [#39883809928](https://github.com/joaovpimenta/tech-topics/actions/runs/39883809928).
+
+## Robustez: pontuação sem representação fonética (23/10/2026)
+
+Separadores isolados sem letras/dígitos, como `/`, podem retornar IPA vazia
+no eSpeak entre runs com idiomas distintos. O adapter ignora somente esse
+separador na cadeia fonética, preservando o texto editorial e o identificador
+da frase. Runs contendo letras/dígitos cuja fonemização seja vazia **continuam
+falhando**. A regra de divisão e os limites de tokens do planejador não mudam.
+Essa política impede que pontuação silenciosa interrompa uma síntese inteira.
+Nenhuma geração foi iniciada para aplicar a correção.

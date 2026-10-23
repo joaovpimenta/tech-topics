@@ -123,3 +123,64 @@ test("sentence detection keeps commas and abbreviations together", () => {
   assert.equal(speech.isSentenceBoundary("resiliência."), true);
   assert.equal(speech.isSentenceBoundary("continua!"), true);
 });
+
+
+test("sentence highlight covers spaces between word spans via one DOM Range", () => {
+  const words = [
+    { tagName: "SPAN", textContent: "Se" },
+    { tagName: "SPAN", textContent: "uma" },
+    { tagName: "SPAN", textContent: "dessas" },
+    { tagName: "SPAN", textContent: "ações" }
+  ];
+  // The real DOM has whitespace text nodes between these spans. A range
+  // from the first span through the last includes those text nodes as well.
+  const registry = new Map();
+  const ranges = [];
+  class FakeHighlight {
+    constructor(range) { this.ranges = [range]; }
+  }
+  const document = {
+    defaultView: { CSS: { highlights: registry }, Highlight: FakeHighlight },
+    createRange() {
+      const range = {
+        setStartBefore(node) { this.startBefore = node; },
+        setEndAfter(node) { this.endAfter = node; }
+      };
+      ranges.push(range);
+      return range;
+    }
+  };
+  const highlighter = speech.createSentenceHighlighter(document, "recording-sentence-active");
+  assert.equal(highlighter.set(words), true);
+  const value = registry.get("tech-topics-current-sentence");
+  assert.equal(value.ranges[0].startBefore, words[0]);
+  assert.equal(value.ranges[0].endAfter, words[3]);
+  assert.equal(ranges.length, 1, "single inclusive range, not four isolated highlights");
+  assert.equal(highlighter.set([words[3]]), true);
+  assert.equal(registry.size, 1, "moving to the next sentence replaces the range");
+  assert.equal(registry.get("tech-topics-current-sentence").ranges[0].startBefore, words[3]);
+  highlighter.clear();
+  assert.equal(registry.size, 0, "stopping playback clears the background");
+});
+
+test("sentence highlight retains legacy fallback without CSS Highlight API", () => {
+  function word() {
+    const classes = new Set();
+    return {
+      classes,
+      classList: {
+        add(value) { classes.add(value); },
+        remove(value) { classes.delete(value); }
+      }
+    };
+  }
+  const first = word();
+  const second = word();
+  const highlighter = speech.createSentenceHighlighter({ defaultView: {} }, "recording-sentence-active");
+  assert.equal(highlighter.set([first, second]), false);
+  assert(first.classes.has("recording-sentence-active"));
+  assert(second.classes.has("recording-sentence-active"));
+  highlighter.clear();
+  assert(!first.classes.has("recording-sentence-active"));
+  assert(!second.classes.has("recording-sentence-active"));
+});

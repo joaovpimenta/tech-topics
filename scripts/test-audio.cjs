@@ -424,6 +424,11 @@ test("recorded v2 highlights exactly one sentence and skips comma-sized chunks",
   const paragraph = new ReadingNode("p", "Frase primeira, com vírgula. Segunda frase.");
   const body = new ReadingNode("article", "", [paragraph]);
   const words = Array.from({ length: 4 }, () => new ReadingNode("span", "palavra"));
+  const highlights = new Map();
+  class FakeHighlight {
+    constructor(range) { this.ranges = [range]; }
+  }
+  const ranges = [];
   const units = [
     { node: heading, sentenceIndex: 0, words: [words[0]] },
     { node: dek, sentenceIndex: 0, words: [words[1]] },
@@ -433,6 +438,15 @@ test("recorded v2 highlights exactly one sentence and skips comma-sized chunks",
   const doc = {
     visibilityState: "visible",
     baseURI: "https://joaovpimenta.github.io/tech-topics/article.html?slug=bulkhead",
+    defaultView: { CSS: { highlights }, Highlight: FakeHighlight },
+    createRange() {
+      const range = {
+        setStartBefore(node) { this.startBefore = node; },
+        setEndAfter(node) { this.endAfter = node; }
+      };
+      ranges.push(range);
+      return range;
+    },
     querySelector(id) {
       return ({ "#article-heading": heading, "#article-dek": dek, "#article-body": body })[id] || nodes[id];
     },
@@ -453,15 +467,18 @@ test("recorded v2 highlights exactly one sentence and skips comma-sized chunks",
   await player.play();
   audio.currentTime = 12;
   audio.dispatchEvent(new Event("timeupdate"));
-  assert(words[2].classes.has("recording-sentence-active"));
+  assert.equal(ranges.at(-1).startBefore, words[2], "range begins at first word of current phrase");
+  assert.equal(ranges.at(-1).endAfter, words[2], "range ends after last word, including whitespace between");
+  assert(highlights.has("tech-topics-current-sentence"), "MP3 uses contiguous CSS Highlight API");
   assert(!words[3].classes.has("recording-sentence-active"));
   nodes["#recording-skip"].click();
   assert.equal(audio.currentTime, 26);
-  assert(words[3].classes.has("recording-sentence-active"));
-  assert(!words[2].classes.has("recording-sentence-active"));
+  assert.equal(ranges.at(-1).startBefore, words[3]);
+  assert.equal(ranges.at(-1).endAfter, words[3]);
+  assert.equal(highlights.size, 1, "old sentence highlight is replaced");
   assert(!paragraph.classes.has("recording-block-active"), "only active sentence is highlighted");
   nodes["#recording-previous"].click();
   assert.equal(audio.currentTime, 10);
   player.close();
-  assert(!words[2].classes.has("recording-sentence-active"));
+  assert.equal(highlights.size, 0, "closing MP3 player removes the highlight");
 });
