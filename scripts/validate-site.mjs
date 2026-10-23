@@ -12,6 +12,7 @@ const checks = [
   ["Build article manifest", ["scripts/build-articles.mjs"]],
   ["Lint article content", ["scripts/lint-articles.mjs"]],
   ["Check application syntax", ["--check", "app.js"]],
+  ["Check shared header syntax", ["--check", "header.js"]],
   ["Check article syntax", ["--check", "article.js"]],
   ["Check speech syntax", ["--check", "speech.js"]],
   ["Run speech pronunciation and player tests", ["scripts/test-speech.cjs"]],

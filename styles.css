@@ -602,3 +602,148 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
   .article-icon-button svg { width: 18px; height: 18px; }
 }
 @media (prefers-reduced-motion: reduce) { .inline-recording-play svg { transition: none; } }
+
+/* Shared site chrome is identical on articles and the archive. */
+.site-header { position: sticky; top: 0; z-index: 15; background: var(--paper); }
+.article-page .home-header-inner { width: min(100% - 48px, 1020px); }
+@media (max-width: 720px) {
+  .article-page .home-header-inner { width: calc(100% - 32px); }
+}
+
+/* Editorial audio controls, no colored tray. The play circle supplies the accent. */
+.article-page .inline-recording-anchor { flex: 1 1 355px; min-width: 0; }
+.article-page .inline-recording {
+  width: 100%;
+  min-height: 44px;
+  gap: 8px;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--paper);
+}
+.article-page .inline-recording-play {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.article-page .inline-recording-skip {
+  display: grid;
+  place-items: center;
+  flex: 0 0 29px;
+  width: 29px;
+  height: 35px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+.article-page .inline-recording-skip:disabled { opacity: .35; cursor: default; }
+.article-page .inline-recording-skip:hover:not(:disabled),
+.article-page .inline-recording-rate:hover { background: #edf5f1; }
+.article-page .inline-recording-rate {
+  display: inline-grid;
+  place-items: center;
+  padding: 0 3px;
+  min-width: 39px;
+  height: 36px;
+  white-space: nowrap;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  font-size: 12px;
+}
+.article-page .inline-recording-skip:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.article-page .inline-recording-seek { min-width: 32px; }
+@media (max-width: 720px) {
+  .article-page .article-actions { gap: 5px 8px; }
+  .article-page .inline-recording-anchor { flex: 1 1 100%; }
+  .article-page .inline-recording { gap: 5px; min-height: 42px; }
+  .article-page .inline-recording-play { flex-basis: 35px; width: 35px; height: 35px; }
+  .article-page .inline-recording-skip { flex-basis: 25px; width: 25px; }
+  .article-page .inline-recording-rate {
+    display: inline-grid; min-width: 38px; height: 34px;
+  }
+  .article-page .article-social-actions { margin-left: auto; }
+}
+
+/* Disable native image/link drag, callout and selection on cards.
+   Page scroll is still allowed until the long-press threshold is reached. */
+.recent-item, .recent-item .recent-image, .recent-item .recent-copy, .quick-cover {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.recent-item img, .recent-item a, .quick-cover {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+.recent-item { touch-action: pan-y; }
+.quick-gesture-active { overscroll-behavior: contain; }
+
+/* Larger, full-cover quick preview. Action targets remain visible and
+   releasing in any non-button area cancels the gesture. */
+.article-quick-actions {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  width: min(440px, calc(100vw - 24px));
+  height: min(500px, calc(100dvh - 56px));
+  max-height: calc(100dvh - 56px);
+  padding: 18px;
+  gap: 10px;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 18px 58px #0004;
+  background: var(--paper);
+  touch-action: none;
+}
+.quick-cover {
+  display: block;
+  width: 100%;
+  height: clamp(120px, 22dvh, 205px);
+  max-height: none;
+  object-fit: contain;
+  margin: 0;
+  border-radius: 8px;
+  background: var(--soft);
+}
+.article-quick-actions .quick-title {
+  font: 700 clamp(18px, 4.8vw, 22px)/1.24 var(--serif);
+  margin: 0;
+  overflow-wrap: break-word;
+}
+.quick-description { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.quick-meta { margin: 0 0 6px; color: var(--accent); font: 600 11px/1.4 var(--sans); letter-spacing: .6px; text-transform: uppercase; }
+.quick-summary, .quick-excerpt {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.quick-excerpt { color: var(--muted); }
+.quick-hint { margin: 6px 0 2px; font-size: 12px; line-height: 1.4; color: var(--muted); }
+.article-quick-actions .quick-controls {
+  display: flex; align-items: center;
+  gap: 12px; padding-top: 11px;
+  border-top: 1px solid var(--line);
+}
+.article-quick-actions .quick-read {
+  flex: 1 1 auto;
+  min-height: 52px;
+  text-align: center;
+}
+.article-quick-actions .quick-icon {
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
+}
+.article-quick-actions .quick-icon svg { width: 23px; height: 23px; }
+@media (max-width: 390px) {
+  .article-quick-actions { padding: 14px; gap: 8px; }
+  .article-quick-actions .quick-icon { flex-basis: 48px; width: 48px; height: 48px; }
+}

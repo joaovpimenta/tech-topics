@@ -100,6 +100,8 @@
     const inlineElapsed = document.querySelector("#inline-recording-elapsed");
     const inlineDuration = document.querySelector("#inline-recording-duration");
     const inlineRate = document.querySelector("#inline-recording-rate");
+    const inlinePrevious = document.querySelector("#inline-recording-previous");
+    const inlineNext = document.querySelector("#inline-recording-next");
     const dock = document.querySelector("#recording-player");
     const title = document.querySelector("#recording-title");
     const subtitle = document.querySelector("#recording-subtitle");
@@ -338,6 +340,14 @@
       previousButton.hidden = skip.hidden = count < 2;
       previousButton.disabled = native ? deviceState.blockIndex <= 0 : count < 2 || current < 0.7;
       skip.disabled = native ? deviceState.blockIndex >= count - 1 : !chapters.some(chapter => chapter.start > current + 0.7);
+      if (inlinePrevious) {
+        inlinePrevious.hidden = previousButton.hidden;
+        inlinePrevious.disabled = previousButton.disabled;
+      }
+      if (inlineNext) {
+        inlineNext.hidden = skip.hidden;
+        inlineNext.disabled = skip.disabled;
+      }
       rate.textContent = `${native ? devicePlayer?.getRate?.() || 1 : audio.playbackRate}×`;
       if (inlineRate) {
         inlineRate.textContent = rate.textContent;
@@ -450,6 +460,8 @@
     });
     skip.addEventListener("click", nextParagraph);
     previousButton.addEventListener("click", previousParagraph);
+    inlinePrevious?.addEventListener("click", previousParagraph);
+    inlineNext?.addEventListener("click", nextParagraph);
     follow?.addEventListener("change", () => {
       if (follow.checked && activeNode && document.visibilityState !== "hidden") {
         (activeWords[0] || activeNode).scrollIntoView({ behavior: "smooth", block: "center" });

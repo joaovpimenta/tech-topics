@@ -4,7 +4,7 @@ import path from "node:path";
 // Publication includes runtime resources and downloadable article assets. This
 // list is deliberately independent of the smaller service-worker precache.
 export const PUBLIC_ROOT_FILES = Object.freeze([
-  "index.html", "article.html", "styles.css", "app.js", "article.js",
+  "index.html", "article.html", "styles.css", "app.js", "article.js", "header.js",
   "speech.js", "audio.js", "content/tts-lexicon.json", "mermaid-theme.js", "fgs-simulator.js", "pwa.js", "manifest.webmanifest",
   "favicon.svg", "favicon.ico", "sw.js", "sw-version.js"
 ]);

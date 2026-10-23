@@ -38,6 +38,7 @@ async function testWorker() {
   assert(entries.has("https://example.com/tech-topics/favicon.ico"));
   assert(entries.has("https://example.com/tech-topics/speech.js"));
   assert(entries.has("https://example.com/tech-topics/audio.js"));
+  assert(entries.has("https://example.com/tech-topics/header.js"), "shared header script must be offline");
   assert(entries.has("https://example.com/tech-topics/content/tts-lexicon.json"));
   handlers.activate({ waitUntil(promise) { pending = promise; } }); await pending;
   assert.deepEqual(deleted, ["tech-topics-old"]); assert(claimed);
@@ -94,6 +95,7 @@ async function testOrdering() {
   const document = {
     baseURI: "https://example.com/tech-topics/",
     documentElement: { clientWidth: 375, clientHeight: 750 },
+    body: { classList: { toggle() {}, remove() {} } },
     createElement: element,
     createElementNS: element,
     elementFromPoint() { return hovered; },
@@ -130,6 +132,11 @@ async function testOrdering() {
   assert(!calls.some(path => /content\/articles\/(?!catalog\.json)/.test(path)), "home must not fetch full articles");
 
   const originalCard = nodes.get("#recent-list").children[0];
+  assert.equal(originalCard.children[0].draggable, false, "card links must not enter native drag mode");
+  assert.equal(originalCard.children[0].children[0].draggable, false, "card cover must not be draggable");
+  let nativeDragPrevented = false;
+  originalCard.listeners.dragstart({ preventDefault() { nativeDragPrevented = true; } });
+  assert(nativeDragPrevented, "native image/link dragging must be canceled");
   originalCard.children[2].children[0].listeners.click();
   assert.deepEqual(JSON.parse(stored.get("tech-topics:favorites:v1")), ["newest"]);
   assert(!nodes.has("#favorites-only"), "home must not offer an unrequested favorites filter");
@@ -153,6 +160,9 @@ async function testOrdering() {
     assert.equal(popup.hidden, false, "hold must show quick actions");
     assert.equal(popup.children[0].src, "assets/newest.jpg", "quick menu shows the original article cover");
     assert.equal(popup.children[3].children[0].textContent, "Ler artigo");
+    assert.equal(popup.children[0].draggable, false);
+    assert.equal(popup.children[2].children[0].textContent, "Arquitetura");
+    assert.match(popup.children[2].children.at(-1).textContent, /Solte fora para fechar/);
     return point;
   };
   const endTouch = (point, actionTarget = null) => {
@@ -225,6 +235,14 @@ async function testOrdering() {
   const styles = readFileSync("styles.css", "utf8");
   assert(!home.includes('id="favorites-only"'), "home has no favorites filter");
   assert(home.includes('id="article-quick-actions"'), "home has a quick-actions menu");
+  assert(home.includes('role="dialog"'), "expanded quick preview is a dialog");
+  const article = readFileSync("article.html", "utf8");
+  for (const markup of ['class="header-inner home-header-inner"', 'class="top-search"', 'id="github-stars"', 'name="q"']) {
+    assert(article.includes(markup), "article header mirrors the home: " + markup);
+  }
+  for (const page of [home, article]) assert(page.includes('src="header.js'), "shared star widget script is loaded");
+  assert(styles.includes("user-drag: none"), "native image/link drag is disabled");
+  assert(styles.includes(".article-quick-actions .quick-icon"), "preview action targets are styled");
   assert(styles.includes("object-fit: contain"), "covers must use contain instead of crop");
   assert(styles.includes(".quick-cover"), "quick menu cover must preserve full artwork");
   const manifest = JSON.parse(readFileSync("manifest.webmanifest", "utf8"));

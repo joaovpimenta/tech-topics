@@ -25,3 +25,9 @@ A home buscava `content/articles/index.json` e então todos os JSONs completos v
 - A publicação de um novo artigo atualiza o catálogo no mesmo build e mantém a ordenação cronológica.
 - Testar busca sem acentos, ordenação, favoritos persistidos (sem filtro), exibição integral de capas, espaçamentos compactos, pressione-arraste-solte (seleção e soltura fora), scroll normal antes do pressionamento longo, compartilhamento, teclado, viewport móvel e comportamento offline.
 - O catálogo é um artefato gerado. Não editá-lo manualmente.
+
+## Revisão de interação — 2026-10-23
+
+- Bloquear arrasto nativo de imagens e links dos cards com `draggable=false`, `dragstart.preventDefault()`, bloqueio de seleção e `-webkit-touch-callout: none`. Preservar `touch-action: pan-y` para rolagem normal **antes** do limiar de pressão longa; depois do limiar, cancelar o movimento padrão para manter o controle do gesto.
+- A prévia por pressão longa deve ser uma superfície maior (até ~440 px de largura e ~500 px de altura, respeitando o viewport), com capa sem corte, título legível, categoria, resumo e três alvos de ação amplos. O conteúdo descritivo pode rolar dentro da prévia, mas a linha de ações permanece visível.
+- Posicionar a linha de ações próxima ao ponto inicial do dedo sempre que possível. Ativar a ação somente se o dedo for solto **sobre** Ler, favoritar ou compartilhar. Soltar em qualquer área restante cancela, sem navegar nem modificar favoritos. Esc e teclado permanecem acessíveis.

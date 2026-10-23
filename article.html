@@ -42,10 +42,16 @@
                 <svg class="recording-icon-pause" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="5" height="16" rx="1.5"/><rect x="14" y="4" width="5" height="16" rx="1.5"/></svg>
                 <span class="recording-button-label visually-hidden">Ouvir artigo</span>
               </button>
+              <button type="button" id="inline-recording-previous" class="inline-recording-skip" aria-label="Trecho anterior" title="Trecho anterior" hidden disabled>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m19 5-9 7 9 7V5Z"/><path d="M6 5v14"/></svg>
+              </button>
+              <button type="button" id="inline-recording-next" class="inline-recording-skip" aria-label="Próximo trecho" title="Próximo trecho" hidden disabled>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 5 9 7-9 7V5Z"/><path d="M18 5v14"/></svg>
+              </button>
               <span class="inline-recording-elapsed" id="inline-recording-elapsed">0:00</span>
               <input type="range" id="inline-recording-seek" min="0" max="1000" value="0" step="1" aria-label="Posição da narração" disabled />
               <span class="inline-recording-duration" id="inline-recording-duration">–:––</span>
-              <button type="button" class="inline-recording-rate" id="inline-recording-rate" aria-label="Velocidade da narração: 1 vez">1×</button>
+              <button type="button" class="inline-recording-rate" id="inline-recording-rate" title="Alterar velocidade" aria-label="Velocidade da narração: 1 vez">1×</button>
             </div>
           </div>
           <div class="article-social-actions">
