@@ -78,6 +78,7 @@ a:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid
 .speech-session .tts-readable { cursor: pointer; scroll-margin-top: calc(var(--speech-player-height, 78px) + 20px); }
 .tts-block-active { background-color: #edf5f1; box-shadow: -4px 0 var(--accent); border-radius: 2px; }
 .tts-word-active { background: #d1e9df; text-decoration: underline; text-underline-offset: .2em; }
+.tts-sentence-active, .recording-sentence-active { background-color: #dbeee4; box-decoration-break: clone; -webkit-box-decoration-break: clone; border-radius: 2px; }
 @media (max-width: 600px) {
   .speech-player-inner { justify-content: center; gap: 3px 12px; padding: 7px 0; }
   .speech-player-controls { order: -1; width: 100%; justify-content: center; }

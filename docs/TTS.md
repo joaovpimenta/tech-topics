@@ -167,16 +167,16 @@ Cada artigo pode oferecer duas formas independentes de escuta:
   pelo menu de opções (`···`) dentro do miniplayer.
 - A barra **inferior**, no tema branco e verde do site, mostra a imagem de
   capa do artigo, título, tempo transcorrido e total, progresso, play/pause
-  animado, velocidade, fechamento e, quando houver marcadores, avanço ao
-  **próximo parágrafo** em vez de salto arbitrário por segundos.
+  animado, velocidade, fechamento e, quando houver marcadores, avanço à
+  **próxima frase** em vez de salto arbitrário por segundos.
   O botão "Ouvir daqui" não faz mais parte do cabeçalho.
 - Quando os marcadores da Release identificam exatamente os blocos do HTML,
-  o site destaca o bloco em reprodução, acompanha sua posição por rolagem
+  o site destaca a frase em reprodução, acompanha sua posição por rolagem
   suave e permite iniciar a escuta clicando no próprio parágrafo. O menu
   do player inclui **Acompanhar parágrafo** (ativado por padrão) para
   permitir desabilitar a rolagem. O clique ignora links, código e
   texto selecionado, preservando navegação e cópia. O player oferece
-  **parágrafo anterior** e **próximo parágrafo**, inclusive nos controles
+  **frase anterior** e **próxima frase**, inclusive nos controles
   Media Session quando suportados pelo navegador.
 - O JSON de capítulos contém `block_index` gerado no mesmo percurso
   editorial que a narração, sem alterar a síntese. Caso o número ou
@@ -215,7 +215,7 @@ nativo. O teste visual em navegador é opcional.
 
 A interface publicada mantém **um único miniplayer inferior branco e verde**,
 com capa do banner do artigo, título, play/pause, velocidade, fechar,
-parágrafo anterior/próximo e opção **Acompanhar parágrafo**. Os três pontos
+frase anterior/próxima e opção **Acompanhar frase**. Os três pontos
 trocam entre **áudio gravado** (MP3 Kokoro/Piper, quando disponível) e
 **voz do dispositivo** (Web Speech API), sem abrir outra barra. Alternar
 o motor interrompe a reprodução anterior. O botão **Ouvir artigo**
@@ -228,7 +228,7 @@ o progresso corresponde ao **trecho atual / total de trechos**, e a barra
 permite selecionar o bloco para leitura. Não exibimos tempo estimado
 como se fosse a duração real.
 
-As duas fontes destacam o trecho falado no corpo do artigo, fazem rolagem
+As duas fontes destacam a frase falada no corpo do artigo, fazem rolagem
 automática opcional, aceitam clique ou Enter em um parágrafo e usam os
 mesmos botões anterior/próximo. Interações em links, seleções de texto
 e blocos de código não devem iniciar narração. A leitura nativa preserva

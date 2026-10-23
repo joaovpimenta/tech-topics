@@ -49,6 +49,12 @@
     return [...node.childNodes].map(readableText).join("");
   }
 
+  function isSentenceBoundary(text) {
+    const value = String(text || "").trim().replace(/["”’'»)\]}]+$/u, "");
+    return /[.!?…]$/u.test(value) &&
+      !/^(?:sr|sra|dr|dra|prof|vs|ex|fig)\.$/iu.test(value);
+  }
+
   function buildBlocks(roots, lexicon = {}) {
     const pieces = [];
     function visit(node, owner, language) {
@@ -87,32 +93,51 @@
     }
     for (const rootNode of roots.filter(Boolean)) visit(rootNode, null, rootNode.closest("[lang]")?.lang || "pt-BR");
     const blocks = [];
-    for (const piece of pieces) {
+    let block = null;
+    let previousOwner = null;
+    let sentenceIndex = 0;
+    for (let pieceIndex = 0; pieceIndex < pieces.length; pieceIndex += 1) {
+      const piece = pieces[pieceIndex];
+      if (piece.owner !== previousOwner) {
+        previousOwner = piece.owner;
+        sentenceIndex = 0;
+        block = null;
+      }
       let text = piece.text.replace(/\s+/g, " ");
-      let block = blocks.at(-1);
-      if (block?.node !== piece.owner) {
+      if (!block) {
         if (!text.trim()) continue;
-        block = { node: piece.owner, segments: [] };
+        block = { node: piece.owner, sentenceIndex, segments: [], words: [] };
         blocks.push(block);
       }
       let segment = block.segments.at(-1);
       if (segment && /^[\s\p{P}]+$/u.test(text)) {
         segment.text += text;
-        continue;
+      } else {
+        if (!segment || segment.lang !== piece.lang || segment.text.length + text.length > 240) {
+          if (!text.trim()) continue;
+          if (segment) segment.text = segment.text.trimEnd();
+          text = text.trimStart();
+          segment = { text: "", lang: piece.lang, words: [] };
+          block.segments.push(segment);
+        }
+        const start = segment.text.length;
+        segment.text += text;
+        if (piece.nodes.length) segment.words.push({ start, end: segment.text.length, nodes: piece.nodes });
       }
-      if (!segment || segment.lang !== piece.lang || segment.text.length + text.length > 240) {
-        if (!text.trim()) continue;
-        if (segment) segment.text = segment.text.trimEnd();
-        text = text.trimStart();
-        segment = { text: "", lang: piece.lang, words: [] };
-        block.segments.push(segment);
+      for (const word of piece.nodes) if (!block.words.includes(word)) block.words.push(word);
+      const finalWord = piece.nodes.at(-1);
+      const nextPiece = pieces[pieceIndex + 1];
+      // Replacements such as "API." produce multiple speech pieces for one
+      // visible word; never split before its trailing punctuation is included.
+      const stillSameWord = finalWord && nextPiece?.nodes?.includes(finalWord);
+      if (finalWord && !stillSameWord && isSentenceBoundary(finalWord.textContent)) {
+        block = null;
+        sentenceIndex += 1;
       }
-      const start = segment.text.length;
-      segment.text += text;
-      if (piece.nodes.length) segment.words.push({ start, end: segment.text.length, nodes: piece.nodes });
     }
-    for (const block of blocks) for (const segment of block.segments) segment.text = segment.text.trimEnd();
-    return blocks.filter(block => block.segments.length);
+    for (const unit of blocks) for (const segment of unit.segments) segment.text = segment.text.trimEnd();
+    return blocks.filter(unit => unit.segments.length);
+
   }
 
   function createPlayer({ blocks, synthesis, Utterance, onChange = () => {}, onWord = () => {} }) {
@@ -247,6 +272,7 @@
     const follow = document.querySelector("#speech-follow");
     let selectedIndex = 0;
     let highlightedBlock = null;
+    let highlightedSentence = [];
     let highlightedWords = [];
     let wasSpeaking = false;
     function measureBar() {
@@ -278,10 +304,16 @@
       next.disabled = blockIndex >= count - 1;
       position.textContent = `Trecho ${blockIndex + 1} de ${count}`;
       const currentBlock = idle ? null : blocks[blockIndex]?.node;
+      const currentSentence = idle ? [] : blocks[blockIndex]?.words || [];
+      if (highlightedSentence !== currentSentence) {
+        highlightedSentence.forEach(node => node.classList.remove("tts-sentence-active"));
+        highlightedSentence = currentSentence;
+        highlightedSentence.forEach(node => node.classList.add("tts-sentence-active"));
+      }
       if (highlightedBlock !== currentBlock) {
         highlightedBlock?.classList.remove("tts-block-active");
         highlightedBlock = currentBlock;
-        highlightedBlock?.classList.add("tts-block-active");
+        if (!highlightedSentence.length) highlightedBlock?.classList.add("tts-block-active");
         if (highlightedBlock && follow.checked) highlightedBlock.scrollIntoView({ behavior: "instant", block: "center" });
       }
       const label = message || (idle ? "" : speaking ? "Lendo o artigo em voz alta." : "Leitura pausada.");
@@ -295,19 +327,21 @@
       player.stop();
       button.focus({ preventScroll: true });
     });
-    blocks.forEach((block, index) => {
-      if (!block.node.hasAttribute("tabindex")) block.node.tabIndex = 0;
-      block.node.setAttribute("aria-keyshortcuts", "Enter");
-      block.node.classList.add("tts-readable");
-      block.node.addEventListener("focus", () => {
-        selectedIndex = index;
+    for (const node of new Set(blocks.map(block => block.node))) {
+      if (!node.hasAttribute("tabindex")) node.tabIndex = 0;
+      node.setAttribute("aria-keyshortcuts", "Enter");
+      node.classList.add("tts-readable");
+      node.addEventListener("focus", () => {
+        selectedIndex = blocks.findIndex(block => block.node === node);
       });
-    });
+    }
     function chooseBlock(event) {
       if (event.target.closest("a,button,input,select,textarea,summary,pre,code,[contenteditable=true]")) return;
       if (document.defaultView.getSelection()?.toString()) return;
       const node = event.target.closest(blockSelector);
-      const index = blocks.findIndex(block => block.node === node);
+      const word = event.target.closest(".tts-word");
+      let index = blocks.findIndex(block => block.node === node && word && block.words?.includes(word));
+      if (index < 0) index = blocks.findIndex(block => block.node === node);
       if (index < 0) return;
       selectedIndex = index;
       if (event.type === "keydown") {
@@ -328,7 +362,7 @@
     return player;
   }
 
-  const api = { pronounce, spell, validateLexicon, createPlayer, buildBlocks, mount };
+  const api = { pronounce, spell, validateLexicon, isSentenceBoundary, createPlayer, buildBlocks, mount };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.TechTopicsSpeech = api;
 })(globalThis);

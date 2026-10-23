@@ -75,13 +75,14 @@ são publicados; mudanças em artigos existentes não refazem áudios.
 
 Cada artigo recebe uma GitHub Release `tts-<slug>` com `<slug>.mp3`
 e `<slug>.chapters.json`. O Kokoro grava os instantes de início de cada
-bloco narrativo (título, subtítulo, seção ou parágrafo) a partir das amostras
-WAV, e publica os mesmos marcadores nas notas da Release. O site consulta
-essas notas pela API do GitHub e permite pular ao próximo parágrafo sem
+frase completa nas amostras WAV, identificando `block_index` e
+`sentence_index` em `version=2`. Frases longas repartidas em vários chunks
+mantêm um marcador lógico. O site consulta os marcadores nas notas da Release
+e permite pular à próxima frase sem
 depender de uma requisição JSON cross-origin à hospedagem dos assets.
 Releases existentes nunca são substituídas automaticamente.
 **Áudios antigos sem esses marcadores continuam tocando, mas não podem
-pular parágrafos com precisão até serem regenerados manualmente com
+pular frases com precisão até serem regenerados em schema v2 com
 `mode=publish` e `replace_existing=true`.**
 
 ## Manual: escolher artigo por nome ou o mais recente
@@ -110,7 +111,7 @@ Campo **mode**:
   capítulos. **Não cria nem altera Releases**, incluindo artigos que já
   possuem `tts-<slug>`; use este modo para validar Bulkhead antes de
   qualquer substituição ou backfill.
-- **`publish`**: sintetiza o artigo completo e cria uma Release.
+- **`publish`**: sintetiza o artigo completo com capítulos de **frase** (schema `version=2`) e cria uma Release.
   Se ela já existe, é preservada; `replace_existing=true` permite
   substituir somente quando solicitado manualmente.
 - **`compare`**: produz nove amostras curtas para escuta, cruzando
@@ -131,18 +132,17 @@ três perfis de pausas `atual`, `equilibrado`, `fluido`.
 
 A opção aprovada na escuta e adotada para novas publicações é **Equilibrado 1.00**:
 pausa de parágrafo 380 ms, pausa depois de título 700 ms, e 140 ms
-entre sentenças agrupadas em chamadas diferentes. No `compare`, as
+entre sentenças distintas. No `compare`, as
 emendas obrigatórias no meio de uma frase usam **25 ms** de silêncio.
 
 ### Chunking por tokens reais antes do TTS
 
-A fonemização PT-BR/EN-US acontece **antes de `kokoro.create()`**.
+Cada frase completa é uma unidade de navegação e recebe um timestamp por amostra WAV. Frases curtas **não** são combinadas em uma inferência; frases longas podem usar vários chunks com o mesmo `(block_index, sentence_index)` e junção interna de 25 ms. Vírgulas não criam unidades navegáveis. A fonemização PT-BR/EN-US acontece **antes de `kokoro.create()`**.
 O pipeline usa `kokoro.tokenizer.tokenize(fonemas, limit=None)`
 para contar tokens reais e escolher cortes antes da inferência.
 **Não existe limite de 320 caracteres editoriais na preparação de novas sínteses, inclusive em `publish`.**
 
-- **Alvo de contexto:** 300 tokens, agregando sentenças curtas do mesmo
-  parágrafo quando cabe e preservando sentenças completas.
+- **Alvo de contexto:** 300 tokens para uma frase; frases menores são sintetizadas separadamente, sem agregação com a seguinte.
 - **Teto de inferência:** 350 tokens; acima dele, buscar vírgula,
   ponto e vírgula ou dois-pontos mais próximos do alvo, ou, só como
   alternativa, separar entre palavras. Não separar uma palavra ao meio.
@@ -150,8 +150,9 @@ para contar tokens reais e escolher cortes antes da inferência.
   produzida pelo G2P, pois `kokoro-onnx` divide internamente em
   510 caracteres fonéticos. É um limite diferente de caracteres do
   texto do artigo ou tokens do vocabulário; ambos precisam ser aferidos.
-- Os `block_index` da narração permanecem associados aos parágrafos
-  originais para o player, mesmo com múltiplos chunks no mesmo parágrafo.
+- Os `block_index` permanecem associados ao parágrafo original; `sentence_index`
+  identifica cada frase dentro dele. Fragmentos de uma frase longa compartilham
+  a mesma unidade de navegação e destaque no player.
 - A biblioteca já utiliza `trim=True` por padrão; o pipeline o envia
   explicitamente. Isso remove silêncio da borda dos lotes da biblioteca,
   não significa corte semântico de frases.
@@ -175,7 +176,7 @@ bitrate não corrigirá problemas de pronúncia, prosódia ou recortes:
 apenas reduzirá os artefatos da compressão, aumentando o arquivo.
 
 `publish` e `preview` já usam Equilibrado 1.00 e MP3 128 kbps.
-`review` e `compare` geram Artifacts sem publicar Releases. Nenhuma Release existente é sobrescrita implicitamente;
+`review` e `compare` geram Artifacts sem publicar Releases. O backfill aprovado usa `all_articles=true` com `mode=publish` e `replace_existing=true`: revisa todos os artigos publicados, pula os que já têm schema v2 e guarda backups dos MP3 antigos como Artifacts de 90 dias antes de substituí-los. A migração inicial é disparada uma única vez no merge com marcador `[tts-backfill-v2]`; runs normais do Pages não fazem backfill. Nenhuma Release existente é sobrescrita implicitamente fora dessa operação expressamente aprovada;
 substituição exige `mode=publish` com `replace_existing=true` manual.
 
 ### E o modo `continuous`?
@@ -227,7 +228,7 @@ da síntese para suporte e validação, sem coleta contínua de CPU/RSS.
 
 - [ADR 0001 — Prosódia, 350 tokens, trim, bitrate e continuous](adr/0001-kokoro-dora-prosody-and-encoding.md): perfil Dora Equilibrado 1.00 **aceito**, implementação integrada à `main` na PR #58.
 - [ADR 0002 — Execução, concorrência e skip](adr/0002-kokoro-execution-cost-and-parallelism.md): uma instância × quatro threads; nenhuma síntese redundante para artigo/Release existentes.
-- [ADR 0003 — Player único e capítulos](adr/0003-unified-article-audio-and-chapter-synchronization.md): decisão implementada na PR #53; sincronização por `block_index`, sujeita à compatibilidade dos capítulos.
+- [ADR 0003 — Player único e capítulos](adr/0003-unified-article-audio-and-chapter-synchronization.md): sincronização por par `(block_index, sentence_index)` no schema v2, com fallback v1 por bloco.
 
 A melhoria de qualidade de 96 para 128 kbps é uma decisão de
 **codificação para novos arquivos**, não uma garantia de diferença audível.

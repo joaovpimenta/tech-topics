@@ -397,3 +397,71 @@ test("same bottom dock controls native synthesis, chapter seeking, speed, and sw
   nodes["#recording-close"].click();
   assert.equal(nodes["#recording-player"].hidden, true);
 });
+
+test("sentence metadata v2 supports repeated editorial blocks with different timestamps", () => {
+  const data = { version: 2, chapters: [
+    { start: 0, block_index: 0, sentence_index: 0 },
+    { start: 3.2, block_index: 1, sentence_index: 0 },
+    { start: 9.8, block_index: 1, sentence_index: 1 },
+    { start: 15.1, block_index: 1, sentence_index: 2 }
+  ] };
+  const body = "<!-- TECH_TOPICS_CHAPTERS_V1\n" + JSON.stringify(data) + "\n-->";
+  const chapters = chaptersFromNotes(body);
+  assert.equal(chapters.length, 4);
+  assert.deepEqual(chapters.map(ch => ch.sentenceIndex), [0, 0, 1, 2]);
+  assert.deepEqual(chapters.map(ch => ch.blockIndex), [0, 1, 1, 1]);
+});
+
+
+test("recorded v2 highlights exactly one sentence and skips comma-sized chunks", async () => {
+  const ids = ["listen-recording", "recording-player", "recording-title", "recording-subtitle",
+    "recording-cover", "recording-ring", "recording-play", "recording-previous", "recording-skip",
+    "recording-follow", "recording-close", "recording-seek", "recording-elapsed",
+    "recording-duration", "recording-rate", "recording-status"];
+  const nodes = Object.fromEntries(ids.map(id => ["#" + id, new Element()]));
+  const heading = new ReadingNode("h1", "Título");
+  const dek = new ReadingNode("p", "Descrição.");
+  const paragraph = new ReadingNode("p", "Frase primeira, com vírgula. Segunda frase.");
+  const body = new ReadingNode("article", "", [paragraph]);
+  const words = Array.from({ length: 4 }, () => new ReadingNode("span", "palavra"));
+  const units = [
+    { node: heading, sentenceIndex: 0, words: [words[0]] },
+    { node: dek, sentenceIndex: 0, words: [words[1]] },
+    { node: paragraph, sentenceIndex: 0, words: [words[2]] },
+    { node: paragraph, sentenceIndex: 1, words: [words[3]] }
+  ];
+  const doc = {
+    visibilityState: "visible",
+    baseURI: "https://joaovpimenta.github.io/tech-topics/article.html?slug=bulkhead",
+    querySelector(id) {
+      return ({ "#article-heading": heading, "#article-dek": dek, "#article-body": body })[id] || nodes[id];
+    },
+    body: { classList: { toggle() {} } }
+  };
+  nodes["#recording-follow"].checked = true;
+  const audio = new AudioMock();
+  const player = createPlayer({ document: doc, navigator: {},
+    article: { slug: "bulkhead", title: "Bulkhead" }, cover: { src: "assets/bulkhead/cover.jpg" },
+    audio, devicePlayer: { blocks: units, stop() {} },
+    fetchAudio: async () => ({url: "https://example.com/bulkhead.mp3", chapters: [
+      {start: 0, block_index: 0, sentence_index: 0},
+      {start: 5, block_index: 1, sentence_index: 0},
+      {start: 10, block_index: 2, sentence_index: 0},
+      {start: 26, block_index: 2, sentence_index: 1}
+    ]}) });
+  await player.discover();
+  await player.play();
+  audio.currentTime = 12;
+  audio.dispatchEvent(new Event("timeupdate"));
+  assert(words[2].classes.has("recording-sentence-active"));
+  assert(!words[3].classes.has("recording-sentence-active"));
+  nodes["#recording-skip"].click();
+  assert.equal(audio.currentTime, 26);
+  assert(words[3].classes.has("recording-sentence-active"));
+  assert(!words[2].classes.has("recording-sentence-active"));
+  assert(!paragraph.classes.has("recording-block-active"), "only active sentence is highlighted");
+  nodes["#recording-previous"].click();
+  assert.equal(audio.currentTime, 10);
+  player.close();
+  assert(!words[2].classes.has("recording-sentence-active"));
+});

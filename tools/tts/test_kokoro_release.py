@@ -285,9 +285,45 @@ class KokoroReleaseTests(unittest.TestCase):
         out = kokoro_release.fit_segments_to_phoneme_budget(
             segments, ph, WordTokenizer(), target_tokens=300, max_tokens=350
         )
-        self.assertEqual(len(out), 2, "short sentences combine within their paragraph")
-        self.assertEqual([item["block_index"] for item in out], [2, 3])
-        self.assertEqual(out[0]["text"], sentence)
+        self.assertEqual(len(out), 4, "short sentences have individual navigation units")
+        self.assertEqual([item["block_index"] for item in out], [2, 2, 2, 3])
+        self.assertEqual([item["sentence_index"] for item in out], [0, 1, 2, 0])
+
+
+    def test_sentence_navigation_keeps_short_sentences_separate(self):
+        class WordTokenizer:
+            @staticmethod
+            def tokenize(phonemes, limit=None):
+                return phonemes.split()
+        original = "Uma frase curta. Outra frase curta, sem corte. A terceira frase."
+        item = {"text": original, "runs": [{"text": original, "lang": "pt-br"}],
+                "block_index": 2, "pause_after_seconds": 0.38}
+        ph = {"pt-br": FakeG2P("PT"), "en-us": FakeG2P("EN")}
+        parts = kokoro_release.fit_segments_to_phoneme_budget(
+            [item], ph, WordTokenizer(), target_tokens=300, max_tokens=350)
+        self.assertEqual(len(parts), 3)
+        self.assertEqual([p["sentence_index"] for p in parts], [0, 1, 2])
+        self.assertTrue(all(p["sentence_start"] for p in parts))
+        self.assertEqual([p["pause_after_seconds"] for p in parts], [0.14, 0.14, 0.38])
+
+    def test_oversized_sentence_fragments_preserve_one_navigation_id(self):
+        class CharacterTokenizer:
+            @staticmethod
+            def tokenize(phonemes, limit=None):
+                return list(phonemes)
+        long_sentence = ("Um sistema protege serviços compartilhados, " * 8).strip() + "."
+        text = long_sentence + " Depois a operação continua."
+        item = {"text": text, "runs": [{"text": text, "lang": "pt-br"}],
+                "block_index": 9, "pause_after_seconds": 0.38}
+        ph = {"pt-br": FakeG2P("PT"), "en-us": FakeG2P("EN")}
+        parts = kokoro_release.fit_segments_to_phoneme_budget(
+            [item], ph, CharacterTokenizer(), target_tokens=120, max_tokens=160)
+        self.assertGreater(len(parts), 3)
+        self.assertEqual(sorted(set(p["sentence_index"] for p in parts)), [0, 1])
+        chunks = [p for p in parts if p["sentence_index"] == 0]
+        self.assertEqual(sum(bool(p["sentence_start"]) for p in chunks), 1)
+        self.assertTrue(all(p["pause_after_seconds"] == 0.025 for p in chunks[:-1]))
+        self.assertEqual(chunks[-1]["pause_after_seconds"], 0.14)
 
     def test_tokenized_long_sentence_prefers_comma_and_25ms_join(self):
         class CharacterTokenizer:

@@ -14,15 +14,17 @@
   }
 
   function normalizedChapters(data) {
-    if (data?.version !== 1 || !Array.isArray(data.chapters)) return [];
+    if (![1, 2].includes(data?.version) || !Array.isArray(data.chapters)) return [];
     const chapters = data.chapters
       .filter(item => item && Number.isFinite(item.start) && item.start >= 0)
       .map(item => ({
         start: item.start,
         blockIndex: Number.isSafeInteger(item.block_index) && item.block_index >= 0 ? item.block_index : null,
+        sentenceIndex: data.version === 2 && Number.isSafeInteger(item.sentence_index) && item.sentence_index >= 0 ? item.sentence_index : null,
         label: typeof item.label === "string" ? item.label : ""
       }));
     if (chapters.length < 2 || chapters.some((chapter, i) => i && chapter.start <= chapters[i - 1].start)) return [];
+    if (data.version === 2 && chapters.some(chapter => chapter.blockIndex === null || chapter.sentenceIndex === null)) return [];
     return chapters;
   }
 
@@ -114,6 +116,8 @@
     let available = false;
     let chapters = [];
     let chapterNodes = [];
+    let chapterWords = [];
+    let activeWords = [];
     let activeNode = null;
     let activeIndex = -1;
     let open = false;
@@ -134,6 +138,8 @@
     }
     function clearHighlight() {
       activeNode?.classList.remove("recording-block-active");
+      activeWords.forEach(node => node.classList.remove("recording-sentence-active"));
+      activeWords = [];
       activeNode = null;
       activeIndex = -1;
     }
@@ -151,17 +157,32 @@
       clearHighlight();
       activeIndex = index;
       activeNode = target || null;
-      activeNode?.classList.add("recording-block-active");
+      activeWords = open && mode === "recorded" ? chapterWords[index] || [] :
+        open && mode === "device" ? devicePlayer?.blocks?.[index]?.words || [] : [];
+      if (activeWords.length) activeWords.forEach(node => node.classList.add("recording-sentence-active"));
+      else activeNode?.classList.add("recording-block-active");
       if (activeNode && follow?.checked && document.visibilityState !== "hidden") {
-        activeNode.scrollIntoView({ behavior: "smooth", block: "center" });
+        (activeWords[0] || activeNode).scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
     function attachChapters() {
       const elements = readingNodes(document);
-      if (elements.length !== chapters.length || !chapters.every((chapter, index) =>
-        chapter.blockIndex === null || chapter.blockIndex === index)) return;
-      chapterNodes = elements;
-      elements.forEach(node => {
+      const sentenceMode = chapters.every(chapter => chapter.sentenceIndex !== null);
+      if (sentenceMode) {
+        const units = devicePlayer?.blocks || [];
+        // Never highlight a wrong sentence if spoken and visible boundaries drift.
+        if (units.length !== chapters.length || !chapters.every((chapter, index) =>
+          units[index]?.node === elements[chapter.blockIndex] &&
+          units[index]?.sentenceIndex === chapter.sentenceIndex)) return;
+        chapterNodes = units.map(unit => unit.node);
+        chapterWords = units.map(unit => unit.words || []);
+      } else {
+        if (elements.length !== chapters.length || !chapters.every((chapter, index) =>
+          chapter.blockIndex === null || chapter.blockIndex === index)) return;
+        chapterNodes = elements;
+        chapterWords = [];
+      }
+      for (const node of new Set(chapterNodes)) {
         node.classList.add("recording-readable");
         if (!node.hasAttribute("tabindex")) node.tabIndex = 0;
         if (!devicePlayer) {
@@ -170,18 +191,23 @@
             if (event.key === "Enter") seekFromArticle(node, event);
           });
         }
-      });
+      }
     }
     function seekFromArticle(node, event) {
       if (event.target.closest("a,button,input,select,textarea,summary,pre,code,[contenteditable=true]")) return;
       if (document.getSelection?.()?.toString()) return;
       if (event.type === "keydown") event.preventDefault();
-      const index = devicePlayer?.blocks?.findIndex(block => block.node === node) ?? -1;
+      const word = event.target.closest?.(".tts-word");
+      const sentence = devicePlayer?.blocks?.findIndex(block =>
+        block.node === node && word && block.words?.includes(word)) ?? -1;
+      const index = sentence >= 0 ? sentence : devicePlayer?.blocks?.findIndex(block => block.node === node) ?? -1;
       if (mode === "device" && index >= 0) {
         beginDevice(index);
         return;
       }
-      const chapter = chapterNodes.indexOf(node);
+      const matchingChapter = chapterNodes.findIndex((item, index) =>
+        item === node && word && chapterWords[index]?.includes(word));
+      const chapter = matchingChapter >= 0 ? matchingChapter : chapterNodes.indexOf(node);
       if (available && chapter >= 0) {
         seekTo(chapters[chapter].start);
         if (mode !== "recorded" || audio.paused || !open) void play();
@@ -371,7 +397,7 @@
     previousButton.addEventListener("click", previousParagraph);
     follow?.addEventListener("change", () => {
       if (follow.checked && activeNode && document.visibilityState !== "hidden") {
-        activeNode.scrollIntoView({ behavior: "smooth", block: "center" });
+        (activeWords[0] || activeNode).scrollIntoView({ behavior: "smooth", block: "center" });
       }
     });
     closeButton.addEventListener("click", close);
@@ -429,9 +455,13 @@
         audio.src = typeof source === "string" ? source : source.url;
         available = true;
         if (typeof source === "object") {
-          chapters = Array.isArray(source.chapters) ? normalizedChapters({ version: 1, chapters: source.chapters.map(item => ({
-            ...item, block_index: item.blockIndex ?? item.block_index
-          })) }) : [];
+          chapters = Array.isArray(source.chapters) ? normalizedChapters({
+            version: source.chapters.some(item => item.sentenceIndex != null || item.sentence_index != null) ? 2 : 1,
+            chapters: source.chapters.map(item => ({
+              ...item, block_index: item.blockIndex ?? item.block_index,
+              sentence_index: item.sentenceIndex ?? item.sentence_index
+            }))
+          }) : [];
           if (!chapters.length && source.chaptersUrl) {
             try { chapters = await fetchChapters(source.chaptersUrl); }
             catch (_) { chapters = []; }

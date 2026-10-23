@@ -42,6 +42,19 @@ class ArticleSelectionTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     article_selection.select_manual("bookhead")
 
+
+    def test_all_articles_selection_includes_old_and_new_without_index(self):
+        with tempfile.TemporaryDirectory() as temp:
+            directory = Path(temp)
+            for slug in ("bulkhead", "hedged-requests", "four-golden-signals"):
+                (directory / f"{slug}.json").write_text(json.dumps({
+                    "slug": slug, "language": "pt-BR", "title": slug
+                }), encoding="utf-8")
+            (directory / "index.json").write_text("[]", encoding="utf-8")
+            with patch.object(article_selection, "ARTICLE_DIR", directory):
+                self.assertEqual(sorted(a["slug"] for a in article_selection.catalog()),
+                                 ["bulkhead", "four-golden-signals", "hedged-requests"])
+
     def test_ambiguous_titles_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             directory = Path(temp)
