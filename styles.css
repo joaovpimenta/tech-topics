@@ -748,6 +748,78 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
   .article-quick-actions .quick-icon { flex-basis: 48px; width: 48px; height: 48px; }
 }
 
+/* The long-press preview exposes the article's *actual first paragraph*.
+   Place the intact cover beside the heading so the allegory is readable,
+   without displacing the action targets from the edge used for dragging. */
+.article-quick-actions {
+  grid-template-columns: minmax(68px, 96px) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  column-gap: 12px;
+  row-gap: 9px;
+}
+.article-quick-actions .quick-cover {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  width: 100%;
+  height: 94px;
+  max-height: 94px;
+}
+.article-quick-actions .quick-title {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+}
+.article-quick-actions .quick-description {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-height: 0;
+  overflow-y: auto;
+}
+.article-quick-actions .quick-opening {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.53;
+  overflow-wrap: break-word;
+}
+.article-quick-actions .quick-controls {
+  grid-column: 1 / -1;
+  grid-row: 3;
+}
+.article-quick-actions.quick-actions-below {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+.article-quick-actions.quick-actions-below .quick-controls {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+.article-quick-actions.quick-actions-below .quick-cover {
+  grid-column: 1;
+  grid-row: 2;
+}
+.article-quick-actions.quick-actions-below .quick-title {
+  grid-column: 2;
+  grid-row: 2;
+}
+.article-quick-actions.quick-actions-below .quick-description {
+  grid-column: 1 / -1;
+  grid-row: 3;
+}
+.article-quick-actions.quick-actions-compact .quick-cover {
+  height: 68px;
+  max-height: 68px;
+}
+.article-quick-actions.quick-actions-compact .quick-opening {
+  font-size: 13px;
+  line-height: 1.45;
+}
+@media (max-width: 390px) {
+  .article-quick-actions { grid-template-columns: 78px minmax(0, 1fr); column-gap: 9px; }
+  .article-quick-actions .quick-cover { height: 78px; max-height: 78px; }
+  .article-quick-actions.quick-actions-compact .quick-cover { height: 62px; max-height: 62px; }
+}
+
 /* Article actions: one aligned row with a compact audio surface.
    The player may shrink; the two social controls retain equal 40px targets. */
 .article-page .article-actions {
