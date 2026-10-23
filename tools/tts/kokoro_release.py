@@ -254,6 +254,12 @@ def phonemize_runs(runs: list[dict], phonemizers: dict) -> tuple[str, list[dict]
         lang = language_code(run["lang"])
         ipa, _ = phonemizers[lang](raw.strip())
         if not ipa or not ipa.strip():
+            if not any(character.isalnum() for character in raw):
+                # eSpeak may discard isolated slashes or other punctuation
+                # between language spans. These separators are not spoken,
+                # but stay in the source text and sentence/chapter indices.
+                parts.append(" ")
+                continue
             raise ValueError(f"Fonemização vazia: {lang} {raw!r}")
         if lang == ENGLISH:
             english_samples.append({"text": raw.strip(), "phonemes": ipa})

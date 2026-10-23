@@ -86,6 +86,58 @@ class KokoroReleaseTests(unittest.TestCase):
         self.assertEqual(output, "<PT:O padrão> <EN:Bulkhead> <PT:evita falhas.>")
         self.assertEqual([s["text"] for s in english], ["Bulkhead"])
 
+
+    def test_phonemizer_ignores_unspoken_punctuation_between_languages(self):
+        class BlankPunctuationG2P(FakeG2P):
+            def __call__(self, text):
+                if not any(character.isalnum() for character in text):
+                    return "", None
+                return super().__call__(text)
+
+        ph = {"pt-br": BlankPunctuationG2P("PT"),
+              "en-us": BlankPunctuationG2P("EN")}
+        for separator in ("/", " /", " / ", "—", " | "):
+            with self.subTest(separator=separator):
+                runs = [
+                    {"text": "Backoff", "lang": "en-us"},
+                    {"text": separator, "lang": "pt-br"},
+                    {"text": " jitter.", "lang": "en-us"},
+                ]
+                phonemes, english = kokoro_release.phonemize_runs(runs, ph)
+                self.assertEqual(phonemes, "<EN:Backoff> <EN:jitter.>")
+                self.assertEqual([item["text"] for item in english], ["Backoff", "jitter."])
+
+        class WordTokenizer:
+            @staticmethod
+            def tokenize(phonemes, limit=None):
+                return phonemes.split()
+        original = "Backoff / jitter."
+        segment = {
+            "text": original,
+            "runs": [
+                {"text": "Backoff", "lang": "en-us"},
+                {"text": " /", "lang": "pt-br"},
+                {"text": " jitter.", "lang": "en-us"},
+            ],
+            "block_index": 12,
+            "pause_after_seconds": 0.38,
+        }
+        chunks = kokoro_release.fit_segments_to_phoneme_budget(
+            [segment], ph, WordTokenizer())
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0]["text"], original)
+        self.assertEqual((chunks[0]["block_index"], chunks[0]["sentence_index"]), (12, 0))
+
+    def test_phonemizer_still_rejects_empty_phonemes_for_words(self):
+        class UnpronounceableWordG2P:
+            def __call__(self, text):
+                return "", None
+
+        with self.assertRaisesRegex(ValueError, "Fonemização vazia"):
+            kokoro_release.phonemize_runs(
+                [{"text": "palavra", "lang": "pt-br"}],
+                {"pt-br": UnpronounceableWordG2P()})
+
     def test_chunking_preserves_spaces_and_languages(self):
         text = "O padrão "
         runs = [

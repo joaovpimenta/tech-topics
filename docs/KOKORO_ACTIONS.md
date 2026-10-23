@@ -283,3 +283,16 @@ um projeto separado e não está incorporado neste fluxo.
 Fontes:
 - https://github.com/thewh1teagle/kokoro-onnx/blob/main/examples/portuguese.py
 - https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md
+
+### Separadores sem fonemas (correção de robustez)
+
+O eSpeak pode retornar fonemas vazios para pontuação isolada entre trechos
+multilíngues (ex.: `Backoff / jitter`). O adapter Kokoro aceita resultado vazio
+**apenas quando o trecho não possui caracteres alfanuméricos**, omitindo o
+separador na sequência IPA. O texto original e `(block_index,sentence_index)`
+permanecem intactos, sem gerar chunk/capítulo extra. Palavra com fonemização
+vazia continua sendo erro. Regressão baseada nos jobs de
+`github-governance-as-code` e `retries-backoff-jitter` do backfill
+[#39883809928](https://github.com/joaovpimenta/tech-topics/actions/runs/39883809928).
+
+A pausa atual de geração continua em vigor; esta correção não dispara síntese.
