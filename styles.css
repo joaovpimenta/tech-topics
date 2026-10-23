@@ -1038,11 +1038,11 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
   .article-quick-actions .quick-icon:focus-visible {
     transform: none;
   }
-  @media (hover: hover) and (pointer: fine) {
-    .article-quick-actions:not([data-gesture-active]) .quick-read:hover,
-    .article-quick-actions:not([data-gesture-active]) .quick-icon:hover {
-      transform: none;
-    }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: reduce) {
+  .article-quick-actions:not([data-gesture-active]) .quick-read:hover,
+  .article-quick-actions:not([data-gesture-active]) .quick-icon:hover {
+    transform: none;
   }
 }
 
