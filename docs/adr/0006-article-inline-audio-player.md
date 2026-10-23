@@ -30,3 +30,9 @@ A página de artigo exibiu até agora um botão grande “Ouvir artigo”, abrin
 
 - A top bar de artigo e home têm a mesma hierarquia (Tech Topics, pesquisa e GitHub com estrelas). A pesquisa dentro do artigo encaminha para `index.html?q=...`, onde é resolvida pelo catálogo leve. O carregamento das estrelas fica em `header.js`, compartilhado e com cache local.
 - A barra de áudio embutida deve ser branca, sem caixa verde/borda de contêiner. O botão play/pause circular usa o verde do site; velocidade permanece visível **inclusive em telas estreitas**. Os controles de trecho anterior/próximo aparecem quando houver capítulos; dock flutuante e barra compartilham a mesma sessão.
+
+## Refinamento de alinhamento — 2026-10-23
+
+- Renderizar o player embutido, favorito e compartilhamento **na mesma linha**. A área do player cresce até 460 px no desktop e encolhe quando o viewport estreita, sem obrigar os botões sociais a quebrar para uma segunda linha.
+- Usar 40 px como altura comum do player e dos botões de favorito/compartilhar. Play/pause, velocidade e ações continuam acessíveis. Em larguras muito estreitas, esconder somente os atalhos de salto entre capítulos dentro da barra, que permanecem no dock flutuante.
+- No menu de toque prolongado da home, usar a classe `is-targeted` já associada à posição do dedo para destacar a ação selecionada com preenchimento, sombra e ampliação discreta, sem deslocar a área clicável. A transição deve respeitar `prefers-reduced-motion`.
