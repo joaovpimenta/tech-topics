@@ -98,7 +98,13 @@ def classes(node: dict) -> set[str]:
 
 def is_ignored(node: dict) -> bool:
     attrs = node["attrs"]
-    return node["tag"] in IGNORED_TAGS or bool(classes(node) & IGNORED_CLASSES) or "hidden" in attrs or "data-tts-ignore" in attrs or attrs.get("aria-hidden") == "true"
+    # Code is non-narrative by default. An explicitly annotated *inline*
+    # code token may be read with its editorial alias, but <pre> ancestors
+    # remain ignored by the parent traversal regardless of child overrides.
+    ignored_code = node["tag"] == "code" and not attrs.get("data-tts-say")
+    return (node["tag"] in (IGNORED_TAGS - {"code"}) or ignored_code
+            or bool(classes(node) & IGNORED_CLASSES) or "hidden" in attrs
+            or "data-tts-ignore" in attrs or attrs.get("aria-hidden") == "true")
 
 
 def descendant_has_tag(node: dict, tag: str) -> bool:

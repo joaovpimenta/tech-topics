@@ -96,15 +96,41 @@ Para uma exceção local no `bodyHtml`, use uma destas formas:
 
 ## Código e conteúdo não narrativo
 
-Por padrão, o TTS não deve narrar:
+Por padrão, o TTS não deve narrar blocos de código `<pre>`, nem código
+inline `<code>` sem anotação. Quando uma expressão inline for parte essencial
+da frase, mantenha a grafia original e forneça uma leitura **explícita e
+contextual**. Por exemplo:
 
-- `<pre>` e `<code>` como prosa contínua;
-- índices de navegação;
-- controles interativos;
-- simuladores;
-- conteúdo puramente decorativo.
+```html
+Um bloco <code lang="en-US" data-tts-say="try catch">try/catch</code>
+não fecha essa janela.
+```
 
-Quando um trecho de código precisar ser explicado, faça essa explicação em prosa no artigo em vez de depender da leitura literal do código.
+A leitura será “Um bloco try catch não fecha essa janela”, sem soletrar a
+barra. Esse `data-tts-say` funciona como um **alias de fala** equivalente
+em intenção ao `<sub alias="...">` do SSML. É uma convenção do Tech Topics,
+não uma promessa de suporte SSML nativo. `<pre>` continua sempre ignorado,
+mesmo que contenha um `<code data-tts-say>`. Para código extenso, prefira
+explicá-lo em prosa, nunca ler caracteres isolados.
+
+A mesma regra vale para setas e símbolos direcionais: **não substitua
+globalmente** `→`, `←` ou operadores, pois seu significado varia conforme
+o contexto. Marque uma leitura natural na ocorrência:
+
+```html
+Banco <span data-tts-say="para o">→</span>
+<span lang="en-US">broker</span>
+```
+
+A apresentação mantém “Banco → broker”, enquanto a síntese fala
+“Banco para o broker”, preservando a pronúncia inglesa do termo
+`broker`. Para fluxo inverso, “Broker → banco” torna-se
+“Broker para o banco”. Em outros contextos, escolha “implica”,
+“resulta em” ou outra leitura semântica apropriada.
+
+Também não devem ser narrados índices de navegação, controles interativos,
+simuladores ou conteúdo puramente decorativo. A forma **visível** permanece
+intacta, inclusive para seleção, cópia e leitura visual.
 
 ## Responsabilidade do autor do artigo
 
