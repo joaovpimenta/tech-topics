@@ -81,11 +81,12 @@ async function main() {
       const visualSettle = await page.evaluate(async kindName => {
         const timeout = ms => new Promise(resolve => setTimeout(() => resolve("timeout"), ms));
         const images = kindName === "article" ? [...document.querySelectorAll("#article-image")] : [...document.querySelectorAll("#recent-list img")].slice(0, 2);
-        const imageResults = await Promise.all(images.map(async image => {
+        const imageResultsPromise = Promise.all(images.map(async image => {
           if (!image.complete) await Promise.race([new Promise(resolve => { image.addEventListener("load", resolve, { once: true }); image.addEventListener("error", resolve, { once: true }); }), timeout(4000)]);
           return { src: image.currentSrc || image.src, complete: image.complete, naturalWidth: image.naturalWidth };
         }));
-        const fonts = await Promise.race([document.fonts?.ready?.then(() => "ready") || Promise.resolve("unsupported"), timeout(4000)]);
+        const fontsPromise = Promise.race([document.fonts?.ready?.then(() => "ready") || Promise.resolve("unsupported"), timeout(4000)]);
+        const [imageResults, fonts] = await Promise.all([imageResultsPromise, fontsPromise]);
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         return { images: imageResults, fonts, timeoutPerResourceMs: 4000, animationFrames: 2 };
       }, kind);
@@ -97,17 +98,24 @@ async function main() {
         return { bytes: resources.reduce((n, e) => n + (e.transferSize || 0), nav?.transferSize || 0), documentBytes: nav?.transferSize ?? null, externalBytesUnknownDueToTimingOrCache: unknownExternal, requests: resources.length + 1, lcp: window.__lcp, lcpCandidate: window.__lcpCandidate, cls: window.__perf.cls, dom: nav?.domContentLoadedEventEnd ?? null, marks, longTasks: window.__perf.longTasks, resources: resources.map(e => ({ name: e.name, start: e.startTime, duration: e.duration, bytes: e.transferSize || 0 })) };
       });
       let interaction = null;
+      let audioReadiness = null;
       if (kind === "article") {
         const clickAt = await page.evaluate(() => performance.now());
         await page.locator("#listen-recording").click();
         await page.waitForFunction(() => window.__perf.speechStart !== null, null, { timeout: 3000 }).catch(() => {});
         interaction = await page.evaluate(click => ({ clickToSpeechStartMs: window.__perf.speechStart == null ? null : window.__perf.speechStart - click, acousticLatency: null }), clickAt);
         await page.waitForFunction(() => performance.getEntriesByName("tt:audio-discovery-complete").length > 0, null, { timeout: 3000 }).catch(() => {});
+        audioReadiness = await page.evaluate(() => {
+          const time = name => performance.getEntriesByName(`tt:${name}`)[0]?.startTime ?? null;
+          const discovery = time("audio-discovery-complete");
+          const ready = time("audio-canplay");
+          return { discoveryMs: discovery, metadataMs: time("audio-metadata"), canplayMs: ready, playingMs: time("audio-playing"), discoveryToCanplayMs: discovery != null && ready != null ? ready - discovery : null, reasonWhenNull: ready == null ? "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane" : null };
+        });
       }
-      rows.push({ scenario: kind, cache: cold ? "cold-http" : "warm-http", contentMs, visualSettle, interaction, sw: { mode: "blocked" }, ...pageSample });
+      rows.push({ scenario: kind, cache: cold ? "cold-http" : "warm-http", contentMs, visualSettle, interaction, audioReadiness, sw: { mode: "blocked" }, ...pageSample });
       await page.close();
     }
-    for (const kind of ["home", "article"]) {
+    if (!process.argv.includes("--sw-only")) for (const kind of ["home", "article"]) {
       const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, serviceWorkers: "block" });
       for (let i = 0; i < 10; i++) await scenario(kind, true, context);
       for (let i = 0; i < 10; i++) await scenario(kind, false, context);
@@ -148,6 +156,7 @@ async function main() {
         const online = await page.evaluate(() => ({ controller: Boolean(navigator.serviceWorker.controller), workerStartedResources: performance.getEntriesByType("resource").filter(e => e.workerStart > 0).length, requestCount: performance.getEntriesByType("resource").length + 1, documentBytes: performance.getEntriesByType("navigation")[0]?.transferSize ?? null, articleText: document.querySelector("#article-body")?.textContent.trim().length || 0 }));
         await cdp.send("Network.emulateNetworkConditions", { offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0, connectionType: "none" });
         await page.goto(`${base}/article.html?slug=cqrs-projecoes-e-consistencia`, { waitUntil: "domcontentloaded", timeout: 10000 });
+        await page.waitForFunction(() => document.querySelector("#article-heading")?.textContent.trim() !== "Carregando artigo…", null, { timeout: 10000 }).catch(() => {});
         const offline = await page.evaluate(() => ({ controller: Boolean(navigator.serviceWorker.controller), articleText: document.querySelector("#article-body")?.textContent.trim().length || 0, heading: document.querySelector("#article-heading")?.textContent.trim() || "" }));
         result = { registration, controlled, online, offline, offlineArticleServed: offline.articleText > 100 && offline.heading !== "Artigo indisponível", sampleCount: 1, limitation: "SW smoke, not a 10x statistical comparison; offline has API/media unavailable and depends on previously visited article in this context." };
       } catch (error) { result = { error: error.message, sampleCount: 0 }; }
@@ -168,7 +177,7 @@ async function main() {
         requestsP75: percentile(group.map(x => x.requests), .75),
         longTaskCount: group.reduce((n, x) => n + x.longTasks.length, 0),
         clickToSpeechStartP75ms: kind === "article" ? percentile(group.map(x => x.interaction?.clickToSpeechStartMs), .75) : null,
-        discoveryToCanplayP75ms: kind === "article" ? percentile(group.map(x => x.marks["audio-canplay"] - x.marks["audio-discovery-complete"]), .75) : null,
+        discoveryToCanplayP75ms: kind === "article" ? percentile(group.map(x => x.audioReadiness?.discoveryToCanplayMs), .75) : null,
         samplesWithoutLcp: group.filter(x => x.lcp == null).length
       };
     }
@@ -178,7 +187,7 @@ async function main() {
       dirtyFiles,
       instrumentationDirty: dirtyFiles.some(line => /(?:article|audio|speech)\.js|perf-baseline|test-loader-regressions/.test(line)),
       runtime: { node: process.version, browser: browser.version() },
-      profile: { viewport: "390x844", cpu: "4x", network: "4Mbps decimal / RTT150ms", httpCold: "CDP cache disabled", httpWarm: "same profile, cache enabled, Cache-Control max-age=3600", serviceWorker: "blocked for HTTP profile; separate real-SW smoke follows", visualSettle: "first 2 home cover images or article hero image plus document.fonts.ready, each with 4s timeout; then two animation frames; contentMs remains the earlier first-text time", serverPath: "/tech-topics/ (Pages prefix)", bytes: "resource transferSize plus navigation transferSize; cross-origin zero transferSize reported as unknown because cache and Timing-Allow-Origin cannot be distinguished", mock: "Release API returns delayed 404; Web Speech callback is synchronous; acoustic latency N/A", nextSentencePromotion: "N/A; feature does not exist in measured revision", fieldInp: "not measured" },
+      profile: { viewport: "390x844", cpu: "4x", network: "4Mbps decimal / RTT150ms", httpCold: "CDP cache disabled", httpWarm: "same profile, cache enabled, Cache-Control max-age=3600", serviceWorker: "blocked for HTTP profile; separate real-SW smoke follows", visualSettle: "first 2 home cover images or article hero image plus document.fonts.ready in parallel, each with 4s timeout; then two animation frames; contentMs remains the earlier first-text time", serverPath: "/tech-topics/ (Pages prefix)", bytes: "resource transferSize plus navigation transferSize; cross-origin zero transferSize reported as unknown because cache and Timing-Allow-Origin cannot be distinguished", mock: "Release API returns delayed 404; Web Speech callback is synchronous; acoustic latency N/A", nextSentencePromotion: "N/A; feature does not exist in measured revision", fieldInp: "not measured" },
       summary, samples: rows, serviceWorkerSmoke: swSmoke
     };
     if (process.argv[2]) { await writeFile(path.resolve(process.argv[2]), `${JSON.stringify(report, null, 2)}\n`); console.log(JSON.stringify({ output: path.resolve(process.argv[2]), summary }, null, 2)); }

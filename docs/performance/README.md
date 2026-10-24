@@ -21,11 +21,13 @@ Não instala dependências, não sintetiza Kokoro, não consulta telemetria exte
 
 O teste não valida o tempo acústico percebido, compatibilidade real de capítulos v2 nem uma promoção entre frases. A transição para próxima frase ainda não existe neste SHA e é N/A.
 
+O ensaio separado do SW registrou instalação ativa e controle sob `/tech-topics/`, 11 recursos iniciados por SW na visita online e sucesso ao abrir offline um artigo previamente visitado (26.489 caracteres de corpo renderizados). É uma amostra funcional, sem distribuição de latência e sem MP3/API durante o modo offline.
+
 ## Perfil e leitura das métricas
 
 O script percorre home e artigo em 10 navegações frias e 10 quentes cada: viewport 390×844, throttling CPU 4×, rede 4.000.000 bit/s e RTT 150 ms. Cold desabilita o cache HTTP via CDP; warm mantém o mesmo contexto/browser, habilita cache HTTP e serve recursos com `max-age=3600`. Service workers ficam bloqueados para isolar cache HTTP; depois, um ensaio separado usa o SW real do artefato, visita home/artigo, confirma controle e tenta abrir o artigo offline. Esse é um smoke de uma amostra, não uma comparação estatística fria/quente do SW. Não há `page.route` no perfil, pois ele desabilitaria cache; a API de Release é simulada dentro do `fetch` da página.
 
-O relógio de primeira disponibilidade de texto permanece separado da janela visual: antes de colher LCP/CLS, o harness aguarda as duas primeiras capas da home ou a capa do artigo, `document.fonts.ready` e dois frames de animação. Cada imagem e as fontes têm limite de 4 s; resultados incompletos ficam registrados. A amostra inclui candidato de LCP, bytes de navegação e recursos e requisições externos cujo `transferSize` zero não permite distinguir cache de falta de `Timing-Allow-Origin`.
+O relógio de primeira disponibilidade de texto permanece separado da janela visual: antes de colher LCP/CLS, o harness aguarda em paralelo as duas primeiras capas da home ou a capa do artigo e `document.fonts.ready`, com limite de 4 s por recurso, e então dois frames de animação. Resultados incompletos ficam registrados. A amostra inclui candidato de LCP, bytes de navegação e recursos e requisições externos cujo `transferSize` zero não permite distinguir cache de falta de `Timing-Allow-Origin`.
 
 A interação isolada mede clique até callback `onstart` do mock. Ela não é INP de campo e não mede latência acústica. LCP é capturado antes da interação. CLS é a soma dos layout shifts sem entrada recente no intervalo inicial, não a janela de sessão da métrica Web Vitals de campo. Long tasks e layout shifts vêm de `PerformanceObserver` com buffer. Descoberta de áudio é marcada separadamente de `loadedmetadata`, `canplay` e `playing`; o MP3 não é pré-carregado pela homepage. Marks `tt:*` expõem pontos de instrumentação no DOM de performance.
 
