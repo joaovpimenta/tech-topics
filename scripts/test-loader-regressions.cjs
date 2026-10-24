@@ -40,15 +40,19 @@ async function main() {
     for (const dependency of ["mermaid", "lexicon"]) {
       const page = await pageWithMocks();
       let release;
+      let dependencyEntered = false;
+      let notifyDependencyEntered;
+      const dependencyStarted = new Promise(resolve => { notifyDependencyEntered = resolve; });
       const held = new Promise(resolve => { release = resolve; });
       if (dependency === "mermaid") {
-        await page.route("https://cdn.jsdelivr.net/npm/mermaid@12.0.0/dist/mermaid.esm.min.mjs", async route => { await held; await route.fulfill({ status: 200, contentType: "text/javascript", body: "export default {initialize(){},async render(){return {svg:'<svg></svg>'}}};" }); });
+        await page.route("https://cdn.jsdelivr.net/npm/mermaid@12.0.0/dist/mermaid.esm.min.mjs", async route => { dependencyEntered = true; notifyDependencyEntered(); await held; await route.fulfill({ status: 200, contentType: "text/javascript", body: "export default {initialize(){},async render(){return {svg:'<svg></svg>'}}};" }); });
       } else {
-        await page.route("**/content/tts-lexicon.json", async route => { await held; await route.fulfill({ status: 200, contentType: "application/json", body: "{}" }); });
+        await page.route("**/content/tts-lexicon.json", async route => { dependencyEntered = true; notifyDependencyEntered(); await held; await route.fulfill({ status: 200, contentType: "application/json", body: "{}" }); });
       }
       await page.goto(`${base}/article.html?slug=consenso-raft`, { waitUntil: "domcontentloaded" });
-      await page.waitForSelector("#article-body:not(:empty)");
-      await sleep(120);
+      await page.waitForFunction(() => { const body = document.querySelector("#article-body")?.textContent.trim(); return body && !body.includes("Carregando o conteúdo") && body.length > 1000; });
+      await dependencyStarted;
+      assert.equal(dependencyEntered, true, `${dependency} request must have entered its pending handler`);
       await page.evaluate(() => document.querySelector("#listen-article").click());
       const blocked = await page.evaluate(() => ({ body: Boolean(document.querySelector("#article-body")?.textContent.trim()), actions: Boolean(document.querySelector("#article-actions") && !document.querySelector("#article-actions").hidden), speechCalls: window.__speechCalls, dock: !document.querySelector("#recording-player")?.hidden }));
       assert.equal(blocked.body, true);
@@ -60,27 +64,40 @@ async function main() {
       await page.close();
     }
 
-    async function audioCase(apiPending) {
+    async function audioCase(mode) {
+      const apiPending = mode === "pending";
+      const mp3Discovered = mode === "mp3";
       const page = await pageWithMocks();
+      let lookupPending = false;
+      let releaseLookup;
+      let notifyStarted;
+      const heldLookup = new Promise(resolve => { releaseLookup = resolve; });
+      const requestStarted = new Promise(resolve => { notifyStarted = resolve; });
       if (apiPending) {
-        await page.route("https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-*", async route => { await sleep(1200); await route.fulfill({ status: 404, body: "{}" }); });
-      } else {
+        await page.route("https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-*", async route => { lookupPending = true; notifyStarted(); await heldLookup; lookupPending = false; await route.fulfill({ status: 404, body: "{}" }); });
+      } else if (mp3Discovered) {
         await page.route("https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-*", route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ body: "", assets: [{ name: "consenso-raft.mp3", state: "uploaded" }] }) }));
         await page.route("https://github.com/joaovpimenta/tech-topics/releases/download/**", route => route.abort());
+      } else {
+        await page.route("https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-*", route => route.fulfill({ status: 404, contentType: "application/json", body: "{}" }));
       }
       await page.goto(`${base}/article.html?slug=consenso-raft`, { waitUntil: "domcontentloaded" });
       await page.locator("#article-actions").waitFor({ state: "visible" });
-      if (!apiPending) await page.waitForFunction(() => document.querySelector("#article-recording")?.src.includes(".mp3"));
+      if (apiPending) await requestStarted;
+      else await page.waitForFunction(() => performance.getEntriesByType("resource").some(entry => entry.name.includes("api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-")));
+      if (mp3Discovered) await page.waitForFunction(() => document.querySelector("#article-recording")?.src.includes(".mp3"));
       await page.locator("#listen-recording").click();
       await sleep(100);
-      const result = await page.evaluate(() => ({ speechCalls: window.__speechCalls, mediaPlayCalls: window.__mediaPlayCalls, mediaReadyState: document.querySelector("#article-recording")?.readyState, subtitle: document.querySelector("#recording-subtitle")?.textContent, playing: document.querySelector("#recording-play")?.dataset.playing }));
-      if (apiPending) assert(result.speechCalls > 0, `API failure should use available device speech: ${JSON.stringify(result)}`);
-      else { assert.equal(result.speechCalls, 0, "discovered MP3 suppresses device voice even while playback promise remains pending"); assert.equal(result.mediaReadyState, 0, "discovered MP3 has not produced media metadata"); assert.equal(result.mediaPlayCalls, 1, "click awaited a pending media play promise"); }
+      const result = { ...(await page.evaluate(() => ({ speechCalls: window.__speechCalls, mediaPlayCalls: window.__mediaPlayCalls, mediaReadyState: document.querySelector("#article-recording")?.readyState, subtitle: document.querySelector("#recording-subtitle")?.textContent, playing: document.querySelector("#recording-play")?.dataset.playing }))), lookupPendingAtGesture: apiPending && lookupPending };
+      if (!mp3Discovered) assert(result.speechCalls > 0, `API failure should use available device speech: ${JSON.stringify(result)}`);
+      else if (mp3Discovered) { assert.equal(result.speechCalls, 0, "discovered MP3 suppresses device voice even while playback promise remains pending"); assert.equal(result.mediaReadyState, 0, "discovered MP3 has not produced media metadata"); assert.equal(result.mediaPlayCalls, 1, "click awaited a pending media play promise"); }
+      if (apiPending) { assert.equal(result.lookupPendingAtGesture, true, "Release request must still be unresolved at the user gesture"); releaseLookup(); await page.waitForFunction(() => performance.getEntriesByType("resource").some(entry => entry.name.includes("api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-"))); }
       await page.close();
       return result;
     }
-    observations.push({ case: "release-api-pending-or-failed", current: await audioCase(true), desiredContract: "Local speech starts on the first user gesture while lookup continues" });
-    observations.push({ case: "mp3-discovered-media-not-ready-play-pending", current: await audioCase(false), desiredContract: "Discovery does not imply readiness; start local speech if MP3 cannot begin" });
+    observations.push({ case: "release-api-pending", current: await audioCase("pending"), desiredContract: "Local speech starts on the first user gesture while lookup continues" });
+    observations.push({ case: "release-api-404-complete", current: await audioCase("404"), desiredContract: "Local speech starts after completed 404 lookup" });
+    observations.push({ case: "mp3-discovered-media-not-ready-play-pending", current: await audioCase("mp3"), desiredContract: "Discovery does not imply readiness; start local speech if MP3 cannot begin" });
     console.log(JSON.stringify({ source: "real dist/article.html, article.js, speech.js and audio.js; DOM/services and network responses mocked", observations }, null, 2));
   } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }
 }

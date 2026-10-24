@@ -55,7 +55,10 @@ async function main() {
       await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
       await cdp.send("Network.setCacheDisabled", { cacheDisabled: cold });
       await page.addInitScript(() => {
-        window.__perf = { speechStart: null, cls: 0, longTasks: [] };
+        window.__perf = { speechStart: null, clickAt: null, cls: 0, longTasks: [] };
+        document.addEventListener("click", event => {
+          if (event.target.closest("#listen-recording")) window.__perf.clickAt = performance.now();
+        }, true);
         window.__lcp = null;
         window.__lcpCandidate = null;
         new PerformanceObserver(list => { const e = list.getEntries(); if (e.length) { const last = e.at(-1); window.__lcp = last.startTime; window.__lcpCandidate = { url: last.url || null, size: last.size, tag: last.element?.tagName || null, id: last.element?.id || null, className: typeof last.element?.className === "string" ? last.element.className : null }; } }).observe({ type: "largest-contentful-paint", buffered: true });
@@ -100,10 +103,9 @@ async function main() {
       let interaction = null;
       let audioReadiness = null;
       if (kind === "article") {
-        const clickAt = await page.evaluate(() => performance.now());
         await page.locator("#listen-recording").click();
         await page.waitForFunction(() => window.__perf.speechStart !== null, null, { timeout: 3000 }).catch(() => {});
-        interaction = await page.evaluate(click => ({ clickToSpeechStartMs: window.__perf.speechStart == null ? null : window.__perf.speechStart - click, acousticLatency: null }), clickAt);
+        interaction = await page.evaluate(() => ({ clickToSpeechStartMs: window.__perf.speechStart == null || window.__perf.clickAt == null ? null : window.__perf.speechStart - window.__perf.clickAt, acousticLatency: null }));
         await page.waitForFunction(() => performance.getEntriesByName("tt:audio-discovery-complete").length > 0, null, { timeout: 3000 }).catch(() => {});
         audioReadiness = await page.evaluate(() => {
           const time = name => performance.getEntriesByName(`tt:${name}`)[0]?.startTime ?? null;
