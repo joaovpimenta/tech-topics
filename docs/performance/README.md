@@ -23,7 +23,7 @@ O teste não valida o tempo acústico percebido, compatibilidade real de capítu
 
 Na execução desta rodada, `node scripts/test-speech-browser.cjs` passou a fixture de fala e falhou depois no primeiro viewport ao esperar o dock gravado visível (`#recording-player`, linha 73); a mesma falha já foi observada no SHA original da main. Uma tentativa de stub de mídia mais completo não eliminou o timeout e foi descartada. Portanto, a navegação/pronúncia/controles cobertos antes desse ponto passaram, mas layout do dock em desktop/celular não está validado por este teste nesta rodada.
 
-O ensaio separado do SW registrou instalação ativa e controle sob `/tech-topics/`, 10 recursos iniciados por SW na visita online e sucesso ao abrir offline um artigo previamente visitado (26.489 caracteres de corpo renderizados). É uma amostra funcional, sem distribuição de latência e sem MP3/API durante o modo offline.
+O ensaio separado do SW registrou instalação ativa e controle sob `/tech-topics/`, 11 recursos iniciados por SW na visita online e sucesso ao abrir offline um artigo previamente visitado (26.489 caracteres de corpo renderizados). É uma amostra funcional, sem distribuição de latência e sem MP3/API durante o modo offline.
 
 ## Perfil e leitura das métricas
 
