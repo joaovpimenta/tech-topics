@@ -223,6 +223,7 @@
       const voice = voices.find(item => item.lang.toLowerCase() === language)
         || voices.find(item => item.lang.toLowerCase().split("-")[0] === language.split("-")[0]);
       if (voice) utterance.voice = voice;
+      utterance.onstart = () => { try { performance.mark("tt:device-onstart"); } catch (_) {} };
       utterance.onboundary = event => {
         if (currentSession !== session || active !== utterance || state !== "speaking" || event.name !== "word") return;
         const words = segment.words.filter(word => event.charIndex >= word.start && event.charIndex < word.end).flatMap(word => word.nodes);

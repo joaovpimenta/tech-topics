@@ -1,5 +1,7 @@
 const params = new URLSearchParams(window.location.search);
 const requestedSlug = params.get("slug");
+const markArticlePerf = name => { try { performance.mark(`tt:${name}`); } catch (_) {} };
+markArticlePerf("article-script-start");
 
 const coverOverrides = {
   "retries-backoff-jitter": {
@@ -212,6 +214,7 @@ async function showArticle(article) {
   image.alt = cover.alt;
   document.querySelector(".article-hero").hidden = false;
   document.querySelector("#article-body").innerHTML = article.bodyHtml;
+  markArticlePerf("article-body-ready");
   await renderMermaidDiagrams();
   let lexicon = {};
   let pronunciationUnavailable = false;
@@ -244,6 +247,7 @@ async function showArticle(article) {
   renderFavoriteButton();
   setupShareControls(article);
   document.dispatchEvent(new Event("tech-topics:article-ready"));
+  markArticlePerf("article-controls-ready");
 }
 
 async function loadArticle() {

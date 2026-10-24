@@ -1,0 +1,5179 @@
+{
+  "revision": "856906d62bf8e965065305361c11fde11b4058a4",
+  "dirtyFiles": [
+    " M docs/performance/README.md",
+    " M favicon.svg"
+  ],
+  "instrumentationDirty": false,
+  "runtime": {
+    "node": "v22.23.4",
+    "browser": "156.0.8078.47"
+  },
+  "profile": {
+    "viewport": "390x844",
+    "cpu": "4x",
+    "network": "4Mbps decimal / RTT150ms",
+    "httpCold": "CDP cache disabled",
+    "httpWarm": "same profile, cache enabled, Cache-Control max-age=3600",
+    "serviceWorker": "blocked for HTTP profile; separate real-SW smoke follows",
+    "visualSettle": "first 2 home cover images or article hero image plus document.fonts.ready in parallel, each with 4s timeout; then two animation frames; contentMs remains the earlier first-text time",
+    "serverPath": "/tech-topics/ (Pages prefix)",
+    "bytes": "resource transferSize plus navigation transferSize; cross-origin zero transferSize reported as unknown because cache and Timing-Allow-Origin cannot be distinguished",
+    "mock": "Release API returns delayed 404; Web Speech callback is synchronous; acoustic latency N/A",
+    "nextSentencePromotion": "N/A; feature does not exist in measured revision",
+    "fieldInp": "not measured"
+  },
+  "summary": {
+    "home-cold-http": {
+      "samples": 10,
+      "contentP75ms": 1024.667400000002,
+      "navigationToTextP75ms": null,
+      "bodyToControlsP75ms": null,
+      "lcpP75ms": 684,
+      "clsP75": 0.28816349640028704,
+      "bytesP75": 126590,
+      "requestsP75": 9,
+      "longTaskCount": 1,
+      "clickToSpeechStartP75ms": null,
+      "discoveryToCanplayP75ms": null,
+      "samplesWithoutLcp": 0
+    },
+    "home-warm-http": {
+      "samples": 10,
+      "contentP75ms": 442.1817999999912,
+      "navigationToTextP75ms": null,
+      "bodyToControlsP75ms": null,
+      "lcpP75ms": 248,
+      "clsP75": 0.28855167886776567,
+      "bytesP75": 0,
+      "requestsP75": 9,
+      "longTaskCount": 8,
+      "clickToSpeechStartP75ms": null,
+      "discoveryToCanplayP75ms": null,
+      "samplesWithoutLcp": 0
+    },
+    "article-cold-http": {
+      "samples": 10,
+      "contentP75ms": 1240.3677000000025,
+      "navigationToTextP75ms": 1230.800000000745,
+      "bodyToControlsP75ms": 612.7999999988824,
+      "lcpP75ms": 1464,
+      "clsP75": 0.5828350528744286,
+      "bytesP75": 437216,
+      "requestsP75": 16,
+      "longTaskCount": 29,
+      "clickToSpeechStartP75ms": 10,
+      "discoveryToCanplayP75ms": null,
+      "samplesWithoutLcp": 0
+    },
+    "article-warm-http": {
+      "samples": 10,
+      "contentP75ms": 685.4468000000052,
+      "navigationToTextP75ms": 676.5,
+      "bodyToControlsP75ms": 612.4000000003725,
+      "lcpP75ms": 884,
+      "clsP75": 0.5828011307613981,
+      "bytesP75": 42746,
+      "requestsP75": 16,
+      "longTaskCount": 25,
+      "clickToSpeechStartP75ms": 8.5,
+      "discoveryToCanplayP75ms": null,
+      "samplesWithoutLcp": 0
+    }
+  },
+  "samples": [
+    {
+      "scenario": "home",
+      "cache": "cold-http",
+      "contentMs": 1124.1779999999999,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 126590,
+      "documentBytes": 5261,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://api.github.com/repos/joaovpimenta/tech-topics"
+      ],
+      "requests": 10,
+      "lcp": 692,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28816349640028704,
+      "dom": 700.3999999985099,
+      "marks": {},
+      "longTasks": [
+        {
+          "start": 896.5999999996275,
+          "duration": 53
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 192.2999999988824,
+          "duration": 277.2000000011176,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 198,
+          "duration": 333.59999999962747,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 204.19999999925494,
+          "duration": 170.90000000037253,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 205.59999999962747,
+          "duration": 263.59999999962747,
+          "bytes": 21477
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 209.09999999962747,
+          "duration": 181.69999999925494,
+          "bytes": 1280
+        },
+        {
+          "name": "https://api.github.com/repos/joaovpimenta/tech-topics",
+          "start": 685.5999999996275,
+          "duration": 208.19999999925494,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 696.3999999985099,
+          "duration": 307.90000000037253,
+          "bytes": 28486
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 1038.0999999996275,
+          "duration": 199,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 1074.0999999996275,
+          "duration": 284.2999999988824,
+          "bytes": 10968
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "cold-http",
+      "contentMs": 1001.1486999999997,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 126590,
+      "documentBytes": 5261,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 9,
+      "lcp": 648,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28816349640028704,
+      "dom": 690.8000000007451,
+      "marks": {},
+      "longTasks": [],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 193.80000000074506,
+          "duration": 189.69999999925494,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 194.7000000011176,
+          "duration": 326.40000000037253,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 195.10000000149012,
+          "duration": 173.59999999962747,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 195.5,
+          "duration": 264.2000000011176,
+          "bytes": 21477
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 195.7000000011176,
+          "duration": 173.09999999962747,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 686.2000000011176,
+          "duration": 221.5,
+          "bytes": 28486
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 848.7000000011176,
+          "duration": 168.5,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 978.1000000014901,
+          "duration": 302.5,
+          "bytes": 10968
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "cold-http",
+      "contentMs": 998.5171000000009,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 126590,
+      "documentBytes": 5261,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 9,
+      "lcp": 652,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28816349640028704,
+      "dom": 700.1999999992549,
+      "marks": {},
+      "longTasks": [],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 198.5,
+          "duration": 184.69999999925494,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 200.09999999962747,
+          "duration": 321.19999999925494,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 200.89999999850988,
+          "duration": 167.40000000037253,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 201.5,
+          "duration": 258.2999999988824,
+          "bytes": 21477
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 201.89999999850988,
+          "duration": 181.5,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 695.2999999988824,
+          "duration": 227.59999999962747,
+          "bytes": 28486
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 856.1999999992549,
+          "duration": 174.80000000074506,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 978.1999999992549,
+          "duration": 299.40000000037253,
+          "bytes": 10968
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "cold-http",
+      "contentMs": 986.0763000000006,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 126590,
+      "documentBytes": 5261,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 9,
+      "lcp": 644,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28816349640028704,
+      "dom": 686.0999999996275,
+      "marks": {},
+      "longTasks": [],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 192.40000000037253,
+          "duration": 187.80000000074506,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 193.40000000037253,
+          "duration": 325.19999999925494,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 193.80000000074506,
+          "duration": 171.5,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 194.2000000011176,
+          "duration": 263.19999999925494,
+          "bytes": 21477
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 194.59999999962747,
+          "duration": 170.80000000074506,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 681.3000000007451,
+          "duration": 223.59999999962747,
+          "bytes": 28486
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 843.7000000011176,
+          "duration": 169.69999999925494,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 963.3000000007451,
+          "duration": 296.59999999962747,
+          "bytes": 10968
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "cold-http",
+      "contentMs": 1002.3754999999983,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 126590,
+      "documentBytes": 5261,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 9,
+      "lcp": 652,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28816349640028704,
+      "dom": 703.5,
+      "marks": {},
+      "longTasks": [],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 187.80000000074506,
+          "duration": 189.69999999925494,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 188.59999999962747,
+          "duration": 328.2000000011176,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 189,
+          "duration": 172.90000000037253,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 189.40000000037253,
+          "duration": 265.09999999962747,
+          "bytes": 21477
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 190,
+          "duration": 172,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 698.5999999996275,
+          "duration": 221.40000000037253,
+          "bytes": 28486
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 864.5,
+          "duration": 180,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 980.9000000003725,
+          "duration": 296.40000000037253,
+          "bytes": 10968
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "cold-http",
+      "contentMs": 1024.667400000002,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 126590,
+      "documentBytes": 5261,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 9,
+      "lcp": 684,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28816349640028704,
+      "dom": 728.6000000014901,
+      "marks": {},
+      "longTasks": [],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 200.7000000011176,
+          "duration": 197.7999999988824,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 202.2000000011176,
+          "duration": 338,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 203,
+          "duration": 181.10000000149012,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 203.7000000011176,
+          "duration": 273.2999999988824,
+          "bytes": 21477
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 204.10000000149012,
+          "duration": 180.09999999962747,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 724,
+          "duration": 219.7000000011176,
+          "bytes": 28486
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 884.5,
+          "duration": 167.30000000074506,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 1005.2000000011176,
+          "duration": 294.2999999988824,
+          "bytes": 10968
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "cold-http",
+      "contentMs": 1020.7196000000004,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 126590,
+      "documentBytes": 5261,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 9,
+      "lcp": 664,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28816349640028704,
+      "dom": 715.1999999992549,
+      "marks": {},
+      "longTasks": [],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 197.19999999925494,
+          "duration": 190.40000000037253,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 199.40000000037253,
+          "duration": 326,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 201.69999999925494,
+          "duration": 170.7000000011176,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 207.40000000037253,
+          "duration": 256.90000000037253,
+          "bytes": 21477
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 208.59999999962747,
+          "duration": 178.80000000074506,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 710,
+          "duration": 220.5,
+          "bytes": 28486
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 865,
+          "duration": 174.80000000074506,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 999.0999999996275,
+          "duration": 305.2000000011176,
+          "bytes": 10968
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "cold-http",
+      "contentMs": 1042.306700000001,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 126590,
+      "documentBytes": 5261,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 9,
+      "lcp": 692,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28816349640028704,
+      "dom": 737.6999999992549,
+      "marks": {},
+      "longTasks": [],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 194.30000000074506,
+          "duration": 188.7999999988824,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 195.09999999962747,
+          "duration": 326.30000000074506,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 195.59999999962747,
+          "duration": 172.80000000074506,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 196,
+          "duration": 262.90000000037253,
+          "bytes": 21477
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 196.59999999962747,
+          "duration": 172,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 732.5999999996275,
+          "duration": 222.80000000074506,
+          "bytes": 28486
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 850.4000000003725,
+          "duration": 166,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 1017.0999999996275,
+          "duration": 293.2000000011176,
+          "bytes": 10968
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "cold-http",
+      "contentMs": 1004.1221000000005,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 126590,
+      "documentBytes": 5261,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 9,
+      "lcp": 660,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28816349640028704,
+      "dom": 705.5999999996275,
+      "marks": {},
+      "longTasks": [],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 194.90000000037253,
+          "duration": 168.2999999988824,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 196.40000000037253,
+          "duration": 324,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 196.7999999988824,
+          "duration": 170.60000000149012,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 197,
+          "duration": 260.19999999925494,
+          "bytes": 21477
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 197.09999999962747,
+          "duration": 181.30000000074506,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 701.4000000003725,
+          "duration": 222.19999999925494,
+          "bytes": 28486
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 863.9000000003725,
+          "duration": 169.2999999988824,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 983,
+          "duration": 298.19999999925494,
+          "bytes": 10968
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "cold-http",
+      "contentMs": 996.5270999999993,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 126590,
+      "documentBytes": 5261,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 9,
+      "lcp": 656,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28816349640028704,
+      "dom": 703,
+      "marks": {},
+      "longTasks": [],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 183.10000000149012,
+          "duration": 189,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 183.90000000037253,
+          "duration": 329.90000000037253,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 184.30000000074506,
+          "duration": 172.5,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 185.10000000149012,
+          "duration": 266.2999999988824,
+          "bytes": 21477
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 185.80000000074506,
+          "duration": 171.09999999962747,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 698.1000000014901,
+          "duration": 218.2999999988824,
+          "bytes": 28486
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 844.1000000014901,
+          "duration": 181.69999999925494,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 975,
+          "duration": 297.1000000014901,
+          "bytes": 10968
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "warm-http",
+      "contentMs": 412.6059000000023,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 0,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 9,
+      "lcp": 248,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28855167886776567,
+      "dom": 244.2000000011176,
+      "marks": {},
+      "longTasks": [
+        {
+          "start": 50.20000000111759,
+          "duration": 55
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 22.700000001117587,
+          "duration": 1.8999999985098839,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 24.200000001117587,
+          "duration": 0.7999999988824129,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 25,
+          "duration": 0.30000000074505806,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 25.40000000037253,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 26,
+          "duration": 4.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 242.2000000011176,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 372.59999999962747,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 390.40000000037253,
+          "duration": 0.8000000007450581,
+          "bytes": 0
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "warm-http",
+      "contentMs": 443.92890000000625,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 0,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 9,
+      "lcp": 236,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28855167886776567,
+      "dom": 223.90000000037253,
+      "marks": {},
+      "longTasks": [
+        {
+          "start": 44.5,
+          "duration": 51
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 20.5,
+          "duration": 1.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 21.59999999962747,
+          "duration": 0.6999999992549419,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 22.09999999962747,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 22.40000000037253,
+          "duration": 0.3999999985098839,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 22.799999998882413,
+          "duration": 0.30000000074505806,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 222.09999999962747,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 390.40000000037253,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 414.19999999925494,
+          "duration": 1,
+          "bytes": 0
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "warm-http",
+      "contentMs": 496.67580000000453,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 0,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 8,
+      "lcp": 280,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.8849781478266666,
+      "dom": 282.1000000014901,
+      "marks": {},
+      "longTasks": [
+        {
+          "start": 75.20000000111759,
+          "duration": 72
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 44.5,
+          "duration": 3.300000000745058,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 46.80000000074506,
+          "duration": 1.699999999254942,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 47,
+          "duration": 1.800000000745058,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 47.40000000037253,
+          "duration": 1.700000001117587,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 48.5,
+          "duration": 1.700000001117587,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 280.90000000037253,
+          "duration": 0.8000000007450581,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 394,
+          "duration": 1.1000000014901161,
+          "bytes": 0
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "warm-http",
+      "contentMs": 407.0610000000015,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 0,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 9,
+      "lcp": 236,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28855167886776567,
+      "dom": 231.59999999962747,
+      "marks": {},
+      "longTasks": [
+        {
+          "start": 46.5,
+          "duration": 51
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 21.699999999254942,
+          "duration": 1.699999999254942,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 22.899999998509884,
+          "duration": 0.8000000007450581,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 23.5,
+          "duration": 0.8999999985098839,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 24.299999998882413,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 24.899999998509884,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 229.59999999962747,
+          "duration": 0.40000000037252903,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 367.59999999962747,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 386.09999999962747,
+          "duration": 1.5,
+          "bytes": 0
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "warm-http",
+      "contentMs": 442.1817999999912,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 0,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 9,
+      "lcp": 236,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.8849781478266666,
+      "dom": 104.09999999962747,
+      "marks": {},
+      "longTasks": [
+        {
+          "start": 42.79999999888241,
+          "duration": 51
+        },
+        {
+          "start": 95.19999999925494,
+          "duration": 124
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 20.699999999254942,
+          "duration": 1.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 21.90000000037253,
+          "duration": 0.6999999992549419,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 22.299999998882413,
+          "duration": 0.7000000011175871,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 22.90000000037253,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 23.299999998882413,
+          "duration": 0.40000000037252903,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 101.90000000037253,
+          "duration": 0.2999999988824129,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 398,
+          "duration": 2.099999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 430.19999999925494,
+          "duration": 0.5,
+          "bytes": 0
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "warm-http",
+      "contentMs": 436.3087999999989,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 0,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 9,
+      "lcp": 248,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28855167886776567,
+      "dom": 250.5,
+      "marks": {},
+      "longTasks": [
+        {
+          "start": 49.79999999888241,
+          "duration": 52
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 24.59999999962747,
+          "duration": 2.199999999254942,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 26.40000000037253,
+          "duration": 0.8999999985098839,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 26.90000000037253,
+          "duration": 0.6999999992549419,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 27.40000000037253,
+          "duration": 0.6999999992549419,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 28.09999999962747,
+          "duration": 0.30000000074505806,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 248.19999999925494,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 393.09999999962747,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 412.09999999962747,
+          "duration": 0.900000000372529,
+          "bytes": 0
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "warm-http",
+      "contentMs": 380.6463999999978,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 0,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 9,
+      "lcp": 216,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28855167886776567,
+      "dom": 215.80000000074506,
+      "marks": {},
+      "longTasks": [],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 19.300000000745058,
+          "duration": 1.3999999985098839,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 20.300000000745058,
+          "duration": 0.6999999992549419,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 20.800000000745058,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 21.199999999254942,
+          "duration": 0.40000000037252903,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 21.5,
+          "duration": 0.6999999992549419,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 213.80000000074506,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 343.59999999962747,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 360.09999999962747,
+          "duration": 1.599999999627471,
+          "bytes": 0
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "warm-http",
+      "contentMs": 381.7344999999914,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 0,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 9,
+      "lcp": 224,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28855167886776567,
+      "dom": 222.7999999988824,
+      "marks": {},
+      "longTasks": [
+        {
+          "start": 44.29999999888241,
+          "duration": 56
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 21.5,
+          "duration": 1.799999998882413,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 23,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 23.59999999962747,
+          "duration": 0.6999999992549419,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 24.199999999254942,
+          "duration": 0.30000000074505806,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 24.59999999962747,
+          "duration": 0.2999999988824129,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 220.7999999988824,
+          "duration": 0.40000000037252903,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 343.5,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 360.19999999925494,
+          "duration": 1.800000000745058,
+          "bytes": 0
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "warm-http",
+      "contentMs": 393.0384999999951,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 0,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 9,
+      "lcp": 240,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28855167886776567,
+      "dom": 232.89999999850988,
+      "marks": {},
+      "longTasks": [],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 23.09999999962747,
+          "duration": 1.199999999254942,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 24,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 24.5,
+          "duration": 0.3999999985098839,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 25,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 25.399999998509884,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 230.59999999962747,
+          "duration": 0.7999999988824129,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 306.5,
+          "duration": 0.3999999985098839,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 373.19999999925494,
+          "duration": 0.8000000007450581,
+          "bytes": 0
+        }
+      ]
+    },
+    {
+      "scenario": "home",
+      "cache": "warm-http",
+      "contentMs": 390.81909999999334,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2022
+          },
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/bulkhead/bulkhead-cover.jpg",
+            "complete": false,
+            "naturalWidth": 2019
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": null,
+      "audioReadiness": null,
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 0,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 9,
+      "lcp": 216,
+      "lcpCandidate": {
+        "url": null,
+        "size": 20590,
+        "tag": "H1",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.28855167886776567,
+      "dom": 218.5,
+      "marks": {},
+      "longTasks": [],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 17.200000001117587,
+          "duration": 1.299999998882413,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 18.200000001117587,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 18.600000001490116,
+          "duration": 0.3999999985098839,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/app.js?v=20261023-drag-target-switch",
+          "start": 19,
+          "duration": 0.30000000074505806,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 19.200000001117587,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/articles-catalog.json",
+          "start": 216.10000000149012,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 353.6000000014901,
+          "duration": 0.3999999985098839,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/hedged-requests/hedged-requests-cover.jpg",
+          "start": 370.2000000011176,
+          "duration": 0.900000000372529,
+          "bytes": 0
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "cold-http",
+      "contentMs": 1155.2602999999945,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 12.700000001117587,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 2348.0999999996275,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 437216,
+      "documentBytes": 11757,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://api.github.com/repos/joaovpimenta/tech-topics"
+      ],
+      "requests": 17,
+      "lcp": 1324,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828350528744286,
+      "dom": 720.0999999996275,
+      "marks": {
+        "article-script-start": 716,
+        "article-body-ready": 1146.0999999996275,
+        "article-controls-ready": 1747.5
+      },
+      "longTasks": [
+        {
+          "start": 1149.5,
+          "duration": 160
+        },
+        {
+          "start": 1584.199999999255,
+          "duration": 163
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 180,
+          "duration": 267.5,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 181,
+          "duration": 422.8999999985099,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 181.5,
+          "duration": 174.59999999962747,
+          "bytes": 1331
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 182.09999999962747,
+          "duration": 174.09999999962747,
+          "bytes": 1183
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 182.2999999988824,
+          "duration": 296.40000000037253,
+          "bytes": 20084
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 182.89999999850988,
+          "duration": 358.90000000037253,
+          "bytes": 29408
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 183.39999999850988,
+          "duration": 172.90000000037253,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 183.69999999925494,
+          "duration": 389.40000000037253,
+          "bytes": 12059
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 184.09999999962747,
+          "duration": 342.5,
+          "bytes": 1280
+        },
+        {
+          "name": "https://api.github.com/repos/joaovpimenta/tech-topics",
+          "start": 714.7999999988824,
+          "duration": 213.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 718.2999999988824,
+          "duration": 179.09999999962747,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 899.2999999988824,
+          "duration": 229.90000000037253,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 1042.3999999985099,
+          "duration": 180.5,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 1148.8999999985099,
+          "duration": 165.80000000074506,
+          "bytes": 375
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 1149.3999999985099,
+          "duration": 757.2000000011176,
+          "bytes": 257875
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 1372.699999999255,
+          "duration": 174.5,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "cold-http",
+      "contentMs": 1213.946100000001,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 8.800000000745058,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 2389.4000000003725,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 437216,
+      "documentBytes": 11757,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 16,
+      "lcp": 1400,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828350528744286,
+      "dom": 762.7000000011176,
+      "marks": {
+        "article-script-start": 756.5,
+        "article-body-ready": 1205.2000000011176,
+        "article-controls-ready": 1779.5999999996275
+      },
+      "longTasks": [
+        {
+          "start": 1208.5999999996275,
+          "duration": 177
+        },
+        {
+          "start": 1592.0999999996275,
+          "duration": 187
+        },
+        {
+          "start": 1783.300000000745,
+          "duration": 91
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 174.7000000011176,
+          "duration": 175.5,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 175.59999999962747,
+          "duration": 423.7000000011176,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 197.30000000074506,
+          "duration": 156.40000000037253,
+          "bytes": 1331
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 198,
+          "duration": 156.7000000011176,
+          "bytes": 1183
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 198.5,
+          "duration": 291.09999999962747,
+          "bytes": 20084
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 199,
+          "duration": 337.2000000011176,
+          "bytes": 29408
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 199.59999999962747,
+          "duration": 165.90000000037253,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 200.09999999962747,
+          "duration": 367.5,
+          "bytes": 12059
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 200.40000000037253,
+          "duration": 319.90000000037253,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 759.8000000007451,
+          "duration": 166.19999999925494,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 931.5,
+          "duration": 195.2000000011176,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 932.5,
+          "duration": 256.5,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 1207.5999999996275,
+          "duration": 165.40000000037253,
+          "bytes": 375
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 1208,
+          "duration": 750.2000000011176,
+          "bytes": 257875
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 1417.4000000003725,
+          "duration": 172,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "cold-http",
+      "contentMs": 1236.8415999999997,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 8.600000001490116,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 2420.4000000003725,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 437216,
+      "documentBytes": 11757,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 16,
+      "lcp": 1440,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828350528744286,
+      "dom": 795.4000000003725,
+      "marks": {
+        "article-script-start": 788.3000000007451,
+        "article-body-ready": 1226.4000000003725,
+        "article-controls-ready": 1818.4000000003725
+      },
+      "longTasks": [
+        {
+          "start": 1230,
+          "duration": 200
+        },
+        {
+          "start": 1630.4000000003725,
+          "duration": 188
+        },
+        {
+          "start": 1821.9000000003725,
+          "duration": 94
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 181.5,
+          "duration": 174.5,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 182.40000000037253,
+          "duration": 419.90000000037253,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 203,
+          "duration": 153.30000000074506,
+          "bytes": 1331
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 203.80000000074506,
+          "duration": 156.2999999988824,
+          "bytes": 1183
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 204.2000000011176,
+          "duration": 290.3999999985099,
+          "bytes": 20084
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 204.40000000037253,
+          "duration": 336.40000000037253,
+          "bytes": 29408
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 204.80000000074506,
+          "duration": 167,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 205.2000000011176,
+          "duration": 366.2999999988824,
+          "bytes": 12059
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 205.59999999962747,
+          "duration": 335.40000000037253,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 792,
+          "duration": 158.90000000037253,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 949.7000000011176,
+          "duration": 196.2999999988824,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 954.2000000011176,
+          "duration": 254,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 1228.9000000003725,
+          "duration": 159.5,
+          "bytes": 375
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 1229.4000000003725,
+          "duration": 754.4000000003725,
+          "bytes": 257875
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 1467.4000000003725,
+          "duration": 160.80000000074506,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "cold-http",
+      "contentMs": 1248.2119999999995,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 7.5,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 2513.60000000149,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 437216,
+      "documentBytes": 11757,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 16,
+      "lcp": 1464,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828350528744286,
+      "dom": 798.5,
+      "marks": {
+        "article-script-start": 789.4000000003725,
+        "article-body-ready": 1237.6000000014901,
+        "article-controls-ready": 1908.2000000011176
+      },
+      "longTasks": [
+        {
+          "start": 729.4000000003725,
+          "duration": 54
+        },
+        {
+          "start": 1241.800000000745,
+          "duration": 209
+        },
+        {
+          "start": 1715.6000000014901,
+          "duration": 192
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 188.10000000149012,
+          "duration": 188.69999999925494,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 189.80000000074506,
+          "duration": 405.59999999962747,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 190.60000000149012,
+          "duration": 170.2999999988824,
+          "bytes": 1331
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 191.2000000011176,
+          "duration": 169.7999999988824,
+          "bytes": 1183
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 191.5,
+          "duration": 294.80000000074506,
+          "bytes": 20084
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 192.2000000011176,
+          "duration": 340.90000000037253,
+          "bytes": 29408
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 192.60000000149012,
+          "duration": 168.69999999925494,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 193,
+          "duration": 386.40000000037253,
+          "bytes": 12059
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 193.80000000074506,
+          "duration": 339.59999999962747,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 793.2000000011176,
+          "duration": 161.7999999988824,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 946.6000000014901,
+          "duration": 194.5,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 956.8000000007451,
+          "duration": 262.19999999925494,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 1240.800000000745,
+          "duration": 162,
+          "bytes": 375
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 1241.300000000745,
+          "duration": 754.0999999996275,
+          "bytes": 257875
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 1498.1000000014901,
+          "duration": 173.89999999850988,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "cold-http",
+      "contentMs": 1211.770399999994,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 7.699999999254942,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 2399.800000000745,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 437216,
+      "documentBytes": 11757,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 16,
+      "lcp": 1412,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828350528744286,
+      "dom": 765.8000000007451,
+      "marks": {
+        "article-script-start": 759.5999999996275,
+        "article-body-ready": 1202.4000000003725,
+        "article-controls-ready": 1794.800000000745
+      },
+      "longTasks": [
+        {
+          "start": 1206,
+          "duration": 199
+        },
+        {
+          "start": 1601.300000000745,
+          "duration": 193
+        },
+        {
+          "start": 1798,
+          "duration": 95
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 190.5,
+          "duration": 201.2000000011176,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 191.7000000011176,
+          "duration": 417.19999999925494,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 192.40000000037253,
+          "duration": 169.40000000037253,
+          "bytes": 1331
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 193,
+          "duration": 168.80000000074506,
+          "bytes": 1183
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 193.59999999962747,
+          "duration": 307.1000000014901,
+          "bytes": 20084
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 194,
+          "duration": 352.90000000037253,
+          "bytes": 29408
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 194.40000000037253,
+          "duration": 168.80000000074506,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 194.59999999962747,
+          "duration": 383.2000000011176,
+          "bytes": 12059
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 195.09999999962747,
+          "duration": 336.5,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 762.8000000007451,
+          "duration": 172.90000000037253,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 938.8000000007451,
+          "duration": 245.09999999962747,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 958.0999999996275,
+          "duration": 195.30000000074506,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 1204.800000000745,
+          "duration": 160.59999999962747,
+          "bytes": 375
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 1205.4000000003725,
+          "duration": 749.4000000003725,
+          "bytes": 257875
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 1445.7000000011176,
+          "duration": 153.5,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "cold-http",
+      "contentMs": 1213.9559000000008,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 10,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 2419.699999999255,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 437216,
+      "documentBytes": 11757,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 16,
+      "lcp": 1412,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828350528744286,
+      "dom": 768.0999999996275,
+      "marks": {
+        "article-script-start": 762.6999999992549,
+        "article-body-ready": 1205,
+        "article-controls-ready": 1817.7999999988824
+      },
+      "longTasks": [
+        {
+          "start": 1208.7999999988824,
+          "duration": 188
+        },
+        {
+          "start": 1621.199999999255,
+          "duration": 196
+        },
+        {
+          "start": 1821.199999999255,
+          "duration": 99
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 184.40000000037253,
+          "duration": 171.5,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 185.59999999962747,
+          "duration": 415.5,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 209.09999999962747,
+          "duration": 151.5,
+          "bytes": 1331
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 209.90000000037253,
+          "duration": 161,
+          "bytes": 1183
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 210.09999999962747,
+          "duration": 284.09999999962747,
+          "bytes": 20084
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 210.5,
+          "duration": 329.69999999925494,
+          "bytes": 29408
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 210.90000000037253,
+          "duration": 175.5,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 211.2999999988824,
+          "duration": 374.2000000011176,
+          "bytes": 12059
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 211.69999999925494,
+          "duration": 328.7000000011176,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 765.9000000003725,
+          "duration": 165.2999999988824,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 927.6999999992549,
+          "duration": 168.2000000011176,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 932.7999999988824,
+          "duration": 254.60000000149012,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 1207.5999999996275,
+          "duration": 170.59999999962747,
+          "bytes": 375
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 1208,
+          "duration": 769.2999999988824,
+          "bytes": 257875
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 1440.2999999988824,
+          "duration": 178.80000000074506,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "cold-http",
+      "contentMs": 1229.7725999999966,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 9.099999999627471,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 2432.2999999988824,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 437216,
+      "documentBytes": 11757,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 16,
+      "lcp": 1424,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828350528744286,
+      "dom": 799.1999999992549,
+      "marks": {
+        "article-script-start": 791.0999999996275,
+        "article-body-ready": 1219.199999999255,
+        "article-controls-ready": 1830.3999999985099
+      },
+      "longTasks": [
+        {
+          "start": 1223.2999999988824,
+          "duration": 188
+        },
+        {
+          "start": 1636.7999999988824,
+          "duration": 193
+        },
+        {
+          "start": 1833.699999999255,
+          "duration": 99
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 193.5,
+          "duration": 184.69999999925494,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 194.59999999962747,
+          "duration": 414.40000000037253,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 195.5,
+          "duration": 167.19999999925494,
+          "bytes": 1331
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 196.09999999962747,
+          "duration": 166.69999999925494,
+          "bytes": 1183
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 196.5,
+          "duration": 305.09999999962747,
+          "bytes": 20084
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 197.09999999962747,
+          "duration": 350.69999999925494,
+          "bytes": 29408
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 197.69999999925494,
+          "duration": 180.30000000074506,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 198.09999999962747,
+          "duration": 380.5,
+          "bytes": 12059
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 198.7999999988824,
+          "duration": 334,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 794.8999999985099,
+          "duration": 159.5,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 946.0999999996275,
+          "duration": 175.90000000037253,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 956.0999999996275,
+          "duration": 242.7999999988824,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 1222,
+          "duration": 155.89999999850988,
+          "bytes": 375
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 1222.699999999255,
+          "duration": 749.3000000007451,
+          "bytes": 257875
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 1455.7999999988824,
+          "duration": 178.90000000037253,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "cold-http",
+      "contentMs": 1240.3677000000025,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 7.5,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 2544,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 437216,
+      "documentBytes": 11757,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 16,
+      "lcp": 1480,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828350528744286,
+      "dom": 778.5999999996275,
+      "marks": {
+        "article-script-start": 772.5,
+        "article-body-ready": 1230.800000000745,
+        "article-controls-ready": 1943.699999999255
+      },
+      "longTasks": [
+        {
+          "start": 1234.5999999996275,
+          "duration": 235
+        },
+        {
+          "start": 1723.5,
+          "duration": 220
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 187.59999999962747,
+          "duration": 188.09999999962747,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 188.30000000074506,
+          "duration": 418.3999999985099,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 188.80000000074506,
+          "duration": 171.5,
+          "bytes": 1331
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 189.40000000037253,
+          "duration": 171,
+          "bytes": 1183
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 189.90000000037253,
+          "duration": 293.19999999925494,
+          "bytes": 20084
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 190.5,
+          "duration": 339,
+          "bytes": 29408
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 190.90000000037253,
+          "duration": 169.59999999962747,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 191.5,
+          "duration": 384.40000000037253,
+          "bytes": 12059
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 191.90000000037253,
+          "duration": 337.90000000037253,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 776.1999999992549,
+          "duration": 170.10000000149012,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 956.5,
+          "duration": 191.5,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 957.6999999992549,
+          "duration": 253.80000000074506,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 1233.4000000003725,
+          "duration": 181.19999999925494,
+          "bytes": 375
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 1234,
+          "duration": 785.6999999992549,
+          "bytes": 257875
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 1516.300000000745,
+          "duration": 177.2999999988824,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "cold-http",
+      "contentMs": 1238.3640999999916,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 14.799999998882413,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 2427,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 437216,
+      "documentBytes": 11757,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 16,
+      "lcp": 1428,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828350528744286,
+      "dom": 774,
+      "marks": {
+        "article-script-start": 768.5,
+        "article-body-ready": 1228.7999999988824,
+        "article-controls-ready": 1817.699999999255
+      },
+      "longTasks": [
+        {
+          "start": 1232.4000000003725,
+          "duration": 190
+        },
+        {
+          "start": 1631.2999999988824,
+          "duration": 186
+        },
+        {
+          "start": 1821,
+          "duration": 104
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 191.7999999988824,
+          "duration": 172.80000000074506,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 192.90000000037253,
+          "duration": 419.5,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 215.09999999962747,
+          "duration": 164.80000000074506,
+          "bytes": 1331
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 215.90000000037253,
+          "duration": 164.09999999962747,
+          "bytes": 1183
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 216.2999999988824,
+          "duration": 287.7000000011176,
+          "bytes": 20084
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 216.69999999925494,
+          "duration": 319,
+          "bytes": 29408
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 217.2999999988824,
+          "duration": 164.2000000011176,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 217.69999999925494,
+          "duration": 379.09999999962747,
+          "bytes": 12059
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 218.09999999962747,
+          "duration": 333.19999999925494,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 771.7999999988824,
+          "duration": 170.60000000149012,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 940.1999999992549,
+          "duration": 195,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 943.9000000003725,
+          "duration": 267.19999999925494,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 1231.199999999255,
+          "duration": 165.30000000074506,
+          "bytes": 375
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 1231.9000000003725,
+          "duration": 754,
+          "bytes": 257875
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 1461.199999999255,
+          "duration": 168,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "cold-http",
+      "contentMs": 1280.5198999999993,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 8.100000001490116,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 2442.800000000745,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 437216,
+      "documentBytes": 11757,
+      "externalBytesUnknownDueToTimingOrCache": [],
+      "requests": 16,
+      "lcp": 1464,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828350528744286,
+      "dom": 849.9000000003725,
+      "marks": {
+        "article-script-start": 840.1999999992549,
+        "article-body-ready": 1271.5999999996275,
+        "article-controls-ready": 1836.0999999996275
+      },
+      "longTasks": [
+        {
+          "start": 777.0999999996275,
+          "duration": 56
+        },
+        {
+          "start": 1275.5,
+          "duration": 181
+        },
+        {
+          "start": 1673.9000000003725,
+          "duration": 162
+        },
+        {
+          "start": 1839.0999999996275,
+          "duration": 86
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 197.30000000074506,
+          "duration": 185.89999999850988,
+          "bytes": 2077
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 197.69999999925494,
+          "duration": 404.40000000037253,
+          "bytes": 49640
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 197.80000000074506,
+          "duration": 170.69999999925494,
+          "bytes": 1331
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 197.90000000037253,
+          "duration": 171.19999999925494,
+          "bytes": 1183
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 198,
+          "duration": 294.80000000074506,
+          "bytes": 20084
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 198.09999999962747,
+          "duration": 340.90000000037253,
+          "bytes": 29408
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 198.19999999925494,
+          "duration": 172.80000000074506,
+          "bytes": 1536
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 198.5,
+          "duration": 387.90000000037253,
+          "bytes": 12059
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 198.59999999962747,
+          "duration": 341,
+          "bytes": 1280
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 845,
+          "duration": 178.09999999962747,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 953.4000000003725,
+          "duration": 178.2999999988824,
+          "bytes": 5865
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 1026,
+          "duration": 227.90000000037253,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 1274.4000000003725,
+          "duration": 164.90000000037253,
+          "bytes": 375
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 1274.9000000003725,
+          "duration": 754.5999999996275,
+          "bytes": 257875
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 1493.300000000745,
+          "duration": 178.69999999925494,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "warm-http",
+      "contentMs": 660.619000000006,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 8.200000001117587,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 1847.8999999985099,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 42746,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 16,
+      "lcp": 828,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828011307613981,
+      "dom": 210.69999999925494,
+      "marks": {
+        "article-script-start": 205.2999999988824,
+        "article-body-ready": 651.5999999996275,
+        "article-controls-ready": 1240.0999999996275
+      },
+      "longTasks": [
+        {
+          "start": 654.5,
+          "duration": 169
+        },
+        {
+          "start": 1073.3999999985099,
+          "duration": 166
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 19.09999999962747,
+          "duration": 1.199999999254942,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 20,
+          "duration": 0.6999999992549419,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 20.399999998509884,
+          "duration": 3.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 20.799999998882413,
+          "duration": 3.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 21.09999999962747,
+          "duration": 3.299999998882413,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 21.399999998509884,
+          "duration": 3.200000001117587,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 21.899999998509884,
+          "duration": 3.100000001490116,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 22,
+          "duration": 3,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 22.299999998882413,
+          "duration": 2.900000000372529,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 208.7999999988824,
+          "duration": 179.59999999962747,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 275,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 391.09999999962747,
+          "duration": 244.2999999988824,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 653.7999999988824,
+          "duration": 0.40000000037252903,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 654.1999999992549,
+          "duration": 0.40000000037252903,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 892.2999999988824,
+          "duration": 179.30000000074506,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "warm-http",
+      "contentMs": 643.7838999999949,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 7.800000000745058,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 1835.5,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 42746,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 16,
+      "lcp": 816,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828011307613981,
+      "dom": 214.59999999962747,
+      "marks": {
+        "article-script-start": 209.59999999962747,
+        "article-body-ready": 632.4000000003725,
+        "article-controls-ready": 1234.0999999996275
+      },
+      "longTasks": [
+        {
+          "start": 635.5999999996275,
+          "duration": 172
+        },
+        {
+          "start": 1064.199999999255,
+          "duration": 170
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 18.199999999254942,
+          "duration": 1.300000000745058,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 19.199999999254942,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 19.59999999962747,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 20.09999999962747,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 20.5,
+          "duration": 0.40000000037252903,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 20.90000000037253,
+          "duration": 0.2999999988824129,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 21.09999999962747,
+          "duration": 0.40000000037252903,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 21.5,
+          "duration": 0.19999999925494194,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 21.699999999254942,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 212.69999999925494,
+          "duration": 166.09999999962747,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 281.90000000037253,
+          "duration": 0.3999999985098839,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 381.69999999925494,
+          "duration": 232.59999999962747,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 634.5999999996275,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 635,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 883.6999999992549,
+          "duration": 178.40000000037253,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "warm-http",
+      "contentMs": 655.0319000000018,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 7.400000000372529,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 1835.5,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 42746,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 16,
+      "lcp": 828,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828011307613981,
+      "dom": 217.40000000037253,
+      "marks": {
+        "article-script-start": 212,
+        "article-body-ready": 644.5999999996275,
+        "article-controls-ready": 1229.300000000745
+      },
+      "longTasks": [
+        {
+          "start": 648.0999999996275,
+          "duration": 164
+        },
+        {
+          "start": 1061.0999999996275,
+          "duration": 168
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 18,
+          "duration": 1.300000000745058,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 19,
+          "duration": 0.7000000011175871,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 19.59999999962747,
+          "duration": 0.7000000011175871,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 20.09999999962747,
+          "duration": 0.40000000037252903,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 20.5,
+          "duration": 0.30000000074505806,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 20.59999999962747,
+          "duration": 0.7000000011175871,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 21.09999999962747,
+          "duration": 0.40000000037252903,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 21.5,
+          "duration": 0.30000000074505806,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 21.800000000745058,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 215.09999999962747,
+          "duration": 181.30000000074506,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 280.30000000074506,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 399.09999999962747,
+          "duration": 228.30000000074506,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 647.2000000011176,
+          "duration": 0.3999999985098839,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 647.5,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 881.7000000011176,
+          "duration": 177.19999999925494,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "warm-http",
+      "contentMs": 667.6055000000051,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 12.100000001490116,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 1872.4000000003725,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 42746,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 16,
+      "lcp": 852,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828011307613981,
+      "dom": 236.59999999962747,
+      "marks": {
+        "article-script-start": 228.7999999988824,
+        "article-body-ready": 658.5999999996275,
+        "article-controls-ready": 1271
+      },
+      "longTasks": [
+        {
+          "start": 662.1999999992549,
+          "duration": 180
+        },
+        {
+          "start": 1062.9000000003725,
+          "duration": 208
+        },
+        {
+          "start": 1271.199999999255,
+          "duration": 59
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 19.299999998882413,
+          "duration": 1.400000000372529,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 20.5,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 21,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 21.199999999254942,
+          "duration": 0.7000000011175871,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 21.799999998882413,
+          "duration": 0.40000000037252903,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 22.199999999254942,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 22.699999999254942,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 23,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 23.5,
+          "duration": 0.40000000037252903,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 234.09999999962747,
+          "duration": 171.59999999962747,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 337.19999999925494,
+          "duration": 0.7000000011175871,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 408.7999999988824,
+          "duration": 231.40000000037253,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 661.1999999992549,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 661.6999999992549,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 876.0999999996275,
+          "duration": 183.80000000074506,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "warm-http",
+      "contentMs": 685.4468000000052,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 8.299999998882413,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 1912.699999999255,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 42746,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 16,
+      "lcp": 884,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828011307613981,
+      "dom": 241.69999999925494,
+      "marks": {
+        "article-script-start": 235.59999999962747,
+        "article-body-ready": 676.5,
+        "article-controls-ready": 1307.4000000003725
+      },
+      "longTasks": [
+        {
+          "start": 64.79999999888241,
+          "duration": 51
+        },
+        {
+          "start": 680.0999999996275,
+          "duration": 194
+        },
+        {
+          "start": 1125,
+          "duration": 182
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 22,
+          "duration": 1.799999998882413,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 23.799999998882413,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 24.5,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 24.799999998882413,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 25.199999999254942,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 25.799999998882413,
+          "duration": 0.30000000074505806,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 26,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 26.40000000037253,
+          "duration": 0.3999999985098839,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 26.799999998882413,
+          "duration": 0.30000000074505806,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 239.59999999962747,
+          "duration": 171.19999999925494,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 315.7999999988824,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 414.90000000037253,
+          "duration": 243.39999999850988,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 679.0999999996275,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 679.5,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 948.6999999992549,
+          "duration": 173.80000000074506,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "warm-http",
+      "contentMs": 689.8324999999895,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 7.300000000745058,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 1866.2999999988824,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 42746,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 16,
+      "lcp": 888,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828011307613981,
+      "dom": 235.19999999925494,
+      "marks": {
+        "article-script-start": 229.2999999988824,
+        "article-body-ready": 676.8999999985099,
+        "article-controls-ready": 1263.3999999985099
+      },
+      "longTasks": [
+        {
+          "start": 680.6999999992549,
+          "duration": 198
+        },
+        {
+          "start": 1092.699999999255,
+          "duration": 170
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 20.5,
+          "duration": 1.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 21.5,
+          "duration": 0.6999999992549419,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 22.09999999962747,
+          "duration": 0.40000000037252903,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 22.299999998882413,
+          "duration": 0.7000000011175871,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 22.799999998882413,
+          "duration": 0.8000000007450581,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 23.199999999254942,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 23.699999999254942,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 24.299999998882413,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 25,
+          "duration": 0.7999999988824129,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 232.89999999850988,
+          "duration": 178.7000000011176,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 301.2999999988824,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 414.69999999925494,
+          "duration": 242.90000000037253,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 679.5,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 680.0999999996275,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 913.2999999988824,
+          "duration": 177.40000000037253,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "warm-http",
+      "contentMs": 674.133199999982,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 9.099999999627471,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 1899.9000000003725,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 42746,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 16,
+      "lcp": 872,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828011307613981,
+      "dom": 230.30000000074506,
+      "marks": {
+        "article-script-start": 224.7000000011176,
+        "article-body-ready": 662.4000000003725,
+        "article-controls-ready": 1293.7000000011176
+      },
+      "longTasks": [
+        {
+          "start": 666.0999999996275,
+          "duration": 197
+        },
+        {
+          "start": 1108.300000000745,
+          "duration": 185
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 21.40000000037253,
+          "duration": 1.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 22.800000000745058,
+          "duration": 0.7999999988824129,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 23.59999999962747,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 24.09999999962747,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 24.700000001117587,
+          "duration": 0.2999999988824129,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 25,
+          "duration": 0.40000000037252903,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 25.5,
+          "duration": 0.7000000011175871,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 26.09999999962747,
+          "duration": 0.30000000074505806,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 26.5,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 228,
+          "duration": 168.59999999962747,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 300.90000000037253,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 399.80000000074506,
+          "duration": 243.5,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 664.8000000007451,
+          "duration": 0.6999999992549419,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 665.3000000007451,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 937.3000000007451,
+          "duration": 169.19999999925494,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "warm-http",
+      "contentMs": 681.5644000000029,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 8.299999998882413,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 1868.5,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 42746,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 16,
+      "lcp": 880,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828011307613981,
+      "dom": 241.60000000149012,
+      "marks": {
+        "article-script-start": 235.5,
+        "article-body-ready": 672.3000000007451,
+        "article-controls-ready": 1264.9000000003725
+      },
+      "longTasks": [
+        {
+          "start": 60.20000000111759,
+          "duration": 52
+        },
+        {
+          "start": 675.2000000011176,
+          "duration": 191
+        },
+        {
+          "start": 1075.300000000745,
+          "duration": 189
+        },
+        {
+          "start": 1265.1000000014901,
+          "duration": 51
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 20.800000000745058,
+          "duration": 1.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 21.800000000745058,
+          "duration": 0.900000000372529,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 22.5,
+          "duration": 0.7000000011175871,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 23.100000001490116,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 23.5,
+          "duration": 0.40000000037252903,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 23.90000000037253,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 24.300000000745058,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 24.700000001117587,
+          "duration": 0.19999999925494194,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 25.100000001490116,
+          "duration": 0.19999999925494194,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 239.30000000074506,
+          "duration": 168.5,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 314.5,
+          "duration": 0.8000000007450581,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 411.1000000014901,
+          "duration": 243.89999999850988,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 674.6000000014901,
+          "duration": 0.6999999992549419,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 675,
+          "duration": 0.7000000011175871,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 900.1000000014901,
+          "duration": 173.2999999988824,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "warm-http",
+      "contentMs": 683.9538999999932,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 7.599999999627471,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 1875.8999999985099,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 42746,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 16,
+      "lcp": 872,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828011307613981,
+      "dom": 231.69999999925494,
+      "marks": {
+        "article-script-start": 225.69999999925494,
+        "article-body-ready": 675.6999999992549,
+        "article-controls-ready": 1272.699999999255
+      },
+      "longTasks": [
+        {
+          "start": 679,
+          "duration": 177
+        },
+        {
+          "start": 1107.8999999985099,
+          "duration": 164
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 20.199999999254942,
+          "duration": 1.300000000745058,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 21.199999999254942,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 21.59999999962747,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 22.199999999254942,
+          "duration": 0.30000000074505806,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 22.399999998509884,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 22.799999998882413,
+          "duration": 0.30000000074505806,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 23.199999999254942,
+          "duration": 0.40000000037252903,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 23.59999999962747,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 24,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 229.69999999925494,
+          "duration": 166.30000000074506,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 302.2999999988824,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 399.3999999985099,
+          "duration": 258.40000000037253,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 678,
+          "duration": 0.7999999988824129,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 678.3999999985099,
+          "duration": 0.8000000007450581,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 924.2999999988824,
+          "duration": 181.80000000074506,
+          "bytes": 509
+        }
+      ]
+    },
+    {
+      "scenario": "article",
+      "cache": "warm-http",
+      "contentMs": 714.0764999999956,
+      "visualSettle": {
+        "images": [
+          {
+            "src": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+            "complete": true,
+            "naturalWidth": 1600
+          }
+        ],
+        "fonts": "ready",
+        "timeoutPerResourceMs": 4000,
+        "animationFrames": 2
+      },
+      "interaction": {
+        "clickToSpeechStartMs": 8.5,
+        "acousticLatency": null
+      },
+      "audioReadiness": {
+        "discoveryMs": 1894,
+        "metadataMs": null,
+        "canplayMs": null,
+        "playingMs": null,
+        "discoveryToCanplayMs": null,
+        "reasonWhenNull": "Release lookup returned no MP3; media readiness is not applicable in this page-opening lane"
+      },
+      "sw": {
+        "mode": "blocked"
+      },
+      "bytes": 42746,
+      "documentBytes": 0,
+      "externalBytesUnknownDueToTimingOrCache": [
+        "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap"
+      ],
+      "requests": 16,
+      "lcp": 916,
+      "lcpCandidate": {
+        "url": null,
+        "size": 110842,
+        "tag": "P",
+        "id": null,
+        "className": ""
+      },
+      "cls": 0.5828011307613981,
+      "dom": 274.19999999925494,
+      "marks": {
+        "article-script-start": 263.09999999962747,
+        "article-body-ready": 703.5999999996275,
+        "article-controls-ready": 1286.5
+      },
+      "longTasks": [
+        {
+          "start": 71.09999999962747,
+          "duration": 56
+        },
+        {
+          "start": 707.8999999985099,
+          "duration": 198
+        },
+        {
+          "start": 1105,
+          "duration": 181
+        }
+      ],
+      "resources": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap",
+          "start": 24,
+          "duration": 2,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/styles.css?v=20261023-drag-target-switch",
+          "start": 25.799999998882413,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/fgs-simulator.js",
+          "start": 26.399999998509884,
+          "duration": 0.7000000011175871,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/mermaid-theme.js?v=20260920-mermaid",
+          "start": 27,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/speech.js?v=20261023-sentence-range",
+          "start": 27.59999999962747,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/audio.js?v=20261023-player-fit-gesture",
+          "start": 28,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/header.js?v=20261023-shared",
+          "start": 28.59999999962747,
+          "duration": 0.2999999988824129,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/article.js?v=20261023-shared-header",
+          "start": 29,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/pwa.js",
+          "start": 29.399999998509884,
+          "duration": 0.5,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/index.json",
+          "start": 270.59999999962747,
+          "duration": 167,
+          "bytes": 3341
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/favicon.ico?v=20260927",
+          "start": 356.7999999988824,
+          "duration": 0.7000000011175871,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/articles/cqrs-projecoes-e-consistencia.json",
+          "start": 441.3999999985099,
+          "duration": 244.2000000011176,
+          "bytes": 38896
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/__perf_mermaid.mjs",
+          "start": 706.5999999996275,
+          "duration": 0.6999999992549419,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg",
+          "start": 707.1999999992549,
+          "duration": 0.599999999627471,
+          "bytes": 0
+        },
+        {
+          "name": "http://127.0.0.1:59640/tech-topics/content/tts-lexicon.json",
+          "start": 937.5999999996275,
+          "duration": 165,
+          "bytes": 509
+        }
+      ]
+    }
+  ],
+  "serviceWorkerSmoke": {
+    "registration": {
+      "supported": true,
+      "active": true,
+      "scope": "http://127.0.0.1:59640/tech-topics/"
+    },
+    "controlled": true,
+    "online": {
+      "controller": true,
+      "workerStartedResources": 11,
+      "requestCount": 18,
+      "documentBytes": 11757,
+      "articleText": 26489
+    },
+    "offline": {
+      "controller": true,
+      "articleText": 26489,
+      "heading": "CQRS: separar comandos e consultas sem esconder a consistência"
+    },
+    "offlineArticleServed": true,
+    "sampleCount": 1,
+    "limitation": "SW smoke, not a 10x statistical comparison; offline has API/media unavailable and depends on previously visited article in this context."
+  }
+}

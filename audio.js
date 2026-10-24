@@ -452,6 +452,7 @@
       session.metadata = null;
     }
     async function play() {
+      try { performance.mark("tt:audio-play-request"); } catch (_) {}
       if (!available) return beginDevice();
       mode = "recorded";
       open = true;
@@ -544,13 +545,15 @@
       rate.setAttribute("aria-label", `Velocidade da narração: ${value} vezes`);
       render();
     });
-    audio.addEventListener("loadedmetadata", () => { render(); updatePosition(); });
+    audio.addEventListener("loadedmetadata", () => { try { performance.mark("tt:audio-metadata"); } catch (_) {} render(); updatePosition(); });
+    audio.addEventListener("canplay", () => { try { performance.mark("tt:audio-canplay"); } catch (_) {} });
     audio.addEventListener("durationchange", () => { render(); updatePosition(); });
     audio.addEventListener("timeupdate", () => { if (mode === "recorded") render(); });
     audio.addEventListener("seeking", render);
     audio.addEventListener("seeked", updatePosition);
     audio.addEventListener("ratechange", updatePosition);
-    audio.addEventListener("play", () => { if (mode === "recorded") { render(); updatePosition(); } });
+    audio.addEventListener("play", () => { try { performance.mark("tt:audio-play"); } catch (_) {} if (mode === "recorded") { render(); updatePosition(); } });
+    audio.addEventListener("playing", () => { try { performance.mark("tt:audio-playing"); } catch (_) {} });
     audio.addEventListener("pause", () => { if (mode === "recorded") { render(); updatePosition(); } });
     audio.addEventListener("ended", () => { if (mode === "recorded") { render(); updatePosition(); } });
     audio.addEventListener("error", () => {
@@ -568,6 +571,7 @@
     async function discover() {
       try {
         const source = await fetchAudio(article.slug);
+        try { performance.mark("tt:audio-discovery-complete"); } catch (_) {}
         if (!source) return;
         audio.src = typeof source === "string" ? source : source.url;
         available = true;
