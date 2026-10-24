@@ -3,6 +3,10 @@ name: Publish Tech Topics audio (Kokoro Dora)
 on:
   workflow_call:
     inputs:
+      generate_audio:
+        type: boolean
+        required: false
+        default: false
       before_sha:
         type: string
         required: false
@@ -34,6 +38,11 @@ on:
         default: false
   workflow_dispatch:
     inputs:
+      generate_audio:
+        description: "Generate audio (frozen during Markdown migration)"
+        type: boolean
+        required: false
+        default: false
       article:
         description: "Título ou slug (ex.: bulkhead, Four Golden Signals); vazio = mais recente"
         type: string
@@ -68,7 +77,7 @@ jobs:
     # Frozen for all manual, backfill and new-article synthesis.
     # Restricted exception: edited existing articles, on main after Pages,
     # selected from their actual spoken-language diff.
-    if: ${{ inputs.refresh_existing == true && github.event_name == 'push' && github.ref == 'refs/heads/main' && inputs.before_sha != '' && inputs.after_sha != '' && inputs.replace_existing == true }}
+    if: ${{ inputs.generate_audio == true && false && inputs.refresh_existing == true && github.event_name == 'push' && github.ref == 'refs/heads/main' && inputs.before_sha != '' && inputs.after_sha != '' && inputs.replace_existing == true }}
     name: Select article(s)
     runs-on: ubuntu-latest
     outputs:

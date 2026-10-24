@@ -12,9 +12,18 @@ on:
       - "generation/**"
       - "tools/tts/**"
       - ".github/workflows/validate.yml"
-      - ".github/workflows/select-next-topic.yml"
-      - ".github/workflows/kokoro-audio.yml"
   workflow_dispatch:
+    inputs:
+      generate_audio:
+        description: "Generate article audio (frozen during Markdown migration)"
+        type: boolean
+        required: false
+        default: false
+      advance_topic:
+        description: "Advance the editorial queue (frozen during Markdown migration)"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -99,6 +108,7 @@ jobs:
   publish-audio:
     name: Publish new article audio after successful deploy
     if: >-
+      inputs.generate_audio == true && false &&
       github.event_name == 'push' &&
       needs.validate.outputs.new_article_slugs != '' &&
       needs.validate.outputs.new_article_slugs != '[]'
@@ -107,12 +117,14 @@ jobs:
       contents: write
     uses: ./.github/workflows/kokoro-audio.yml
     with:
+      generate_audio: false
       before_sha: ${{ github.event.before }}
       after_sha: ${{ github.sha }}
 
   republish-edited-audio:
     name: Rebuild only changed spoken audio after deploy
     if: >-
+      inputs.generate_audio == true && false &&
       github.event_name == 'push' &&
       needs.validate.outputs.changed_speech_slugs != '' &&
       needs.validate.outputs.changed_speech_slugs != '[]'
@@ -121,6 +133,7 @@ jobs:
       contents: write
     uses: ./.github/workflows/kokoro-audio.yml
     with:
+      generate_audio: false
       before_sha: ${{ github.event.before }}
       after_sha: ${{ github.sha }}
       mode: publish
@@ -130,6 +143,7 @@ jobs:
   select-next-topic:
     name: Select next editorial topic after deploy
     if: >-
+      inputs.advance_topic == true && false &&
       github.event_name == 'push' &&
       needs.validate.outputs.new_article_slugs != '' &&
       needs.validate.outputs.new_article_slugs != '[]'
@@ -138,3 +152,5 @@ jobs:
       contents: read
       issues: write
     uses: ./.github/workflows/select-next-topic.yml
+    with:
+      advance_topic: false
