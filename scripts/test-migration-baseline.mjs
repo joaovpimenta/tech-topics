@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { articleSignatures, compareBaselines, compareCaptureTools, playerSemanticTokens, validateBaseline } from "./lib/migration-baseline.mjs";
+import { articleSignatures, compareBaselines, compareCaptureTools, nativeDomUnitHash, validateBaseline } from "./lib/migration-baseline.mjs";
 
 const extracted = { structure: { ids: ["intro"], elements: [{ tag: "p" }], urls: [] },
   editorialSentences: [{ blockIndex: 0, sentenceIndex: 0, tag: "p", section: false, pauseAfterSeconds: 0.38, pauseKind: "paragraph", runs: [{ text: "Olá", lang: "pt-BR" }], text: "Olá" }],
@@ -21,33 +21,36 @@ test("baseline signatures cover metadata, HTML, structure, narration and assets"
   assert.deepEqual(validateBaseline({ sha: "a".repeat(40), sourceCount: 1, capture: { sourceTools: [], captureTools: [] }, articles: [record] }), []);
 });
 
-test("semantic sentence tokens preserve punctuation and language changes inside a word", () => {
-  const signature = articleSignatures(article, { ...extracted, editorialSentences: [
-    { ...extracted.editorialSentences[0], text: "Bulkhead works.", runs: [
-      { text: "Bulk", lang: "en-US" }, { text: "head works.", lang: "pt-BR" }
-    ] },
-    { ...extracted.editorialSentences[0], sentenceIndex: 1, text: "Next!", runs: [{ text: "Next!", lang: "pt-BR" }] }
-  ] }).editorialSentences;
-  assert.deepEqual(signature.map(sentence => sentence.semanticTokens.map(token => token.lang)), [["en-US", "pt-BR", "pt-BR"], ["pt-BR"]]);
-  assert.deepEqual(signature.map(sentence => [sentence.blockIndex, sentence.sentenceIndex]), [[0, 0], [0, 1]]);
-  assert.notEqual(signature[0].semanticTokens[0].textSha256, signature[0].semanticTokens[1].textSha256);
+test("Python contract hashes preserve punctuation, aliases, language runs, indices and pauses", () => {
+  const nativePythonSignature = (text, runs) => articleSignatures(article, { ...extracted, editorialSentences: [
+    { ...extracted.editorialSentences[0], text, runs }
+  ] }).editorialSentences[0];
+  const exact = text => nativePythonSignature(text, [{ text, lang: "pt-BR" }]);
+  for (const [before, after] of [["1.23", "12.3"], ["a,b", "ab,"], ["HTTP/2", "HTTP2/"], ["alias.", "alias"]]) {
+    assert.notEqual(exact(before).textSha256, exact(after).textSha256, `${before} versus ${after}`);
+  }
+  const englishWord = nativePythonSignature("Bulkhead", [{ text: "Bulk", lang: "en-US" }, { text: "head", lang: "pt-BR" }]);
+  const portugueseWord = nativePythonSignature("Bulkhead", [{ text: "Bulk", lang: "pt-BR" }, { text: "head", lang: "pt-BR" }]);
+  assert.notDeepEqual(englishWord.runs, portugueseWord.runs);
+  assert.notEqual(nativePythonSignature("Next.", [{ text: "Next.", lang: "pt-BR" }]).textSha256,
+    nativePythonSignature("Next", [{ text: "Next", lang: "pt-BR" }]).textSha256);
+  assert.deepEqual(exact("1.23"), exact("1.23"), "identical Python contract input is reproducible");
 });
 
-test("player semantic extraction restores contiguous punctuation without joining word segments", () => {
-  const tokens = playerSemanticTokens([
-    { text: "a pê i: REST,", lang: "pt-BR", words: [{ start: 0, end: 6, nodeIds: ["api"] }, { start: 8, end: 12, nodeIds: ["rest"] }] },
-    { text: "agá tê pê", lang: "pt-BR", words: [{ start: 0, end: 9, nodeIds: ["http2"] }] },
-    { text: "/2", lang: "pt-BR", words: [{ start: 0, end: 2, nodeIds: ["http2"] }] },
-    { text: "cerca avançada.", lang: "pt-BR", words: [{ start: 0, end: 15, nodeIds: ["speech-alias"] }] },
-    { text: "bulk", lang: "en-US", words: [{ start: 0, end: 4, nodeIds: ["bulk"] }] },
-    { text: "head.", lang: "pt-BR", words: [{ start: 0, end: 5, nodeIds: ["head"] }] }
-  ]);
-  assert.deepEqual(tokens, [
-    { text: "a", lang: "pt-BR" }, { text: "pê", lang: "pt-BR" }, { text: "i:", lang: "pt-BR" },
-    { text: "REST,", lang: "pt-BR" }, { text: "agá", lang: "pt-BR" }, { text: "tê", lang: "pt-BR" },
-    { text: "pê/2", lang: "pt-BR" }, { text: "cerca", lang: "pt-BR" }, { text: "avançada.", lang: "pt-BR" },
-    { text: "bulk", lang: "en-US" }, { text: "head.", lang: "pt-BR" }
-  ]);
+test("DOM contract hashes preserve raw segment boundaries, punctuation, language, indices and word mapping", () => {
+  const unit = { blockIndex: 0, sentenceIndex: 0, segments: [{ text: "1.23", lang: "pt-BR", words: [{ start: 0, end: 4, nodeIds: ["n1"] }] }] };
+  const hash = value => nativeDomUnitHash(value);
+  assert.equal(hash(unit), hash(structuredClone(unit)), "identical native DOM records are reproducible");
+  const withText = text => ({ ...unit, segments: [{ ...unit.segments[0], text, words: [{ start: 0, end: text.length, nodeIds: ["n1"] }] }] });
+  for (const [before, after] of [["1.23", "12.3"], ["a,b", "ab,"], ["HTTP/2", "HTTP2/"], ["alias.", "alias"]]) {
+    assert.notEqual(hash(withText(before)), hash(withText(after)), `${before} versus ${after}`);
+  }
+  for (const changed of [
+    { ...unit, segments: [{ ...unit.segments[0], lang: "en-US" }] },
+    { ...unit, blockIndex: 1 },
+    { ...unit, segments: [{ ...unit.segments[0], words: [{ start: 0, end: 4, nodeIds: ["n2"] }] }] },
+    { ...unit, segments: [{ text: "1.", lang: "pt-BR", words: [{ start: 0, end: 2, nodeIds: ["n1"] }] }, { text: "23", lang: "pt-BR", words: [{ start: 0, end: 2, nodeIds: ["n1"] }] }] }
+  ]) assert.notEqual(hash(unit), hash(changed));
 });
 
 test("UTF-8 extraction preserves Portuguese, aliases, punctuation and language runs", async () => {
@@ -88,6 +91,8 @@ test("versioned original and corrected tool baseline preserve signatures and do 
   const originalFile = path.join(root, "docs/migrations/baselines/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json");
   const baseline = JSON.parse(await readFile(file, "utf8"));
   const original = JSON.parse(await readFile(originalFile, "utf8"));
+  assert.equal(createHash("sha256").update(await readFile(file)).digest("hex"), "04df6fcc596b1fa3d7de3bc0b85297d2035dd995bcdd402650f240b1546445f6",
+    "the v2 correction record remains immutable when v3 tooling changes");
   assert.equal(createHash("sha256").update(await readFile(originalFile)).digest("hex"), "e5acb9163da52bc0b7c37316e95b8c6f075b406124378b2bb2b1cdf708ce6278",
     "the historical v1 artifact remains byte-identical without depending on its Git commit being reachable");
   assert.equal(baseline.schemaVersion, 2);
@@ -134,9 +139,6 @@ test("versioned original and corrected tool baseline preserve signatures and do 
   }
   const normalizedHash = text => createHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex");
   assert.equal(normalizedHash("capture\nsource"), normalizedHash("capture\r\nsource"));
-  for (const tool of baseline.capture.captureTools) {
-    assert.equal(tool.sha256, normalizedHash(await readFile(path.join(root, tool.path), "utf8")), `${tool.path}: canonical LF hash`);
-  }
   const otherRuntime = structuredClone(baseline);
   otherRuntime.capture.runtime = { node: "v22.0.0", python: "3.11.0" };
   assert.deepEqual(compareCaptureTools(baseline, otherRuntime), []);
@@ -151,8 +153,8 @@ test("capture tool changes are explicit", () => {
 
 test("capture CLI reproduces the checked-in baseline and refuses overwrites", async () => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-  const baseline = path.join(root, "docs/migrations/baselines/capture-v2/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json");
-  const previousBaseline = path.join(root, "docs/migrations/baselines/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json");
+  const baseline = path.join(root, "docs/migrations/baselines/capture-v3/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json");
+  const previousBaseline = path.join(root, "docs/migrations/baselines/capture-v2/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json");
   const sha = "fca72c31fcb57ffe9741a2390a04c2035639e14a";
   const temp = await mkdtemp(path.join(os.tmpdir(), "migration-baseline-test-"));
   const env = { ...process.env, TECH_TOPICS_PYTHON: process.env.TECH_TOPICS_PYTHON || (process.platform === "win32" ? "py" : "python3") };
@@ -168,6 +170,12 @@ test("capture CLI reproduces the checked-in baseline and refuses overwrites", as
     const output = path.join(outputRoot, sha, "baseline.json");
     const reproduced = JSON.parse(await readFile(output, "utf8"));
     const checkedIn = JSON.parse(await readFile(baseline, "utf8"));
+    assert.equal(reproduced.schemaVersion, 3);
+    assert.match(reproduced.capture.contracts.comparison, /cross-contract equivalence is inconclusive/);
+    assert.ok(reproduced.articles.every(entry => entry.editorialSentences.every(sentence => !Object.hasOwn(sentence, "semanticTokens"))));
+    const normalizedHash = text => createHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex");
+    for (const tool of checkedIn.capture.captureTools) assert.equal(tool.sha256,
+      normalizedHash(await readFile(path.join(root, tool.path), "utf8")), `${tool.path}: canonical LF hash`);
     assert.equal(typeof reproduced.capture.runtime.node, "string");
     assert.equal(typeof reproduced.capture.runtime.python, "string");
     assert.equal(typeof checkedIn.capture.runtime.node, "string");

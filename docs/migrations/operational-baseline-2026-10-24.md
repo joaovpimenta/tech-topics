@@ -4,7 +4,7 @@ Comandos para reproduzir as assinaturas e o ensaio DOM estão no [README M01](RE
 
 Referência da #89: `main@fca72c31fcb57ffe9741a2390a04c2035639e14a`. Evidência estruturada em [operational-baseline-2026-10-24.json](operational-baseline-2026-10-24.json). Este é um registro de leitura em uma data, não uma garantia de que o estado remoto permaneça igual. Repetir a auditoria antes de cada corte e preservar esta revisão.
 
-A captura v1 entregue em `054cd21` permanece como registro histórico, mas foi rejeitada como baseline autoritativa: a codificação do subprocesso Python corrompia caracteres não ASCII. Use a revisão v2 vinculada pelo [README de reprodução](README.md); diferenças de estrutura e narração precisam ser interpretadas pelo diff, nunca apagadas para forçar igualdade.
+A captura v1 entregue em `054cd21` permanece como registro histórico, mas foi rejeitada como baseline autoritativa: a codificação do subprocesso Python corrompia caracteres não ASCII. A v2 corrigiu a codificação, mas a comparação semântica experimental Python↔DOM era insegura e está supersedida. A v3, vinculada à v2 pelo [README de reprodução](README.md), registra assinaturas nativas dos contratos Python e DOM separadamente; equivalência cruzada não é afirmada. A issue #94 deverá verificar mudanças antes/depois dentro de cada contrato antes do corte.
 
 ## Estado encontrado
 
@@ -32,11 +32,17 @@ Auditoria Chromium do `dist/` servido sob `/tech-topics/`, com rede externa abor
 
 São observações anteriores à migração, não regressões corrigidas e não autorização para regravar áudio. O verificador GPT-6.1 Sol interceptou o mount real e confirmou que o clone reproduz exatamente os blocos/runs/textos/índices nos 18 artigos. Contextos iniciais das divergências: Raft unidade 38, bloco DOM 17 versus chapter 16 (“Durável”); relógios unidade 72, bloco DOM 32 versus chapter 30 (“Que a diferença mede tempo.”); governance unidade 56, bloco DOM 31 versus chapter 30 (“Area”). Mesmo os 15 mapas iguais não provam identidade de texto, idiomas, aliases ou qualidade acústica; assinatura completa e futura comparação baseline→HTML continuam obrigatórias. Sem escuta real, não declarar QA auditivo.
 
-## Auditoria corrigida da baseline v2
+## Auditoria corrigida da baseline v2 — supersedida
 
 Após a captura UTF-8 e a comparação por tokens associados aos nós originais, o [relatório versionado por SHA](audits/dom-v2-fca72c31fcb57ffe9741a2390a04c2035639e14a.json) confirma 18/18 conteúdos semanticamente iguais à baseline Python, 18/18 mounts iguais aos clones e 15/18 mapas com `block_index`/`sentence_index` iguais aos capítulos. As únicas três divergências de índice são as já observadas: Raft na unidade 38, relógios na 72 e governance na 56. Conteúdo, línguas e pontuação dessas frases concordam; não há divergência semântica de conteúdo nesses três pontos.
 
-O hash do texto obtido concatenando segmentos DOM não coincide em 18/18, pois `buildBlocks` corta espaços nas bordas de segmentos. Ele fica preservado como dimensão de serialização, separado da comparação semântica por palavra, idioma e pontuação. O relatório conserva as assinaturas nativas do mount DOM, do clone e do extrator Python sem texto integral. Isso comprova estrutura e conteúdo, não áudio ouvido nem qualidade acústica.
+O hash do texto obtido concatenando segmentos DOM não coincide em 18/18, pois `buildBlocks` corta espaços nas bordas de segmentos. A v2 tratava a pontuação como um hash global e removia sinais dos tokens, então sua afirmação 18/18 de igualdade de conteúdo não era uma prova semântica suficiente. O resultado é mantido como histórico, não como gate atual.
+
+## Assinaturas nativas da revisão v3
+
+A captura Python v3 guarda assinaturas exatas de texto narrado, runs/idiomas, índices, pausas, chunks legados, fontes, metadados e assets. O [relatório DOM v3 por SHA](audits/dom-v3-fca72c31fcb57ffe9741a2390a04c2035639e14a.json) preserva hashes por unidade das sequências nativas `player.blocks`: texto bruto de cada segmento, `lang`, `blockIndex`, `sentenceIndex` e word mapping com ranges e IDs de nós. Não há canonicalização nem tentativa de declarar as duas sequências equivalentes. A auditoria confirmou mount original igual ao clone em 18/18 e índices DOM/capítulos iguais em 15/18.
+
+Os desvios de capítulo continuam em Raft (índice 38), relógios (72) e governance (56); não foram alterados. Testes cobrem em cada contrato pontuação decimal, símbolos, aliases, idiomas e fronteiras, e garantem reprodutibilidade do mesmo input e ferramenta. A issue #94 deverá demonstrar regressões antes/depois usando as assinaturas nativas independentes. Não há síntese ou QA auditivo.
 
 ## Política normal e configuração de corte
 

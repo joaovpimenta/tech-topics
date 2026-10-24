@@ -1,42 +1,22 @@
 import { createHash } from "node:crypto";
 
 const sha256 = value => createHash("sha256").update(value).digest("hex");
-const canonicalNarrationText = value => value.normalize("NFC").replace(/\s+/g, " ").trim().replace(/\s*([,;:!?])\s*/g, "$1");
-const semanticTokens = runs => {
-  const tokens = [];
-  let whitespace = "";
-  for (const run of runs) {
-    for (const part of run.text.match(/\s+|\S+/gu) ?? []) {
-      if (/^\s+$/u.test(part)) whitespace += part;
-      else {
-        const lexicalText = `${whitespace}${part}`.trim().replace(/[\p{P}\p{S}]/gu, "").normalize("NFC");
-        if (lexicalText) tokens.push({ lang: run.lang, textSha256: sha256(lexicalText) });
-        whitespace = "";
-      }
-    }
-  }
-  return tokens;
-};
 
-export function playerSemanticTokens(segments) {
-  const tokens = [];
-  const wordPieces = [];
-  for (const segment of segments) {
-    const words = segment.words ?? [];
-    for (const [index, word] of words.entries()) {
-      let text = segment.text.slice(word.start, word.end);
-      const nextStart = words[index + 1]?.start ?? segment.text.length;
-      const gap = segment.text.slice(word.end, nextStart);
-      const punctuation = gap.match(/^[\p{P}\p{S}]+/u)?.[0];
-      if (punctuation) text += punctuation;
-      const nodeKey = (word.nodeIds ?? []).join("/");
-      const previous = wordPieces.at(-1);
-      if (nodeKey && previous?.nodeKey === nodeKey && previous.lang === segment.lang) previous.text += text;
-      else wordPieces.push({ text, lang: segment.lang, nodeKey });
-    }
-  }
-  for (const piece of wordPieces) for (const match of piece.text.matchAll(/\S+/gu)) tokens.push({ text: match[0], lang: piece.lang });
-  return tokens;
+export function nativeDomUnitHash(unit) {
+  const nativeUnit = {
+    blockIndex: unit.blockIndex,
+    sentenceIndex: unit.sentenceIndex,
+    segments: unit.segments.map(segment => ({
+      text: segment.text,
+      lang: segment.lang,
+      words: segment.words.map(word => ({
+        start: word.start,
+        end: word.end,
+        nodeIds: [...word.nodeIds]
+      }))
+    }))
+  };
+  return sha256(JSON.stringify(nativeUnit));
 }
 
 export function articleSignatures(article, extracted, assets = extracted.assets) {
@@ -44,10 +24,8 @@ export function articleSignatures(article, extracted, assets = extracted.assets)
     blockIndex: sentence.blockIndex, sentenceIndex: sentence.sentenceIndex,
     tag: sentence.tag, section: sentence.section, pauseKind: sentence.pauseKind,
     pauseAfterSeconds: sentence.pauseAfterSeconds, textSha256: sha256(sentence.text.normalize("NFC").trim()),
-    canonicalTextSha256: sha256(canonicalNarrationText(sentence.text)),
     punctuationSha256: sha256((sentence.text.match(/[\p{P}\p{S}]+/gu) ?? []).join("")),
-    runs: sentence.runs.map(run => ({ lang: run.lang, textSha256: sha256(run.text.normalize("NFC")) })),
-    semanticTokens: semanticTokens(sentence.runs)
+    runs: sentence.runs.map(run => ({ lang: run.lang, textSha256: sha256(run.text.normalize("NFC")) }))
   }));
   const legacyChunks = extracted.legacyChunks.map(chunk => ({
     chunkIndex: chunk.chunkIndex, blockIndex: chunk.blockIndex, tag: chunk.tag, section: chunk.section,
@@ -59,8 +37,7 @@ export function articleSignatures(article, extracted, assets = extracted.assets)
   return { metadata,
     signatures: { metadata: sha256(JSON.stringify(metadata)), html: sha256(article.bodyHtml),
       structure: sha256(JSON.stringify(extracted.structure)), editorialSentences: sha256(JSON.stringify(editorialSentences)),
-      legacyChunks: sha256(JSON.stringify(legacyChunks)),
-      assets: sha256(JSON.stringify(assets)) },
+      legacyChunks: sha256(JSON.stringify(legacyChunks)), assets: sha256(JSON.stringify(assets)) },
     html: { bytes: Buffer.byteLength(article.bodyHtml, "utf8"), sha256: sha256(article.bodyHtml) },
     structure: extracted.structure, editorialSentences, legacyChunks, assets };
 }
@@ -76,6 +53,7 @@ export function compareCaptureTools(previous, next) {
   }
   return changes;
 }
+
 export function compareBaselines(previous, next) {
   const before = new Map(previous.articles.map(article => [article.slug, article]));
   const after = new Map(next.articles.map(article => [article.slug, article]));

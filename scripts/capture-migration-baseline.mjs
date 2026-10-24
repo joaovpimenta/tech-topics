@@ -81,8 +81,9 @@ const records = articles.map(({ article, file, addedAt, sourceBlob }, index) => 
     order: index + 1, ...details };
 });
 const captureFiles = ["scripts/capture-migration-baseline.mjs", "scripts/lib/migration-baseline.mjs", "scripts/lib/migration-baseline-extract.py"];
-const baseline = { schemaVersion: 2, sha, sourceCount: records.length,
+const baseline = { schemaVersion: 3, sha, sourceCount: records.length,
   capture: { synthesis: false,
+    contracts: { python: "native extractor editorial sentences and legacy chunks; exact text, language runs, indices, pauses and metadata", dom: "native player blocks; exact segment text, language, indices and original word-node mapping", comparison: "cross-contract equivalence is inconclusive and is not asserted" },
     narration: { editorialSentences: { preset: "equilibrado", settings: extracted.presets.equilibrado },
       legacyChunks: { preset: "atual", settings: extracted.presets.atual,
         meaning: "historical inference-plan chunks only; not editorial sentence indices or measured MP3/chapter timing" } },

@@ -17,17 +17,15 @@ const basePath = options.get("--base-path") ?? "/tech-topics/";
 const outputPath = options.get("--output") ? path.resolve(options.get("--output")) : null;
 const detail = options.get("--detail") ?? "summary";
 if (!["summary", "full"].includes(detail)) throw new Error("--detail must be summary or full");
-const baselinePath = path.resolve(root, options.get("--baseline") ?? "docs/migrations/baselines/capture-v2/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json");
+const baselinePath = path.resolve(root, options.get("--baseline") ?? "docs/migrations/baselines/capture-v3/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json");
 if (!options.has("--chapters-dir")) throw new Error("Pass --chapters-dir with the read-only snapshot of existing chapters");
 if (!basePath.startsWith("/") || !basePath.endsWith("/")) throw new Error("--base-path must begin and end with /");
 const digest = value => crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
-const textHash = value => crypto.createHash("sha256").update(value).digest("hex");
-const canonicalNarrationText = value => value.normalize("NFC").replace(/\s+/g, " ").trim().replace(/\s*([,;:!?])\s*/g, "$1");
 const fileExists = async file => { try { await readFile(file); return true; } catch (error) { if (error.code === "ENOENT") return false; throw error; } };
 const typeFor = file => file.endsWith(".js") ? "text/javascript" : file.endsWith(".json") ? "application/json" : file.endsWith(".css") ? "text/css" : file.endsWith(".html") ? "text/html; charset=utf-8" : "application/octet-stream";
 
 async function main() {
-  const { playerSemanticTokens } = await import(pathToFileURL(path.join(__dirname, "lib", "migration-baseline.mjs")));
+  const { nativeDomUnitHash } = await import(pathToFileURL(path.join(__dirname, "lib", "migration-baseline.mjs")));
   let chromium;
   const playwrightPath = process.env.TECH_TOPICS_PLAYWRIGHT || "playwright";
   try { ({ chromium } = require(playwrightPath)); }
@@ -89,8 +87,6 @@ async function main() {
           };
           return units.map(unit => ({
             blockIndex: elements.indexOf(unit.node), sentenceIndex: unit.sentenceIndex,
-            text: unit.segments.map(segment => segment.text).join("").normalize("NFC").trim(),
-            runs: unit.segments.map(segment => ({ text: segment.text, lang: segment.lang })),
             segments: unit.segments.map(segment => ({ text: segment.text, lang: segment.lang,
               words: segment.words.map(({ start, end, nodes }) => ({ start, end, nodeIds: nodes.map(nodeId) })) }))
           }));
@@ -103,43 +99,10 @@ async function main() {
         const mountedUnits = compact(window.__actualBlocks, mountedElements);
         return { cloneUnits, mountedUnits };
       }, lexicon);
-      const units = audit.cloneUnits.map(unit => ({ ...unit, tokens: playerSemanticTokens(unit.segments) }));
-      const mountedUnits = audit.mountedUnits.map(unit => ({ ...unit, tokens: playerSemanticTokens(unit.segments) }));
+      const units = audit.cloneUnits;
+      const mountedUnits = audit.mountedUnits;
       const mountedCloneMatches = JSON.stringify(units) === JSON.stringify(mountedUnits);
       const firstMountedCloneMismatch = units.findIndex((unit, index) => JSON.stringify(unit) !== JSON.stringify(mountedUnits[index]));
-      const editorialUnits = units.map(unit => ({ blockIndex: unit.blockIndex, sentenceIndex: unit.sentenceIndex,
-        canonicalTextSha256: textHash(canonicalNarrationText(unit.text)),
-        punctuationSha256: textHash((unit.text.match(/[\p{P}\p{S}]+/gu) ?? []).join("")),
-        semanticTokens: unit.tokens.map(token => ({
-          lang: token.lang.toLowerCase(),
-          textSha256: textHash(token.text.replace(/[\p{P}\p{S}]/gu, "").normalize("NFC"))
-        })).filter(token => token.textSha256 !== textHash("")) }));
-      const expectedEditorialUnits = baselineBySlug.get(slug)?.editorialSentences.map(sentence => ({
-        blockIndex: sentence.blockIndex, sentenceIndex: sentence.sentenceIndex,
-        canonicalTextSha256: sentence.canonicalTextSha256,
-        punctuationSha256: sentence.punctuationSha256,
-        semanticTokens: sentence.semanticTokens ?? null })) ?? null;
-      const contentShape = unit => ({ sentenceIndex: unit.sentenceIndex,
-        punctuationSha256: unit.punctuationSha256, semanticTokens: unit.semanticTokens });
-      const indexShape = unit => ({ blockIndex: unit.blockIndex, sentenceIndex: unit.sentenceIndex });
-      const baselineContentMatches = expectedEditorialUnits !== null && expectedEditorialUnits.every(unit => Array.isArray(unit.semanticTokens)) &&
-        JSON.stringify(editorialUnits.map(contentShape)) === JSON.stringify(expectedEditorialUnits.map(contentShape));
-      const baselineIndexMatches = expectedEditorialUnits !== null &&
-        JSON.stringify(editorialUnits.map(indexShape)) === JSON.stringify(expectedEditorialUnits.map(indexShape));
-      const baselineMatches = baselineContentMatches && baselineIndexMatches;
-      const rawTextMatches = expectedEditorialUnits !== null && JSON.stringify(editorialUnits.map(({ blockIndex, sentenceIndex, canonicalTextSha256 }) => ({ blockIndex, sentenceIndex, canonicalTextSha256 }))) ===
-        JSON.stringify(expectedEditorialUnits.map(({ blockIndex, sentenceIndex, canonicalTextSha256 }) => ({ blockIndex, sentenceIndex, canonicalTextSha256 })));
-      let firstBaselineMismatch = expectedEditorialUnits ? editorialUnits.findIndex((unit, index) => {
-        const expected = expectedEditorialUnits[index];
-        return !expected || JSON.stringify(contentShape(unit)) !== JSON.stringify(contentShape(expected)) ||
-          JSON.stringify(indexShape(unit)) !== JSON.stringify(indexShape(expected));
-      }) : 0;
-      if (expectedEditorialUnits && firstBaselineMismatch < 0 && editorialUnits.length !== expectedEditorialUnits.length) firstBaselineMismatch = Math.min(editorialUnits.length, expectedEditorialUnits.length);
-      const mismatchContext = firstBaselineMismatch >= 0 && expectedEditorialUnits?.[firstBaselineMismatch] ? {
-        index: firstBaselineMismatch,
-        previous: firstBaselineMismatch > 0 ? { expected: expectedEditorialUnits[firstBaselineMismatch - 1], observed: editorialUnits[firstBaselineMismatch - 1] } : null,
-        expected: expectedEditorialUnits[firstBaselineMismatch], observed: editorialUnits[firstBaselineMismatch]
-      } : null;
       const chapterPath = path.join(chaptersDir, `${slug}.json`);
       const hasChapters = await fileExists(chapterPath);
       let chapter = null;
@@ -147,54 +110,45 @@ async function main() {
       const chapterUnits = chapter?.chapters ?? [];
       const firstIndexMismatch = units.findIndex((unit, index) => chapterUnits[index]?.block_index !== unit.blockIndex || chapterUnits[index]?.sentence_index !== unit.sentenceIndex);
       const indexesMatch = hasChapters && chapterUnits.length === units.length && firstIndexMismatch < 0;
-      const compactUnitsFor = sourceUnits => sourceUnits.map(unit => ({ blockIndex: unit.blockIndex, sentenceIndex: unit.sentenceIndex,
-        textSha256: digest(unit.text), canonicalTextSha256: textHash(canonicalNarrationText(unit.text)),
-        punctuationSha256: textHash((unit.text.match(/[\p{P}\p{S}]+/gu) ?? []).join("")),
-        runs: unit.runs.map(run => ({ lang: run.lang, textSha256: digest(run.text) })),
-        semanticTokens: unit.tokens.map(token => ({ lang: token.lang.toLowerCase(), textSha256: textHash(token.text.replace(/[\p{P}\p{S}]/gu, "").normalize("NFC")) })).filter(token => token.textSha256 !== textHash("")) }));
-      const compactUnits = compactUnitsFor(units);
-      const compactMountedUnits = compactUnitsFor(mountedUnits);
       const compactChapters = chapterUnits.map(item => ({ start: item.start, blockIndex: item.block_index, sentenceIndex: item.sentence_index, labelSha256: digest(item.label ?? "") }));
       const pythonBaseline = baselineBySlug.get(slug);
+      const domUnitSignatures = units.map(unit => ({ blockIndex: unit.blockIndex, sentenceIndex: unit.sentenceIndex, sha256: nativeDomUnitHash(unit) }));
+      const mountedDomUnitSignatures = mountedUnits.map(unit => ({ blockIndex: unit.blockIndex, sentenceIndex: unit.sentenceIndex, sha256: nativeDomUnitHash(unit) }));
       records.push({ slug, chapterFile: hasChapters ? `${slug}.json` : null, chapterVersion: chapter?.version ?? null,
-        domUnits: units.length, baselineUnits: expectedEditorialUnits?.length ?? 0, chapterUnits: chapterUnits.length, indexesMatch, firstIndexMismatch: firstIndexMismatch < 0 ? null : firstIndexMismatch,
+        domUnits: units.length, chapterUnits: chapterUnits.length, indexesMatch, firstIndexMismatch: firstIndexMismatch < 0 ? null : firstIndexMismatch,
         mountedCloneMatches, firstMountedCloneMismatch: firstMountedCloneMismatch < 0 ? null : firstMountedCloneMismatch,
-        baselineMatches, baselineContentMatches, baselineIndexMatches, rawTextMatches,
-        firstBaselineMismatch: firstBaselineMismatch < 0 ? null : firstBaselineMismatch, mismatchContext,
-        domSignature: digest(compactUnits), mountedDomSignature: digest(compactMountedUnits),
+        domSignature: digest(domUnitSignatures), mountedDomSignature: digest(mountedDomUnitSignatures),
+        domUnitSignatures, mountedDomUnitSignatures,
         pythonSignatures: { structure: pythonBaseline?.signatures.structure ?? null,
-          editorialSentences: pythonBaseline?.signatures.editorialSentences ?? null },
+          editorialSentences: pythonBaseline?.signatures.editorialSentences ?? null, legacyChunks: pythonBaseline?.signatures.legacyChunks ?? null },
         chaptersSignature: digest(compactChapters),
-        ...(detail === "full" ? { units: compactUnits, chapters: compactChapters } : {}),
-        limitations: ["DOM and chapters are compared structurally; this does not prove acoustic quality.", "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."] });
+        ...(detail === "full" ? { units, chapters: compactChapters } : {}),
+        limitations: ["Python and DOM contracts are signed independently; cross-contract equivalence is not asserted.", "DOM/chapter index correspondence does not prove text or acoustic identity; no audio was rendered or heard."] });
     }
   } finally {
     if (browser) await browser.close();
     await new Promise(resolve => server.close(resolve));
   }
-  const report = { schemaVersion: 1, sourceSha: baseline.sha, sourceRoot: ".", distRoot: path.relative(root, dist).replaceAll("\\", "/"),
+  const report = { schemaVersion: 2, sourceSha: baseline.sha, sourceRoot: ".", distRoot: path.relative(root, dist).replaceAll("\\", "/"),
     baselinePath: path.relative(root, baselinePath).replaceAll("\\", "/"), baselineSha: baseline.sha, basePath, articleCount: records.length,
-    matchingArticles: records.filter(record => record.indexesMatch).length,
+    contracts: { python: "native extractor signatures stored by baseline; DOM: native player segment and word-node records hashed per unit", crossContractComparison: "not performed; equivalence is inconclusive and not asserted" },
+    chapterIndexMatchingArticles: records.filter(record => record.indexesMatch).length,
     mountedCloneMatchingArticles: records.filter(record => record.mountedCloneMatches).length,
     mountedCloneMismatches: records.filter(record => !record.mountedCloneMatches).map(({ slug, firstMountedCloneMismatch }) => ({ slug, firstMountedCloneMismatch })),
-    baselineMatchingArticles: records.filter(record => record.baselineMatches).length,
-    baselineContentMatchingArticles: records.filter(record => record.baselineContentMatches).length,
-    baselineIndexMatchingArticles: records.filter(record => record.baselineIndexMatches).length,
-    baselineMismatches: records.filter(record => !record.baselineMatches).map(({ slug, firstBaselineMismatch, domUnits, baselineUnits, baselineContentMatches, baselineIndexMatches }) => ({
-      slug, firstBaselineMismatch, domUnits, baselineUnits, contentMismatch: !baselineContentMatches, indexMismatch: !baselineIndexMatches })),
-    rawTextMatchingArticles: records.filter(record => record.rawTextMatches).length,
-    mismatches: records.filter(record => !record.indexesMatch).map(({ slug, domUnits, chapterUnits, firstIndexMismatch, chapterVersion }) => ({ slug, domUnits, chapterUnits, firstIndexMismatch, chapterVersion })),
+    pythonNativeSignatureSha256: digest(records.map(record => ({ slug: record.slug, signatures: record.pythonSignatures }))),
+    domNativeSignatureSha256: digest(records.map(record => ({ slug: record.slug, signature: record.domSignature }))),
+    mountedDomNativeSignatureSha256: digest(records.map(record => ({ slug: record.slug, signature: record.mountedDomSignature }))),
+    chapterIndexMismatches: records.filter(record => !record.indexesMatch).map(({ slug, domUnits, chapterUnits, firstIndexMismatch, chapterVersion }) => ({ slug, domUnits, chapterUnits, firstIndexMismatch, chapterVersion })),
     articles: records };
   const serialized = `${JSON.stringify(report, null, 2)}\n`;
   if (outputPath) await writeFile(outputPath, serialized, { flag: "wx" });
   process.stdout.write(`${JSON.stringify({ schemaVersion: report.schemaVersion, articleCount: report.articleCount,
     mountedCloneMatchingArticles: report.mountedCloneMatchingArticles, mountedCloneMismatches: report.mountedCloneMismatches,
-    semanticBaselineMatchingArticles: report.baselineMatchingArticles,
-    semanticBaselineContentMatchingArticles: report.baselineContentMatchingArticles,
-    semanticBaselineIndexMatchingArticles: report.baselineIndexMatchingArticles,
-    semanticBaselineMismatches: report.baselineMismatches,
-    rawTextMatchingArticles: report.rawTextMatchingArticles,
-    chapterIndexMatchingArticles: report.matchingArticles, chapterIndexMismatches: report.mismatches,
+    chapterIndexMatchingArticles: report.chapterIndexMatchingArticles,
+    pythonNativeSignatureSha256: report.pythonNativeSignatureSha256,
+    domNativeSignatureSha256: report.domNativeSignatureSha256,
+    crossContractComparison: report.contracts.crossContractComparison,
+    chapterIndexMismatches: report.chapterIndexMismatches,
     reportPath: outputPath }, null, 2)}\n`);
 }
 
