@@ -1,10 +1,11 @@
 {
   "schemaVersion": 2,
-  "sourceSha": "fca72c31fcb57ffe9741a2390a04c2035639e14a",
+  "baselineSourceSha": "fca72c31fcb57ffe9741a2390a04c2035639e14a",
   "sourceRoot": ".",
   "distRoot": "dist",
   "baselinePath": "docs/migrations/baselines/capture-v3/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json",
   "baselineSha": "fca72c31fcb57ffe9741a2390a04c2035639e14a",
+  "distIdentityVerified": false,
   "basePath": "/tech-topics/",
   "articleCount": 18,
   "contracts": {

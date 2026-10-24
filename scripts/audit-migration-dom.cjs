@@ -129,8 +129,9 @@ async function main() {
     if (browser) await browser.close();
     await new Promise(resolve => server.close(resolve));
   }
-  const report = { schemaVersion: 2, sourceSha: baseline.sha, sourceRoot: ".", distRoot: path.relative(root, dist).replaceAll("\\", "/"),
-    baselinePath: path.relative(root, baselinePath).replaceAll("\\", "/"), baselineSha: baseline.sha, basePath, articleCount: records.length,
+  const report = { schemaVersion: 2, baselineSourceSha: baseline.sha, sourceRoot: ".", distRoot: path.relative(root, dist).replaceAll("\\", "/"),
+    baselinePath: path.relative(root, baselinePath).replaceAll("\\", "/"), baselineSha: baseline.sha,
+    distIdentityVerified: false, basePath, articleCount: records.length,
     contracts: { python: "native extractor signatures stored by baseline; DOM: native player segment and word-node records hashed per unit", crossContractComparison: "not performed; equivalence is inconclusive and not asserted" },
     chapterIndexMatchingArticles: records.filter(record => record.indexesMatch).length,
     mountedCloneMatchingArticles: records.filter(record => record.mountedCloneMatches).length,
