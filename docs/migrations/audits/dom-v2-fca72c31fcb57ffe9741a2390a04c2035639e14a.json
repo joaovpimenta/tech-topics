@@ -1,0 +1,850 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "fca72c31fcb57ffe9741a2390a04c2035639e14a",
+  "sourceRoot": ".",
+  "distRoot": "dist",
+  "baselinePath": "docs/migrations/baselines/capture-v2/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json",
+  "baselineSha": "fca72c31fcb57ffe9741a2390a04c2035639e14a",
+  "basePath": "/tech-topics/",
+  "articleCount": 18,
+  "matchingArticles": 15,
+  "mountedCloneMatchingArticles": 18,
+  "mountedCloneMismatches": [],
+  "baselineMatchingArticles": 15,
+  "baselineContentMatchingArticles": 18,
+  "baselineIndexMatchingArticles": 15,
+  "baselineMismatches": [
+    {
+      "slug": "consenso-raft",
+      "firstBaselineMismatch": 38,
+      "domUnits": 387,
+      "baselineUnits": 387,
+      "contentMismatch": false,
+      "indexMismatch": true
+    },
+    {
+      "slug": "relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global",
+      "firstBaselineMismatch": 72,
+      "domUnits": 406,
+      "baselineUnits": 406,
+      "contentMismatch": false,
+      "indexMismatch": true
+    },
+    {
+      "slug": "github-governance-as-code",
+      "firstBaselineMismatch": 56,
+      "domUnits": 334,
+      "baselineUnits": 334,
+      "contentMismatch": false,
+      "indexMismatch": true
+    }
+  ],
+  "rawTextMatchingArticles": 0,
+  "mismatches": [
+    {
+      "slug": "consenso-raft",
+      "domUnits": 387,
+      "chapterUnits": 387,
+      "firstIndexMismatch": 38,
+      "chapterVersion": 2
+    },
+    {
+      "slug": "relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global",
+      "domUnits": 406,
+      "chapterUnits": 406,
+      "firstIndexMismatch": 72,
+      "chapterVersion": 2
+    },
+    {
+      "slug": "github-governance-as-code",
+      "domUnits": 334,
+      "chapterUnits": 334,
+      "firstIndexMismatch": 56,
+      "chapterVersion": 2
+    }
+  ],
+  "articles": [
+    {
+      "slug": "seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets",
+      "chapterFile": "seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets.json",
+      "chapterVersion": 2,
+      "domUnits": 232,
+      "baselineUnits": 232,
+      "chapterUnits": 232,
+      "indexesMatch": true,
+      "firstIndexMismatch": null,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": true,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": true,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": null,
+      "mismatchContext": null,
+      "domSignature": "24ac81323c152cee0fd8c054ac588b37319d9c3925f3fb1db5869f6dc8eea846",
+      "mountedDomSignature": "24ac81323c152cee0fd8c054ac588b37319d9c3925f3fb1db5869f6dc8eea846",
+      "pythonSignatures": {
+        "structure": "877e6bc91e1a0632b429c60e4dfd473a20ea01b8e1f01237f8e1f3a586022919",
+        "editorialSentences": "687b1a5fc9d7e09f695937c54bc3699e7a0198d42d0758bcedfe939263eef4e4"
+      },
+      "chaptersSignature": "6ce86eaf8ddb9b5c64bdca4a685af3b2d241569f776492e54fab05f5d7db55e9",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "bulkhead",
+      "chapterFile": "bulkhead.json",
+      "chapterVersion": 2,
+      "domUnits": 310,
+      "baselineUnits": 310,
+      "chapterUnits": 310,
+      "indexesMatch": true,
+      "firstIndexMismatch": null,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": true,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": true,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": null,
+      "mismatchContext": null,
+      "domSignature": "ac140c2e2380bc3979c3cde449b83ad825ecf907c326b67391c0abca52cc847c",
+      "mountedDomSignature": "ac140c2e2380bc3979c3cde449b83ad825ecf907c326b67391c0abca52cc847c",
+      "pythonSignatures": {
+        "structure": "c3f04d5f6138757ce5c9ee7451fe27edf4b563b0c8bc36d0f9249483e75951e0",
+        "editorialSentences": "140dc2d881367c5a65933fbb7b05d8666b6365a3163cc3dd659068fa2a5acda5"
+      },
+      "chaptersSignature": "3816be79a9b9b6935ef30824642edd021412a1a465486d1349c87db572af258e",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "rate-limiting-token-bucket-leaky-bucket",
+      "chapterFile": "rate-limiting-token-bucket-leaky-bucket.json",
+      "chapterVersion": 2,
+      "domUnits": 191,
+      "baselineUnits": 191,
+      "chapterUnits": 191,
+      "indexesMatch": true,
+      "firstIndexMismatch": null,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": true,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": true,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": null,
+      "mismatchContext": null,
+      "domSignature": "57f2c7f6f841ed3ae04d4b3a5e88f69469870d06c17faeecc6c4d5ec10287458",
+      "mountedDomSignature": "57f2c7f6f841ed3ae04d4b3a5e88f69469870d06c17faeecc6c4d5ec10287458",
+      "pythonSignatures": {
+        "structure": "b89e349cdebace92a1cdc03b5b78d87ec7f82ad4f6ebe85816fca80205184a97",
+        "editorialSentences": "f25d6600c3eaa6dbc087ecb912d12d36e5e5885695cc0664d27c4c0fd3778f22"
+      },
+      "chaptersSignature": "c5078e33d42377c38f83f8aaed3e4331c4b8176f7f1b3d4b2e12e496e2f739f4",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "mtls-entre-servicos-identidade-alem-do-canal-cifrado",
+      "chapterFile": "mtls-entre-servicos-identidade-alem-do-canal-cifrado.json",
+      "chapterVersion": 2,
+      "domUnits": 275,
+      "baselineUnits": 275,
+      "chapterUnits": 275,
+      "indexesMatch": true,
+      "firstIndexMismatch": null,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": true,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": true,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": null,
+      "mismatchContext": null,
+      "domSignature": "86ef2c2811f07af17cd95cdb72238c28871eda82001c7f30bfd4119182fc58ab",
+      "mountedDomSignature": "86ef2c2811f07af17cd95cdb72238c28871eda82001c7f30bfd4119182fc58ab",
+      "pythonSignatures": {
+        "structure": "a859a3346b91065655412dc6bfcd47676a67ea9978683993812bb18822c6bdad",
+        "editorialSentences": "2f0745c4eba4c68a592004a67daa591eab22a42f7704a8a01e85b61cb72e8a58"
+      },
+      "chaptersSignature": "1df9c6ef1c2e40e5b969d4bbb60ba814fd5c9885c4eb7abf233e8d4ce0a27ea3",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "hedged-requests",
+      "chapterFile": "hedged-requests.json",
+      "chapterVersion": 2,
+      "domUnits": 258,
+      "baselineUnits": 258,
+      "chapterUnits": 258,
+      "indexesMatch": true,
+      "firstIndexMismatch": null,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": true,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": true,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": null,
+      "mismatchContext": null,
+      "domSignature": "264d676179cc4afdc42343403c1e9c5508aa5bf03eba1ce0f95a79173499ad27",
+      "mountedDomSignature": "264d676179cc4afdc42343403c1e9c5508aa5bf03eba1ce0f95a79173499ad27",
+      "pythonSignatures": {
+        "structure": "880306fd34c425a6189dc0b797371e27190d7b7bd9e332932b0ec5c3498d0694",
+        "editorialSentences": "24d4d2698c15ed2e185f46198801dcc10afe6eed4875799b89b1febb26d26108"
+      },
+      "chaptersSignature": "2564bc4ae9734342b143c8308e499e5fc5435685a7ce2c647d602e0e8bd001e2",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "chaos-engineering-experimentos-de-falha",
+      "chapterFile": "chaos-engineering-experimentos-de-falha.json",
+      "chapterVersion": 2,
+      "domUnits": 178,
+      "baselineUnits": 178,
+      "chapterUnits": 178,
+      "indexesMatch": true,
+      "firstIndexMismatch": null,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": true,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": true,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": null,
+      "mismatchContext": null,
+      "domSignature": "b9e16af885d1ab8267fb3db9e8cc0104100786e7efeef25a5e488258a58cebe3",
+      "mountedDomSignature": "b9e16af885d1ab8267fb3db9e8cc0104100786e7efeef25a5e488258a58cebe3",
+      "pythonSignatures": {
+        "structure": "9a742420acdf1adcb8a61c5702d890e2d7b04f0ef9780eebef309bc5a29b5d2e",
+        "editorialSentences": "8787744d1e80383df891522a54279fe5815b0150e067c2d918f67b5eb5702758"
+      },
+      "chaptersSignature": "7f6085034284fb8aea69ec314d14361e0f10b237abbb92a29fde241db80c914d",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "cqrs-projecoes-e-consistencia",
+      "chapterFile": "cqrs-projecoes-e-consistencia.json",
+      "chapterVersion": 2,
+      "domUnits": 308,
+      "baselineUnits": 308,
+      "chapterUnits": 308,
+      "indexesMatch": true,
+      "firstIndexMismatch": null,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": true,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": true,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": null,
+      "mismatchContext": null,
+      "domSignature": "dfc157b88e10a00b1a3b6b300b41dfcea7d07d1bf788a3a295afa990f07d08da",
+      "mountedDomSignature": "dfc157b88e10a00b1a3b6b300b41dfcea7d07d1bf788a3a295afa990f07d08da",
+      "pythonSignatures": {
+        "structure": "6c7cea0e05abf665728972fb69bd6f2332c810693b0504f1c4a0ff247ef1ea14",
+        "editorialSentences": "65eab0751c266cc7c8998e3032cb83877af4c2aa431876882c08d0092d1ca7bf"
+      },
+      "chaptersSignature": "a0e3b4e3beea8986e51139a90c0bbdc6cd80a4781b9f3a6c96186efb0eef3969",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "consenso-raft",
+      "chapterFile": "consenso-raft.json",
+      "chapterVersion": 2,
+      "domUnits": 387,
+      "baselineUnits": 387,
+      "chapterUnits": 387,
+      "indexesMatch": false,
+      "firstIndexMismatch": 38,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": false,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": false,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": 38,
+      "mismatchContext": {
+        "index": 38,
+        "previous": {
+          "expected": {
+            "blockIndex": 15,
+            "sentenceIndex": 0,
+            "canonicalTextSha256": "c3512dddb0f4cd60694f7095558c692c9eddde8b1aa304dbf209a2187c93f39f",
+            "punctuationSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "semanticTokens": [
+              {
+                "lang": "pt-br",
+                "textSha256": "1d9ac73cf4cede283cfc6450a0444a1f57b26f3b4ad6544cf6b322d756d90b6c"
+              },
+              {
+                "lang": "pt-br",
+                "textSha256": "c57b7501cd843672550c711a346dd93e9bdc2c97a640874d54b4c9cf4b12ee81"
+              },
+              {
+                "lang": "pt-br",
+                "textSha256": "7cb0ba88de3089056c2e70885f1b56c62f1aa7e70a6a799246a8e49c1feaaad0"
+              }
+            ]
+          },
+          "observed": {
+            "blockIndex": 15,
+            "sentenceIndex": 0,
+            "canonicalTextSha256": "c3512dddb0f4cd60694f7095558c692c9eddde8b1aa304dbf209a2187c93f39f",
+            "punctuationSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "semanticTokens": [
+              {
+                "lang": "pt-br",
+                "textSha256": "1d9ac73cf4cede283cfc6450a0444a1f57b26f3b4ad6544cf6b322d756d90b6c"
+              },
+              {
+                "lang": "pt-br",
+                "textSha256": "c57b7501cd843672550c711a346dd93e9bdc2c97a640874d54b4c9cf4b12ee81"
+              },
+              {
+                "lang": "pt-br",
+                "textSha256": "7cb0ba88de3089056c2e70885f1b56c62f1aa7e70a6a799246a8e49c1feaaad0"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "blockIndex": 16,
+          "sentenceIndex": 0,
+          "canonicalTextSha256": "656b9e5dab8692ac56a1d5584319c08716d6971d6d1ab765af7f3fad58522754",
+          "punctuationSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "semanticTokens": [
+            {
+              "lang": "pt-br",
+              "textSha256": "656b9e5dab8692ac56a1d5584319c08716d6971d6d1ab765af7f3fad58522754"
+            }
+          ]
+        },
+        "observed": {
+          "blockIndex": 17,
+          "sentenceIndex": 0,
+          "canonicalTextSha256": "656b9e5dab8692ac56a1d5584319c08716d6971d6d1ab765af7f3fad58522754",
+          "punctuationSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "semanticTokens": [
+            {
+              "lang": "pt-br",
+              "textSha256": "656b9e5dab8692ac56a1d5584319c08716d6971d6d1ab765af7f3fad58522754"
+            }
+          ]
+        }
+      },
+      "domSignature": "39b1083ae85d6e9c10b1b300ebd40cda991d19de98fd309c95f620f3ebc36410",
+      "mountedDomSignature": "39b1083ae85d6e9c10b1b300ebd40cda991d19de98fd309c95f620f3ebc36410",
+      "pythonSignatures": {
+        "structure": "4f045cab7dfac301527121ff050081bc2693dcd58d7d4838ee0f36186c47af70",
+        "editorialSentences": "220479205f50e8f7f6b55fc52e9263d30df82ce032b86e2506eb4d6534b65600"
+      },
+      "chaptersSignature": "af87969ea5c03e07eca81ba79593d9da60e4bc70446cb150368462ddf77a5ef0",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global",
+      "chapterFile": "relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global.json",
+      "chapterVersion": 2,
+      "domUnits": 406,
+      "baselineUnits": 406,
+      "chapterUnits": 406,
+      "indexesMatch": false,
+      "firstIndexMismatch": 72,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": false,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": false,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": 72,
+      "mismatchContext": {
+        "index": 72,
+        "previous": {
+          "expected": {
+            "blockIndex": 29,
+            "sentenceIndex": 0,
+            "canonicalTextSha256": "9a9afa198e8a75fbed1d2a97fb4245a951e68515ed12ebb81c139a93baebd468",
+            "punctuationSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "semanticTokens": [
+              {
+                "lang": "pt-br",
+                "textSha256": "e27d029b4515532079089f6625cef03d18b258c0847885c0b4ac3a99429f11d9"
+              },
+              {
+                "lang": "pt-br",
+                "textSha256": "40bd93b1d728d37e327a2b07516c83a34cc138753d9249d5c6c49b2da6657f04"
+              }
+            ]
+          },
+          "observed": {
+            "blockIndex": 29,
+            "sentenceIndex": 0,
+            "canonicalTextSha256": "9a9afa198e8a75fbed1d2a97fb4245a951e68515ed12ebb81c139a93baebd468",
+            "punctuationSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "semanticTokens": [
+              {
+                "lang": "pt-br",
+                "textSha256": "e27d029b4515532079089f6625cef03d18b258c0847885c0b4ac3a99429f11d9"
+              },
+              {
+                "lang": "pt-br",
+                "textSha256": "40bd93b1d728d37e327a2b07516c83a34cc138753d9249d5c6c49b2da6657f04"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "blockIndex": 30,
+          "sentenceIndex": 0,
+          "canonicalTextSha256": "7fafb33a0a963186ab219d404fba94d9486e989729b30b48624f7401bb12a513",
+          "punctuationSha256": "cdb4ee2aea69cc6a83331bbe96dc2caa9a299d21329efb0336fc02a82e1839a8",
+          "semanticTokens": [
+            {
+              "lang": "pt-br",
+              "textSha256": "d3d6f7db345e45a992478e8fbf3a46c3fe96106c423d45c1cce46c8219677bb4"
+            },
+            {
+              "lang": "pt-br",
+              "textSha256": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb"
+            },
+            {
+              "lang": "pt-br",
+              "textSha256": "96667a943396a1965a2b4e05f2ce9ee53c0a8d73eca43ce015d66d77ef26cc7d"
+            },
+            {
+              "lang": "pt-br",
+              "textSha256": "ea21f653be4b7d7234be0cff02fc875a7f7c45d2ee5fde6d57fe5d5f40de0668"
+            },
+            {
+              "lang": "pt-br",
+              "textSha256": "8d6546721a1d106cf8d27f7326ebae7e83c1592aeb7479b8f7ec9d8d700d464f"
+            }
+          ]
+        },
+        "observed": {
+          "blockIndex": 32,
+          "sentenceIndex": 0,
+          "canonicalTextSha256": "7fafb33a0a963186ab219d404fba94d9486e989729b30b48624f7401bb12a513",
+          "punctuationSha256": "cdb4ee2aea69cc6a83331bbe96dc2caa9a299d21329efb0336fc02a82e1839a8",
+          "semanticTokens": [
+            {
+              "lang": "pt-br",
+              "textSha256": "d3d6f7db345e45a992478e8fbf3a46c3fe96106c423d45c1cce46c8219677bb4"
+            },
+            {
+              "lang": "pt-br",
+              "textSha256": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb"
+            },
+            {
+              "lang": "pt-br",
+              "textSha256": "96667a943396a1965a2b4e05f2ce9ee53c0a8d73eca43ce015d66d77ef26cc7d"
+            },
+            {
+              "lang": "pt-br",
+              "textSha256": "ea21f653be4b7d7234be0cff02fc875a7f7c45d2ee5fde6d57fe5d5f40de0668"
+            },
+            {
+              "lang": "pt-br",
+              "textSha256": "8d6546721a1d106cf8d27f7326ebae7e83c1592aeb7479b8f7ec9d8d700d464f"
+            }
+          ]
+        }
+      },
+      "domSignature": "439ddc254ad8843c87adbc1423ca79abd6b13880362cfc32cf712ccfb82e0fb8",
+      "mountedDomSignature": "439ddc254ad8843c87adbc1423ca79abd6b13880362cfc32cf712ccfb82e0fb8",
+      "pythonSignatures": {
+        "structure": "23a9c2e18a7c4e79b29976ee4115d55bbc8515176ac4b4ecc04bf3bd8744a791",
+        "editorialSentences": "d9c246065d43b0c6e4b81039b2e46490f3bac356e14ab6508b6e7cf954ca8a49"
+      },
+      "chaptersSignature": "6ce4880934dbfca495c0a4797fc8cd28077aeafa290fc8a0dff1368e30373920",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "rastreamento-distribuido-contexto-spans-e-amostragem",
+      "chapterFile": "rastreamento-distribuido-contexto-spans-e-amostragem.json",
+      "chapterVersion": 2,
+      "domUnits": 378,
+      "baselineUnits": 378,
+      "chapterUnits": 378,
+      "indexesMatch": true,
+      "firstIndexMismatch": null,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": true,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": true,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": null,
+      "mismatchContext": null,
+      "domSignature": "51303282b5977bc30833e5d1de510d266a15135e36264c0eddb31ad8d44be576",
+      "mountedDomSignature": "51303282b5977bc30833e5d1de510d266a15135e36264c0eddb31ad8d44be576",
+      "pythonSignatures": {
+        "structure": "9b54d7d494197d742e8f7cc820e8d31a6e2a1a41cd4b6988ae443efa7e4b72cb",
+        "editorialSentences": "f63eb87b587dc86c8fcd482133f8f1d9cd62852b656820b944ed85b4cd66dc79"
+      },
+      "chaptersSignature": "2d0084717052512245c1d17621b087c0cf729556cc8b0ab0e1f9b9a825651b2a",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "load-shedding-controle-de-sobrecarga",
+      "chapterFile": "load-shedding-controle-de-sobrecarga.json",
+      "chapterVersion": 2,
+      "domUnits": 347,
+      "baselineUnits": 347,
+      "chapterUnits": 347,
+      "indexesMatch": true,
+      "firstIndexMismatch": null,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": true,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": true,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": null,
+      "mismatchContext": null,
+      "domSignature": "84efd4a9aae1ec64f6581bb903459d29004135c35be38b48864df001338a562f",
+      "mountedDomSignature": "84efd4a9aae1ec64f6581bb903459d29004135c35be38b48864df001338a562f",
+      "pythonSignatures": {
+        "structure": "a2c34b931abf83be52e6619e88c76e14c87b4868901258232b579d819bccdd19",
+        "editorialSentences": "749861f7f30795cceff8bfd0318d8302988858dde0e8d4a1d5bcd9dd2275c6e3"
+      },
+      "chaptersSignature": "edc0eb481e11ba80da3b5374c8770e2daab08e512c1f8810ade55fbd9d26c41e",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "github-governance-as-code",
+      "chapterFile": "github-governance-as-code.json",
+      "chapterVersion": 2,
+      "domUnits": 334,
+      "baselineUnits": 334,
+      "chapterUnits": 334,
+      "indexesMatch": false,
+      "firstIndexMismatch": 56,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": false,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": false,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": 56,
+      "mismatchContext": {
+        "index": 56,
+        "previous": {
+          "expected": {
+            "blockIndex": 29,
+            "sentenceIndex": 0,
+            "canonicalTextSha256": "712df28258a71f8ee52f36ba1b4174a68226d46909ae6a1c4858aff87d7982e6",
+            "punctuationSha256": "7082e7c0734ef4424727182d3839b8c1a8e393c0b6c09418b08ab66bbaeb0443",
+            "semanticTokens": [
+              {
+                "lang": "en-us",
+                "textSha256": "48dc76dfa23ae03fea1372c5ed6c0e1bd62eaeca7bba6d804eb0afa87972f031"
+              },
+              {
+                "lang": "en-us",
+                "textSha256": "2e0e960ab3204127b1dce399c9984c81f52a79f4d85cb0c3afddcfcfe8a2b48c"
+              },
+              {
+                "lang": "en-us",
+                "textSha256": "1aca80e8b55c802f7b43740da2990e1b5735bbb323d93eb5ebda8395b04025e2"
+              },
+              {
+                "lang": "pt-br",
+                "textSha256": "ece94a6a1c769a5894d96f289b74bd8cc7419ae114783017c5db246342cc6c01"
+              },
+              {
+                "lang": "pt-br",
+                "textSha256": "2702539a4c5f72e172d7799c0a6a110fab369a2f25e94a1177411ced61bf9b37"
+              },
+              {
+                "lang": "pt-br",
+                "textSha256": "9390298f3fb0c5b160498935d79cb139aef28e1c47358b4bbba61862b9c26e59"
+              },
+              {
+                "lang": "pt-br",
+                "textSha256": "985959785319747668373cc6dee294b11db782b03cdd90a2851fbdc0637c6b7b"
+              }
+            ]
+          },
+          "observed": {
+            "blockIndex": 29,
+            "sentenceIndex": 0,
+            "canonicalTextSha256": "287896558d0677ccad1a5b65e56499cfea298bd1036c147f79abbaf7393ce506",
+            "punctuationSha256": "7082e7c0734ef4424727182d3839b8c1a8e393c0b6c09418b08ab66bbaeb0443",
+            "semanticTokens": [
+              {
+                "lang": "en-us",
+                "textSha256": "48dc76dfa23ae03fea1372c5ed6c0e1bd62eaeca7bba6d804eb0afa87972f031"
+              },
+              {
+                "lang": "en-us",
+                "textSha256": "2e0e960ab3204127b1dce399c9984c81f52a79f4d85cb0c3afddcfcfe8a2b48c"
+              },
+              {
+                "lang": "en-us",
+                "textSha256": "1aca80e8b55c802f7b43740da2990e1b5735bbb323d93eb5ebda8395b04025e2"
+              },
+              {
+                "lang": "pt-br",
+                "textSha256": "ece94a6a1c769a5894d96f289b74bd8cc7419ae114783017c5db246342cc6c01"
+              },
+              {
+                "lang": "pt-br",
+                "textSha256": "2702539a4c5f72e172d7799c0a6a110fab369a2f25e94a1177411ced61bf9b37"
+              },
+              {
+                "lang": "pt-br",
+                "textSha256": "9390298f3fb0c5b160498935d79cb139aef28e1c47358b4bbba61862b9c26e59"
+              },
+              {
+                "lang": "pt-br",
+                "textSha256": "985959785319747668373cc6dee294b11db782b03cdd90a2851fbdc0637c6b7b"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "blockIndex": 30,
+          "sentenceIndex": 0,
+          "canonicalTextSha256": "024dc204d7ba77a8ff9ba36a886c96335a5b4a0d2f9af2130d04bc5b39a1a764",
+          "punctuationSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "semanticTokens": [
+            {
+              "lang": "pt-br",
+              "textSha256": "024dc204d7ba77a8ff9ba36a886c96335a5b4a0d2f9af2130d04bc5b39a1a764"
+            }
+          ]
+        },
+        "observed": {
+          "blockIndex": 31,
+          "sentenceIndex": 0,
+          "canonicalTextSha256": "024dc204d7ba77a8ff9ba36a886c96335a5b4a0d2f9af2130d04bc5b39a1a764",
+          "punctuationSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "semanticTokens": [
+            {
+              "lang": "pt-br",
+              "textSha256": "024dc204d7ba77a8ff9ba36a886c96335a5b4a0d2f9af2130d04bc5b39a1a764"
+            }
+          ]
+        }
+      },
+      "domSignature": "b322bf50696bf22544ccc975c6008d17d2d7271509caf60d9ef80066fca56e75",
+      "mountedDomSignature": "b322bf50696bf22544ccc975c6008d17d2d7271509caf60d9ef80066fca56e75",
+      "pythonSignatures": {
+        "structure": "904464cc2fc238541a816fa7c3e67ec77822dfd8a2563ee89e40a0e4ffd2b139",
+        "editorialSentences": "00162f0b034a69979d8aaf88c42279e4e9d63b717ab085d3bcee499bdd49ed96"
+      },
+      "chaptersSignature": "3d8a236ca706e14655ac982cffb35f958dc0ba51bada531da52e264009ac06f1",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "hashing-consistente",
+      "chapterFile": "hashing-consistente.json",
+      "chapterVersion": 2,
+      "domUnits": 277,
+      "baselineUnits": 277,
+      "chapterUnits": 277,
+      "indexesMatch": true,
+      "firstIndexMismatch": null,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": true,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": true,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": null,
+      "mismatchContext": null,
+      "domSignature": "e4615bd2d42dc0d8fc7032109c0e39e7362df6168d2abf47e50b09ca8a65ac76",
+      "mountedDomSignature": "e4615bd2d42dc0d8fc7032109c0e39e7362df6168d2abf47e50b09ca8a65ac76",
+      "pythonSignatures": {
+        "structure": "142612e8137337d3fdc91a784a15918a9b7aab77ee6f629799c16c45ea349d21",
+        "editorialSentences": "7d03d21eaa98937540b9dc6a7254e85ff217d678b6eff28b3ea09f31562016e2"
+      },
+      "chaptersSignature": "d959fb8f08abfcd710b13fd1b9485a6e34bab46345d2bbcde1ff3e5dff7b458e",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "retries-backoff-jitter",
+      "chapterFile": "retries-backoff-jitter.json",
+      "chapterVersion": 2,
+      "domUnits": 273,
+      "baselineUnits": 273,
+      "chapterUnits": 273,
+      "indexesMatch": true,
+      "firstIndexMismatch": null,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": true,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": true,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": null,
+      "mismatchContext": null,
+      "domSignature": "4a9b366479af27f3e2cbbcee13eddb74fce51d5c98253bef4d65da085b6f56c7",
+      "mountedDomSignature": "4a9b366479af27f3e2cbbcee13eddb74fce51d5c98253bef4d65da085b6f56c7",
+      "pythonSignatures": {
+        "structure": "0e98bc9ed99c5f61e413550a8f51ae92169422496a11ec1cca176af3b9bbda62",
+        "editorialSentences": "a4fa814b1e1670398c4e78955dc73a6d5ff37ba184ced3c6a23e02d192d56e12"
+      },
+      "chaptersSignature": "d101083a6200a589cf14e305d588354676a711da9bf49b1dc480297cad90db41",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "quoruns-de-leitura-e-escrita",
+      "chapterFile": "quoruns-de-leitura-e-escrita.json",
+      "chapterVersion": 2,
+      "domUnits": 305,
+      "baselineUnits": 305,
+      "chapterUnits": 305,
+      "indexesMatch": true,
+      "firstIndexMismatch": null,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": true,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": true,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": null,
+      "mismatchContext": null,
+      "domSignature": "cbe5c2ef7b45c0e0f1847f06812c76b2c8aa1b85b72f0b0512079d8f2d30d3f4",
+      "mountedDomSignature": "cbe5c2ef7b45c0e0f1847f06812c76b2c8aa1b85b72f0b0512079d8f2d30d3f4",
+      "pythonSignatures": {
+        "structure": "41d2020db885cbfbec6c5f554061920244b4c4a6a401e0ef69b99810f8b3c56f",
+        "editorialSentences": "53cf7c2b4852f280ba322f843d7179dd8256739646e89eb5223d3c43eb1e3b77"
+      },
+      "chaptersSignature": "fb3141a32a8d1c1c79c80ad08e79b2eaac1862d452661014f6b28cb162f889fe",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "leases-e-fencing-tokens",
+      "chapterFile": "leases-e-fencing-tokens.json",
+      "chapterVersion": 2,
+      "domUnits": 303,
+      "baselineUnits": 303,
+      "chapterUnits": 303,
+      "indexesMatch": true,
+      "firstIndexMismatch": null,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": true,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": true,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": null,
+      "mismatchContext": null,
+      "domSignature": "13202ea8a45c89edaf385a4fa94be97cab0e1f11507604cfb9446def9df3d199",
+      "mountedDomSignature": "13202ea8a45c89edaf385a4fa94be97cab0e1f11507604cfb9446def9df3d199",
+      "pythonSignatures": {
+        "structure": "f972fdc8ca4357e19471727ff569cefdf31386ed11532d26a3ed3bac4b6779b6",
+        "editorialSentences": "1620d20dd3180c836a74531fef59d1b1cfc5bd70c6f6dc0c988a0fcb888fda2b"
+      },
+      "chaptersSignature": "7bfae07d55e1617f752a6cc016ac5769abb457c20674a0f23e6a63c4ed300069",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "transactional-outbox",
+      "chapterFile": "transactional-outbox.json",
+      "chapterVersion": 2,
+      "domUnits": 244,
+      "baselineUnits": 244,
+      "chapterUnits": 244,
+      "indexesMatch": true,
+      "firstIndexMismatch": null,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": true,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": true,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": null,
+      "mismatchContext": null,
+      "domSignature": "611ba47d703747a6d5adbef6dac911b1efd239a00426a53a00019e7ae4c855f8",
+      "mountedDomSignature": "611ba47d703747a6d5adbef6dac911b1efd239a00426a53a00019e7ae4c855f8",
+      "pythonSignatures": {
+        "structure": "6bf6a6ad5f4613c75abf0fd52b591569e6c1623d1edaaa7cac0826cf0c765ff9",
+        "editorialSentences": "662bf9c6e37dbfd4e706e4035ef7777370f38bf624ae0901fcabaabec53e8cd3"
+      },
+      "chaptersSignature": "6c2fc36b557bf2deb620e1c203e9c92dd64d921325dda556ed8a693e001e382e",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    },
+    {
+      "slug": "four-golden-signals",
+      "chapterFile": "four-golden-signals.json",
+      "chapterVersion": 2,
+      "domUnits": 313,
+      "baselineUnits": 313,
+      "chapterUnits": 313,
+      "indexesMatch": true,
+      "firstIndexMismatch": null,
+      "mountedCloneMatches": true,
+      "firstMountedCloneMismatch": null,
+      "baselineMatches": true,
+      "baselineContentMatches": true,
+      "baselineIndexMatches": true,
+      "rawTextMatches": false,
+      "firstBaselineMismatch": null,
+      "mismatchContext": null,
+      "domSignature": "d71dfcf3b1ed4a64e101d1e092886aee181e2f994b70dacb3356dda4e33f7bba",
+      "mountedDomSignature": "d71dfcf3b1ed4a64e101d1e092886aee181e2f994b70dacb3356dda4e33f7bba",
+      "pythonSignatures": {
+        "structure": "3386c6412c54931064f81b89ffb8448d61b2ea788658ebf8d3e62b2d362e1022",
+        "editorialSentences": "743a6ebea924cec98668ab4e50a153f0e96ed8b2573371d3210484df0fdc7e22"
+      },
+      "chaptersSignature": "5878368fafca0ab8a72d9857c8c9ca9b35e6d5ec8b7dc738933848769a5304c8",
+      "limitations": [
+        "DOM and chapters are compared structurally; this does not prove acoustic quality.",
+        "Chapter labels may be truncated, so only their hashes are retained; index correspondence does not prove text identity."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1566 @@
+{
+  "referenceSha": "fca72c31fcb57ffe9741a2390a04c2035639e14a",
+  "capturedOn": "2026-10-24",
+  "queue": {
+    "issue": 21,
+    "comments": [
+      {
+        "id": 5796642807,
+        "login": "joaovpimenta",
+        "bodySha256": "fa93aebfc57befb5c24c1793e78d0dca750a42a647d0c40098b0ec6f4c8241df"
+      },
+      {
+        "id": 5796736185,
+        "login": "github-actions[bot]",
+        "bodySha256": "e2930006d3cc2c954878602fb033f2913c7f5969cbfe4276b6a01528c5dc8b7c"
+      },
+      {
+        "id": 5797739110,
+        "login": "joaovpimenta",
+        "bodySha256": "1d41e1fb63023ebf7a357bf2a3ba58070756ad873571ddad7f3826b1ec8214e5"
+      },
+      {
+        "id": 5829901305,
+        "login": "github-actions[bot]",
+        "bodySha256": "6b50a1b0034ce3d460fb12cfa8fcab904340ad9190b68b63a6f34140513bdf8c"
+      },
+      {
+        "id": 5854556976,
+        "login": "github-actions[bot]",
+        "bodySha256": "53dd7e7e995a9bd1d61017899b458f904b84c63e55b5cda050742da593c43724"
+      },
+      {
+        "id": 5954966545,
+        "login": "joaovpimenta",
+        "bodySha256": "7564e3bbc6bd89780d00cb91a288c1162014f048c7a71be7652191d6cc70896d"
+      },
+      {
+        "id": 5955313538,
+        "login": "github-actions[bot]",
+        "bodySha256": "87d934e2d6e308bcac2c4a4521233a548ee60d52906599f30aecbfa3c4d86f71"
+      }
+    ],
+    "latestSelectionCommentId": 5955313538,
+    "selectedSlug": "backpressure-em-streams-e-filas",
+    "pending": true
+  },
+  "runs": {
+    "active": [],
+    "queued": [],
+    "waiting": [],
+    "inspection": "gh run list separately for each status, limit100; recheck before each cut"
+  },
+  "pages": {
+    "runId": 40032968639,
+    "status": "completed",
+    "conclusion": "success",
+    "headSha": "fca72c31fcb57ffe9741a2390a04c2035639e14a",
+    "artifactId": 12536011249,
+    "artifactDigest": "sha256:d9e8de30cb8272ca348fda80da85c2525cb2e019bb268209aa2809152b29a483",
+    "size": 8355039,
+    "expiresAt": "2026-10-24T22:20:40Z",
+    "localArchive": ".local/integration-87-88/rollback-pages-12536011249.zip",
+    "archiveIntegrity": "zip CRC verified; tar entries read without extraction",
+    "fileCount": 74,
+    "catalogCount": 18,
+    "catalogSlugs": [
+      "seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets",
+      "bulkhead",
+      "rate-limiting-token-bucket-leaky-bucket",
+      "mtls-entre-servicos-identidade-alem-do-canal-cifrado",
+      "hedged-requests",
+      "chaos-engineering-experimentos-de-falha",
+      "cqrs-projecoes-e-consistencia",
+      "consenso-raft",
+      "relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global",
+      "rastreamento-distribuido-contexto-spans-e-amostragem",
+      "load-shedding-controle-de-sobrecarga",
+      "github-governance-as-code",
+      "hashing-consistente",
+      "retries-backoff-jitter",
+      "quoruns-de-leitura-e-escrita",
+      "leases-e-fencing-tokens",
+      "transactional-outbox",
+      "four-golden-signals"
+    ],
+    "files": {
+      "audio.js": {
+        "size": 28626,
+        "sha256": "7b2fb979992d75dd25c3acd1116436321fcf027b21c8492af2bd640e2903d032"
+      },
+      "sw-version.js": {
+        "size": 683,
+        "sha256": "b9e650460144545f759a8cf23a6e275c6ad781f0f73c0b25d18f6a4afaa31516"
+      },
+      "fgs-simulator.js": {
+        "size": 1031,
+        "sha256": "87642d9274d9573e5e1c83cf8cf8628050e8cf39a8a07715b44f2fa603359d7a"
+      },
+      "favicon.svg": {
+        "size": 71777,
+        "sha256": "90a6388638113b7196edebdde4a3b2404ced13f0b42c7aef260bb55298f1f556"
+      },
+      ".site-artifact.json": {
+        "size": 4232,
+        "sha256": "6fbcd70e6bc6fc7ed3ecb98592595457f3000ee45b7d1513143e4806c59e6fde"
+      },
+      "header.js": {
+        "size": 1236,
+        "sha256": "57c837ea916aa09546e92666a74f6bb85482f7fa7f53d03a625ed7e5c8a2758e"
+      },
+      "styles.css": {
+        "size": 49340,
+        "sha256": "8a6388f6ea3ed77fd7be2b0850e23fc866f640e2d3f60ef0253bc91fd2a51f33"
+      },
+      "manifest.webmanifest": {
+        "size": 858,
+        "sha256": "9928a04eeb0a553c4315380933a6fef8bfa4d1c93bddf01490a965fa63446b5a"
+      },
+      "assets/mtls-entre-servicos-identidade-alem-do-canal-cifrado/mtls-entre-servicos-identidade-alem-do-canal-cifrado-cover.jpg": {
+        "size": 419729,
+        "sha256": "47308234468d87dd169b552b6a896b0bf1b0c8047f5dc0f699a81f0803e9d12e"
+      },
+      "assets/leases-e-fencing-tokens/leases-e-fencing-tokens-experimento.py": {
+        "size": 1311,
+        "sha256": "77a3c8b50206d0e4ffde3cf9d1b1df0b957e9f92c8f3be3429153c8405fda005"
+      },
+      "assets/leases-e-fencing-tokens/leases-e-fencing-tokens-cover.jpg": {
+        "size": 507269,
+        "sha256": "8321cc1e5bf2e29603914cc9a3658dab785be69987b64b00eea7fcf4eeaf1af3"
+      },
+      "assets/app-icon.svg": {
+        "size": 8939,
+        "sha256": "164fe0ecf817469fad6fdb0c204e083697365d9d50b06d3084110d5c47a0e8cd"
+      },
+      "assets/transactional-outbox/transactional-outbox-experimento.py": {
+        "size": 2321,
+        "sha256": "3c13151158455f2d168c4cc8d92ad3720cfa6509b9916ba1dd8585b39f77ff94"
+      },
+      "assets/transactional-outbox/transactional-outbox-cover.jpg": {
+        "size": 501909,
+        "sha256": "0115da525aeaf31c3b10022faff539456040e2a00651281456850eeebbd51e87"
+      },
+      "assets/app-icon-512.png": {
+        "size": 212438,
+        "sha256": "c848a85026d35c045184be571d3e03f14f6b146af501a3406e8ee1ea0633e206"
+      },
+      "assets/hedged-requests/hedged-requests-cover.jpg": {
+        "size": 10668,
+        "sha256": "2753a59b8db782621c0d05c16346801157f2fab4687d35989a253131e3c2c74f"
+      },
+      "assets/hedged-requests/hedged-requests-experimento.py": {
+        "size": 4110,
+        "sha256": "3a43dc8d2a69aeb7b5353045b4ee0d1809fb1733af78b4b02552b848a87fcb52"
+      },
+      "assets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets-cover.jpg": {
+        "size": 792536,
+        "sha256": "20d8cfcb0f7e989a976efc021aa1abcbbc43c3cf1795fef8681b70d8ab051000"
+      },
+      "assets/four-golden-signals/four-golden-signals-cover.jpg": {
+        "size": 556764,
+        "sha256": "e0d80e7d3e9da241af6e999332c5a5fb3672a5e11c24e397f61766484bf01a9d"
+      },
+      "assets/articles-catalog.json": {
+        "size": 28186,
+        "sha256": "a781a28675d2549a71e5ba8f518f2d4aec0b7ef675f16570b7be2a43d6df3e1a"
+      },
+      "assets/favicon-16x16.png": {
+        "size": 610,
+        "sha256": "f3b7e027b99bf614f6de0339fdd76d5b5a405eaf67362c342f72fc26ec302d4e"
+      },
+      "assets/github-governance-as-code/github-governance-as-code-cover.jpg": {
+        "size": 591928,
+        "sha256": "fc783663cd9dedc57109c41edeb18e5fb1f797efaa3b51f1fc4038ef54a037d9"
+      },
+      "assets/quoruns-de-leitura-e-escrita/quoruns-de-leitura-e-escrita-cover.jpg": {
+        "size": 538573,
+        "sha256": "d8c1f62fae5841b9fd323a3e51eb48d42349bcbb43bb166961595bc944e62b38"
+      },
+      "assets/quoruns-de-leitura-e-escrita/quoruns-de-leitura-e-escrita-experimento.py": {
+        "size": 995,
+        "sha256": "db0f21c45302a080c16ed29c39bef642046d74f57cd33186625590fe4171f8e4"
+      },
+      "assets/relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global/relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global-cover.jpg": {
+        "size": 204305,
+        "sha256": "a2aab1aad80a0c25cc4126cd873a673e94813008d792eba633ea7dccc26f0fb6"
+      },
+      "assets/relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global/relogios-logicos-experimento.py": {
+        "size": 2248,
+        "sha256": "f5f588936a564e1dc7660209a9153b464e13c9f000f24a8f396fd5bb89808a7c"
+      },
+      "assets/app-icon-192.png": {
+        "size": 31390,
+        "sha256": "42f6bbf2d68c0446bc43407dad81d43d34e4a02bfcf25df371c6b788f05c9a7d"
+      },
+      "assets/favicon-32x32.png": {
+        "size": 1662,
+        "sha256": "67b9cdfd200a5f467b76e31738eb1acf765785942752495b0f998e487d97ae76"
+      },
+      "assets/load-shedding-controle-de-sobrecarga/load-shedding-controle-de-sobrecarga-cover.jpg": {
+        "size": 243406,
+        "sha256": "3c354164bf2761f534d42c85c67408ace637ecf001b575b0422ced6a0148a9ac"
+      },
+      "assets/load-shedding-controle-de-sobrecarga/load-shedding-experimento.py": {
+        "size": 2110,
+        "sha256": "6bb7b4670cfd59948b23f29f7f03f9a1dc5aee67613a5af12678d6680533bd20"
+      },
+      "assets/rate-limiting-token-bucket-leaky-bucket/rate-limiting-token-bucket-leaky-bucket-cover.jpg": {
+        "size": 436880,
+        "sha256": "3be6f658e5f08423fc980afc0408a358a8ff13ece632d16c834a6d28c5b7a8f8"
+      },
+      "assets/app-icon-maskable-512.png": {
+        "size": 137716,
+        "sha256": "d6122513361eb95154b8cbb99c5cdb23786dfbcd6bea9e566199770c293c5a4d"
+      },
+      "assets/chaos-engineering-experimentos-de-falha/chaos-engineering-experimentos-de-falha-cover.jpg": {
+        "size": 459174,
+        "sha256": "a89540ea49e14c9ccb474f218364a993b8d33d18396d0043d8d4ddbfb135c13e"
+      },
+      "assets/consenso-raft/raft-quorum-experiment.py": {
+        "size": 2234,
+        "sha256": "148f2d174d1af214c1253160fc08ad2aacd44d9a49de27a5195704b2ff9df41e"
+      },
+      "assets/consenso-raft/consenso-raft-cover.jpg": {
+        "size": 316801,
+        "sha256": "742f78484f1e6c7ddbddfa99ddb0b39ca2a9210da22d89a5b207f702ce57577b"
+      },
+      "assets/hashing-consistente/hashing-consistente-experimento.py": {
+        "size": 1629,
+        "sha256": "a4fae2d3aa4bf1e5dca1f0db181aa0b3b64b4a7110ead5e7651b0752df24ff59"
+      },
+      "assets/hashing-consistente/hashing-consistente-cover.jpg": {
+        "size": 557621,
+        "sha256": "0238e36005f4fc1a67de7e59eb13cdf791bd0b0d2cbbf6972b70540702aadb40"
+      },
+      "assets/cqrs-projecoes-e-consistencia/cqrs-projecoes-e-consistencia-cover.jpg": {
+        "size": 257575,
+        "sha256": "cbf47faa959926ecf8020e692bd5d4be321465bf3a808a15cb3dd79044e0ff5c"
+      },
+      "assets/cqrs-projecoes-e-consistencia/cqrs-projection-experiment.py": {
+        "size": 2237,
+        "sha256": "ade7ecbcec9a99cb648b53fc8c4ae34a804c2ac582f1b79d36fbe2bf9aa3bae3"
+      },
+      "assets/rastreamento-distribuido-contexto-spans-e-amostragem/rastreamento-amostragem-experimento.py": {
+        "size": 2373,
+        "sha256": "bffa51d935f5dba35d91cbe7c48e052b940e8852d6821bf280b6dcab8dd0c731"
+      },
+      "assets/rastreamento-distribuido-contexto-spans-e-amostragem/rastreamento-distribuido-contexto-spans-e-amostragem-cover.jpg": {
+        "size": 185925,
+        "sha256": "ab14bab0325ef301470016822df32c76d7f9df818c59074b1f08808d507a9621"
+      },
+      "assets/app-icon-180.png": {
+        "size": 28465,
+        "sha256": "7db88614f8def12a8ae570f38fd9ba5bd19ad51691b4bfe46920d0e74a732466"
+      },
+      "assets/retries-backoff-jitter/retries-backoff-jitter-cover.jpg": {
+        "size": 579853,
+        "sha256": "14421d296161806f164000780edce038cb4d34fc4e83e24d8ec017beb607cf62"
+      },
+      "assets/retries-backoff-jitter/retries-backoff-jitter-experimento.py": {
+        "size": 1009,
+        "sha256": "7e5110d229c76990967b1332e0ec690768234f86955a8abe0dd88dea8a18160f"
+      },
+      "assets/bulkhead/bulkhead-cover.jpg": {
+        "size": 459092,
+        "sha256": "0e9155be70114b6d392e6af4ca497df99e4ddae11588cb39df99e0a6c31b3d08"
+      },
+      "index.html": {
+        "size": 4961,
+        "sha256": "7905503db964602c08bb939e9a686fe90b9605297f127d43aba39332ea4fa3f6"
+      },
+      "favicon.ico": {
+        "size": 5565,
+        "sha256": "1a3c119a19d4a10d9166ee9a6ad84c1f660e5146be5f5f564d6776b6c08ddca1"
+      },
+      "article.html": {
+        "size": 11457,
+        "sha256": "8e03e138e868e43db22b34ce512aee71be9402c143629d229c8bdce337fefa91"
+      },
+      "article.js": {
+        "size": 11542,
+        "sha256": "663982a342851c22526b29c31913bfcf0ea7fdb73c6566086203f4b2f3c30a1b"
+      },
+      "sw.js": {
+        "size": 2194,
+        "sha256": "0f62617e924dbfc605a85e195d504bd61ae7167ac64620fd5a3bc85f538b281e"
+      },
+      "speech.js": {
+        "size": 19687,
+        "sha256": "671f309f27af437e7716cb356639ebb4bd39437eb159b346224d06c520344391"
+      },
+      "app.js": {
+        "size": 21177,
+        "sha256": "271cc6546fd3b9c7314c526a7ddd57b88e6360a8bb3b5fa5e7b965a2e87ba2f4"
+      },
+      "mermaid-theme.js": {
+        "size": 920,
+        "sha256": "1c9c015a4fae8d6835e2d194dde25fc86de9d50b7f6276ed72983a85be09837d"
+      },
+      "content/tts-lexicon.json": {
+        "size": 209,
+        "sha256": "d8d7f945ef5eeb014f97299813fd99ece596a5027bd9f3966fa27b6cb61246a4"
+      },
+      "content/articles/quoruns-de-leitura-e-escrita.json": {
+        "size": 32012,
+        "sha256": "c29b228bc1e8eb29ddb680f53b53a4431b1dfa6bad012ec05b10c7a4dc4185e1"
+      },
+      "content/articles/index.json": {
+        "size": 3041,
+        "sha256": "12fee55015cf50a2ab122b02956447fde69736ba6f4cf51865c0057c6ff66e97"
+      },
+      "content/articles/github-governance-as-code.json": {
+        "size": 39977,
+        "sha256": "51dab24fcf87a9ccc1309e7d8e89509ab842229c1fcb030fa9f1283b5cf19c6d"
+      },
+      "content/articles/leases-e-fencing-tokens.json": {
+        "size": 36161,
+        "sha256": "e40320e5f6cb6b8fee505c83ec6225128d00b05af9e518b1d3332d8716293f49"
+      },
+      "content/articles/mtls-entre-servicos-identidade-alem-do-canal-cifrado.json": {
+        "size": 32313,
+        "sha256": "3e11965a1ed7d4ab9d40d9947a7595f103b29e9916243c6f59186544c4c08dd4"
+      },
+      "content/articles/consenso-raft.json": {
+        "size": 42505,
+        "sha256": "59ba44efb9ceed24e9c2d6d69fe20e7fdee0f557b7b9bb9b505f9b85feef25b6"
+      },
+      "content/articles/cqrs-projecoes-e-consistencia.json": {
+        "size": 38596,
+        "sha256": "fc5c4f093dae9fff0ca73f94bd67181f8261548ccdafcb479b7dec2c930132c2"
+      },
+      "content/articles/retries-backoff-jitter.json": {
+        "size": 35067,
+        "sha256": "73324b040d0dcaac1da9fd09294589e0218177c37ee0307d514701365a2a8162"
+      },
+      "content/articles/rate-limiting-token-bucket-leaky-bucket.json": {
+        "size": 21910,
+        "sha256": "196a18723566cf317b385dbc5cbbe0f7a593f7f7e4d6dc14747244116aa6a182"
+      },
+      "content/articles/bulkhead.json": {
+        "size": 31697,
+        "sha256": "c7532b6a87d83be0b8c83a4aefe6466ea528948dff1fca2ea55873b6fffca2f4"
+      },
+      "content/articles/hashing-consistente.json": {
+        "size": 28000,
+        "sha256": "964ef878b20dd45c930fa921ed1acb6fd68062bbae664a84cf2113214c0cfe76"
+      },
+      "content/articles/rastreamento-distribuido-contexto-spans-e-amostragem.json": {
+        "size": 44548,
+        "sha256": "74272ee56cfbf60a5436b5bc67cbef1bf5af191ef50149f8efd36deef6da5eed"
+      },
+      "content/articles/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets.json": {
+        "size": 28473,
+        "sha256": "c23a1f2c99723d06b756e16013cce8e6afb9a63ae53a901b671b9dea67a5d989"
+      },
+      "content/articles/load-shedding-controle-de-sobrecarga.json": {
+        "size": 37025,
+        "sha256": "f4d5e2ac12fa072bda67d29ea6325e9d6f6fa271ecc334b4083a2a276a21318c"
+      },
+      "content/articles/transactional-outbox.json": {
+        "size": 35425,
+        "sha256": "2c4e795a8fc5f6087d22b410adb16bef47550c901366d3fe3e79a178aa317ed4"
+      },
+      "content/articles/four-golden-signals.json": {
+        "size": 32866,
+        "sha256": "ba74d16a217ebf0ceccb74e700bc2b2741067a28e442e260c9edd6d7ec4d27fa"
+      },
+      "content/articles/chaos-engineering-experimentos-de-falha.json": {
+        "size": 21059,
+        "sha256": "3ead8b11c0cb41869b0cf64034924c75a16d440364f4d535109d3f0ed63d860d"
+      },
+      "content/articles/hedged-requests.json": {
+        "size": 31303,
+        "sha256": "fd4da07a58c7024e1d05ba75a76c0552ee179fe9b78e757a85986a744dc639ac"
+      },
+      "content/articles/relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global.json": {
+        "size": 38429,
+        "sha256": "89c7c4d90149425ec69c61019d6e1241f1a52cada91243122f081854b7ac68ad"
+      },
+      "pwa.js": {
+        "size": 980,
+        "sha256": "4407457b333aba1d7b1baf3f59fb22d9614af08188aa6146389f95c475898550"
+      }
+    }
+  },
+  "audio": [
+    {
+      "id": 421408471,
+      "tag_name": "tts-transactional-outbox",
+      "published_at": "2026-10-23T03:04:12Z",
+      "assets": [
+        {
+          "digest": "sha256:156fb54f3ed39219311658f3099ae9fa9070fd66e359d5b80e817e78d9f48dbc",
+          "id": 669317561,
+          "name": "transactional-outbox.chapters.json",
+          "size": 43187,
+          "updated_at": "2026-10-23T14:07:44Z"
+        },
+        {
+          "digest": "sha256:a1c12bcb72d325849cb7112bd813a74f6415d894665a1f50bcf660e63dfbb310",
+          "id": 669317562,
+          "name": "transactional-outbox.mp3",
+          "size": 19985325,
+          "updated_at": "2026-10-23T14:07:45Z"
+        }
+      ],
+      "notesSha256": "436a50d59d4045551aa7b88dd82a515296aa06142696de99385771823a27dd16",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "156fb54f3ed39219311658f3099ae9fa9070fd66e359d5b80e817e78d9f48dbc",
+        "version": 2,
+        "count": 244,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 244,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 421406120,
+      "tag_name": "tts-seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets",
+      "published_at": "2026-10-23T02:59:39Z",
+      "assets": [
+        {
+          "digest": "sha256:938d739afc8e0cb2f3f0dfd36c52910e9f70054d40324554f86e758c52f2ea32",
+          "id": 667788582,
+          "name": "seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets.chapters.json",
+          "size": 41027,
+          "updated_at": "2026-10-23T02:59:38Z"
+        },
+        {
+          "digest": "sha256:1e7ec2885df2da1c7cac62024350ed580265768f5203da923ba3540ab731ef7a",
+          "id": 667788580,
+          "name": "seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets.mp3",
+          "size": 21163437,
+          "updated_at": "2026-10-23T02:59:38Z"
+        }
+      ],
+      "notesSha256": "2799a8a19a352c5a8091eb9bd3bfa2afc65571a88e238396349bfc0260f121c7",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "938d739afc8e0cb2f3f0dfd36c52910e9f70054d40324554f86e758c52f2ea32",
+        "version": 2,
+        "count": 232,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 232,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 421688976,
+      "tag_name": "tts-retries-backoff-jitter",
+      "published_at": "2026-10-23T10:02:01Z",
+      "assets": [
+        {
+          "digest": "sha256:6fa1204957883eb36583b04fb00268591b10a6c75b9ef4b8fc4e729710d92a90",
+          "id": 668713869,
+          "name": "retries-backoff-jitter.chapters.json",
+          "size": 45237,
+          "updated_at": "2026-10-23T10:02:00Z"
+        },
+        {
+          "digest": "sha256:848e3e81ab4c4a55e0e66706e49d2d48fb5f16e511c9d1cc1e97918b99a62965",
+          "id": 668713871,
+          "name": "retries-backoff-jitter.mp3",
+          "size": 20580141,
+          "updated_at": "2026-10-23T10:02:00Z"
+        }
+      ],
+      "notesSha256": "565b6878c0d3504f9d6942fe0e3c7aba8f0ae032aa0464acb5184d7adb30c5c4",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "6fa1204957883eb36583b04fb00268591b10a6c75b9ef4b8fc4e729710d92a90",
+        "version": 2,
+        "count": 273,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 273,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 421403778,
+      "tag_name": "tts-relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global",
+      "published_at": "2026-10-23T02:54:46Z",
+      "assets": [
+        {
+          "digest": "sha256:c77b1c3cdbfc85bb39d4324bc7285e00a1dc2dedc4a0fae6243923f2a865c2f7",
+          "id": 667779519,
+          "name": "relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global.chapters.json",
+          "size": 65866,
+          "updated_at": "2026-10-23T02:54:43Z"
+        },
+        {
+          "digest": "sha256:75df25fe94bdba2d51f656c336fc4097e82d3acc2d025cc6b9f528fd6d605bbb",
+          "id": 667779518,
+          "name": "relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global.mp3",
+          "size": 27042861,
+          "updated_at": "2026-10-23T02:54:45Z"
+        }
+      ],
+      "notesSha256": "c8d28b23a9833386f482d19d2998a1914f39acad80a313afa107e9fb25d47064",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "c77b1c3cdbfc85bb39d4324bc7285e00a1dc2dedc4a0fae6243923f2a865c2f7",
+        "version": 2,
+        "count": 406,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 406,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 421400690,
+      "tag_name": "tts-rate-limiting-token-bucket-leaky-bucket",
+      "published_at": "2026-10-23T02:48:36Z",
+      "assets": [
+        {
+          "digest": "sha256:2779eff0f7acd81c14ab2481965a93fd94ffb8d0c4c99115cae163b798a9304c",
+          "id": 667768407,
+          "name": "rate-limiting-token-bucket-leaky-bucket.chapters.json",
+          "size": 32727,
+          "updated_at": "2026-10-23T02:48:34Z"
+        },
+        {
+          "digest": "sha256:f2e6164e24283220e8197448c0f52ff870ececb220e69da3f5be9bd209035673",
+          "id": 667768408,
+          "name": "rate-limiting-token-bucket-leaky-bucket.mp3",
+          "size": 15540525,
+          "updated_at": "2026-10-23T02:48:35Z"
+        }
+      ],
+      "notesSha256": "278efbb3348acf5632d2ba6015982b0e1c8343eae50ed76a550b13ef9ccf87cb",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "2779eff0f7acd81c14ab2481965a93fd94ffb8d0c4c99115cae163b798a9304c",
+        "version": 2,
+        "count": 191,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 191,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 421400842,
+      "tag_name": "tts-rastreamento-distribuido-contexto-spans-e-amostragem",
+      "published_at": "2026-10-23T02:48:54Z",
+      "assets": [
+        {
+          "digest": "sha256:aee0d31378229075046208fad35ffff924cbed23c379d5216e32baf9c7f5716e",
+          "id": 667769026,
+          "name": "rastreamento-distribuido-contexto-spans-e-amostragem.chapters.json",
+          "size": 63347,
+          "updated_at": "2026-10-23T02:48:52Z"
+        },
+        {
+          "digest": "sha256:f0a2b7cfed0b35c6ae600c81a177515eaac38815537491e0fca9048510026d5a",
+          "id": 667769025,
+          "name": "rastreamento-distribuido-contexto-spans-e-amostragem.mp3",
+          "size": 26957613,
+          "updated_at": "2026-10-23T02:48:53Z"
+        }
+      ],
+      "notesSha256": "d4eb31661a3a4ee8ff50b839ac89fff76e5f5c92f808c22347cb46778dcd5490",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "aee0d31378229075046208fad35ffff924cbed23c379d5216e32baf9c7f5716e",
+        "version": 2,
+        "count": 378,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 378,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 421396817,
+      "tag_name": "tts-quoruns-de-leitura-e-escrita",
+      "published_at": "2026-10-23T02:40:58Z",
+      "assets": [
+        {
+          "digest": "sha256:6980e16bae8f6913938af65fb35645fac7541c1be1552d494c8fac2a44a18712",
+          "id": 667753960,
+          "name": "quoruns-de-leitura-e-escrita.chapters.json",
+          "size": 51006,
+          "updated_at": "2026-10-23T02:40:57Z"
+        },
+        {
+          "digest": "sha256:f1b8ff07d2e38655a2b60fcaece65d99cea05f0b5c4acb7f86ede3ffba8fe163",
+          "id": 667753959,
+          "name": "quoruns-de-leitura-e-escrita.mp3",
+          "size": 22653357,
+          "updated_at": "2026-10-23T02:40:58Z"
+        }
+      ],
+      "notesSha256": "46680771fb628033308076ea9093e4d11bf777a726456e7dad3d92f96222ebf5",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "6980e16bae8f6913938af65fb35645fac7541c1be1552d494c8fac2a44a18712",
+        "version": 2,
+        "count": 305,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 305,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 421394082,
+      "tag_name": "tts-mtls-entre-servicos-identidade-alem-do-canal-cifrado",
+      "published_at": "2026-10-23T02:35:23Z",
+      "assets": [
+        {
+          "digest": "sha256:708a65a75fe6331a341b6087b12bf3a15325c546b384fc437eb276d71ca54a02",
+          "id": 667743654,
+          "name": "mtls-entre-servicos-identidade-alem-do-canal-cifrado.chapters.json",
+          "size": 47803,
+          "updated_at": "2026-10-23T02:35:21Z"
+        },
+        {
+          "digest": "sha256:3298d9d978c4eff7c1bdb1a26d3a98bff0cfbd66eae1c8029b35b542f71edfb3",
+          "id": 667743657,
+          "name": "mtls-entre-servicos-identidade-alem-do-canal-cifrado.mp3",
+          "size": 24198189,
+          "updated_at": "2026-10-23T02:35:22Z"
+        }
+      ],
+      "notesSha256": "22641e47a8febc6178d79bcd2760edcfb1ce07c3bd76b4112ff019977bd82a51",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "708a65a75fe6331a341b6087b12bf3a15325c546b384fc437eb276d71ca54a02",
+        "version": 2,
+        "count": 275,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 275,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 421391501,
+      "tag_name": "tts-load-shedding-controle-de-sobrecarga",
+      "published_at": "2026-10-23T02:30:18Z",
+      "assets": [
+        {
+          "digest": "sha256:2de76fe296b9806cf28014c31c230b4a47faeb94235226bff99bce6a07194e1f",
+          "id": 667734769,
+          "name": "load-shedding-controle-de-sobrecarga.chapters.json",
+          "size": 57931,
+          "updated_at": "2026-10-23T02:30:16Z"
+        },
+        {
+          "digest": "sha256:303b43964067e9b8d4a2e6e5706fc236eee38902f6848a838e45566618054430",
+          "id": 667734770,
+          "name": "load-shedding-controle-de-sobrecarga.mp3",
+          "size": 25224621,
+          "updated_at": "2026-10-23T02:30:17Z"
+        }
+      ],
+      "notesSha256": "74380ef9b3e2ea79b49f72ecaba6a02895ccd39cd96b0ebad0c4ee3f3ce5a182",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "2de76fe296b9806cf28014c31c230b4a47faeb94235226bff99bce6a07194e1f",
+        "version": 2,
+        "count": 347,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 347,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 421379424,
+      "tag_name": "tts-leases-e-fencing-tokens",
+      "published_at": "2026-10-23T02:06:07Z",
+      "assets": [
+        {
+          "digest": "sha256:6801708585abf8bc11bef4458352a22dd461a621d94aa0c4d90767188ae7dc31",
+          "id": 667691977,
+          "name": "leases-e-fencing-tokens.chapters.json",
+          "size": 51164,
+          "updated_at": "2026-10-23T02:06:06Z"
+        },
+        {
+          "digest": "sha256:6b2891e63e51c0de63b42f32d9e0c8ba0f0fefe5dd862e8b3fdb2b2ba7c7692f",
+          "id": 667691979,
+          "name": "leases-e-fencing-tokens.mp3",
+          "size": 22080813,
+          "updated_at": "2026-10-23T02:06:07Z"
+        }
+      ],
+      "notesSha256": "dba242bc3d9060610527e4915255348dd044899dc59c88033598d18470789a53",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "6801708585abf8bc11bef4458352a22dd461a621d94aa0c4d90767188ae7dc31",
+        "version": 2,
+        "count": 303,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 303,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 421375188,
+      "tag_name": "tts-hashing-consistente",
+      "published_at": "2026-10-23T01:57:14Z",
+      "assets": [
+        {
+          "digest": "sha256:4524f5f3235eae0a4daa2bd51404c9b8949c2559f844846d5f681393bf08b287",
+          "id": 667675856,
+          "name": "hashing-consistente.chapters.json",
+          "size": 45540,
+          "updated_at": "2026-10-23T01:57:13Z"
+        },
+        {
+          "digest": "sha256:cf17d9814b74787a616ec5348391ae700ba7814af5e943dddc2848b6da3dbb0b",
+          "id": 667675857,
+          "name": "hashing-consistente.mp3",
+          "size": 19496109,
+          "updated_at": "2026-10-23T01:57:14Z"
+        }
+      ],
+      "notesSha256": "cdc47ef142d9fb8088c6d65e92c261b51630592e9bede390dc7003e013d3f9ca",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "4524f5f3235eae0a4daa2bd51404c9b8949c2559f844846d5f681393bf08b287",
+        "version": 2,
+        "count": 277,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 277,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 421690972,
+      "tag_name": "tts-github-governance-as-code",
+      "published_at": "2026-10-23T10:04:20Z",
+      "assets": [
+        {
+          "digest": "sha256:cc5fb13c552d193418950d8adc3409f4cd18725e318e4d514659e3830918a18d",
+          "id": 668719702,
+          "name": "github-governance-as-code.chapters.json",
+          "size": 53773,
+          "updated_at": "2026-10-23T10:04:18Z"
+        },
+        {
+          "digest": "sha256:532062600b75a3839e9a894f46071322c176a6e90cbf0f8e4416cc4126ab1db4",
+          "id": 668719699,
+          "name": "github-governance-as-code.mp3",
+          "size": 21915693,
+          "updated_at": "2026-10-23T10:04:19Z"
+        }
+      ],
+      "notesSha256": "83fa87c0f594d5291e305dd74e51277947f1e9ed27f529d1e39ca11b26bbf1bc",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "cc5fb13c552d193418950d8adc3409f4cd18725e318e4d514659e3830918a18d",
+        "version": 2,
+        "count": 334,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 334,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 421373319,
+      "tag_name": "tts-four-golden-signals",
+      "published_at": "2026-10-23T01:53:26Z",
+      "assets": [
+        {
+          "digest": "sha256:58be71542993fec3e78ec1826d7d0ca661f072dd8c24a6e2230f99f341dad2b2",
+          "id": 667668706,
+          "name": "four-golden-signals.chapters.json",
+          "size": 52509,
+          "updated_at": "2026-10-23T01:53:24Z"
+        },
+        {
+          "digest": "sha256:e0855c4bed83b4dba39213f228bdc76b3b436fe9081b52e84bd0f14d31d68c1d",
+          "id": 667668699,
+          "name": "four-golden-signals.mp3",
+          "size": 22854573,
+          "updated_at": "2026-10-23T01:53:25Z"
+        }
+      ],
+      "notesSha256": "1ed0d4712887a1e2cf6c52425beeed981b6a2d7700d6a881c8ea766a376b9ca2",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "58be71542993fec3e78ec1826d7d0ca661f072dd8c24a6e2230f99f341dad2b2",
+        "version": 2,
+        "count": 313,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 313,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 421370311,
+      "tag_name": "tts-cqrs-projecoes-e-consistencia",
+      "published_at": "2026-10-23T01:47:01Z",
+      "assets": [
+        {
+          "digest": "sha256:5dde82403f6f419c18984a56f157a49f8c787deb0b7b8c43fa716cfb7679191e",
+          "id": 667658289,
+          "name": "cqrs-projecoes-e-consistencia.chapters.json",
+          "size": 52781,
+          "updated_at": "2026-10-23T01:47:00Z"
+        },
+        {
+          "digest": "sha256:f7ee404d714e40ee56c87fe362833dc83131c7631d6fd3adb4abb154f32c88aa",
+          "id": 667658291,
+          "name": "cqrs-projecoes-e-consistencia.mp3",
+          "size": 24291885,
+          "updated_at": "2026-10-23T01:47:01Z"
+        }
+      ],
+      "notesSha256": "8faf6bca7bb30a83acbe840b2bed0cb00f43fcb01512dbf7e9e94c37cd4e3c7a",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "5dde82403f6f419c18984a56f157a49f8c787deb0b7b8c43fa716cfb7679191e",
+        "version": 2,
+        "count": 308,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 308,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 421368325,
+      "tag_name": "tts-consenso-raft",
+      "published_at": "2026-10-23T01:42:39Z",
+      "assets": [
+        {
+          "digest": "sha256:95e2a059e109228c80d9f71f6f1b89b6bb61812e3efaba2170809efd46330e7a",
+          "id": 667650669,
+          "name": "consenso-raft.chapters.json",
+          "size": 65202,
+          "updated_at": "2026-10-23T01:42:37Z"
+        },
+        {
+          "digest": "sha256:01ca0b028bcd427a2b9710d20cbbd99253fe9e726e21abcdcfdb3e6d067a21c9",
+          "id": 667650668,
+          "name": "consenso-raft.mp3",
+          "size": 28324269,
+          "updated_at": "2026-10-23T01:42:38Z"
+        }
+      ],
+      "notesSha256": "a3a0001dce9358680ecf30fb79eec5a1a4d185e424077739fe5dc233461a034b",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "95e2a059e109228c80d9f71f6f1b89b6bb61812e3efaba2170809efd46330e7a",
+        "version": 2,
+        "count": 387,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 387,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 421367989,
+      "tag_name": "tts-chaos-engineering-experimentos-de-falha",
+      "published_at": "2026-10-23T01:41:58Z",
+      "assets": [
+        {
+          "digest": "sha256:c8b8a887f16b5d9de48204ff3ea4cef6339d9dbbfcab5e1253e6615a0b53d0e4",
+          "id": 667649405,
+          "name": "chaos-engineering-experimentos-de-falha.chapters.json",
+          "size": 29878,
+          "updated_at": "2026-10-23T01:41:57Z"
+        },
+        {
+          "digest": "sha256:81123ae0573dda34bdbdbe05aa4fd8062e493479a487d1f864d8a6cf5b439f90",
+          "id": 667649404,
+          "name": "chaos-engineering-experimentos-de-falha.mp3",
+          "size": 14897709,
+          "updated_at": "2026-10-23T01:41:58Z"
+        }
+      ],
+      "notesSha256": "47c3a7154ec4de63cc9dde6b527772d9828cf40e62ec5c1e81ae82001eccbb99",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "c8b8a887f16b5d9de48204ff3ea4cef6339d9dbbfcab5e1253e6615a0b53d0e4",
+        "version": 2,
+        "count": 178,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 178,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 420902656,
+      "tag_name": "tts-hedged-requests",
+      "published_at": "2026-10-22T15:41:34Z",
+      "assets": [
+        {
+          "digest": "sha256:a9bed6846143a9127a0cdb13ea0bf7f25d56a36bfb351d8d90088d47d34796a7",
+          "id": 667713656,
+          "name": "hedged-requests.chapters.json",
+          "size": 43914,
+          "updated_at": "2026-10-23T02:18:28Z"
+        },
+        {
+          "digest": "sha256:1cec321910982c42f5315f7c1e5dd5a0bbc38d7591ef4690ed018ddceccdb120",
+          "id": 667713659,
+          "name": "hedged-requests.mp3",
+          "size": 21201453,
+          "updated_at": "2026-10-23T02:18:30Z"
+        }
+      ],
+      "notesSha256": "78bd61c1828526b1d098decc843bee06b6b0ec1c2747529b6cff71ff6f934d54",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "a9bed6846143a9127a0cdb13ea0bf7f25d56a36bfb351d8d90088d47d34796a7",
+        "version": 2,
+        "count": 258,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 258,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    },
+    {
+      "id": 418910745,
+      "tag_name": "tts-bulkhead",
+      "published_at": "2026-10-20T21:43:03Z",
+      "assets": [
+        {
+          "digest": "sha256:5d9279bdefd1051259452754654e4c59391bbb4323ad794e9d30d9a4203e8d76",
+          "id": 667637752,
+          "name": "bulkhead.chapters.json",
+          "size": 53491,
+          "updated_at": "2026-10-23T01:36:14Z"
+        },
+        {
+          "digest": "sha256:5e0d378dcf71e064055c51b73fa3c98d71ba3842ced2eb8c8fde2fbdfd222fba",
+          "id": 667637751,
+          "name": "bulkhead.mp3",
+          "size": 24618285,
+          "updated_at": "2026-10-23T01:36:15Z"
+        }
+      ],
+      "notesSha256": "7d9a7c941b670ac23854dd3619a1bebbd6f12b6a74ed94e1dfc842fb89c446e7",
+      "embeddedChapters": true,
+      "chapters": {
+        "sha256": "5d9279bdefd1051259452754654e4c59391bbb4323ad794e9d30d9a4203e8d76",
+        "version": 2,
+        "count": 310,
+        "duration": null,
+        "keys": [
+          "chapters",
+          "version"
+        ],
+        "notesIndexTimestampEqual": true,
+        "notesVersion": 2,
+        "notesCount": 310,
+        "assetAndNotesLabelMaxLength": [
+          96,
+          0
+        ]
+      }
+    }
+  ],
+  "domAudit": [
+    {
+      "slug": "seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets",
+      "domUnits": 232,
+      "chapterUnits": 232,
+      "version": 2,
+      "structureMatches": true,
+      "firstIndexMismatch": -1,
+      "domSignature": "592e19a24537b39196c5fbd69993844d4fa24293156afcc46721a4abc7cfcad8",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "a15dce2c8464e87b573fe83b2cb680459fa8dbae3a592e3cc11d3c0949ab5e68"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "4645d96414532c0ee1ef2552a45ca8217b98af07d39c0587a7fc30eb44548d16"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "bulkhead",
+      "domUnits": 310,
+      "chapterUnits": 310,
+      "version": 2,
+      "structureMatches": true,
+      "firstIndexMismatch": -1,
+      "domSignature": "2fd507630f855788d0fc96ca4872d2c07d392b6d219f2b72e076b77f1700dcef",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "ce4b3c42fddb11781410dc98f19c896dec929e93328c65dddeb65729a1bc6f4d"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "9b017623cdb0f27d37356e193462f3b347d6d19d19a1c96c687fb6dea4ea9d43"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "rate-limiting-token-bucket-leaky-bucket",
+      "domUnits": 191,
+      "chapterUnits": 191,
+      "version": 2,
+      "structureMatches": true,
+      "firstIndexMismatch": -1,
+      "domSignature": "858897bde73120ff51d091bca2d5785f69691b5ad3598d56066bb353742c5ee7",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "7267f7ba93c9f4e3d280e79b7c67968b2edc8cae723b076f6b5e4ce0876b7b41"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "08ca6d875d7f1a65119b1d99c93b23398f2db662113685517d279e9711482899"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "mtls-entre-servicos-identidade-alem-do-canal-cifrado",
+      "domUnits": 275,
+      "chapterUnits": 275,
+      "version": 2,
+      "structureMatches": true,
+      "firstIndexMismatch": -1,
+      "domSignature": "3c71b7d63e3afdb7f6460fd62fad71714c429f9f8014424a6ec68db1ec9c4426",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "a9b3ea52d40fd310c063c74678c9f0b29ec855ac1835cec7cbde180992cfde56"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "22814f3f9889bb38a9489f3b08c0a8dde8d26cd0a7c0a7cbafcda147ad7e2582"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "hedged-requests",
+      "domUnits": 258,
+      "chapterUnits": 258,
+      "version": 2,
+      "structureMatches": true,
+      "firstIndexMismatch": -1,
+      "domSignature": "9807ed6065044470578064ace8f4c797267218cc511a2d9420989f9f69754845",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "fa877da35506f90cfb780b026e095f17a8ea755db9f4bf11d1901f4528956bf6"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "3196f91df085b4d54f3e204a9d45d76c170a2950f025256f2d558017045bfb5d"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "chaos-engineering-experimentos-de-falha",
+      "domUnits": 178,
+      "chapterUnits": 178,
+      "version": 2,
+      "structureMatches": true,
+      "firstIndexMismatch": -1,
+      "domSignature": "97951e70676bf677872a94b2a7bf3ed5c38e7260b61aa26d2823b8db00f7e92c",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "17f5f1d31cab22690cd08865067409eb7904c1dc2a4a97d1a5b8f68d3db38f0f"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "d5226e4e51fb388b267de54d3296b93c9e01814ffae520961d2cd3d6f2ffa44c"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "cqrs-projecoes-e-consistencia",
+      "domUnits": 308,
+      "chapterUnits": 308,
+      "version": 2,
+      "structureMatches": true,
+      "firstIndexMismatch": -1,
+      "domSignature": "f16307f12939148b785b7d8189ea2f43260f7fd9e8ad4f9756f5f8ab5f0bb856",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "882958a4186cd6a15b034bc964f19ac2579b9a3a819e955b6bcb756f0b6b1806"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "f2aaa375a064e30dac10505d3df226ed035c17198333ec516ec1927c3891ab99"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "consenso-raft",
+      "domUnits": 387,
+      "chapterUnits": 387,
+      "version": 2,
+      "structureMatches": false,
+      "firstIndexMismatch": 38,
+      "domSignature": "55bf23f5e80c0ebccd8f1e2eda0a56974eb3e2d0ca927c8e5ca8b6667b4ce0fb",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "6b2dd54874eb10ec614d56a9455690674c8f08368ca588e2414da30454063aa1"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "905e551fbc7122e1ff30df11dca0e3c5b84e4368758fb711b93fe4d818f74c52"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global",
+      "domUnits": 406,
+      "chapterUnits": 406,
+      "version": 2,
+      "structureMatches": false,
+      "firstIndexMismatch": 72,
+      "domSignature": "3d7bafd760c668be8a2fa0278a18823c57020038dbc076c04f1866ec49149677",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "4d6748e1431dc287c8ee5ea487a56f38d36ca8fe62531f7904f54fe863f1765b"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "6d2b90e02beb8a4e2efe08b7eeb7060bc2579cb5b86cf68c108d13f28995d288"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "rastreamento-distribuido-contexto-spans-e-amostragem",
+      "domUnits": 378,
+      "chapterUnits": 378,
+      "version": 2,
+      "structureMatches": true,
+      "firstIndexMismatch": -1,
+      "domSignature": "73a6ed3772643d55a0218b0456cefb4f9608911e79cd346a5e6acff0b364b00d",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "96f65f0ae11f4adcee43c9e0ffeec1542f3d43477b347bcc32323f25096a99eb"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "465c6aef4470a6780128c8c93231883ee86faedf31f7796dcd7af61a2e48f85a"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "load-shedding-controle-de-sobrecarga",
+      "domUnits": 347,
+      "chapterUnits": 347,
+      "version": 2,
+      "structureMatches": true,
+      "firstIndexMismatch": -1,
+      "domSignature": "0967f630812285b5c7da6c1f6f0e8f6370690e1bb6b87b80e840d4c04917212a",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "7c67a59a79bdd036222fa49b13231e89212c0966dead9c94b3d4f4578b03d565"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "192d3979500d41d4959d6bc5eb9e23e0b82d4d69a358cb1a55c97fc08f75bc97"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "github-governance-as-code",
+      "domUnits": 334,
+      "chapterUnits": 334,
+      "version": 2,
+      "structureMatches": false,
+      "firstIndexMismatch": 56,
+      "domSignature": "ea0e11b30d5027eea65c0687b0f00f3836f8280e5d97fe9ec9d5229ff7fae998",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "0b237c1cf414a345c05167e3368a629f6965b87da05f40b3266cc72742cf42ee"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "d1e5cb1060fd962928ecea338a836b661390e285fedb54e962ba4a2e0fb40efd"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "hashing-consistente",
+      "domUnits": 277,
+      "chapterUnits": 277,
+      "version": 2,
+      "structureMatches": true,
+      "firstIndexMismatch": -1,
+      "domSignature": "5446be525e6ab816feca9fc6b311c9eddd9b826fcd534aaa60cb3279ea45b7c7",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "a7e4668b104e4722e3d898f950ad3f212ec5b2a8208d6bd8461f8b290ac89287"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "7c60261c03b5419c33919359dfa8bebc031094a4e86572ebdf2ea200fd0f462b"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "retries-backoff-jitter",
+      "domUnits": 273,
+      "chapterUnits": 273,
+      "version": 2,
+      "structureMatches": true,
+      "firstIndexMismatch": -1,
+      "domSignature": "300e0de5679313b79077c8350503a6204a546a2692795230844496260d06c2eb",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "919391c40bd5ec33c8a52c785b074b54b928190555251f4d1c39d0184aa627b6"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "5cd5c2f32addb97e22620eef018a8715edf438d4e93cb5916275125537009581"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "quoruns-de-leitura-e-escrita",
+      "domUnits": 305,
+      "chapterUnits": 305,
+      "version": 2,
+      "structureMatches": true,
+      "firstIndexMismatch": -1,
+      "domSignature": "1bc689fb3c5e6cbec094c92487445684c1128a6e2170ff5c185e952c674c5524",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "c7057bf1ea23d96eca62c34d34ca008d2c0ec9b9e225d29fd8be9a877553109f"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "d2ea10d500de81d4e75758038d16e90e4cf228d67c632a8762254995caf80718"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "leases-e-fencing-tokens",
+      "domUnits": 303,
+      "chapterUnits": 303,
+      "version": 2,
+      "structureMatches": true,
+      "firstIndexMismatch": -1,
+      "domSignature": "6788c0965255303224137551c148b4d53e378638f395f6b365e9f93f13932628",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "db2bdfe04d642d7fe5bf7eb96ef2c8f4c02109c2bb7bcc596afe8891683916ce"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "1b271fd5e98fb20389792061cd41c114fefbde57967c4b8a5204c8f171143417"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "transactional-outbox",
+      "domUnits": 244,
+      "chapterUnits": 244,
+      "version": 2,
+      "structureMatches": true,
+      "firstIndexMismatch": -1,
+      "domSignature": "27f73da3ee670e46609fcfa5303d4fc88ba56c6112d70cbb10589b9e6cf57d40",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "97086ca3cdb773699a467ba8694e5b6f211983fccf90ca8556a10eeddc15328e"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "b2232a1766c535be189f824bc7b263dffb5077e907faa67a7eef4db1661ce113"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    },
+    {
+      "slug": "four-golden-signals",
+      "domUnits": 313,
+      "chapterUnits": 313,
+      "version": 2,
+      "structureMatches": true,
+      "firstIndexMismatch": -1,
+      "domSignature": "fa5bbfa0579e23833ac11a4065bd4170f0c32c9f4773c2d557cf89dcfff8b19f",
+      "firstUnits": [
+        {
+          "blockIndex": 0,
+          "sentenceIndex": 0,
+          "textSha256": "5fca74df2c5182a670f22db5e40fdacd6a1356248ccbf50ba15f9f967d3c9384"
+        },
+        {
+          "blockIndex": 1,
+          "sentenceIndex": 0,
+          "textSha256": "e1a1c28a83a9f1b430dfa5ae74db7682c4ff8ef82d1eefc4700e587b41483804"
+        }
+      ],
+      "limitations": [
+        "DOM after original renderer; no acoustic test",
+        "index correspondence alone does not prove text identity"
+      ]
+    }
+  ],
+  "limitations": [
+    "No acoustic listening or MP3 byte download; asset digests/IDs identify existing media",
+    "DOM index matches do not prove spoken text equivalence",
+    "Remote state is a dated read-only observation; recheck before each cut",
+    "Local rollback archive has no cloud retention guarantee after remote expiration",
+    "Workflow safety flags not yet implemented on main; migration cut not started"
+  ]
+}
