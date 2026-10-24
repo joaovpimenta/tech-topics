@@ -4,6 +4,8 @@ Comandos para reproduzir as assinaturas e o ensaio DOM estão no [README M01](RE
 
 Referência da #89: `main@fca72c31fcb57ffe9741a2390a04c2035639e14a`. Evidência estruturada em [operational-baseline-2026-10-24.json](operational-baseline-2026-10-24.json). Este é um registro de leitura em uma data, não uma garantia de que o estado remoto permaneça igual. Repetir a auditoria antes de cada corte e preservar esta revisão.
 
+A captura v1 entregue em `054cd21` permanece como registro histórico, mas foi rejeitada como baseline autoritativa: a codificação do subprocesso Python corrompia caracteres não ASCII. Use a revisão v2 vinculada pelo [README de reprodução](README.md); diferenças de estrutura e narração precisam ser interpretadas pelo diff, nunca apagadas para forçar igualdade.
+
 ## Estado encontrado
 
 Main local e remota coincidem no SHA acima; início sem alterações locais. As 26 tasks #89–#114 estavam abertas e sem comentários de implementação; nenhuma PR estava aberta. Grafo e responsáveis registrados em [#87](https://github.com/joaovpimenta/tech-topics/issues/87#issuecomment-6385396827) e [#88](https://github.com/joaovpimenta/tech-topics/issues/88#issuecomment-6385397317). Alterações em `favicon.svg` apareceram imediatamente nos worktrees criados, foram preservadas e não pertencem à entrega.
@@ -29,6 +31,12 @@ Auditoria Chromium do `dist/` servido sob `/tech-topics/`, com rede externa abor
 | `github-governance-as-code` | 56 | 334/334 |
 
 São observações anteriores à migração, não regressões corrigidas e não autorização para regravar áudio. O verificador GPT-6.1 Sol interceptou o mount real e confirmou que o clone reproduz exatamente os blocos/runs/textos/índices nos 18 artigos. Contextos iniciais das divergências: Raft unidade 38, bloco DOM 17 versus chapter 16 (“Durável”); relógios unidade 72, bloco DOM 32 versus chapter 30 (“Que a diferença mede tempo.”); governance unidade 56, bloco DOM 31 versus chapter 30 (“Area”). Mesmo os 15 mapas iguais não provam identidade de texto, idiomas, aliases ou qualidade acústica; assinatura completa e futura comparação baseline→HTML continuam obrigatórias. Sem escuta real, não declarar QA auditivo.
+
+## Auditoria corrigida da baseline v2
+
+Após a captura UTF-8 e a comparação por tokens associados aos nós originais, o [relatório versionado por SHA](audits/dom-v2-fca72c31fcb57ffe9741a2390a04c2035639e14a.json) confirma 18/18 conteúdos semanticamente iguais à baseline Python, 18/18 mounts iguais aos clones e 15/18 mapas com `block_index`/`sentence_index` iguais aos capítulos. As únicas três divergências de índice são as já observadas: Raft na unidade 38, relógios na 72 e governance na 56. Conteúdo, línguas e pontuação dessas frases concordam; não há divergência semântica de conteúdo nesses três pontos.
+
+O hash do texto obtido concatenando segmentos DOM não coincide em 18/18, pois `buildBlocks` corta espaços nas bordas de segmentos. Ele fica preservado como dimensão de serialização, separado da comparação semântica por palavra, idioma e pontuação. O relatório conserva as assinaturas nativas do mount DOM, do clone e do extrator Python sem texto integral. Isso comprova estrutura e conteúdo, não áudio ouvido nem qualidade acústica.
 
 ## Política normal e configuração de corte
 

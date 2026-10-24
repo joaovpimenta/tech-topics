@@ -56,7 +56,7 @@ let python = process.env.TECH_TOPICS_PYTHON ?? "python";
 const payload = JSON.stringify({ articles: articles.map(({ article }) => article), lexicon });
 let extracted;
 try {
-  const result = exec(python, [extractor], { cwd: root, input: payload, maxBuffer: 50 * 1024 * 1024, encoding: "utf8",
+  const result = exec(python, ["-X", "utf8", extractor], { cwd: root, input: payload, maxBuffer: 50 * 1024 * 1024, encoding: "utf8",
     env: { ...process.env, TECH_TOPICS_BASELINE_TTS_DIR: historicalTtsDir } });
   extracted = JSON.parse(result);
 } catch (error) {
@@ -64,27 +64,36 @@ try {
 } finally {
   await rm(snapshotDir, { recursive: true, force: true });
 }
-if (extracted.length !== articles.length) throw new Error("Extractor returned a different article count");
+const hasReplacementCharacter = value => typeof value === "string" ? value.includes("\uFFFD") :
+  Array.isArray(value) ? value.some(hasReplacementCharacter) : value && typeof value === "object" ? Object.values(value).some(hasReplacementCharacter) : false;
+if (hasReplacementCharacter(extracted)) throw new Error("UTF-8 extraction produced U+FFFD; refusing a corrupted baseline");
+if (extracted.articles.length !== articles.length) throw new Error("Extractor returned a different article count");
 
 const records = articles.map(({ article, file, addedAt, sourceBlob }, index) => {
-  const assets = [...extracted[index].assets, { tag: "article", attribute: "image", value: article.image }].map(asset => {
+  const extractedArticle = extracted.articles[index];
+  const assets = [...extractedArticle.assets, { tag: "article", attribute: "image", value: article.image }].map(asset => {
     const raw = asset.value.split(/[?#]/, 1)[0];
     const normalized = raw.replace(/^\.\//, "");
     return { ...asset, gitBlob: treeByPath.get(normalized) ?? null };
   });
-  const details = articleSignatures(article, extracted[index], assets);
+  const details = articleSignatures(article, extractedArticle, assets);
   return { slug: article.slug, source: file, sourceBlob, addedAt, publishedAt: article.publishedAt,
     order: index + 1, ...details };
 });
 const captureFiles = ["scripts/capture-migration-baseline.mjs", "scripts/lib/migration-baseline.mjs", "scripts/lib/migration-baseline-extract.py"];
-const baseline = { schemaVersion: 1, sha, sourceCount: records.length,
-  capture: { preset: "atual", synthesis: false, runtime: { node: process.version, python: exec(python, ["-c", "import sys; print(sys.version.split()[0])"], { cwd: root, encoding: "utf8" }).trim().split(/\r?\n/).at(-1) }, sourceTools: speechToolSignatures,
-    captureTools: await Promise.all(captureFiles.map(async file => ({ path: file, sha256: sha256(await readFile(path.join(root, file))) }))) },
+const baseline = { schemaVersion: 2, sha, sourceCount: records.length,
+  capture: { synthesis: false,
+    narration: { editorialSentences: { preset: "equilibrado", settings: extracted.presets.equilibrado },
+      legacyChunks: { preset: "atual", settings: extracted.presets.atual,
+        meaning: "historical inference-plan chunks only; not editorial sentence indices or measured MP3/chapter timing" } },
+    runtime: { node: process.version, python: exec(python, ["-c", "import sys; print(sys.version.split()[0])"], { cwd: root, encoding: "utf8" }).trim().split(/\r?\n/).at(-1) }, sourceTools: speechToolSignatures,
+  captureTools: await Promise.all(captureFiles.map(async file => ({ path: file, sha256: sha256((await readFile(path.join(root, file), "utf8")).replace(/\r\n/g, "\n")) }))) },
   indexSourceCount: JSON.parse(await git("show", `${sha}:content/articles/index.json`)).length,
   articles: records };
 if (previousPath) {
-  const previous = JSON.parse(await readFile(path.resolve(root, previousPath), "utf8"));
-  baseline.previous = { sha: previous.sha, path: path.relative(path.join(outputRoot, sha), path.resolve(root, previousPath)).replaceAll("\\", "/") };
+  const resolvedPrevious = path.resolve(root, previousPath);
+  const previous = JSON.parse(await readFile(resolvedPrevious, "utf8"));
+  baseline.previous = { sha: previous.sha, path: path.relative(root, resolvedPrevious).replaceAll("\\", "/") };
   baseline.diff = { articles: compareBaselines(previous, baseline), captureTools: compareCaptureTools(previous, baseline) };
 }
 const failures = validateBaseline(baseline);
