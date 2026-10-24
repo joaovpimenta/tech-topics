@@ -25,16 +25,18 @@ O teste não valida o tempo acústico percebido, compatibilidade real de capítu
 
 O script percorre home e artigo em 10 navegações frias e 10 quentes cada: viewport 390×844, throttling CPU 4×, rede 4.000.000 bit/s e RTT 150 ms. Cold desabilita o cache HTTP via CDP; warm mantém o mesmo contexto/browser, habilita cache HTTP e serve recursos com `max-age=3600`. Service workers ficam bloqueados para isolar cache HTTP; a matriz do SW permanece pendente. Não há `page.route` no perfil, pois ele desabilitaria cache; a API de Release é simulada dentro do `fetch` da página.
 
+O relógio de primeira disponibilidade de texto permanece separado da janela visual: antes de colher LCP/CLS, o harness aguarda as duas primeiras capas da home ou a capa do artigo, `document.fonts.ready` e dois frames de animação. Cada imagem e as fontes têm limite de 4 s; resultados incompletos ficam registrados. A amostra inclui candidato de LCP, bytes de navegação e recursos e requisições externos cujo `transferSize` zero não permite distinguir cache de falta de `Timing-Allow-Origin`.
+
 A interação isolada mede clique até callback `onstart` do mock. Ela não é INP de campo e não mede latência acústica. LCP é capturado antes da interação. CLS é a soma dos layout shifts sem entrada recente no intervalo inicial, não a janela de sessão da métrica Web Vitals de campo. Long tasks e layout shifts vêm de `PerformanceObserver` com buffer. Descoberta de áudio é marcada separadamente de `loadedmetadata`, `canplay` e `playing`; o MP3 não é pré-carregado pela homepage. Marks `tt:*` expõem pontos de instrumentação no DOM de performance.
 
 | Indicador | Meta inicial da issue #88 | Resultado desta rodada |
 |---|---:|---|
-| Navegação → texto do artigo | registrar p75 | frio 1241 ms; quente 658 ms |
-| Corpo → controles/caminho local | p75 ≤ 200 ms | frio 618 ms; quente 647 ms |
-| Clique → callback local | p75 ≤ 500 ms, voz já disponível | frio 53 ms; quente 51 ms, callback síncrono simulado |
-| LCP | p75 ≤ 2,5 s | home fria/quente 652/232 ms; artigo 1464/880 ms |
-| Soma de layout shifts no ensaio | referência CLS ≤ 0,1 | home fria/quente 0,101/0,704; artigo 0,583/0,583 |
-| Interação representativa | ≤ 200 ms | 51–53 ms simulados, nunca INP de campo |
+| Navegação → texto do artigo | registrar p75 | `baseline.json` |
+| Corpo → controles/caminho local | p75 ≤ 200 ms | `baseline.json` |
+| Clique → callback local | p75 ≤ 500 ms, voz já disponível | `baseline.json`; callback síncrono simulado |
+| LCP | p75 ≤ 2,5 s | `baseline.json`, com janela visual estabilizada |
+| Soma de layout shifts no ensaio | referência CLS ≤ 0,1 | `baseline.json`; não é CLS de campo/session-window |
+| Interação representativa | ≤ 200 ms | Ensaio sintético isolado, nunca INP de campo |
 
 Metas são limites propostos pela issue, e não resultados. Comparações devem usar o mesmo SHA, Chrome, configuração e fixture. O arquivo `baseline.json` é o registro completo desta execução, incluindo amostras de waterfall.
 

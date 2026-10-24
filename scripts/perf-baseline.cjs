@@ -57,7 +57,8 @@ async function main() {
       await page.addInitScript(() => {
         window.__perf = { speechStart: null, cls: 0, longTasks: [] };
         window.__lcp = null;
-        new PerformanceObserver(list => { const e = list.getEntries(); if (e.length) window.__lcp = e.at(-1).startTime; }).observe({ type: "largest-contentful-paint", buffered: true });
+        window.__lcpCandidate = null;
+        new PerformanceObserver(list => { const e = list.getEntries(); if (e.length) { const last = e.at(-1); window.__lcp = last.startTime; window.__lcpCandidate = { url: last.url || null, size: last.size, tag: last.element?.tagName || null, id: last.element?.id || null, className: typeof last.element?.className === "string" ? last.element.className : null }; } }).observe({ type: "largest-contentful-paint", buffered: true });
         new PerformanceObserver(list => { for (const e of list.getEntries()) if (!e.hadRecentInput) window.__perf.cls += e.value; }).observe({ type: "layout-shift", buffered: true });
         new PerformanceObserver(list => window.__perf.longTasks.push(...list.getEntries().map(e => ({ start: e.startTime, duration: e.duration })))).observe({ type: "longtask", buffered: true });
         Object.defineProperty(window, "speechSynthesis", { configurable: true, value: { getVoices: () => [{ lang: "pt-BR", name: "Mock" }], speak(u) { window.__perf.speechStart = performance.now(); u.onstart?.(); }, cancel() {}, pause() {}, resume() {} } });
@@ -77,11 +78,23 @@ async function main() {
       else await page.waitForSelector(".recent-item", { timeout: 15000 });
       const contentMs = performance.now() - start;
       if (kind === "article") await page.locator("#listen-recording").waitFor({ state: "visible", timeout: 15000 });
+      const visualSettle = await page.evaluate(async kindName => {
+        const timeout = ms => new Promise(resolve => setTimeout(() => resolve("timeout"), ms));
+        const images = kindName === "article" ? [...document.querySelectorAll("#article-image")] : [...document.querySelectorAll("#recent-list img")].slice(0, 2);
+        const imageResults = await Promise.all(images.map(async image => {
+          if (!image.complete) await Promise.race([new Promise(resolve => { image.addEventListener("load", resolve, { once: true }); image.addEventListener("error", resolve, { once: true }); }), timeout(4000)]);
+          return { src: image.currentSrc || image.src, complete: image.complete, naturalWidth: image.naturalWidth };
+        }));
+        const fonts = await Promise.race([document.fonts?.ready?.then(() => "ready") || Promise.resolve("unsupported"), timeout(4000)]);
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        return { images: imageResults, fonts, timeoutPerResourceMs: 4000, animationFrames: 2 };
+      }, kind);
       const pageSample = await page.evaluate(() => {
         const nav = performance.getEntriesByType("navigation")[0];
         const resources = performance.getEntriesByType("resource");
         const marks = Object.fromEntries(performance.getEntriesByType("mark").filter(e => e.name.startsWith("tt:")).map(e => [e.name.slice(3), e.startTime]));
-        return { bytes: resources.reduce((n, e) => n + (e.transferSize || 0), 0), requests: resources.length, lcp: window.__lcp, cls: window.__perf.cls, dom: nav?.domContentLoadedEventEnd ?? null, marks, longTasks: window.__perf.longTasks, resources: resources.map(e => ({ name: e.name, start: e.startTime, duration: e.duration, bytes: e.transferSize || 0 })) };
+        const unknownExternal = resources.filter(e => new URL(e.name).origin !== location.origin && e.transferSize === 0).map(e => e.name);
+        return { bytes: resources.reduce((n, e) => n + (e.transferSize || 0), nav?.transferSize || 0), documentBytes: nav?.transferSize ?? null, externalBytesUnknownDueToTimingOrCache: unknownExternal, requests: resources.length + 1, lcp: window.__lcp, lcpCandidate: window.__lcpCandidate, cls: window.__perf.cls, dom: nav?.domContentLoadedEventEnd ?? null, marks, longTasks: window.__perf.longTasks, resources: resources.map(e => ({ name: e.name, start: e.startTime, duration: e.duration, bytes: e.transferSize || 0 })) };
       });
       let interaction = null;
       if (kind === "article") {
@@ -91,7 +104,7 @@ async function main() {
         interaction = await page.evaluate(click => ({ clickToSpeechStartMs: window.__perf.speechStart == null ? null : window.__perf.speechStart - click, acousticLatency: null }), clickAt);
         await page.waitForFunction(() => performance.getEntriesByName("tt:audio-discovery-complete").length > 0, null, { timeout: 3000 }).catch(() => {});
       }
-      rows.push({ scenario: kind, cache: cold ? "cold-http" : "warm-http", contentMs, interaction, sw: { mode: "blocked" }, ...pageSample });
+      rows.push({ scenario: kind, cache: cold ? "cold-http" : "warm-http", contentMs, visualSettle, interaction, sw: { mode: "blocked" }, ...pageSample });
       await page.close();
     }
     for (const kind of ["home", "article"]) {
@@ -124,7 +137,7 @@ async function main() {
       dirtyFiles,
       instrumentationDirty: dirtyFiles.some(line => /(?:article|audio|speech)\.js|perf-baseline|test-loader-regressions/.test(line)),
       runtime: { node: process.version, browser: browser.version() },
-      profile: { viewport: "390x844", cpu: "4x", network: "4Mbps / RTT150ms", httpCold: "CDP cache disabled", httpWarm: "same profile, cache enabled, Cache-Control max-age=3600", serviceWorker: "blocked for this HTTP-cache comparison", serverPath: "/tech-topics/ (Pages prefix)", mock: "Release API returns delayed 404; Web Speech callback is synchronous; acoustic latency N/A", nextSentencePromotion: "N/A; feature does not exist in measured revision", fieldInp: "not measured" },
+      profile: { viewport: "390x844", cpu: "4x", network: "4Mbps decimal / RTT150ms", httpCold: "CDP cache disabled", httpWarm: "same profile, cache enabled, Cache-Control max-age=3600", serviceWorker: "blocked for this HTTP-cache comparison", visualSettle: "first 2 home cover images or article hero image plus document.fonts.ready, each with 4s timeout; then two animation frames; contentMs remains the earlier first-text time", serverPath: "/tech-topics/ (Pages prefix)", bytes: "resource transferSize plus navigation transferSize; cross-origin zero transferSize reported as unknown because cache and Timing-Allow-Origin cannot be distinguished", mock: "Release API returns delayed 404; Web Speech callback is synchronous; acoustic latency N/A", nextSentencePromotion: "N/A; feature does not exist in measured revision", fieldInp: "not measured" },
       summary, samples: rows
     };
     if (process.argv[2]) { await writeFile(path.resolve(process.argv[2]), `${JSON.stringify(report, null, 2)}\n`); console.log(JSON.stringify({ output: path.resolve(process.argv[2]), summary }, null, 2)); }
