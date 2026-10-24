@@ -32,10 +32,13 @@ function evaluate(expression, context) {
   return Function("context", "contains", `return (${js});`)(context, (value, part) => String(value ?? "").includes(part));
 }
 
-function actionContext(eventName, { generateAudio, advanceTopic, comment = "" } = {}) {
+function actionContext(eventName, { generateAudio, advanceTopic, comment = "", refreshExisting = false } = {}) {
   return {
-    inputs: { generate_audio: generateAudio, advance_topic: advanceTopic, refresh_existing: false, before_sha: "", after_sha: "", replace_existing: false },
-    needs: { validate: { outputs: { new_article_slugs: `["new"]`, changed_speech_slugs: `["changed"]` } } },
+    inputs: { generate_audio: generateAudio, advance_topic: advanceTopic, refresh_existing: refreshExisting, before_sha: refreshExisting ? "before-sha" : "", after_sha: refreshExisting ? "after-sha" : "", replace_existing: refreshExisting },
+    needs: {
+      validate: { outputs: { new_article_slugs: `["new"]`, changed_speech_slugs: `["changed"]` } },
+      select: { outputs: { slugs: `["eligible"]` } },
+    },
     github: {
       event_name: eventName,
       ref: "refs/heads/main",
@@ -55,11 +58,20 @@ for (const callerEvent of callerEvents) {
       // A reusable workflow inherits its caller's event context. A workflow_call
       // push invocation therefore exercises the same event_name='push' expression.
       const eventName = callerEvent === "workflow_call" ? "push" : callerEvent;
-      const context = actionContext(eventName, { generateAudio, advanceTopic, comment: "<!-- tech-topics:candidates:v1 -->" });
+      const context = actionContext(eventName, {
+        generateAudio,
+        advanceTopic,
+        comment: "<!-- tech-topics:candidates:v1 -->",
+        refreshExisting: callerEvent === "push" || callerEvent === "workflow_call",
+      });
       const effects = { audioMatrix: 0, model: 0, synthesis: 0, backup: 0, upload: 0, queueSelection: 0, selectionComment: 0 };
 
       for (const job of ["publish-audio", "republish-edited-audio"]) {
         if (evaluate(jobCondition(pages, job), context)) effects.audioMatrix++;
+      }
+      if (evaluate(jobCondition(pages, "select-next-topic"), context)) {
+        effects.queueSelection++;
+        effects.selectionComment++;
       }
       if (evaluate(jobCondition(audio, "select"), context) && evaluate(jobCondition(audio, "audio"), context)) {
         effects.audioMatrix++;
@@ -75,6 +87,35 @@ for (const callerEvent of callerEvents) {
       assert.deepEqual(effects, { audioMatrix: 0, model: 0, synthesis: 0, backup: 0, upload: 0, queueSelection: 0, selectionComment: 0 }, `${callerEvent} flags=${generateAudio}/${advanceTopic}`);
     }
   }
+}
+
+// Mutation check: without the Kokoro global freeze, a valid existing-article
+// refresh on main after deploy must become eligible, proving the fixture reaches
+// the exception path and that the freeze itself is what keeps effects at zero.
+const kokoroWithoutFreeze = audio.replace(
+  "inputs.generate_audio == true && false && inputs.refresh_existing",
+  "inputs.generate_audio == true && inputs.refresh_existing",
+);
+assert.notEqual(kokoroWithoutFreeze, audio, "Kokoro freeze expression was not found for mutation test");
+for (const callerEvent of ["push", "workflow_call"]) {
+  const eventName = "push"; // workflow_call inherits its caller's push event_name.
+  const context = actionContext(eventName, {
+    generateAudio: true,
+    advanceTopic: true,
+    refreshExisting: true,
+  });
+  assert.equal(evaluate(jobCondition(audio, "select"), context), false, `${callerEvent}: real global freeze blocks refresh`);
+  assert.equal(evaluate(jobCondition(kokoroWithoutFreeze, "select"), context), true, `${callerEvent}: fixture reaches authorized refresh without freeze`);
+  assert.equal(evaluate(jobCondition(kokoroWithoutFreeze, "audio"), context), true, `${callerEvent}: eligible slug reaches matrix without freeze`);
+  const mutationEffects = { audioMatrix: 0, model: 0, synthesis: 0, backup: 0, upload: 0 };
+  if (evaluate(jobCondition(kokoroWithoutFreeze, "select"), context) && evaluate(jobCondition(kokoroWithoutFreeze, "audio"), context)) {
+    mutationEffects.audioMatrix++;
+    mutationEffects.model++;
+    mutationEffects.synthesis++;
+    mutationEffects.backup++;
+    mutationEffects.upload++;
+  }
+  assert.deepEqual(mutationEffects, { audioMatrix: 1, model: 1, synthesis: 1, backup: 1, upload: 1 }, `${callerEvent}: removing the freeze reaches side-effect adapters`);
 }
 
 for (const missingOrString of [undefined, "false", "true", "1", null]) {
