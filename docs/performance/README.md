@@ -21,11 +21,15 @@ Não instala dependências, não sintetiza Kokoro, não consulta telemetria exte
 
 O teste não valida o tempo acústico percebido, compatibilidade real de capítulos v2 nem uma promoção entre frases. A transição para próxima frase ainda não existe neste SHA e é N/A.
 
-O ensaio separado do SW registrou instalação ativa e controle sob `/tech-topics/`, 11 recursos iniciados por SW na visita online e sucesso ao abrir offline um artigo previamente visitado (26.489 caracteres de corpo renderizados). É uma amostra funcional, sem distribuição de latência e sem MP3/API durante o modo offline.
+Na execução desta rodada, `node scripts/test-speech-browser.cjs` passou a fixture de fala e falhou depois no primeiro viewport ao esperar o dock gravado visível (`#recording-player`, linha 73); a mesma falha já foi observada no SHA original da main. Uma tentativa de stub de mídia mais completo não eliminou o timeout e foi descartada. Portanto, a navegação/pronúncia/controles cobertos antes desse ponto passaram, mas layout do dock em desktop/celular não está validado por este teste nesta rodada.
+
+O ensaio separado do SW registrou instalação ativa e controle sob `/tech-topics/`, 10 recursos iniciados por SW na visita online e sucesso ao abrir offline um artigo previamente visitado (26.489 caracteres de corpo renderizados). É uma amostra funcional, sem distribuição de latência e sem MP3/API durante o modo offline.
 
 ## Perfil e leitura das métricas
 
 O script percorre home e artigo em 10 navegações frias e 10 quentes cada: viewport 390×844, throttling CPU 4×, rede 4.000.000 bit/s e RTT 150 ms. Cold desabilita o cache HTTP via CDP; warm mantém o mesmo contexto/browser, habilita cache HTTP e serve recursos com `max-age=3600`. Service workers ficam bloqueados para isolar cache HTTP; depois, um ensaio separado usa o SW real do artefato, visita home/artigo, confirma controle e tenta abrir o artigo offline. Esse é um smoke de uma amostra, não uma comparação estatística fria/quente do SW. Não há `page.route` no perfil, pois ele desabilitaria cache; a API de Release é simulada dentro do `fetch` da página.
+
+**Interpretação limitada:** este é um baseline de subsistemas controlados, não do renderer Mermaid completo nem do CDN/Pages real. O renderer externo é substituído por um módulo stub local e o servidor local define `Cache-Control: max-age=3600`; esses resultados não representam os cabeçalhos atuais de Pages ou o custo de baixar/renderizar o Mermaid real. A captura real com renderer pesado e a repetição contra Pages/CDN continuam gates pendentes.
 
 O relógio de primeira disponibilidade de texto permanece separado da janela visual: antes de colher LCP/CLS, o harness aguarda em paralelo as duas primeiras capas da home ou a capa do artigo e `document.fonts.ready`, com limite de 4 s por recurso, e então dois frames de animação. Resultados incompletos ficam registrados. A amostra inclui candidato de LCP, bytes de navegação e recursos e requisições externos cujo `transferSize` zero não permite distinguir cache de falta de `Timing-Allow-Origin`.
 
@@ -33,18 +37,19 @@ A interação isolada mede clique até callback `onstart` do mock. Ela não é I
 
 | Indicador | Meta inicial da issue #88 | Resultado desta rodada |
 |---|---:|---|
-| Navegação → texto do artigo | registrar p75 | `baseline.json` |
-| Corpo → controles/caminho local | p75 ≤ 200 ms | `baseline.json` |
-| Clique → callback local | p75 ≤ 500 ms, voz já disponível | `baseline.json`; callback síncrono simulado |
-| LCP | p75 ≤ 2,5 s | `baseline.json`, com janela visual estabilizada |
-| Soma de layout shifts no ensaio | referência CLS ≤ 0,1 | `baseline.json`; não é CLS de campo/session-window |
-| Interação representativa | ≤ 200 ms | Ensaio sintético isolado, nunca INP de campo |
+| Navegação → texto do artigo | registrar p75 | frio/quente 1231/677 ms |
+| Corpo → controles/caminho local | p75 ≤ 200 ms | frio/quente 613/612 ms |
+| Clique → callback local | p75 ≤ 500 ms, voz já disponível | frio/quente 10/8,5 ms, callback síncrono simulado |
+| LCP | p75 ≤ 2,5 s | home 684/248 ms; artigo 1464/884 ms (frio/quente) |
+| Soma de layout shifts no ensaio | referência CLS ≤ 0,1 | home 0,288/0,289; artigo 0,583/0,583 (frio/quente) |
+| Interação representativa | ≤ 200 ms | callback local 8,5–10 ms, mock; não é INP de campo |
 
 Metas são limites propostos pela issue, e não resultados. Comparações devem usar o mesmo SHA, Chrome, configuração e fixture. O arquivo `baseline.json` é o registro completo desta execução, incluindo amostras de waterfall.
 
 ## Gates ainda pendentes
 
 - QA em aparelho Android e Safari/iOS reais.
+- Estabilização do teste de dock gravado em desktop/celular; seu timeout persiste no ambiente e não foi atribuído com evidência suficiente a uma causa específica.
 - Escuta com gravações existentes; esta tarefa não faz síntese nem testa qualidade acústica.
 - Verificação de promoção por frase, chapters v2 e comportamento em pausa/seek; fora da implementação P01.
 - Repetição em CDN/Pages real. O harness serve `dist` localmente e não prova LCP/INP do campo; a cobertura do SW é somente o smoke descrito acima.
