@@ -23,7 +23,7 @@ O teste não valida o tempo acústico percebido, compatibilidade real de capítu
 
 ## Perfil e leitura das métricas
 
-O script percorre home e artigo em 10 navegações frias e 10 quentes cada: viewport 390×844, throttling CPU 4×, rede 4.000.000 bit/s e RTT 150 ms. Cold desabilita o cache HTTP via CDP; warm mantém o mesmo contexto/browser, habilita cache HTTP e serve recursos com `max-age=3600`. Service workers ficam bloqueados para isolar cache HTTP; a matriz do SW permanece pendente. Não há `page.route` no perfil, pois ele desabilitaria cache; a API de Release é simulada dentro do `fetch` da página.
+O script percorre home e artigo em 10 navegações frias e 10 quentes cada: viewport 390×844, throttling CPU 4×, rede 4.000.000 bit/s e RTT 150 ms. Cold desabilita o cache HTTP via CDP; warm mantém o mesmo contexto/browser, habilita cache HTTP e serve recursos com `max-age=3600`. Service workers ficam bloqueados para isolar cache HTTP; depois, um ensaio separado usa o SW real do artefato, visita home/artigo, confirma controle e tenta abrir o artigo offline. Esse é um smoke de uma amostra, não uma comparação estatística fria/quente do SW. Não há `page.route` no perfil, pois ele desabilitaria cache; a API de Release é simulada dentro do `fetch` da página.
 
 O relógio de primeira disponibilidade de texto permanece separado da janela visual: antes de colher LCP/CLS, o harness aguarda as duas primeiras capas da home ou a capa do artigo, `document.fonts.ready` e dois frames de animação. Cada imagem e as fontes têm limite de 4 s; resultados incompletos ficam registrados. A amostra inclui candidato de LCP, bytes de navegação e recursos e requisições externos cujo `transferSize` zero não permite distinguir cache de falta de `Timing-Allow-Origin`.
 
@@ -45,4 +45,4 @@ Metas são limites propostos pela issue, e não resultados. Comparações devem 
 - QA em aparelho Android e Safari/iOS reais.
 - Escuta com gravações existentes; esta tarefa não faz síntese nem testa qualidade acústica.
 - Verificação de promoção por frase, chapters v2 e comportamento em pausa/seek; fora da implementação P01.
-- Repetição em CDN/Pages real e cache/service worker real. O harness serve `dist` localmente e não prova LCP/INP do campo.
+- Repetição em CDN/Pages real. O harness serve `dist` localmente e não prova LCP/INP do campo; a cobertura do SW é somente o smoke descrito acima.
