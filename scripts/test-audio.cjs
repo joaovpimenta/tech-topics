@@ -478,11 +478,17 @@ test("discovered MP3 with readyState zero uses device speech after the gesture",
   await unbuffered.controller.play();
   assert.equal(unbuffered.audio.playCalls, 0);
   assert.equal(unbuffered.controller.snapshot().mode, "device");
-  const noSpeech = await playerFixture({ readyState: 0, deviceAvailable: false });
-  await noSpeech.controller.play();
-  assert.equal(noSpeech.audio.playCalls, 0);
-  assert.equal(noSpeech.starts[0], "unavailable");
-  assert.match(noSpeech.nodes["#recording-status"].textContent, /voz do dispositivo não está disponível/);
+  let finishLoad;
+  const noSpeech = await playerFixture({ readyState: 1, deviceAvailable: false, playbackTimeoutMs: 10,
+    playPlan: () => new Promise(resolve => { finishLoad = resolve; }) });
+  const noSpeechAttempt = noSpeech.controller.play();
+  assert.equal(noSpeech.audio.playCalls, 1, "a user gesture still asks the discovered MP3 to load");
+  assert.equal(noSpeech.nodes["#recording-status"].textContent, "Carregando áudio gravado…");
+  await noSpeechAttempt;
+  assert.equal(noSpeech.controller.snapshot().mode, null);
+  assert.equal(noSpeech.controller.snapshot().open, false);
+  assert.match(noSpeech.nodes["#recording-status"].textContent, /MP3 ainda não iniciou/);
+  finishLoad();
 });
 
 test("pending and rejected media playback fall back within a bound and ignore late starts", async () => {
@@ -565,6 +571,91 @@ test("pause, seek, close and explicit device choice cancel pending MP3 attempts"
     if (action === "close") assert.equal(fixture.controller.snapshot().open, false);
     if (action === "device") assert.equal(fixture.controller.snapshot().mode, "device");
   }
+});
+
+test("a late play result from an older request cannot pause a newer recorded session", async () => {
+  const resolutions = [];
+  const fixture = await playerFixture({
+    playbackTimeoutMs: 1000,
+    playPlan: audio => {
+      audio.paused = false;
+      audio.dispatchEvent(new Event("play"));
+      return new Promise(resolve => {
+        resolutions.push(() => {
+          audio.paused = false;
+          audio.dispatchEvent(new Event("play"));
+          audio.dispatchEvent(new Event("playing"));
+          resolve();
+        });
+      });
+    }
+  });
+  const firstAttempt = fixture.controller.play();
+  fixture.nodes["#recording-play"].click();
+  await firstAttempt;
+
+  const secondAttempt = fixture.controller.play();
+  resolutions[1]();
+  await secondAttempt;
+  assert.equal(fixture.controller.snapshot().playing, true);
+  assert.equal(fixture.audio.paused, false);
+
+  resolutions[0]();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(fixture.controller.snapshot().mode, "recorded");
+  assert.equal(fixture.controller.snapshot().playing, true, "the stale request cannot interrupt the newer session");
+  assert.equal(fixture.audio.paused, false);
+});
+
+test("pagehide closes playback after repeated bfcache restore cycles", async () => {
+  const oldAdd = globalThis.addEventListener;
+  const oldRemove = globalThis.removeEventListener;
+  const listeners = new Map();
+  globalThis.addEventListener = (type, fn, options) => {
+    const listener = (...args) => {
+      fn(...args);
+      if (options?.once) listeners.delete(type);
+    };
+    listener.original = fn;
+    listeners.set(type, listener);
+  };
+  globalThis.removeEventListener = (type, fn) => {
+    if (listeners.get(type)?.original === fn) listeners.delete(type);
+  };
+  try {
+    const fixture = await playerFixture();
+    const dispatch = type => listeners.get(type)?.();
+    assert.equal(typeof listeners.get("pagehide"), "function");
+    await fixture.controller.play();
+    dispatch("pagehide");
+    assert.equal(fixture.controller.snapshot().open, false);
+    assert.equal(fixture.audio.paused, true);
+
+    dispatch("pageshow");
+    await fixture.controller.play();
+    assert.equal(fixture.controller.snapshot().playing, true, "playback can resume after bfcache restoration");
+    assert.equal(typeof listeners.get("pagehide"), "function", "the listener remains registered after restoration");
+    dispatch("pagehide");
+    assert.equal(fixture.controller.snapshot().open, false, "the second pagehide still closes the restored session");
+    assert.equal(fixture.audio.paused, true);
+  } finally {
+    if (oldAdd === undefined) delete globalThis.addEventListener;
+    else globalThis.addEventListener = oldAdd;
+    if (oldRemove === undefined) delete globalThis.removeEventListener;
+    else globalThis.removeEventListener = oldRemove;
+  }
+});
+
+test("media error during pending recorded playback returns to the originating device block", async () => {
+  const fixture = await playerFixture({ playbackTimeoutMs: 1000, playPlan: () => new Promise(() => {}) });
+  fixture.controller.beginDevice(2);
+  const attempt = fixture.controller.play();
+  assert.equal(fixture.controller.snapshot().recordedPending, true);
+  fixture.audio.dispatchEvent(new Event("error"));
+  await attempt;
+  assert.deepEqual(fixture.starts, [2, 2], "the source error resumes where device playback started");
+  assert.equal(fixture.controller.snapshot().mode, "device");
 });
 
 test("exact chapter timestamps highlight and auto-scroll the corresponding paragraph; click seeks", async () => {
