@@ -29,54 +29,41 @@ self.addEventListener("activate", event => {
       // The first install has no old controller to protect and should work offline
       // without requiring an extra navigation.
       await self.clients.claim();
-      return;
     }
-    // Keep every prior cache through the migration. Existing tabs remain under
-    // their original controller; a new navigation uses this activated worker.
-    try {
-      const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-      for (const client of clients) {
-        const clientUrl = new URL(client.url);
-        if (clientUrl.origin === BASE_URL.origin && clientUrl.pathname.startsWith(BASE_URL.pathname)) {
-          try { client.postMessage({ type: "TECH_TOPICS_UPDATE_ACTIVATED", version: PRECACHE_VERSION }); }
-          catch (error) { /* A closing tab cannot prevent other clients from updating. */ }
-        }
-      }
-    } catch (error) { /* A notification failure cannot invalidate the installed cache. */ }
+    // Updates activate naturally after all clients of the previous worker close.
+    // Never take control of or reload those clients from a waiting worker.
   })());
-});
-
-self.addEventListener("message", event => {
-  if (event.data?.type !== "TECH_TOPICS_ACTIVATE_UPDATE") return;
-  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== BASE_URL.origin || !url.pathname.startsWith(BASE_URL.pathname)) return;
+  const homePath = new URL("index.html", BASE_URL).pathname;
+  const articlePath = new URL("article.html", BASE_URL).pathname;
+  const shellPath = event.request.mode !== "navigate" ? null
+    : url.pathname === BASE_URL.pathname || url.pathname === homePath ? "index.html"
+      : url.pathname === articlePath ? "article.html" : null;
+  const cacheKey = shellPath ? new URL(shellPath, BASE_URL).href : event.request;
   const response = (async () => {
     let cache;
     let saved;
     try {
       cache = await caches.open(CACHE_NAME);
-      saved = await cache.match(event.request);
+      saved = await cache.match(cacheKey);
     } catch (error) { cache = null; }
     if (saved) return saved;
     try {
       const fresh = await fetch(event.request);
       if (fresh.ok && cache) {
-        try { await cache.put(event.request, fresh.clone()); } catch (error) { /* Storage is best-effort. */ }
+        try { await cache.put(cacheKey, fresh.clone()); } catch (error) { /* Storage is best-effort. */ }
       }
       return fresh;
     } catch (error) {
-      if (event.request.mode === "navigate") {
-        // The query selects the article JSON, not a different HTML shell.
-        const shell = url.pathname.endsWith("/article.html") ? "article.html"
-          : (url.pathname === BASE_URL.pathname || url.pathname.endsWith("/index.html")) ? "index.html" : null;
-        if (shell) {
-          const page = await cache.match(new URL(shell, BASE_URL).href);
+      if (shellPath && cache) {
+        try {
+          const page = await cache.match(cacheKey);
           if (page) return page;
-        }
+        } catch (cacheError) { /* An unavailable cache falls through to the offline response. */ }
       }
       return new Response("Conteúdo indisponível offline. Conecte-se e tente novamente.", {
         status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" }

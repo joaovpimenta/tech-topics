@@ -7,13 +7,17 @@ async function testWorker() {
   const cachesByName = new Map();
   const deleted = [];
   const key = request => typeof request === "string" ? request : request.url;
+  let cacheMatchFails = false;
   const makeCache = () => {
     const entries = new Map();
     return {
       entries,
       async addAll(requests) { for (const request of requests) entries.set(key(request), new Response(key(request))); },
       async put(request, response) { entries.set(key(request), response); },
-      async match(request) { return entries.get(key(request))?.clone(); }
+      async match(request) {
+        if (cacheMatchFails) throw new Error("cache match unavailable");
+        return entries.get(key(request))?.clone();
+      }
     };
   };
   const oldCache = makeCache();
@@ -23,12 +27,14 @@ async function testWorker() {
   let cacheAccessFails = false;
   let claimed = false;
   let skipWaitingCalls = 0;
+  let matchAllCalls = 0;
   const updateMessages = [];
   const windows = [
     { url: "https://example.com/tech-topics/article.html?slug=bulkhead#limits", postMessage(message) { updateMessages.push(["tab-one", message]); } },
     { url: "https://example.com/tech-topics/", postMessage(message) { updateMessages.push(["tab-two", message]); } },
     { url: "https://example.com/other/index.html", postMessage(message) { updateMessages.push(["other", message]); } }
   ];
+  const networkRequests = [];
   const context = vm.createContext({
     URL, Request, Response,
     importScripts() { vm.runInContext(readFileSync(process.env.TECH_TOPICS_SW_VERSION_SOURCE_PATH || "sw-version.js", "utf8"), context); },
@@ -37,7 +43,7 @@ async function testWorker() {
       addEventListener(name, fn) { handlers[name] = fn; },
       async skipWaiting() { skipWaitingCalls++; }, clients: {
         async claim() { claimed = true; },
-        async matchAll() { return windows; }
+        async matchAll() { matchAllCalls++; return windows; }
       }
     },
     caches: {
@@ -50,6 +56,7 @@ async function testWorker() {
       async delete(name) { deleted.push(name); return cachesByName.delete(name); }
     },
     async fetch(request) {
+      networkRequests.push(request.url);
       if (offline) throw Error("Offline");
       if (request.url === "https://example.com/tech-topics/content/articles/retired.json") {
         return new Response("retired endpoint", { status: 404 });
@@ -72,7 +79,7 @@ async function testWorker() {
   }
   assert(!entries.has("https://example.com/tech-topics/content/articles/bulkhead.json"), "full articles must not be precached");
   assert(!entries.has("https://example.com/tech-topics/assets/bulkhead/bulkhead-cover.jpg"), "covers must not be precached");
-  assert.equal(skipWaitingCalls, 0, "an installed update stays waiting until a client explicitly accepts it");
+  assert.equal(skipWaitingCalls, 0, "an installed update waits for the browser's natural lifecycle");
   const manifestIcons = JSON.parse(readFileSync("manifest.webmanifest", "utf8")).icons;
   for (const icon of manifestIcons) assert(entries.has(new URL(icon.src, "https://example.com/tech-topics/").href), "installable app icon must be available offline: " + icon.src);
   assert(entries.has("https://example.com/tech-topics/favicon.ico"));
@@ -86,11 +93,9 @@ async function testWorker() {
   assert.equal(await oldCache.match("https://example.com/tech-topics/app.js").then(response => response.text()), "old-version-app",
     "candidate cache writes cannot replace a previous version's app code");
   assert.equal(claimed, false, "activation must not take control of already-open tabs");
-  assert.deepEqual(updateMessages.map(([tab]) => tab), ["tab-one", "tab-two"], "all in-scope tabs learn that the update is ready");
-  assert.equal(updateMessages[0][1].type, "TECH_TOPICS_UPDATE_ACTIVATED");
-  handlers.message({ data: { type: "TECH_TOPICS_ACTIVATE_UPDATE" }, waitUntil(promise) { pending = promise; } });
-  await pending;
-  assert.equal(skipWaitingCalls, 1, "skipWaiting is only requested after an explicit client message");
+  assert.equal(matchAllCalls, 0, "the new worker does not take over or notify existing tabs during activation");
+  assert.equal(updateMessages.length, 0, "activation does not claim that old tabs have updated");
+  assert.equal(skipWaitingCalls, 0, "updates wait for the browser's natural service-worker lifecycle");
   async function request(path, navigate = false) {
     let response;
     handlers.fetch({ request: { url: `https://example.com${path}`, method: "GET", mode: navigate ? "navigate" : "cors" },
@@ -100,6 +105,20 @@ async function testWorker() {
   assert.equal(await request("/other-app/index.html"), undefined);
   const online = await request("/tech-topics/app.js");
   assert.equal(await online.text(), "https://example.com/tech-topics/app.js", "a controlled tab stays on its worker's precached app version");
+  const articleShellUrl = "https://example.com/tech-topics/article.html";
+  const articleNavigation = await request("/tech-topics/article.html?slug=bulkhead#limits", true);
+  assert.equal(await articleNavigation.text(), articleShellUrl, "article query/hash navigation reuses the cached shell");
+  assert.equal(entries.has("https://example.com/tech-topics/article.html?slug=bulkhead#limits"), false,
+    "navigation parameters are not stored as a second shell version");
+  assert.equal(await (await request("/tech-topics/", true)).text(), "https://example.com/tech-topics/index.html");
+  assert.equal(await (await request("/tech-topics/index.html?q=search", true)).text(), "https://example.com/tech-topics/index.html");
+  assert.equal(networkRequests.some(url => url.includes("article.html?slug=bulkhead") || url.includes("index.html?q=search")), false,
+    "known shell navigations are normalized before network access");
+  entries.delete(articleShellUrl);
+  const queryShellUrl = "https://example.com/tech-topics/article.html?slug=uncached#part";
+  assert.match(await (await request("/tech-topics/article.html?slug=uncached#part", true)).text(), /^fresh:/);
+  assert.equal(entries.has(articleShellUrl), true, "a shell network miss is saved under its canonical pathname");
+  assert.equal(entries.has(queryShellUrl), false, "a shell response never enters a query-specific cache key");
   const uncached = await request("/tech-topics/content/articles/cached-on-first-visit.json");
   assert.match(await uncached.text(), /^fresh:/, "a cache miss uses the network and joins this worker's version cache");
   const retired = await request("/tech-topics/content/articles/retired.json");
@@ -120,6 +139,14 @@ async function testWorker() {
   assert.equal((await request("/tech-topics/article.html?slug=four-golden-signals", true)).status, 200);
   assert.equal((await request("/tech-topics/", true)).status, 200);
   assert.equal((await request("/tech-topics/missing.json")).status, 503);
+  cacheAccessFails = true;
+  assert.equal((await request("/tech-topics/article.html?slug=cache-open-failure", true)).status, 503,
+    "an offline Cache.open failure returns the site's unavailable response");
+  cacheAccessFails = false;
+  cacheMatchFails = true;
+  assert.equal((await request("/tech-topics/article.html?slug=cache-match-failure", true)).status, 503,
+    "an offline Cache.match failure returns the site's unavailable response");
+  cacheMatchFails = false;
 }
 
 async function testFailedInstallPreservesActiveCache() {
@@ -185,32 +212,46 @@ async function testFirstInstallClaimsWithoutReload() {
   assert.equal(claimed, true, "a first install controls its page so the precache works offline immediately");
 }
 
-async function testPwaUpdateRequiresSafeUserAction() {
+async function testCacheKeysFailureKeepsExistingClients() {
+  const handlers = {};
+  let claimed = false;
+  const context = vm.createContext({
+    URL, Request, Response,
+    importScripts() { vm.runInContext(readFileSync(process.env.TECH_TOPICS_SW_VERSION_SOURCE_PATH || "sw-version.js", "utf8"), context); },
+    self: {
+      location: { href: "https://example.com/tech-topics/sw.js" },
+      addEventListener(name, fn) { handlers[name] = fn; },
+      clients: { async claim() { claimed = true; }, async matchAll() { return []; } }
+    },
+    caches: { async keys() { throw new Error("storage unavailable"); } }
+  });
+  vm.runInContext(readFileSync(process.env.TECH_TOPICS_SW_SOURCE_PATH || "sw.js", "utf8"), context);
+  let pending;
+  handlers.activate({ waitUntil(promise) { pending = promise; } });
+  await pending;
+  assert.equal(claimed, false, "unknown cache state never claims clients from an older version");
+}
+
+async function testPwaUpdateWaitsForClosedTabs() {
   const windowHandlers = {};
-  const serviceWorkerHandlers = {};
   const workerHandlers = {};
-  const buttonHandlers = {};
   let reloads = 0;
-  let nextTimerId = 0;
-  const timers = new Map();
-  const posted = [];
   const children = [];
-  const element = () => ({
+  const element = tagName => ({
+    tagName,
     style: {}, hidden: false, disabled: false, children: [], attrs: {},
     setAttribute(name, value) { this.attrs[name] = value; },
-    addEventListener(type, handler) { buttonHandlers[type] = handler; },
     append(...items) { this.children.push(...items); }
   });
   const body = { append(child) { children.push(child); } };
-  const waiting = { state: "installed", addEventListener(type, handler) { workerHandlers[type] = handler; }, postMessage(message) { posted.push(message); } };
+  const waiting = { state: "installed", addEventListener(type, handler) { workerHandlers[type] = handler; } };
   const registration = {
-    waiting, installing: null, handlers: {},
-    addEventListener(type, handler) { this.handlers[type] = handler; }
+    waiting, installing: null,
+    addEventListener() {}
   };
   const navigator = {
     serviceWorker: {
       controller: {},
-      addEventListener(type, handler) { serviceWorkerHandlers[type] = handler; },
       register: async () => registration
     }
   };
@@ -220,47 +261,29 @@ async function testPwaUpdateRequiresSafeUserAction() {
     addEventListener(type, handler) { windowHandlers[type] = handler; }
   };
   const document = {
-    body, querySelector() { return null; }, querySelectorAll() { return []; }, createElement: element
+    body,
+    querySelector() { return null; },
+    getElementById(id) { return children.find(child => child.id === id) || null; },
+    createElement: element
   };
-  vm.runInNewContext(readFileSync("pwa.js", "utf8"), {
-    document, window, navigator, console,
-    setTimeout(callback) { const id = ++nextTimerId; timers.set(id, callback); return id; },
-    clearTimeout(id) { timers.delete(id); }
-  });
+  vm.runInNewContext(readFileSync("pwa.js", "utf8"), { document, window, navigator, console });
   windowHandlers.load();
   await new Promise(setImmediate);
   workerHandlers.statechange();
   const notice = children[0];
   const message = notice.children[0];
-  const button = notice.children[1];
   assert.equal(notice.attrs.role, "status");
   assert.equal(notice.attrs["aria-live"], "polite");
-  assert.equal(reloads, 0, "discovering an update never reloads the page");
-
-  buttonHandlers.click();
-  assert.equal(posted.length, 1);
-  assert.equal(posted[0].type, "TECH_TOPICS_ACTIVATE_UPDATE");
-  assert.equal(timers.size, 1, "a missing activation message cannot leave the update control disabled forever");
-  assert.equal(reloads, 0, "asking the waiting worker to activate does not reload any tab");
-  serviceWorkerHandlers.message({ data: { type: "TECH_TOPICS_UPDATE_ACTIVATED", version: "candidate" } });
-  assert.equal(timers.size, 0, "successful activation cancels the retry notice");
-  assert.match(message.textContent, /Recarregue esta aba quando estiver pronto/);
-  assert.equal(reloads, 0, "worker activation notifies open tabs without reloading them");
-
+  assert.equal(notice.children.length, 1, "update notice has no action that can activate or reload other tabs");
+  assert.match(message.textContent, /feche todas as abas do Tech Topics/);
+  assert.match(message.textContent, /leitura ou reprodução/);
   window.speechSynthesis.speaking = true;
-  buttonHandlers.click();
-  assert.equal(reloads, 0, "an explicit reload is refused while speech is active");
-  assert.match(message.textContent, /Termine a reprodução/);
-  window.speechSynthesis.speaking = false;
-  let mediaPlaying = true;
-  document.querySelectorAll = () => [{ paused: !mediaPlaying, ended: false }];
-  buttonHandlers.click();
-  assert.equal(reloads, 0, "an explicit reload is refused while recorded audio is active");
-  mediaPlaying = false;
-  buttonHandlers.click();
-  assert.equal(reloads, 1);
+  assert.equal(reloads, 0, "the service worker never reloads while Web Speech is playing");
+  document.querySelectorAll = () => [{ paused: false, ended: false }];
+  assert.equal(reloads, 0, "the service worker never reloads while recorded audio is playing");
   assert.equal(window.location.href, "https://example.com/tech-topics/article.html?slug=bulkhead#limits",
-    "refresh preserves the slug and hash in the current URL");
+    "waiting for every tab to close preserves the current page's slug and hash");
+  assert.equal(children.length, 1, "one tab receives one update notice");
 }
 
 async function testOrdering() {
@@ -583,7 +606,8 @@ async function testOrdering() {
   await testWorker();
   await testFailedInstallPreservesActiveCache();
   await testFirstInstallClaimsWithoutReload();
-  await testPwaUpdateRequiresSafeUserAction();
+  await testCacheKeysFailureKeepsExistingClients();
+  await testPwaUpdateWaitsForClosedTabs();
   await testOrdering();
-  console.log("PASS: versioned cache retention, quota-safe install, opt-in update/reload, safe playback handling, scoped offline behavior, favorites and ordering.");
+  console.log("PASS: versioned cache retention, quota-safe install, natural updates, shell navigation normalization, offline fallback, favorites and ordering.");
 })().catch(error => { console.error(error); process.exitCode = 1; });
