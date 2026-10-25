@@ -6,6 +6,51 @@
     "en-US": ["ay", "bee", "see", "dee", "ee", "ef", "gee", "aitch", "eye", "jay", "kay", "el", "em", "en", "oh", "pee", "cue", "ar", "ess", "tee", "you", "vee", "double you", "ex", "why", "zee"]
   };
   const digits = { "pt-BR": ["zero", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"], "en-US": ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"] };
+  const voiceStates = new WeakMap();
+
+  function prepareVoices(synthesis = root.speechSynthesis) {
+    if (!synthesis || (typeof synthesis !== "object" && typeof synthesis !== "function")) {
+      return { snapshot: () => ({ state: "unavailable", voices: [] }), subscribe: () => () => {} };
+    }
+    const existing = voiceStates.get(synthesis);
+    if (existing) return existing;
+    let state = { state: "pending", voices: [] };
+    const listeners = new Set();
+    const publish = () => listeners.forEach(listener => listener(state));
+    const refresh = () => {
+      try {
+        const voices = synthesis.getVoices();
+        state = {
+          state: voices.length
+            ? (voices.some(voice => /^pt(?:-|$)/i.test(voice.lang || "")) ? "ready" : "missing-pt-br")
+            : state.state === "pending" ? "pending" : "unavailable",
+          voices
+        };
+      } catch (_) {
+        state = { state: "unavailable", voices: [] };
+      }
+      publish();
+    };
+    const prepared = {
+      snapshot: () => ({ ...state, voices: [...state.voices] }),
+      subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); }
+    };
+    voiceStates.set(synthesis, prepared);
+    try { synthesis.addEventListener?.("voiceschanged", refresh); } catch (_) {}
+    refresh();
+    const timeout = root.setTimeout?.(() => {
+      if (state.state === "pending") {
+        state = { state: "unavailable", voices: [] };
+        publish();
+      }
+    }, 2500);
+    timeout?.unref?.();
+    return prepared;
+  }
+
+  // Prime the browser's voice list as the shell opens. This never speaks and
+  // does not attempt to unlock autoplay.
+  if (root.speechSynthesis) prepareVoices(root.speechSynthesis);
 
   function spell(text, lang = "pt-BR") {
     const language = lang.toLowerCase().startsWith("en") ? "en-US" : "pt-BR";
@@ -188,6 +233,7 @@
   }
 
   function createPlayer({ blocks, synthesis, Utterance, onChange = () => {}, onWord = () => {} }) {
+    const voices = prepareVoices(synthesis);
     let rate = 1;
     let state = "idle";
     let blockIndex = 0;
@@ -218,10 +264,10 @@
       utterance.lang = segment.lang;
       utterance.rate = rate;
       utterance.pitch = 1;
-      const voices = synthesis.getVoices();
+      const availableVoices = voices.snapshot().voices;
       const language = segment.lang.toLowerCase();
-      const voice = voices.find(item => item.lang.toLowerCase() === language)
-        || voices.find(item => item.lang.toLowerCase().split("-")[0] === language.split("-")[0]);
+      const voice = availableVoices.find(item => item.lang.toLowerCase() === language)
+        || availableVoices.find(item => item.lang.toLowerCase().split("-")[0] === language.split("-")[0]);
       if (voice) utterance.voice = voice;
       utterance.onstart = () => { try { performance.mark("tt:device-onstart"); } catch (_) {} };
       utterance.onboundary = event => {
@@ -285,7 +331,7 @@
     return { snapshot, start, toggle, seek, next: () => seek(blockIndex + 1), previous: () => seek(blockIndex - 1), stop, setRate, getRate: () => rate };
   }
 
-  function mount({ document, lexicon = {}, synthesis = root.speechSynthesis, Utterance = root.SpeechSynthesisUtterance, dockMode = false, onStatus = () => {} }) {
+  function mount({ document, lexicon = {}, synthesis = root.speechSynthesis, Utterance = root.SpeechSynthesisUtterance, dockMode = false, onStatus = () => {}, onAvailability = () => {} }) {
     const button = document.querySelector("#listen-article");
     const status = document.querySelector("#listen-status");
     const bar = document.querySelector("#speech-player");
@@ -294,6 +340,10 @@
       status.textContent = "Leitura em voz alta não é compatível com este navegador.";
       return null;
     }
+    const preparedVoices = prepareVoices(synthesis);
+    const reportVoiceAvailability = snapshot => onAvailability({ ...snapshot, voices: snapshot.voices.map(voice => voice.lang) });
+    reportVoiceAvailability(preparedVoices.snapshot());
+    preparedVoices.subscribe(reportVoiceAvailability);
     const blocks = buildBlocks([document.querySelector("#article-heading"), document.querySelector("#article-dek"), document.querySelector("#article-body")], lexicon);
     if (dockMode) {
       let highlightedWords = [];
@@ -410,7 +460,7 @@
     return player;
   }
 
-  const api = { pronounce, spell, validateLexicon, isSentenceBoundary, isNarrationIgnored, createSentenceHighlighter, createPlayer, buildBlocks, mount };
+  const api = { pronounce, spell, validateLexicon, prepareVoices, isSentenceBoundary, isNarrationIgnored, createSentenceHighlighter, createPlayer, buildBlocks, mount };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.TechTopicsSpeech = api;
 })(globalThis);

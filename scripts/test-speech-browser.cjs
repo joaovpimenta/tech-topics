@@ -48,8 +48,13 @@ async function main() {
     await page.addInitScript(() => {
       // Simulate playback rather than requiring audio hardware or downloading an MP3.
       HTMLMediaElement.prototype.play = function () {
+        const range = { length: 1, start: () => 0, end: () => this.duration };
+        Object.defineProperty(this, "readyState", { configurable: true, value: 4 });
+        Object.defineProperty(this, "buffered", { configurable: true, value: range });
+        Object.defineProperty(this, "seekable", { configurable: true, value: range });
         Object.defineProperty(this, "paused", { configurable: true, value: false });
         this.dispatchEvent(new Event("play"));
+        this.dispatchEvent(new Event("playing"));
         return Promise.resolve();
       };
       HTMLMediaElement.prototype.pause = function () {
@@ -67,9 +72,14 @@ async function main() {
       await page.evaluate(() => {
         const recording = document.querySelector("#article-recording");
         Object.defineProperty(recording, "duration", { configurable: true, value: 125 });
+        Object.defineProperty(recording, "readyState", { configurable: true, value: 4 });
+        const range = { length: 1, start: () => 0, end: () => recording.duration };
+        Object.defineProperty(recording, "buffered", { configurable: true, value: range });
+        Object.defineProperty(recording, "seekable", { configurable: true, value: range });
         recording.dispatchEvent(new Event("durationchange"));
       });
       await page.locator("#listen-recording").click();
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
       await page.locator("#recording-player").waitFor({ state: "visible" });
       assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "true");
       assert(await page.locator("#recording-skip").isVisible(), "chapter skip visible");
@@ -94,10 +104,13 @@ async function main() {
       assert(await page.locator("#recording-player").isVisible(), "native TTS reuses bottom dock");
       assert.match(await page.locator("#recording-subtitle").innerText(), /Voz do dispositivo/);
       assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "true");
-      assert(await page.locator(".recording-block-active").count() > 0, "native paragraph highlighted");
+      assert(await page.evaluate(() => document.querySelectorAll(".recording-block-active, .recording-sentence-active").length > 0
+        || Boolean(window.CSS?.highlights?.has("tech-topics-current-sentence"))), "native paragraph highlighted");
       const utterancesBefore = await page.evaluate(() => window.testUtterances.length);
       await page.locator("#article-body p.recording-readable").first().click();
       assert(await page.evaluate(() => window.testUtterances.length) > utterancesBefore, "click paragraph starts device TTS at that paragraph");
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await page.locator("#recording-player").waitFor({ state: "visible" });
       await page.locator("#recording-skip").click();
       assert(await page.locator("#recording-elapsed").innerText() !== "0:00", "native player reports paragraph instead of fake time");
       await page.locator("#recording-play").click();

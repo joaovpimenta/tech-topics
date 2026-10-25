@@ -51,16 +51,29 @@ async function main() {
       }
       await page.goto(`${base}/article.html?slug=consenso-raft`, { waitUntil: "domcontentloaded" });
       await page.waitForFunction(() => { const body = document.querySelector("#article-body")?.textContent.trim(); return body && !body.includes("Carregando o conteúdo") && body.length > 1000; });
-      await dependencyStarted;
-      assert.equal(dependencyEntered, true, `${dependency} request must have entered its pending handler`);
-      await page.evaluate(() => document.querySelector("#listen-article").click());
-      const blocked = await page.evaluate(() => ({ body: Boolean(document.querySelector("#article-body")?.textContent.trim()), actions: Boolean(document.querySelector("#article-actions") && !document.querySelector("#article-actions").hidden), speechCalls: window.__speechCalls, dock: !document.querySelector("#recording-player")?.hidden }));
-      assert.equal(blocked.body, true);
-      assert.equal(blocked.actions, false);
-      assert.equal(blocked.speechCalls, 0, "visible inline affordance is inert until mount finishes");
-      release();
-      await page.locator("#article-actions").waitFor({ state: "visible" });
-      observations.push({ case: `pending-${dependency}`, current: blocked, desiredContract: { player: true, actions: true }, status: "KNOWN_REGRESSION: user-visible controls wait on unrelated dependency" });
+      if (dependency === "mermaid") {
+        await dependencyStarted;
+        assert.equal(dependencyEntered, true, "Mermaid must still be allowed to load progressively");
+      }
+      await page.locator("#article-actions").waitFor({ state: "visible", timeout: 1500 });
+      const beforeGesture = await page.evaluate(() => ({
+        body: Boolean(document.querySelector("#article-body")?.textContent.trim()),
+        actions: Boolean(document.querySelector("#article-actions") && !document.querySelector("#article-actions").hidden),
+        speechCalls: window.__speechCalls,
+        lexicon: window.TechTopicsSpeechLexicon?.HTTP?.speak || null
+      }));
+      assert.equal(beforeGesture.body, true);
+      assert.equal(beforeGesture.actions, true, `${dependency} must not block article actions`);
+      assert.equal(beforeGesture.speechCalls, 0, "opening the article must not emit an utterance");
+      assert.equal(beforeGesture.lexicon, "agá tê tê pê", "generated shell lexicon is available synchronously");
+      if (dependency === "lexicon") assert.equal(dependencyEntered, false, "article startup must not request the legacy JSON before controls mount");
+      await page.locator("#listen-recording").click();
+      await page.waitForFunction(() => window.__speechCalls > 0, null, { timeout: 1500 });
+      const afterGesture = await page.evaluate(() => ({ speechCalls: window.__speechCalls, actions: !document.querySelector("#article-actions").hidden }));
+      assert.equal(afterGesture.actions, true);
+      assert.equal(afterGesture.speechCalls, 1, "one user gesture starts device speech without waiting for Mermaid or JSON");
+      if (dependency === "mermaid") release();
+      observations.push({ case: dependency === "mermaid" ? "pending-mermaid" : "legacy-lexicon-request-not-used", beforeGesture, afterGesture, dependencyEntered });
       await page.close();
     }
 
@@ -89,9 +102,19 @@ async function main() {
       await page.locator("#listen-recording").click();
       await sleep(100);
       const result = { ...(await page.evaluate(() => ({ speechCalls: window.__speechCalls, mediaPlayCalls: window.__mediaPlayCalls, mediaReadyState: document.querySelector("#article-recording")?.readyState, subtitle: document.querySelector("#recording-subtitle")?.textContent, playing: document.querySelector("#recording-play")?.dataset.playing }))), lookupPendingAtGesture: apiPending && lookupPending };
-      if (!mp3Discovered) assert(result.speechCalls > 0, `API failure should use available device speech: ${JSON.stringify(result)}`);
-      else if (mp3Discovered) { assert.equal(result.speechCalls, 0, "discovered MP3 suppresses device voice even while playback promise remains pending"); assert.equal(result.mediaReadyState, 0, "discovered MP3 has not produced media metadata"); assert.equal(result.mediaPlayCalls, 1, "click awaited a pending media play promise"); }
-      if (apiPending) { assert.equal(result.lookupPendingAtGesture, true, "Release request must still be unresolved at the user gesture"); releaseLookup(); await page.waitForFunction(() => performance.getEntriesByType("resource").some(entry => entry.name.includes("api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-"))); }
+      assert(result.speechCalls > 0, `an unready/unknown MP3 must use available device speech: ${JSON.stringify(result)}`);
+      assert.equal(result.subtitle, "Tech Topics · Voz do dispositivo");
+      if (mp3Discovered) {
+        assert.equal(result.mediaReadyState, 0, "discovered MP3 has not produced media metadata");
+        assert.equal(result.mediaPlayCalls, 0, "readyState=0 falls back before calling play()");
+      } else assert.equal(result.mediaPlayCalls, 0, "unknown or missing MP3 does not invoke media playback");
+      if (apiPending) {
+        assert.equal(result.lookupPendingAtGesture, true, "Release request must still be unresolved at the user gesture");
+        releaseLookup();
+        await sleep(100);
+        const afterDiscovery = await page.evaluate(() => ({ speechCalls: window.__speechCalls, mediaPlayCalls: window.__mediaPlayCalls, subtitle: document.querySelector("#recording-subtitle")?.textContent }));
+        assert.deepEqual(afterDiscovery, { speechCalls: result.speechCalls, mediaPlayCalls: 0, subtitle: "Tech Topics · Voz do dispositivo" }, "late Release discovery cannot promote or restart an explicit local session");
+      }
       await page.close();
       return result;
     }

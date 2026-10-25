@@ -196,13 +196,18 @@ shareButton?.addEventListener("click", async () => {
   }
 });
 
-async function showArticle(article) {
+async function showArticle(article, htmlSlots = null) {
   document.documentElement.lang = article.language || "pt-BR";
   document.title = `${article.title} — Tech Topics`;
   document.querySelector("#article-description").content = article.excerpt;
   document.querySelector("#article-category").textContent = article.category;
-  renderSpeechMarkup(document.querySelector("#article-heading"), article.title, article.speechMarkup?.title, document.documentElement.lang);
-  renderSpeechMarkup(document.querySelector("#article-dek"), article.dek || article.excerpt, article.speechMarkup?.dek, document.documentElement.lang);
+  if (htmlSlots) {
+    document.querySelector("#article-heading").innerHTML = htmlSlots.heading;
+    document.querySelector("#article-dek").innerHTML = htmlSlots.dek;
+  } else {
+    renderSpeechMarkup(document.querySelector("#article-heading"), article.title, article.speechMarkup?.title, document.documentElement.lang);
+    renderSpeechMarkup(document.querySelector("#article-dek"), article.dek || article.excerpt, article.speechMarkup?.dek, document.documentElement.lang);
+  }
   const publishedAt = new Date(`${article.publishedAt}T00:00:00Z`);
   const date = Number.isNaN(publishedAt.getTime()) ? (article.date || "") : new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeZone: "UTC" }).format(publishedAt);
   const details = [date];
@@ -213,23 +218,40 @@ async function showArticle(article) {
   image.src = cover.src;
   image.alt = cover.alt;
   document.querySelector(".article-hero").hidden = false;
-  document.querySelector("#article-body").innerHTML = article.bodyHtml;
+  document.querySelector("#article-body").innerHTML = htmlSlots ? htmlSlots.body : article.bodyHtml;
   markArticlePerf("article-body-ready");
-  await renderMermaidDiagrams();
-  let lexicon = {};
-  let pronunciationUnavailable = false;
+  void renderMermaidDiagrams();
+  let lexicon = window.TechTopicsSpeechLexicon || {};
+  let pronunciationUnavailable = !window.TechTopicsSpeechLexicon;
   try {
-    const response = await fetch("content/tts-lexicon.json", { cache: "no-store" });
-    if (!response.ok) throw new Error("Léxico indisponível");
-    lexicon = window.TechTopicsSpeech.validateLexicon(await response.json());
+    lexicon = window.TechTopicsSpeech.validateLexicon(lexicon);
   } catch (error) {
+    lexicon = {};
     pronunciationUnavailable = true;
   }
   let recordingPlayer = null;
-  const devicePlayer = window.TechTopicsSpeech.mount({
+  let devicePlayer = null;
+  let voiceAvailability = null;
+  function renderVoiceAvailability(snapshot) {
+    if (pronunciationUnavailable || devicePlayer?.snapshot().state !== "idle") return;
+    const message = snapshot.state === "pending"
+      ? "Preparando as vozes do dispositivo."
+      : snapshot.state === "unavailable"
+        ? "Nenhuma voz do dispositivo foi disponibilizada; a narração gravada continua disponível."
+        : snapshot.state === "missing-pt-br"
+          ? "Nenhuma voz em português foi encontrada; o navegador pode usar outra voz disponível."
+          : "";
+    document.querySelector("#listen-status").textContent = message;
+  }
+  devicePlayer = window.TechTopicsSpeech.mount({
     document, lexicon, dockMode: true,
-    onStatus: snapshot => recordingPlayer?.deviceChanged(snapshot)
+    onStatus: snapshot => recordingPlayer?.deviceChanged(snapshot),
+    onAvailability: snapshot => {
+      voiceAvailability = snapshot;
+      renderVoiceAvailability(snapshot);
+    }
   });
+  if (voiceAvailability) renderVoiceAvailability(voiceAvailability);
   recordingPlayer = window.TechTopicsAudio.createPlayer({
     document,
     navigator,
@@ -250,16 +272,79 @@ async function showArticle(article) {
   markArticlePerf("article-controls-ready");
 }
 
+function articleHtmlSlots(source, slug, transport) {
+  const parsed = new DOMParser().parseFromString(source, "text/html");
+  const envelopes = parsed.querySelectorAll("article[data-article-format]");
+  if (envelopes.length !== 1) throw new Error("Envelope HTML inválido");
+  const envelope = envelopes[0];
+  if (envelope.dataset.articleFormat !== "html-v1"
+    || envelope.dataset.articleSlug !== slug
+    || envelope.dataset.buildId !== transport.buildId) {
+    throw new Error("Identidade HTML inválida");
+  }
+
+  const allSlots = envelope.querySelectorAll("[data-article-slot]");
+  const slots = {};
+  for (const name of ["heading", "dek", "body"]) {
+    const matches = envelope.querySelectorAll(`[data-article-slot="${name}"]`);
+    if (matches.length !== 1 || !matches[0].textContent.trim()) throw new Error(`Slot HTML inválido: ${name}`);
+    slots[name] = matches[0];
+  }
+  if (allSlots.length !== 3
+    || slots.heading.tagName !== "H1"
+    || slots.dek.tagName !== "P"
+    || slots.body.tagName !== "SECTION"
+    || Object.values(slots).some(parent => Object.values(slots).some(child => parent !== child && parent.contains(child)))) {
+    throw new Error("Estrutura HTML inválida");
+  }
+  return Object.fromEntries(Object.entries(slots).map(([name, element]) => [name, element.innerHTML]));
+}
+
+async function loadHtmlFallback(slug) {
+  const catalogResponse = await fetch("assets/articles-catalog.json", { cache: "no-store" });
+  if (!catalogResponse.ok) throw new Error("Catálogo indisponível");
+  const catalog = await catalogResponse.json();
+  if (!Array.isArray(catalog)) throw new Error("Catálogo inválido");
+  const article = catalog.find(item => item?.slug === slug);
+  if (!article) throw new Error("Artigo ausente no catálogo");
+
+  const transport = article.transport;
+  const expectedPath = `content/articles/${slug}.html`;
+  if (!transport
+    || transport.format !== "html-v1"
+    || transport.path !== expectedPath
+    || typeof transport.buildId !== "string"
+    || !transport.buildId.trim()) {
+    throw new Error("Transporte HTML ausente ou inválido");
+  }
+  if (![article.title, article.category, article.excerpt, article.image].every(value => typeof value === "string" && value.trim())) {
+    throw new Error("Metadados HTML inválidos");
+  }
+
+  const htmlResponse = await fetch(transport.path, { cache: "no-store" });
+  if (!htmlResponse.ok) throw new Error("Artigo HTML indisponível");
+  const slots = articleHtmlSlots(await htmlResponse.text(), slug, transport);
+  return { article, slots };
+}
+
 async function loadArticle() {
   try {
     const manifestResponse = await fetch("content/articles/index.json", { cache: "no-store" });
     if (!manifestResponse.ok) throw new Error("Manifesto indisponível");
     const manifest = await manifestResponse.json();
     const entry = requestedSlug ? manifest.find(item => item.slug === requestedSlug) : manifest[0];
-    if (!entry) throw new Error("Artigo não encontrado");
+    if (!entry || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(entry.slug)
+      || entry.path !== `content/articles/${entry.slug}.json`) throw new Error("Artigo não encontrado");
     const articleResponse = await fetch(entry.path, { cache: "no-store" });
+    if (articleResponse.status === 404) {
+      const { article, slots } = await loadHtmlFallback(entry.slug);
+      await showArticle(article, slots);
+      return;
+    }
     if (!articleResponse.ok) throw new Error("Artigo indisponível");
-    await showArticle(await articleResponse.json());
+    const article = await articleResponse.json();
+    if (article?.slug !== entry.slug) throw new Error("Identidade JSON inválida");
+    await showArticle(article);
   } catch (error) {
     document.querySelector("#article-category").textContent = "Arquivo";
     document.querySelector("#article-heading").textContent = "Artigo indisponível";

@@ -1,0 +1,2 @@
+body { font: 16px sans-serif; }
+body::after { content: "Styles A"; }
