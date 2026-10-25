@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import vm from "node:vm";
 import { mkdtemp, mkdir, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -51,6 +52,19 @@ test("publishes all runtime and article assets, preserving URLs independently of
   assert(!entries.includes("AGENTS.md"));
   const manifest = JSON.parse(await readFile(path.join(root, "dist", ".site-artifact.json"), "utf8"));
   assert.deepEqual(manifest.files, built.files);
+}));
+
+test("embedded speech lexicon round-trips replacement tokens and escapes script closers", async () => fixture(async ({ root, put }) => {
+  const expected = { HTTP: { lang: "pt-BR", speak: "dólar $& $' $` </script><script>" } };
+  await put("content/tts-lexicon.json", JSON.stringify(expected));
+  await buildSiteArtifact({ root });
+  const html = await readFile(path.join(root, "dist/article.html"), "utf8");
+  assert.equal(html.includes("</script><script>"), false, "lexicon text cannot terminate the generated script element");
+  const script = html.match(/<script>(window\.TechTopicsSpeechLexicon=.*?;)<\/script>/s)?.[1];
+  assert(script, "generated lexicon assignment is present in the article shell");
+  const context = { window: {} };
+  vm.runInNewContext(script, context);
+  assert.deepEqual(JSON.parse(JSON.stringify(context.window.TechTopicsSpeechLexicon)), expected);
 }));
 
 test("rebuild removes obsolete public assets and leaves source/tooling untouched", async () => fixture(async ({ root, put }) => {

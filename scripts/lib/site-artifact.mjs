@@ -174,7 +174,7 @@ export async function buildSiteArtifact({ root, destination = "dist" }) {
       await requireRegular(root, file);
       await mkdir(path.dirname(path.join(staging, file)), { recursive: true });
       if (file === "article.html") {
-        await writeFile(path.join(staging, file), html.replace(speechLexiconMarker, embeddedLexicon));
+        await writeFile(path.join(staging, file), html.replace(speechLexiconMarker, () => embeddedLexicon));
       } else {
         await copyFile(path.join(root, file), path.join(staging, file));
       }
