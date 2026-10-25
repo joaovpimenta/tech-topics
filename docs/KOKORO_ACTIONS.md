@@ -310,3 +310,26 @@ guarda a Release antiga em Artifact por 90 dias; publica juntos MP3 e
 `chapters.json` v2, verificando ambos. A exceção não libera
 workflow_dispatch, backfill nem geração de novos artigos. Acompanhe
 [issue #75](https://github.com/joaovpimenta/tech-topics/issues/75).
+
+### Congelamento de efeitos durante a migração Markdown
+
+Pages expõe `generate_audio` e `advance_topic`; Kokoro expõe `generate_audio`
+e a fila expõe `advance_topic`, todos como booleanos com default `false`. O
+caller Pages envia explicitamente `false`. Durante a migração, uma condição
+global literal `false` nos jobs de
+efeito bloqueia qualquer entrada, inclusive `workflow_dispatch`, `issue_comment`
+e `workflow_call`; informar `true` não pode liberar o job. A validação, o
+deploy e os cálculos de inventário e alterações narráveis continuam ocorrendo.
+Falhas desses gates continuam falhando o job de validação e, portanto, não
+chegam ao deploy.
+
+Ao restaurar permissões, primeiro revise e remova a condição global apenas em
+uma mudança aprovada, preserve os defaults `false` e confira que todos os
+callers passam as flags explicitamente. Audite runs anteriores à mudança e
+jobs ainda em voo no painel Actions; não use rerun de uma execução antiga,
+pois ela executa a definição de workflow associada à revisão original. Cancele
+ou aguarde os jobs em voo antes da retomada e reconcilie Releases e fila em
+leitura. Os workflows de seleção e Kokoro deixaram de constar em
+`paths-ignore` de Pages para que mudanças na política sejam propagadas; as
+condições globais seguem sendo a barreira efetiva. O gate de deploy real fica
+pendente até a integração autorizada e uma execução Pages posterior.

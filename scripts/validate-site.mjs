@@ -7,6 +7,7 @@ const checks = [
   ["Check repository diagnostics", ["scripts/test-repository-health.mjs"]],
   ["Run article contract tests", ["scripts/test-article-contract.mjs"]],
   ["Run migration baseline contract tests", ["scripts/test-migration-baseline.mjs"]],
+  ["Run migration effect workflow tests", ["scripts/test-migration-effects.mjs"]],
   ["Validate generation registry", ["scripts/validate-generation.mjs"]],
   ["Run generation composer tests", ["scripts/test-generation.cjs"]],
   ["Run topic queue tests", ["scripts/test-topic-queue.mjs"]],
