@@ -90,18 +90,21 @@ async function main() {
       assert.equal(await page.locator(".article-back").count(), 1, "the existing recovery link remains visible");
     }
 
-    async function htmlCase({ transport = { format: "html-v1", path: fixturePathHtml, buildId: fixtureBuildId }, htmlStatus = 200, htmlBody, jsonStatus = 404, catalogStatus = 200, catalogMutator } = {}) {
+    async function htmlCase({ transport = { format: "html-v1", path: fixturePathHtml, buildId: fixtureBuildId }, htmlStatus = 200, htmlBody, jsonStatus = 404, catalogStatus = 200, catalogMutator, catalogBody, manifestStatus = 200, manifestBody, url = `${base}/article.html?slug=${fixtureSlug}#fixture-section` } = {}) {
       const { page, context } = await newPage();
-      const requests = { catalog: 0, html: 0 };
-      await page.route("**/content/articles/index.json", route => route.fulfill({
-        status: 200, contentType: "application/json",
-        body: JSON.stringify([{ slug: fixtureSlug, path: fixturePathJson }])
-      }));
+      const requests = { manifest: 0, catalog: 0, html: 0 };
+      await page.route("**/content/articles/index.json", route => {
+        requests.manifest++;
+        return route.fulfill({
+          status: manifestStatus, contentType: "application/json",
+          body: manifestBody ?? JSON.stringify([{ slug: fixtureSlug, path: fixturePathJson }])
+        });
+      });
       await page.route(`**/${fixturePathJson}`, route => route.fulfill({ status: jsonStatus, body: "not a JSON article" }));
       await page.route("**/assets/articles-catalog.json", route => {
         requests.catalog++;
         if (catalogStatus !== 200) return route.fulfill({ status: catalogStatus, body: "unavailable" });
-        const catalog = fixtureCatalog(transport);
+        const catalog = catalogBody ? JSON.parse(catalogBody) : fixtureCatalog(transport);
         catalogMutator?.(catalog[0]);
         return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(catalog) });
       });
@@ -109,7 +112,7 @@ async function main() {
         requests.html++;
         return route.fulfill({ status: htmlStatus, contentType: "text/html", body: htmlBody ?? fs.readFileSync(fixturePath, "utf8") });
       });
-      await page.goto(`${base}/article.html?slug=${fixtureSlug}#fixture-section`, { waitUntil: "domcontentloaded" });
+      await page.goto(url, { waitUntil: "domcontentloaded" });
       return { page, context, requests };
     }
 
@@ -143,7 +146,46 @@ async function main() {
       await page.locator("#share-article").click();
       assert.equal(await page.evaluate(() => window.__sharedUrl), page.url(), "HTML transport preserves share URL and hash");
       assert.equal(new URL(page.url()).hash, "#fixture-section");
-      assert.deepEqual(requests, { catalog: 1, html: 1 });
+      assert.deepEqual(requests, { manifest: 1, catalog: 1, html: 1 });
+      await context.close();
+    }
+
+    // The final HTML candidate retires the JSON manifest; a declared HTML transport still recovers.
+    {
+      const { page, context, requests } = await htmlCase({ manifestStatus: 404 });
+      await page.locator("#article-actions").waitFor({ state: "visible", timeout: 2500 });
+      assert.equal(await page.locator("#article-heading").innerText(), "Fixture futura HTML");
+      assert.equal(await page.locator("#article-body #fixture-section").innerText(), "Este corpo veio do fixture HTML e mantém seu fragmento.");
+      assert.deepEqual(requests, { manifest: 1, catalog: 1, html: 1 });
+      await context.close();
+    }
+
+    // With no requested slug, the first declared catalog entry is the ordered default.
+    {
+      const first = fixtureCatalog()[0];
+      const second = { ...first, slug: "m03-not-first", title: "Entrada posterior", transport: { ...first.transport, path: "content/articles/m03-not-first.html" } };
+      const { page, context, requests } = await htmlCase({
+        manifestStatus: 404,
+        url: `${base}/article.html#fixture-section`,
+        catalogBody: JSON.stringify([first, second])
+      });
+      await page.locator("#article-actions").waitFor({ state: "visible", timeout: 2500 });
+      assert.equal(await page.locator("#article-heading").innerText(), "Fixture futura HTML");
+      assert.equal(new URL(page.url()).hash, "#fixture-section");
+      assert.deepEqual(requests, { manifest: 1, catalog: 1, html: 1 });
+      await context.close();
+    }
+
+    // A retired manifest endpoint is the only manifest failure that enables fallback.
+    for (const testCase of [
+      { name: "forbidden manifest", manifestStatus: 403 },
+      { name: "rate limited manifest", manifestStatus: 429 },
+      { name: "transient manifest", manifestStatus: 503 },
+      { name: "malformed manifest", manifestStatus: 200, manifestBody: "{" }
+    ]) {
+      const { page, context, requests } = await htmlCase(testCase);
+      await waitForUnavailable(page);
+      assert.deepEqual(requests, { manifest: 1, catalog: 0, html: 0 }, testCase.name);
       await context.close();
     }
 
@@ -151,7 +193,7 @@ async function main() {
     {
       const { page, context, requests } = await htmlCase({ transport: null });
       await waitForUnavailable(page);
-      assert.deepEqual(requests, { catalog: 1, html: 0 });
+      assert.deepEqual(requests, { manifest: 1, catalog: 1, html: 0 });
       await context.close();
     }
 
@@ -159,7 +201,7 @@ async function main() {
     {
       const { page, context, requests } = await htmlCase({ jsonStatus: 500 });
       await waitForUnavailable(page);
-      assert.deepEqual(requests, { catalog: 0, html: 0 });
+      assert.deepEqual(requests, { manifest: 1, catalog: 0, html: 0 });
       await context.close();
     }
 
@@ -170,7 +212,7 @@ async function main() {
     ]) {
       const { page, context, requests } = await htmlCase(testCase);
       await waitForUnavailable(page);
-      assert.deepEqual(requests, { catalog: 1, html: 0 }, testCase.name);
+      assert.deepEqual(requests, { manifest: 1, catalog: 1, html: 0 }, testCase.name);
       await context.close();
     }
 
@@ -184,16 +226,16 @@ async function main() {
         name: "heading and dek nested inside body",
         htmlBody: `<article data-article-format="html-v1" data-article-slug="${fixtureSlug}" data-build-id="${fixtureBuildId}"><section data-article-slot="body"><h1 data-article-slot="heading">Conteúdo inválido</h1><p data-article-slot="dek">Subtítulo inválido</p><p>Corpo inválido.</p></section></article>`
       },
-      { name: "HTML transport path mismatch", transport: { format: "html-v1", path: "content/articles/other.html", buildId: fixtureBuildId }, expectedRequests: { catalog: 1, html: 0 } },
+      { name: "HTML transport path mismatch", transport: { format: "html-v1", path: "content/articles/other.html", buildId: fixtureBuildId }, expectedRequests: { manifest: 1, catalog: 1, html: 0 } },
       { name: "HTML transient failure", htmlStatus: 503, htmlBody: "temporarily unavailable" }
     ]) {
       const { page, context, requests } = await htmlCase(testCase);
       await waitForUnavailable(page);
-      assert.deepEqual(requests, testCase.expectedRequests ?? { catalog: 1, html: 1 }, testCase.name);
+      assert.deepEqual(requests, testCase.expectedRequests ?? { manifest: 1, catalog: 1, html: 1 }, testCase.name);
       await context.close();
     }
 
-    console.log("PASS: legacy JSON, declared html-v1 fixture, strict envelope identity/slots, transient failures, favorites/share/hash.");
+    console.log("PASS: legacy JSON, declared html-v1 fixture, retired-manifest recovery, strict envelope identity/slots, transient failures, favorites/share/hash.");
   } finally {
     await browser?.close();
     await new Promise(resolve => server.close(resolve));

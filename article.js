@@ -300,13 +300,19 @@ function articleHtmlSlots(source, slug, transport) {
   return Object.fromEntries(Object.entries(slots).map(([name, element]) => [name, element.innerHTML]));
 }
 
-async function loadHtmlFallback(slug) {
-  const catalogResponse = await fetch("assets/articles-catalog.json", { cache: "no-store" });
-  if (!catalogResponse.ok) throw new Error("Catálogo indisponível");
-  const catalog = await catalogResponse.json();
-  if (!Array.isArray(catalog)) throw new Error("Catálogo inválido");
-  const article = catalog.find(item => item?.slug === slug);
+async function loadHtmlFallback(slug, catalogArticle = null) {
+  let article = catalogArticle;
+  if (!article) {
+    const catalogResponse = await fetch("assets/articles-catalog.json", { cache: "no-store" });
+    if (!catalogResponse.ok) throw new Error("Catálogo indisponível");
+    const catalog = await catalogResponse.json();
+    if (!Array.isArray(catalog)) throw new Error("Catálogo inválido");
+    article = catalog.find(item => item?.slug === slug);
+  }
   if (!article) throw new Error("Artigo ausente no catálogo");
+  if (article.slug !== slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(article.slug)) {
+    throw new Error("Slug inválido no catálogo");
+  }
 
   const transport = article.transport;
   const expectedPath = `content/articles/${slug}.html`;
@@ -327,9 +333,26 @@ async function loadHtmlFallback(slug) {
   return { article, slots };
 }
 
+async function loadHtmlFromCatalog(requestedArticleSlug) {
+  const catalogResponse = await fetch("assets/articles-catalog.json", { cache: "no-store" });
+  if (!catalogResponse.ok) throw new Error("Catálogo indisponível");
+  const catalog = await catalogResponse.json();
+  if (!Array.isArray(catalog) || !catalog.length) throw new Error("Catálogo inválido");
+  const article = requestedArticleSlug
+    ? catalog.find(item => item?.slug === requestedArticleSlug)
+    : catalog[0];
+  if (!article) throw new Error("Artigo ausente no catálogo");
+  return loadHtmlFallback(article.slug, article);
+}
+
 async function loadArticle() {
   try {
     const manifestResponse = await fetch("content/articles/index.json", { cache: "no-store" });
+    if (manifestResponse.status === 404) {
+      const { article, slots } = await loadHtmlFromCatalog(requestedSlug);
+      await showArticle(article, slots);
+      return;
+    }
     if (!manifestResponse.ok) throw new Error("Manifesto indisponível");
     const manifest = await manifestResponse.json();
     const entry = requestedSlug ? manifest.find(item => item.slug === requestedSlug) : manifest[0];
