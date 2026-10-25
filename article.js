@@ -293,7 +293,8 @@ function articleHtmlSlots(source, slug, transport) {
   if (allSlots.length !== 3
     || slots.heading.tagName !== "H1"
     || slots.dek.tagName !== "P"
-    || slots.body.tagName !== "SECTION") {
+    || slots.body.tagName !== "SECTION"
+    || Object.values(slots).some(parent => Object.values(slots).some(child => parent !== child && parent.contains(child)))) {
     throw new Error("Estrutura HTML inválida");
   }
   return Object.fromEntries(Object.entries(slots).map(([name, element]) => [name, element.innerHTML]));

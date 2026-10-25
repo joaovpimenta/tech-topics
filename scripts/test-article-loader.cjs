@@ -81,7 +81,7 @@ async function main() {
     }
 
     async function waitForUnavailable(page) {
-      await page.waitForFunction(() => document.querySelector("#article-heading")?.textContent === "Artigo indisponível");
+      await page.waitForFunction(() => document.querySelector("#article-heading")?.textContent === "Artigo indisponível", null, { timeout: 2500 });
       assert.equal(await page.locator("#article-body").getAttribute("data-fixture-body"), null);
       assert.doesNotMatch(await page.locator("#article-body").innerText(), /fixture|conteúdo inválido/i);
       assert.equal(await page.locator("#article-category").textContent(), "Arquivo");
@@ -179,6 +179,10 @@ async function main() {
       {
         name: "build id mismatch",
         htmlBody: fs.readFileSync(fixturePath, "utf8").replace(fixtureBuildId, "other-build")
+      },
+      {
+        name: "heading and dek nested inside body",
+        htmlBody: `<article data-article-format="html-v1" data-article-slug="${fixtureSlug}" data-build-id="${fixtureBuildId}"><section data-article-slot="body"><h1 data-article-slot="heading">Conteúdo inválido</h1><p data-article-slot="dek">Subtítulo inválido</p><p>Corpo inválido.</p></section></article>`
       },
       { name: "HTML transport path mismatch", transport: { format: "html-v1", path: "content/articles/other.html", buildId: fixtureBuildId }, expectedRequests: { catalog: 1, html: 0 } },
       { name: "HTML transient failure", htmlStatus: 503, htmlBody: "temporarily unavailable" }

@@ -2,12 +2,62 @@ importScripts("./sw-version.js");
 const CACHE_PREFIX = "tech-topics-";
 const CACHE_NAME = `tech-topics-${PRECACHE_VERSION}`;
 const BASE_URL = new URL("./", self.location.href);
+const VERSIONED_ASSETS_URL = new URL("__tech-topics-versioned-assets.json", BASE_URL).href;
+
+function versionedAssetsIn(shell) {
+  const assets = {};
+  const ambiguous = new Set();
+  for (const tagMatch of shell.matchAll(/<(?:script|link)\b[^>]*>/gi)) {
+    const tag = tagMatch[0];
+    for (const match of tag.matchAll(/(?:^|\s)(?:src|href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi)) {
+      const reference = match[1] ?? match[2] ?? match[3];
+      try {
+        const asset = new URL(reference, BASE_URL);
+        if (asset.origin !== BASE_URL.origin
+          || !asset.pathname.startsWith(BASE_URL.pathname)
+          || !/\.(?:js|css)$/.test(asset.pathname)
+          || asset.searchParams.size !== 1
+          || !asset.searchParams.has("v")) continue;
+        const version = asset.searchParams.get("v");
+        if (!version) continue;
+        if (Object.hasOwn(assets, asset.pathname) && assets[asset.pathname] !== version) {
+          delete assets[asset.pathname];
+          ambiguous.add(asset.pathname);
+        } else if (!ambiguous.has(asset.pathname)) {
+          assets[asset.pathname] = version;
+        }
+      } catch (error) { /* Ignore malformed or external references. */ }
+    }
+  }
+  return assets;
+}
+
+async function cacheVersionedAssetIndex(cache) {
+  const assets = {};
+  const ambiguous = new Set();
+  for (const shell of ["index.html", "article.html"]) {
+    const response = await cache.match(new URL(shell, BASE_URL).href);
+    if (!response) continue;
+    for (const [pathname, version] of Object.entries(versionedAssetsIn(await response.text()))) {
+      if (Object.hasOwn(assets, pathname) && assets[pathname] !== version) {
+        delete assets[pathname];
+        ambiguous.add(pathname);
+      } else if (!ambiguous.has(pathname)) {
+        assets[pathname] = version;
+      }
+    }
+  }
+  await cache.put(VERSIONED_ASSETS_URL, new Response(JSON.stringify(assets), {
+    headers: { "Content-Type": "application/json" }
+  }));
+}
 
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
     try {
       const cache = await caches.open(CACHE_NAME);
       await cache.addAll(PRECACHE_FILES.map(path => new Request(new URL(path, BASE_URL), { cache: "reload" })));
+      await cacheVersionedAssetIndex(cache);
     } catch (error) {
       // A partial candidate cache must never replace or damage the active version.
       // The active cache has a different content-derived name and is left intact.
@@ -47,15 +97,28 @@ self.addEventListener("fetch", event => {
   const response = (async () => {
     let cache;
     let saved;
+    let requestCacheKey = cacheKey;
+    let cacheFreshResponse = true;
     try {
       cache = await caches.open(CACHE_NAME);
-      saved = await cache.match(cacheKey);
+      if (url.searchParams.size === 1 && url.searchParams.has("v") && /\.(?:js|css)$/.test(url.pathname)) {
+        // Versioned code and styles must come from this shell's complete precache.
+        cacheFreshResponse = false;
+        try {
+          const versionIndex = await cache.match(VERSIONED_ASSETS_URL);
+          const versions = versionIndex ? await versionIndex.json() : {};
+          if (versions[url.pathname] === url.searchParams.get("v")) {
+            requestCacheKey = new URL(url.pathname, BASE_URL).href;
+          }
+        } catch (error) { /* Do not cache an asset when its shell version is unknown. */ }
+      }
+      saved = await cache.match(requestCacheKey);
     } catch (error) { cache = null; }
     if (saved) return saved;
     try {
       const fresh = await fetch(event.request);
-      if (fresh.ok && cache) {
-        try { await cache.put(cacheKey, fresh.clone()); } catch (error) { /* Storage is best-effort. */ }
+      if (fresh.ok && cache && cacheFreshResponse) {
+        try { await cache.put(requestCacheKey, fresh.clone()); } catch (error) { /* Storage is best-effort. */ }
       }
       return fresh;
     } catch (error) {
