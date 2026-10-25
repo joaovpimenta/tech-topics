@@ -171,9 +171,17 @@ def test_touch_buttons_do_not_keep_hover(browser, base):
         card_color = favorite.evaluate("el => getComputedStyle(el).backgroundColor")
         assert card_color == "rgb(255, 255, 255)", ("touch must not leave card hover styling", card_color)
 
-        page.goto(base + "/article.html?slug=transactional-outbox", wait_until="domcontentloaded")
+        title_link = page.locator(".recent-item .recent-copy h3 a").first
+        title_link.tap()
+        page.wait_for_url("**/article.html?slug=*")
         article_favorite = page.locator("#favorite-article")
         article_favorite.wait_for(state="visible", timeout=20000)
+        article_share = page.locator("#share-article")
+        for action in (article_favorite, article_share):
+            action_color_after_navigation = action.evaluate("el => getComputedStyle(el).backgroundColor")
+            assert action_color_after_navigation == "rgb(255, 255, 255)", (
+                "opening an article by touch must not leave action hover styling",
+                action.get_attribute("id"), action_color_after_navigation)
         article_favorite.tap()
         assert article_favorite.get_attribute("aria-pressed") == "true"
         article_favorite.tap()
