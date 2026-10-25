@@ -312,6 +312,8 @@ async function main() {
       assert.ok(previousCacheName, `the ${client.label} client has a real precache before the update`);
 
       let actualAudio = false;
+      let audioTimeBeforeUpdate = null;
+      let audioTimeAfterInstall = null;
       if (mp3Exists && chaptersExists) {
         await pageA.locator("#listen-recording").click();
         await pageA.waitForFunction(() => {
@@ -322,8 +324,20 @@ async function main() {
       }
 
       deployment = { type: "candidate" };
+      if (actualAudio) {
+        audioTimeBeforeUpdate = await pageA.evaluate(() => document.querySelector("#article-recording").currentTime);
+      }
       await pageA.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
       await pageA.waitForFunction(async expectedCache => (await caches.keys()).includes(expectedCache), candidateCacheName, { timeout: 30000 });
+      if (actualAudio) {
+        await pageA.waitForFunction(before => {
+          const audio = document.querySelector("#article-recording");
+          return audio && !audio.paused && audio.currentTime > before + 0.2;
+        }, audioTimeBeforeUpdate, { timeout: 6000 });
+        audioTimeAfterInstall = await pageA.evaluate(() => document.querySelector("#article-recording").currentTime);
+        assert.ok(audioTimeAfterInstall > audioTimeBeforeUpdate + 0.2,
+          "the real MP3 clock advances after the candidate cache is installed");
+      }
       const waitingState = await pageA.evaluate(async () => {
         const registration = await navigator.serviceWorker.getRegistration();
         return {
@@ -346,13 +360,8 @@ async function main() {
         assert.equal(await page.evaluate(() => navigator.serviceWorker.controller === window.__m03Controller), true,
           "the active old document keeps its original service worker controller");
       }
-      if (actualAudio) {
-        const audioStillPlaying = await pageA.evaluate(() => {
-          const audio = document.querySelector("#article-recording");
-          return !audio.paused && audio.currentTime > 0;
-        });
-        assert.equal(audioStillPlaying, true, "real local Kokoro MP3 playback continues while the candidate waits");
-      }
+      if (actualAudio) assert.equal(await pageA.evaluate(() => !document.querySelector("#article-recording").paused), true,
+        "the real local Kokoro MP3 remains in playing state after installation");
       await pageA.close();
       assert.equal(await pageB.evaluate(async cacheName => (await caches.keys()).includes(cacheName), previousCacheName), true,
         "closing one of two old tabs does not remove the earlier cache");
@@ -423,7 +432,10 @@ async function main() {
         "the local return to the earlier artifact serves the original JSON article");
       assert.equal(returnedTransport, undefined, "the local return serves the earlier catalog contract without HTML transport metadata");
       const sourceLabel = artifactSources.get(client.ref) || `Git object ${client.ref}`;
-      console.log(`PASS: ${client.label} (${sourceLabel}) → declared HTML candidate → local return; two tabs, no reload, retired endpoints, cache recovery${actualAudio ? ", real Kokoro playback" : ", no local audio source (playback remains unproved)"}.`);
+      const audioEvidence = actualAudio
+        ? `, real Kokoro time ${audioTimeBeforeUpdate.toFixed(3)}→${audioTimeAfterInstall.toFixed(3)}s`
+        : ", no local audio source (playback remains unproved)";
+      console.log(`PASS: ${client.label} (${sourceLabel}) → declared HTML candidate → local return; two tabs, no reload, retired endpoints, cache recovery${audioEvidence}.`);
       await context.close();
 
       if (client.label === "preparatory-c24") {
