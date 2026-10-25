@@ -123,6 +123,7 @@
     const deviceSwitch = document.querySelector("#listen-article");
     const sourceMenu = document.querySelector(".recording-options");
     let available = false;
+    let selectedRate = Number.isFinite(audio.playbackRate) ? audio.playbackRate : 1;
     let chapters = [];
     let chapterNodes = [];
     let chapterWords = [];
@@ -307,6 +308,8 @@
     }
     function beginDevice(index) {
       if (!devicePlayer) return startDevice(index);
+      if (mode === "recorded" && Number.isFinite(audio.playbackRate)) selectedRate = audio.playbackRate;
+      devicePlayer.setRate?.(selectedRate);
       mode = "device";
       open = true;
       audio.pause();
@@ -382,10 +385,13 @@
         inlineNext.hidden = skip.hidden;
         inlineNext.disabled = skip.disabled;
       }
-      rate.textContent = `${native ? devicePlayer?.getRate?.() || 1 : audio.playbackRate}×`;
+      const playbackRate = native ? devicePlayer?.getRate?.() || selectedRate : audio.playbackRate;
+      selectedRate = playbackRate;
+      rate.textContent = `${playbackRate}×`;
+      rate.setAttribute("aria-label", `Velocidade da narração: ${playbackRate} vezes`);
       if (inlineRate) {
         inlineRate.textContent = rate.textContent;
-        inlineRate.setAttribute("aria-label", `Velocidade da narração: ${native ? devicePlayer?.getRate?.() || 1 : audio.playbackRate} vezes`);
+        inlineRate.setAttribute("aria-label", `Velocidade da narração: ${playbackRate} vezes`);
       }
       if (deviceSwitch) {
         deviceSwitch.textContent = native ? "Usar áudio gravado" : "Usar voz do dispositivo";
@@ -454,8 +460,10 @@
     async function play() {
       try { performance.mark("tt:audio-play-request"); } catch (_) {}
       if (!available) return beginDevice();
+      if (mode === "device") selectedRate = devicePlayer?.getRate?.() || selectedRate;
       mode = "recorded";
       open = true;
+      audio.playbackRate = selectedRate;
       if (devicePlayer) devicePlayer.stop("");
       else stopDevice();
       render();
@@ -533,16 +541,12 @@
     inlineRate?.addEventListener("click", () => rate.click());
     rate.addEventListener("click", () => {
       const speeds = [1, 1.25, 1.5, 1.75, 2];
+      selectedRate = speeds[(speeds.indexOf(selectedRate) + 1) % speeds.length];
+      audio.playbackRate = selectedRate;
       if (mode === "device" && devicePlayer) {
-        const current = devicePlayer.getRate?.() || 1;
-        devicePlayer.setRate?.(speeds[(speeds.indexOf(current) + 1) % speeds.length]);
-      } else {
-        audio.playbackRate = speeds[(speeds.indexOf(audio.playbackRate) + 1) % speeds.length];
-        updatePosition();
+        devicePlayer.setRate?.(selectedRate);
       }
-      const value = mode === "device" ? devicePlayer?.getRate?.() || 1 : audio.playbackRate;
-      rate.textContent = `${value}×`;
-      rate.setAttribute("aria-label", `Velocidade da narração: ${value} vezes`);
+      updatePosition();
       render();
     });
     audio.addEventListener("loadedmetadata", () => { try { performance.mark("tt:audio-metadata"); } catch (_) {} render(); updatePosition(); });

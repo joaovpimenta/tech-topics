@@ -564,6 +564,9 @@ test("same bottom dock controls native synthesis, chapter seeking, speed, and sw
   assert.deepEqual(updates.at(-1), ["start", 2]);
   nodes["#recording-rate"].click();
   assert.equal(deviceRate, 1.25);
+  assert.equal(audio.playbackRate, 1.25, "speed selection is shared with recorded playback");
+  assert.equal(nodes["#recording-rate"].textContent, "1.25×");
+  assert.equal(nodes["#recording-rate"].attrs["aria-label"], "Velocidade da narração: 1.25 vezes");
   nodes["#recording-play"].click();
   assert.equal(nodes["#recording-play"].dataset.playing, "false");
   assert.equal(nodes["#recording-elapsed"].textContent, "3/3");
@@ -573,6 +576,17 @@ test("same bottom dock controls native synthesis, chapter seeking, speed, and sw
   await Promise.resolve();
   assert.equal(controller.snapshot().mode, "recorded");
   assert.equal(snap.state, "idle", "native synthesis stops when MP3 takes over");
+  assert.equal(audio.playbackRate, 1.25, "switching to MP3 preserves the selected speed");
+  assert.equal(nodes["#recording-rate"].textContent, "1.25×");
+  assert.equal(nodes["#recording-rate"].attrs["aria-label"], "Velocidade da narração: 1.25 vezes");
+  nodes["#recording-rate"].click();
+  assert.equal(audio.playbackRate, 1.5);
+  assert.equal(nodes["#recording-rate"].attrs["aria-label"], "Velocidade da narração: 1.5 vezes");
+  nodes["#listen-article"].click();
+  assert.equal(controller.snapshot().mode, "device");
+  assert.equal(deviceRate, 1.5, "switching back to device speech preserves the new speed");
+  assert.equal(nodes["#recording-rate"].textContent, "1.5×");
+  assert.equal(nodes["#recording-rate"].attrs["aria-label"], "Velocidade da narração: 1.5 vezes");
   assert.equal(nodes["#recording-player"].hidden, false);
   nodes["#recording-close"].click();
   assert.equal(nodes["#recording-player"].hidden, true);
