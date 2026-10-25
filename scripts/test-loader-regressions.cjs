@@ -51,16 +51,29 @@ async function main() {
       }
       await page.goto(`${base}/article.html?slug=consenso-raft`, { waitUntil: "domcontentloaded" });
       await page.waitForFunction(() => { const body = document.querySelector("#article-body")?.textContent.trim(); return body && !body.includes("Carregando o conteúdo") && body.length > 1000; });
-      await dependencyStarted;
-      assert.equal(dependencyEntered, true, `${dependency} request must have entered its pending handler`);
-      await page.evaluate(() => document.querySelector("#listen-article").click());
-      const blocked = await page.evaluate(() => ({ body: Boolean(document.querySelector("#article-body")?.textContent.trim()), actions: Boolean(document.querySelector("#article-actions") && !document.querySelector("#article-actions").hidden), speechCalls: window.__speechCalls, dock: !document.querySelector("#recording-player")?.hidden }));
-      assert.equal(blocked.body, true);
-      assert.equal(blocked.actions, false);
-      assert.equal(blocked.speechCalls, 0, "visible inline affordance is inert until mount finishes");
-      release();
-      await page.locator("#article-actions").waitFor({ state: "visible" });
-      observations.push({ case: `pending-${dependency}`, current: blocked, desiredContract: { player: true, actions: true }, status: "KNOWN_REGRESSION: user-visible controls wait on unrelated dependency" });
+      if (dependency === "mermaid") {
+        await dependencyStarted;
+        assert.equal(dependencyEntered, true, "Mermaid must still be allowed to load progressively");
+      }
+      await page.locator("#article-actions").waitFor({ state: "visible", timeout: 1500 });
+      const beforeGesture = await page.evaluate(() => ({
+        body: Boolean(document.querySelector("#article-body")?.textContent.trim()),
+        actions: Boolean(document.querySelector("#article-actions") && !document.querySelector("#article-actions").hidden),
+        speechCalls: window.__speechCalls,
+        lexicon: window.TechTopicsSpeechLexicon?.HTTP?.speak || null
+      }));
+      assert.equal(beforeGesture.body, true);
+      assert.equal(beforeGesture.actions, true, `${dependency} must not block article actions`);
+      assert.equal(beforeGesture.speechCalls, 0, "opening the article must not emit an utterance");
+      assert.equal(beforeGesture.lexicon, "agá tê tê pê", "generated shell lexicon is available synchronously");
+      if (dependency === "lexicon") assert.equal(dependencyEntered, false, "article startup must not request the legacy JSON before controls mount");
+      await page.locator("#listen-recording").click();
+      await page.waitForFunction(() => window.__speechCalls > 0, null, { timeout: 1500 });
+      const afterGesture = await page.evaluate(() => ({ speechCalls: window.__speechCalls, actions: !document.querySelector("#article-actions").hidden }));
+      assert.equal(afterGesture.actions, true);
+      assert.equal(afterGesture.speechCalls, 1, "one user gesture starts device speech without waiting for Mermaid or JSON");
+      if (dependency === "mermaid") release();
+      observations.push({ case: dependency === "mermaid" ? "pending-mermaid" : "legacy-lexicon-request-not-used", beforeGesture, afterGesture, dependencyEntered });
       await page.close();
     }
 

@@ -14,6 +14,8 @@ async function fixture(run) {
   try {
     for (const file of PUBLIC_ROOT_FILES) await put(file, "");
     await put("index.html", '<link href="styles.css?v=1"><script src="app.js"></script><a href="article.html?slug=post">Article</a>');
+    await put("article.html", '<script>/* TECH_TOPICS_SPEECH_LEXICON */</script>');
+    await put("content/tts-lexicon.json", JSON.stringify({ HTTP: { lang: "pt-BR", speak: "agá tê tê pê" } }));
     await put("app.js", 'fetch("content/articles/index.json");');
     await put("sw.js", 'importScripts("./sw-version.js");');
     await put("sw-version.js", 'const PRECACHE_FILES = ["index.html", "assets/post/cover.jpg"];');
@@ -36,7 +38,11 @@ test("publishes all runtime and article assets, preserving URLs independently of
   assert.equal(built.destination, path.join(await realpath(root), "dist"));
   for (const file of [...PUBLIC_ROOT_FILES, "content/articles/index.json", "content/articles/post.json", "assets/post/plot.jpg", "assets/post/experiment.py", "assets/maskable.png"]) {
     assert(built.files.includes(file), file);
-    assert.equal(await readFile(path.join(root, "dist", file), "utf8"), await readFile(path.join(root, file), "utf8"));
+    if (file === "article.html") {
+      assert.equal(await readFile(path.join(root, "dist", file), "utf8"), '<script>window.TechTopicsSpeechLexicon={"HTTP":{"lang":"pt-BR","speak":"agá tê tê pê"}};</script>');
+    } else {
+      assert.equal(await readFile(path.join(root, "dist", file), "utf8"), await readFile(path.join(root, file), "utf8"));
+    }
   }
   assert(!built.files.some(file => /^(docs|generation|scripts|tools|\.git)\//.test(file)));
   assert(built.files.includes("content/tts-lexicon.json"));

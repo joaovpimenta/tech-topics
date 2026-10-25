@@ -9,6 +9,7 @@ export const PUBLIC_ROOT_FILES = Object.freeze([
   "favicon.svg", "favicon.ico", "sw.js", "sw-version.js"
 ]);
 const artifactManifest = ".site-artifact.json";
+const speechLexiconMarker = "/* TECH_TOPICS_SPEECH_LEXICON */";
 
 function safePath(file) {
   if (typeof file !== "string" || !file || file.includes("\\") || file.includes("\0") || path.posix.isAbsolute(file) || /^[a-z]:/i.test(file) || file.split("/").some(part => !part || part === "." || part === "..")) {
@@ -159,13 +160,24 @@ export async function buildSiteArtifact({ root, destination = "dist" }) {
   if (output !== path.join(root, "dist")) throw new Error("Site artifact destination must be <root>/dist");
   const files = await collectPublicFiles(root);
   await validatePublicReferences(root, files);
+  const speechLexicon = JSON.parse(await readFile(path.join(root, "content/tts-lexicon.json"), "utf8"));
+  if (!speechLexicon || typeof speechLexicon !== "object" || Array.isArray(speechLexicon)) {
+    throw new Error("content/tts-lexicon.json must contain an object");
+  }
+  const html = await readFile(path.join(root, "article.html"), "utf8");
+  if (html.split(speechLexiconMarker).length !== 2) throw new Error("article.html must contain the speech lexicon build marker exactly once");
+  const embeddedLexicon = `window.TechTopicsSpeechLexicon=${JSON.stringify(speechLexicon).replace(/</g, "\\u003c")};`;
   await inspectDestination(root, output);
   const staging = await mkdtemp(path.join(root, ".site-build-"));
   try {
     for (const file of files) {
       await requireRegular(root, file);
       await mkdir(path.dirname(path.join(staging, file)), { recursive: true });
-      await copyFile(path.join(root, file), path.join(staging, file));
+      if (file === "article.html") {
+        await writeFile(path.join(staging, file), html.replace(speechLexiconMarker, embeddedLexicon));
+      } else {
+        await copyFile(path.join(root, file), path.join(staging, file));
+      }
     }
     await writeFile(path.join(staging, artifactManifest), `${JSON.stringify({ version: 1, files }, null, 2)}\n`);
     await validatePublicReferences(staging, files);

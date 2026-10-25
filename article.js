@@ -215,21 +215,38 @@ async function showArticle(article) {
   document.querySelector(".article-hero").hidden = false;
   document.querySelector("#article-body").innerHTML = article.bodyHtml;
   markArticlePerf("article-body-ready");
-  await renderMermaidDiagrams();
-  let lexicon = {};
-  let pronunciationUnavailable = false;
+  void renderMermaidDiagrams();
+  let lexicon = window.TechTopicsSpeechLexicon || {};
+  let pronunciationUnavailable = !window.TechTopicsSpeechLexicon;
   try {
-    const response = await fetch("content/tts-lexicon.json", { cache: "no-store" });
-    if (!response.ok) throw new Error("Léxico indisponível");
-    lexicon = window.TechTopicsSpeech.validateLexicon(await response.json());
+    lexicon = window.TechTopicsSpeech.validateLexicon(lexicon);
   } catch (error) {
+    lexicon = {};
     pronunciationUnavailable = true;
   }
   let recordingPlayer = null;
-  const devicePlayer = window.TechTopicsSpeech.mount({
+  let devicePlayer = null;
+  let voiceAvailability = null;
+  function renderVoiceAvailability(snapshot) {
+    if (pronunciationUnavailable || devicePlayer?.snapshot().state !== "idle") return;
+    const message = snapshot.state === "pending"
+      ? "Preparando as vozes do dispositivo."
+      : snapshot.state === "unavailable"
+        ? "Nenhuma voz do dispositivo foi disponibilizada; a narração gravada continua disponível."
+        : snapshot.state === "missing-pt-br"
+          ? "Nenhuma voz em português foi encontrada; o navegador pode usar outra voz disponível."
+          : "";
+    document.querySelector("#listen-status").textContent = message;
+  }
+  devicePlayer = window.TechTopicsSpeech.mount({
     document, lexicon, dockMode: true,
-    onStatus: snapshot => recordingPlayer?.deviceChanged(snapshot)
+    onStatus: snapshot => recordingPlayer?.deviceChanged(snapshot),
+    onAvailability: snapshot => {
+      voiceAvailability = snapshot;
+      renderVoiceAvailability(snapshot);
+    }
   });
+  if (voiceAvailability) renderVoiceAvailability(voiceAvailability);
   recordingPlayer = window.TechTopicsAudio.createPlayer({
     document,
     navigator,

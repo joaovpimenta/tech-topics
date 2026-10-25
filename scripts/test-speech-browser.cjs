@@ -70,6 +70,7 @@ async function main() {
         recording.dispatchEvent(new Event("durationchange"));
       });
       await page.locator("#listen-recording").click();
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
       await page.locator("#recording-player").waitFor({ state: "visible" });
       assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "true");
       assert(await page.locator("#recording-skip").isVisible(), "chapter skip visible");

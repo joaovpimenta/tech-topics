@@ -27,6 +27,32 @@ test("lexicon rejects malformed pronunciation entries", () => {
   assert.throws(() => speech.validateLexicon([]), /inválido/);
 });
 
+test("voice preparation reads the list without speaking and accepts voices that arrive later", () => {
+  class Synthesis extends EventTarget {
+    calls = 0;
+    voices = [];
+    utterances = [];
+    getVoices() { this.calls += 1; return this.voices; }
+    speak(utterance) { this.utterances.push(utterance); }
+    cancel() {}
+    resume() {}
+    pause() {}
+  }
+  const synthesis = new Synthesis();
+  const prepared = speech.prepareVoices(synthesis);
+  assert.equal(prepared.snapshot().state, "pending");
+  assert.equal(synthesis.calls, 1, "getVoices is called during preparation");
+  assert.equal(synthesis.utterances.length, 0, "voice preparation never emits speech");
+  synthesis.voices = [{ lang: "pt-BR", name: "Voz tardia" }];
+  synthesis.dispatchEvent(new Event("voiceschanged"));
+  assert.equal(prepared.snapshot().state, "ready");
+  assert.equal(prepared.snapshot().voices[0].name, "Voz tardia");
+  assert.equal(synthesis.calls, 2);
+  class Utterance { constructor(text) { this.text = text; } }
+  speech.createPlayer({ blocks: [{ segments: [{ text: "Olá.", lang: "pt-BR", words: [] }] }], synthesis, Utterance }).start();
+  assert.equal(synthesis.utterances[0].voice.name, "Voz tardia", "the first user-triggered utterance uses the late voice");
+});
+
 test("mixed-case initialisms and plurals use the same fallback", () => {
   assert.equal(speech.pronounce("mTLS e gRPC", "pt-BR", {}).map(part => part.text).join(""), "ême tê éle ésse e gê érre pê cê");
 });
