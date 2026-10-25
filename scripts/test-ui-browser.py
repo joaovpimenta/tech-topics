@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import functools
+import shutil
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
@@ -154,6 +155,57 @@ def test_press_drag(browser, base):
         page.close()
 
 
+def test_touch_buttons_do_not_keep_hover(browser, base):
+    page = browser.new_page(viewport={"width": 390, "height": 800}, has_touch=True, is_mobile=True)
+
+    def wait_for_background(selector, color):
+        page.wait_for_function(
+            "args => { const el = document.querySelector(args.selector); "
+            "return el && getComputedStyle(el).backgroundColor === args.color; }",
+            arg={"selector": selector, "color": color},
+        )
+
+    try:
+        page.goto(base + "/index.html", wait_until="domcontentloaded")
+        favorite = page.locator(".recent-item .favorite-button").first
+        favorite.wait_for(state="visible", timeout=20000)
+        favorite.scroll_into_view_if_needed()
+        assert page.evaluate("matchMedia('(hover: hover) and (pointer: fine)').matches") is False
+        favorite.tap()
+        assert favorite.get_attribute("aria-pressed") == "true"
+        wait_for_background(".recent-item .favorite-button", "rgb(237, 245, 241)")
+        favorited_color = favorite.evaluate("el => getComputedStyle(el).backgroundColor")
+        assert favorited_color == "rgb(237, 245, 241)", ("favorite state must remain visible", favorited_color)
+        favorite.tap()
+        assert favorite.get_attribute("aria-pressed") == "false"
+        wait_for_background(".recent-item .favorite-button", "rgb(255, 255, 255)")
+        card_color = favorite.evaluate("el => getComputedStyle(el).backgroundColor")
+        assert card_color == "rgb(255, 255, 255)", ("touch must not leave card hover styling", card_color)
+
+        title_link = page.locator(".recent-item .recent-copy h3 a").first
+        title_link.tap()
+        page.wait_for_url("**/article.html?slug=*")
+        article_favorite = page.locator("#favorite-article")
+        article_favorite.wait_for(state="visible", timeout=20000)
+        article_share = page.locator("#share-article")
+        for action in (article_favorite, article_share):
+            action_color_after_navigation = action.evaluate("el => getComputedStyle(el).backgroundColor")
+            assert action_color_after_navigation == "rgb(255, 255, 255)", (
+                "opening an article by touch must not leave action hover styling",
+                action.get_attribute("id"), action_color_after_navigation)
+        article_favorite.tap()
+        assert article_favorite.get_attribute("aria-pressed") == "true"
+        wait_for_background("#favorite-article", "rgb(237, 245, 241)")
+        article_favorite.tap()
+        assert article_favorite.get_attribute("aria-pressed") == "false"
+        wait_for_background("#favorite-article", "rgb(255, 255, 255)")
+        action_color = article_favorite.evaluate("el => getComputedStyle(el).backgroundColor")
+        assert action_color == "rgb(255, 255, 255)", ("touch must not leave article action hover styling", action_color)
+        print("PASS: touch favorite state persists only while favorited; card and article action hover clears")
+    finally:
+        page.close()
+
+
 if __name__ == "__main__":
     handler = functools.partial(QuietHandler, directory=str(ROOT))
     server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
@@ -161,10 +213,12 @@ if __name__ == "__main__":
     thread.start()
     try:
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
+            system_chromium = shutil.which("chromium")
+            browser = playwright.chromium.launch(headless=True, executable_path=system_chromium)
             try:
                 base = f"http://127.0.0.1:{server.server_port}"
                 test_player(browser, base)
+                test_touch_buttons_do_not_keep_hover(browser, base)
                 test_press_drag(browser, base)
             finally:
                 browser.close()

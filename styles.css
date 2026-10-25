@@ -408,12 +408,16 @@ body:not(.article-page) .site-header { position: sticky; top: 0; z-index: 15; ba
 .card-actions { position: absolute; bottom: 19px; right: 2px; z-index: 1; display: flex; align-items: center; gap: 7px; }
 .card-icon-button { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 50%; background: var(--paper); color: var(--muted); cursor: pointer; transition: color .12s ease, background-color .12s ease; }
 .card-icon-button svg { width: 16px; height: 16px; }
-.card-icon-button:hover, .card-icon-button:focus-visible { color: var(--accent); background: #edf5f1; }
+.card-icon-button:focus-visible { color: var(--accent); background: #edf5f1; }
+.card-icon-button:active { transform: scale(.94); }
+@media (hover: hover) and (pointer: fine) {
+  .card-icon-button:hover { color: var(--accent); background: #edf5f1; }
+  .load-more:hover { background: #edf5f1; }
+}
 .card-icon-button:focus-visible, .load-more:focus-visible, .quick-read:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .favorite-button.is-favorite { color: var(--accent); background: #edf5f1; }
 .favorite-button.is-favorite svg { fill: currentColor; }
 .load-more { display: block; width: 100%; margin: 18px 0 0; padding: 12px; cursor: pointer; color: var(--accent); background: var(--paper); border: 1px solid var(--line); border-radius: 8px; }
-.load-more:hover { background: #edf5f1; }
 
 /* Touch-and-slide quick menu. Its hit targets are larger than the card icons. */
 .article-quick-actions {
@@ -585,7 +589,11 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
   color: var(--muted);
   cursor: pointer;
 }
-.article-icon-button:hover, .article-icon-button:focus-visible { background: #edf5f1; color: var(--accent); }
+.article-icon-button:focus-visible { background: #edf5f1; color: var(--accent); }
+.article-icon-button:active { transform: scale(.94); }
+@media (hover: hover) and (pointer: fine) {
+  .article-icon-button:hover { background: #edf5f1; color: var(--accent); }
+}
 .article-icon-button.is-favorite { color: var(--accent); background: #edf5f1; }
 .article-icon-button.is-favorite svg { fill: currentColor; }
 .inline-recording-play:focus-visible, .inline-recording-seek:focus-visible, .inline-recording-rate:focus-visible, .article-icon-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
