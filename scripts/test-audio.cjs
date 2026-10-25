@@ -658,6 +658,16 @@ test("media error during pending recorded playback returns to the originating de
   assert.equal(fixture.controller.snapshot().mode, "device");
 });
 
+test("media error during active MP3 playback falls back at the current chapter", async () => {
+  const fixture = await playerFixture();
+  await fixture.controller.play();
+  fixture.audio.currentTime = 85;
+  fixture.audio.dispatchEvent(new Event("timeupdate"));
+  fixture.audio.dispatchEvent(new Event("error"));
+  assert.deepEqual(fixture.starts, [2], "active playback resumes from the chapter matching the current MP3 position");
+  assert.equal(fixture.controller.snapshot().mode, "device");
+});
+
 test("exact chapter timestamps highlight and auto-scroll the corresponding paragraph; click seeks", async () => {
   const ids = ["listen-recording", "recording-player", "recording-title", "recording-subtitle",
     "recording-cover", "recording-ring", "recording-play", "recording-previous",

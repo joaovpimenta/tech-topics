@@ -724,8 +724,9 @@
     audio.addEventListener("ended", () => { if (mode === "recorded") { render(); updatePosition(); } });
     audio.addEventListener("error", () => {
       if (mode === "recorded" && open && (recordedPending || recordedActive)) {
-        if (devicePlayer) fallbackToDevice("Falha no áudio gravado; usando voz do dispositivo.", recordedFallbackIndex, playbackAttempt);
-        else fallbackToDevice("Falha ao carregar o MP3. Verifique a conexão e tente novamente.", recordedFallbackIndex, playbackAttempt);
+        const fallbackIndex = recordedPending ? recordedFallbackIndex : fallbackDeviceIndex();
+        if (devicePlayer) fallbackToDevice("Falha no áudio gravado; usando voz do dispositivo.", fallbackIndex, playbackAttempt);
+        else fallbackToDevice("Falha ao carregar o MP3. Verifique a conexão e tente novamente.", fallbackIndex, playbackAttempt);
       }
       else {
         setStatus("Falha ao carregar o áudio gravado. Use a voz do dispositivo.");
