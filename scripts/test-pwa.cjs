@@ -4,35 +4,75 @@ const assert = require("node:assert/strict");
 
 async function testWorker() {
   const handlers = {};
-  const entries = new Map();
+  const cachesByName = new Map();
   const deleted = [];
   const key = request => typeof request === "string" ? request : request.url;
-  const cache = {
-    async addAll(requests) { for (const request of requests) entries.set(key(request), new Response(key(request))); },
-    async put(request, response) { entries.set(key(request), response); },
-    async match(request) { return entries.get(key(request))?.clone(); }
+  const makeCache = () => {
+    const entries = new Map();
+    return {
+      entries,
+      async addAll(requests) { for (const request of requests) entries.set(key(request), new Response(key(request))); },
+      async put(request, response) { entries.set(key(request), response); },
+      async match(request) { return entries.get(key(request))?.clone(); }
+    };
   };
+  const oldCache = makeCache();
+  oldCache.entries.set("https://example.com/tech-topics/app.js", new Response("old-version-app"));
+  cachesByName.set("tech-topics-old", oldCache);
   let offline = false;
+  let cacheAccessFails = false;
   let claimed = false;
+  let skipWaitingCalls = 0;
+  const updateMessages = [];
+  const windows = [
+    { url: "https://example.com/tech-topics/article.html?slug=bulkhead#limits", postMessage(message) { updateMessages.push(["tab-one", message]); } },
+    { url: "https://example.com/tech-topics/", postMessage(message) { updateMessages.push(["tab-two", message]); } },
+    { url: "https://example.com/other/index.html", postMessage(message) { updateMessages.push(["other", message]); } }
+  ];
   const context = vm.createContext({
     URL, Request, Response,
-    importScripts() { vm.runInContext(readFileSync("sw-version.js", "utf8"), context); },
+    importScripts() { vm.runInContext(readFileSync(process.env.TECH_TOPICS_SW_VERSION_SOURCE_PATH || "sw-version.js", "utf8"), context); },
     self: {
       location: { href: "https://example.com/tech-topics/sw.js" },
       addEventListener(name, fn) { handlers[name] = fn; },
-      async skipWaiting() {}, clients: { async claim() { claimed = true; } }
+      async skipWaiting() { skipWaitingCalls++; }, clients: {
+        async claim() { claimed = true; },
+        async matchAll() { return windows; }
+      }
     },
-    caches: { async open() { return cache; }, async keys() { return ["tech-topics-old", "another-app"]; }, async delete(name) { deleted.push(name); } },
-    async fetch(request) { if (offline) throw Error("Offline"); return new Response(`fresh:${request.url}`); }
+    caches: {
+      async open(name) {
+        if (cacheAccessFails && name !== "tech-topics-old") throw new Error("cache unavailable");
+        if (!cachesByName.has(name)) cachesByName.set(name, makeCache());
+        return cachesByName.get(name);
+      },
+      async keys() { return [...cachesByName.keys(), "another-app"]; },
+      async delete(name) { deleted.push(name); return cachesByName.delete(name); }
+    },
+    async fetch(request) {
+      if (offline) throw Error("Offline");
+      if (request.url === "https://example.com/tech-topics/content/articles/retired.json") {
+        return new Response("retired endpoint", { status: 404 });
+      }
+      if (request.url.startsWith("https://example.com/tech-topics/content/articles/retired.html")) {
+        return new Response("<article data-article-format=\"html-v1\"></article>");
+      }
+      return new Response(`fresh:${request.url}`);
+    }
   });
-  vm.runInContext(readFileSync("sw.js", "utf8"), context);
+  vm.runInContext(readFileSync(process.env.TECH_TOPICS_SW_SOURCE_PATH || "sw.js", "utf8"), context);
   let pending;
   handlers.install({ waitUntil(promise) { pending = promise; } }); await pending;
+  const candidate = [...cachesByName.keys()].find(name => name.startsWith("tech-topics-") && name !== "tech-topics-old");
+  const entries = cachesByName.get(candidate).entries;
   assert(entries.has("https://example.com/tech-topics/index.html"));
   assert(entries.has("https://example.com/tech-topics/content/articles/index.json"));
-  assert(entries.has("https://example.com/tech-topics/assets/articles-catalog.json"));
+  if (!process.env.TECH_TOPICS_SW_SOURCE_PATH) {
+    assert(entries.has("https://example.com/tech-topics/assets/articles-catalog.json"));
+  }
   assert(!entries.has("https://example.com/tech-topics/content/articles/bulkhead.json"), "full articles must not be precached");
   assert(!entries.has("https://example.com/tech-topics/assets/bulkhead/bulkhead-cover.jpg"), "covers must not be precached");
+  assert.equal(skipWaitingCalls, 0, "an installed update stays waiting until a client explicitly accepts it");
   const manifestIcons = JSON.parse(readFileSync("manifest.webmanifest", "utf8")).icons;
   for (const icon of manifestIcons) assert(entries.has(new URL(icon.src, "https://example.com/tech-topics/").href), "installable app icon must be available offline: " + icon.src);
   assert(entries.has("https://example.com/tech-topics/favicon.ico"));
@@ -41,7 +81,16 @@ async function testWorker() {
   assert(entries.has("https://example.com/tech-topics/header.js"), "shared header script must be offline");
   assert(entries.has("https://example.com/tech-topics/content/tts-lexicon.json"));
   handlers.activate({ waitUntil(promise) { pending = promise; } }); await pending;
-  assert.deepEqual(deleted, ["tech-topics-old"]); assert(claimed);
+  assert.deepEqual(deleted, [], "activation must preserve every prior cache until a separate recovery gate");
+  assert.equal(cachesByName.has("tech-topics-old"), true, "the previous offline version remains usable");
+  assert.equal(await oldCache.match("https://example.com/tech-topics/app.js").then(response => response.text()), "old-version-app",
+    "candidate cache writes cannot replace a previous version's app code");
+  assert.equal(claimed, false, "activation must not take control of already-open tabs");
+  assert.deepEqual(updateMessages.map(([tab]) => tab), ["tab-one", "tab-two"], "all in-scope tabs learn that the update is ready");
+  assert.equal(updateMessages[0][1].type, "TECH_TOPICS_UPDATE_ACTIVATED");
+  handlers.message({ data: { type: "TECH_TOPICS_ACTIVATE_UPDATE" }, waitUntil(promise) { pending = promise; } });
+  await pending;
+  assert.equal(skipWaitingCalls, 1, "skipWaiting is only requested after an explicit client message");
   async function request(path, navigate = false) {
     let response;
     handlers.fetch({ request: { url: `https://example.com${path}`, method: "GET", mode: navigate ? "navigate" : "cors" },
@@ -49,12 +98,169 @@ async function testWorker() {
     return response;
   }
   assert.equal(await request("/other-app/index.html"), undefined);
-  const online = await request("/tech-topics/app.js"); assert.match(await online.text(), /^fresh:/);
+  const online = await request("/tech-topics/app.js");
+  assert.equal(await online.text(), "https://example.com/tech-topics/app.js", "a controlled tab stays on its worker's precached app version");
+  const uncached = await request("/tech-topics/content/articles/cached-on-first-visit.json");
+  assert.match(await uncached.text(), /^fresh:/, "a cache miss uses the network and joins this worker's version cache");
+  const retired = await request("/tech-topics/content/articles/retired.json");
+  assert.equal(retired.status, 404, "an old JSON endpoint's 404 is passed to the client for its HTML fallback");
+  assert.equal(await cachesByName.get(candidate).match("https://example.com/tech-topics/content/articles/retired.json"), undefined,
+    "404 responses never become stale cached articles");
+  const candidateArticle = await request("/tech-topics/content/articles/retired.html?build=candidate");
+  assert.equal(candidateArticle.status, 200, "a candidate HTML transport can be fetched and cached by its version");
+  cacheAccessFails = true;
+  assert.match(await (await request("/tech-topics/assets/cache-unavailable.js")).text(), /^fresh:/,
+    "Cache Storage failures do not block an online response");
+  cacheAccessFails = false;
   offline = true;
-  assert.match(await (await request("/tech-topics/app.js")).text(), /^fresh:/);
+  assert.equal(await (await request("/tech-topics/app.js")).text(), "https://example.com/tech-topics/app.js");
+  assert.match(await (await request("/tech-topics/content/articles/cached-on-first-visit.json")).text(), /^fresh:/);
+  assert.match(await (await request("/tech-topics/content/articles/retired.html?build=candidate")).text(), /article data-article-format/,
+    "a cached candidate document remains available to a prepared client offline");
   assert.equal((await request("/tech-topics/article.html?slug=four-golden-signals", true)).status, 200);
   assert.equal((await request("/tech-topics/", true)).status, 200);
   assert.equal((await request("/tech-topics/missing.json")).status, 503);
+}
+
+async function testFailedInstallPreservesActiveCache() {
+  const handlers = {};
+  const removed = [];
+  let candidateCacheName;
+  const oldEntries = new Map([["https://example.com/tech-topics/index.html", new Response("old-shell")]]);
+  const cachesByName = new Map([["tech-topics-old", { entries: oldEntries }]]);
+  const context = vm.createContext({
+    URL, Request, Response,
+    importScripts() { vm.runInContext(readFileSync(process.env.TECH_TOPICS_SW_VERSION_SOURCE_PATH || "sw-version.js", "utf8"), context); },
+    self: {
+      location: { href: "https://example.com/tech-topics/sw.js" },
+      addEventListener(name, fn) { handlers[name] = fn; },
+      async skipWaiting() {}, clients: { async claim() {}, async matchAll() { return []; } }
+    },
+    caches: {
+      async open(name) {
+        candidateCacheName = name;
+        const cache = { entries: new Map(), async addAll(requests) {
+          this.entries.set(requests[0].url, new Response("partial candidate"));
+          throw new Error("quota exceeded");
+        } };
+        cachesByName.set(name, cache);
+        return cache;
+      },
+      async delete(name) { removed.push(name); return cachesByName.delete(name); }
+    },
+    async fetch() { return new Response("fresh"); }
+  });
+  vm.runInContext(readFileSync(process.env.TECH_TOPICS_SW_SOURCE_PATH || "sw.js", "utf8"), context);
+  let pending;
+  handlers.install({ waitUntil(promise) { pending = promise; } });
+  await assert.rejects(pending, /quota exceeded/);
+  assert.deepEqual(removed, [candidateCacheName], "only the incomplete candidate cache is discarded");
+  assert.equal(cachesByName.has("tech-topics-old"), true);
+  assert.equal(await oldEntries.get("https://example.com/tech-topics/index.html").text(), "old-shell");
+  assert.equal(cachesByName.has(candidateCacheName), false, "partial quota-failed resources are not retained as a candidate");
+}
+
+async function testFirstInstallClaimsWithoutReload() {
+  const handlers = {};
+  let cacheName;
+  let claimed = false;
+  const context = vm.createContext({
+    URL, Request, Response,
+    importScripts() { vm.runInContext(readFileSync(process.env.TECH_TOPICS_SW_VERSION_SOURCE_PATH || "sw-version.js", "utf8"), context); },
+    self: {
+      location: { href: "https://example.com/tech-topics/sw.js" },
+      addEventListener(name, fn) { handlers[name] = fn; },
+      async skipWaiting() {}, clients: { async claim() { claimed = true; }, async matchAll() { return []; } }
+    },
+    caches: {
+      async open(name) { cacheName = name; return { async addAll() {} }; },
+      async keys() { return [cacheName]; }, async delete() { return false; }
+    },
+    async fetch() { return new Response("fresh"); }
+  });
+  vm.runInContext(readFileSync(process.env.TECH_TOPICS_SW_SOURCE_PATH || "sw.js", "utf8"), context);
+  let pending;
+  handlers.install({ waitUntil(promise) { pending = promise; } }); await pending;
+  handlers.activate({ waitUntil(promise) { pending = promise; } }); await pending;
+  assert.equal(claimed, true, "a first install controls its page so the precache works offline immediately");
+}
+
+async function testPwaUpdateRequiresSafeUserAction() {
+  const windowHandlers = {};
+  const serviceWorkerHandlers = {};
+  const workerHandlers = {};
+  const buttonHandlers = {};
+  let reloads = 0;
+  let nextTimerId = 0;
+  const timers = new Map();
+  const posted = [];
+  const children = [];
+  const element = () => ({
+    style: {}, hidden: false, disabled: false, children: [], attrs: {},
+    setAttribute(name, value) { this.attrs[name] = value; },
+    addEventListener(type, handler) { buttonHandlers[type] = handler; },
+    append(...items) { this.children.push(...items); }
+  });
+  const body = { append(child) { children.push(child); } };
+  const waiting = { state: "installed", addEventListener(type, handler) { workerHandlers[type] = handler; }, postMessage(message) { posted.push(message); } };
+  const registration = {
+    waiting, installing: null, handlers: {},
+    addEventListener(type, handler) { this.handlers[type] = handler; }
+  };
+  const navigator = {
+    serviceWorker: {
+      controller: {},
+      addEventListener(type, handler) { serviceWorkerHandlers[type] = handler; },
+      register: async () => registration
+    }
+  };
+  const window = {
+    location: { href: "https://example.com/tech-topics/article.html?slug=bulkhead#limits", reload() { reloads++; } },
+    speechSynthesis: { speaking: false, pending: false },
+    addEventListener(type, handler) { windowHandlers[type] = handler; }
+  };
+  const document = {
+    body, querySelector() { return null; }, querySelectorAll() { return []; }, createElement: element
+  };
+  vm.runInNewContext(readFileSync("pwa.js", "utf8"), {
+    document, window, navigator, console,
+    setTimeout(callback) { const id = ++nextTimerId; timers.set(id, callback); return id; },
+    clearTimeout(id) { timers.delete(id); }
+  });
+  windowHandlers.load();
+  await new Promise(setImmediate);
+  workerHandlers.statechange();
+  const notice = children[0];
+  const message = notice.children[0];
+  const button = notice.children[1];
+  assert.equal(notice.attrs.role, "status");
+  assert.equal(notice.attrs["aria-live"], "polite");
+  assert.equal(reloads, 0, "discovering an update never reloads the page");
+
+  buttonHandlers.click();
+  assert.equal(posted.length, 1);
+  assert.equal(posted[0].type, "TECH_TOPICS_ACTIVATE_UPDATE");
+  assert.equal(timers.size, 1, "a missing activation message cannot leave the update control disabled forever");
+  assert.equal(reloads, 0, "asking the waiting worker to activate does not reload any tab");
+  serviceWorkerHandlers.message({ data: { type: "TECH_TOPICS_UPDATE_ACTIVATED", version: "candidate" } });
+  assert.equal(timers.size, 0, "successful activation cancels the retry notice");
+  assert.match(message.textContent, /Recarregue esta aba quando estiver pronto/);
+  assert.equal(reloads, 0, "worker activation notifies open tabs without reloading them");
+
+  window.speechSynthesis.speaking = true;
+  buttonHandlers.click();
+  assert.equal(reloads, 0, "an explicit reload is refused while speech is active");
+  assert.match(message.textContent, /Termine a reprodução/);
+  window.speechSynthesis.speaking = false;
+  let mediaPlaying = true;
+  document.querySelectorAll = () => [{ paused: !mediaPlaying, ended: false }];
+  buttonHandlers.click();
+  assert.equal(reloads, 0, "an explicit reload is refused while recorded audio is active");
+  mediaPlaying = false;
+  buttonHandlers.click();
+  assert.equal(reloads, 1);
+  assert.equal(window.location.href, "https://example.com/tech-topics/article.html?slug=bulkhead#limits",
+    "refresh preserves the slug and hash in the current URL");
 }
 
 async function testOrdering() {
@@ -374,6 +580,10 @@ async function testOrdering() {
   for (const size of [192, 512]) assert(manifest.icons.some(icon => icon.sizes === `${size}x${size}`));
   for (const icon of manifest.icons) assert(existsSync(icon.src));
   for (const file of ["index.html", "article.html"]) assert(readFileSync(file, "utf8").includes('rel="manifest"'));
-  await testWorker(); await testOrdering();
-  console.log("PASS: manifest, scoped install/cache cleanup, network refresh, offline article/query/JSON fallback, favorites, press-drag-release, keyboard access and newest-first ordering.");
+  await testWorker();
+  await testFailedInstallPreservesActiveCache();
+  await testFirstInstallClaimsWithoutReload();
+  await testPwaUpdateRequiresSafeUserAction();
+  await testOrdering();
+  console.log("PASS: versioned cache retention, quota-safe install, opt-in update/reload, safe playback handling, scoped offline behavior, favorites and ordering.");
 })().catch(error => { console.error(error); process.exitCode = 1; });
