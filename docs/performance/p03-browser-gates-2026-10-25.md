@@ -36,5 +36,5 @@ O artefato `.site-artifact.json` foi gerado pelo build e lista os 73 arquivos p�
 - Não houve QA físico Android, Safari/iOS, inspeção visual humana no app, áudio acústico ou chamada ao serviço real de síntese. Os fakes não afirmam que uma voz instalada produzirá som offline.
 - Os status e URLs HTTP são fault injection local, não respostas/headers de GitHub Pages ou Release em produção.
 - A escolha manual da voz local limpa o status da tentativa MP3 cancelada. Fallback automático conserva a mensagem explicativa. Os dois comportamentos passam pela unit pública e pelo fluxo browser com clock pausado.
-- A amostra de 1,7–6,1 ms só cobre clique→callback simulado. Não mede corpo→controles, não valida a meta global de 200 ms e não substitui a janela exclusiva pedida para 40 navegações.
+- A amostra final de 1,8–3,3 ms só cobre clique→callback simulado. Não mede corpo→controles, não valida a meta global de 200 ms e não substitui a janela exclusiva pedida para 40 navegações.
 - O `dist/` e os arquivos de manifesto/cache modificados pelo build são gerados no worktree e não fazem parte dos arquivos desta entrega.

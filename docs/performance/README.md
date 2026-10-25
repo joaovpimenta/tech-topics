@@ -1,6 +1,6 @@
 # Baseline de performance — P01 (histórica)
 
-Referência histórica da issue #107 / plano #88, medida no SHA `7abb3284b9ae32d4551f0cddb53efaea73f38787`, antes da integração de P02/P03. O harness mede o site construído em `dist/` sob `/tech-topics/`, o prefixo usado pelo Pages, e reproduz estados no loader real. Reexecute a partir da raiz após `node scripts/validate-site.mjs`:
+Referência histórica da issue #107 / plano #88, com métricas coletadas no código `856906d62bf8e965065305361c11fde11b4058a4` e relatório consolidado no SHA `7abb3284b9ae32d4551f0cddb53efaea73f38787`, antes da integração de P02/P03. O harness mede o site construído em `dist/` sob `/tech-topics/`, o prefixo usado pelo Pages, e reproduz estados no loader real. Reexecute a partir da raiz após `node scripts/validate-site.mjs`:
 
 ```powershell
 $env:TECH_TOPICS_PLAYWRIGHT = '<caminho do módulo Playwright existente>'
@@ -21,7 +21,7 @@ Não instala dependências, não sintetiza Kokoro, não consulta telemetria exte
 
 O teste não valida o tempo acústico percebido, compatibilidade real de capítulos v2 nem uma promoção entre frases. A transição para próxima frase ainda não existe neste SHA e é N/A.
 
-Na execução histórica desta P01, `node scripts/test-speech-browser.cjs` falhou ao esperar o dock gravado visível. A regressão e a validação browser foram ampliadas depois da integração de P02/P03; os resultados e limites atuais estão em [gates de browser P02/P03](p03-browser-gates-2026-10-25.md).
+Na execução desta rodada, `node scripts/test-speech-browser.cjs` passou a fixture de fala e falhou depois no primeiro viewport ao esperar o dock gravado visível (`#recording-player`, linha 73); a mesma falha já foi observada no SHA original da main. Uma tentativa de stub de mídia mais completo não eliminou o timeout e foi descartada. Portanto, a navegação/pronúncia/controles cobertos antes desse ponto passaram, mas layout do dock em desktop/celular não está validado por este teste nesta rodada. A regressão e a validação browser foram ampliadas depois da integração de P02/P03; os resultados e limites atuais estão em [gates de browser P02/P03](p03-browser-gates-2026-10-25.md).
 
 O ensaio separado do SW registrou instalação ativa e controle sob `/tech-topics/`, 11 recursos iniciados por SW na visita online e sucesso ao abrir offline um artigo previamente visitado (26.489 caracteres de corpo renderizados). É uma amostra funcional, sem distribuição de latência e sem MP3/API durante o modo offline.
 
