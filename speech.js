@@ -20,7 +20,12 @@
     const refresh = () => {
       try {
         const voices = synthesis.getVoices();
-        state = { state: voices.length ? (voices.some(voice => /^pt(?:-|$)/i.test(voice.lang || "")) ? "ready" : "missing-pt-br") : state.state, voices };
+        state = {
+          state: voices.length
+            ? (voices.some(voice => /^pt(?:-|$)/i.test(voice.lang || "")) ? "ready" : "missing-pt-br")
+            : state.state === "pending" ? "pending" : "unavailable",
+          voices
+        };
       } catch (_) {
         state = { state: "unavailable", voices: [] };
       }

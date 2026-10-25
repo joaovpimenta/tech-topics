@@ -48,9 +48,16 @@ test("voice preparation reads the list without speaking and accepts voices that 
   assert.equal(prepared.snapshot().state, "ready");
   assert.equal(prepared.snapshot().voices[0].name, "Voz tardia");
   assert.equal(synthesis.calls, 2);
+  synthesis.voices = [];
+  synthesis.dispatchEvent(new Event("voiceschanged"));
+  assert.equal(prepared.snapshot().state, "unavailable", "an empty list after readiness cannot leave a ready state with no voices");
+  assert.equal(prepared.snapshot().voices.length, 0);
+  synthesis.voices = [{ lang: "pt-BR", name: "Voz recuperada" }];
+  synthesis.dispatchEvent(new Event("voiceschanged"));
+  assert.equal(prepared.snapshot().state, "ready", "a later service response can restore voice availability");
   class Utterance { constructor(text) { this.text = text; } }
   speech.createPlayer({ blocks: [{ segments: [{ text: "Olá.", lang: "pt-BR", words: [] }] }], synthesis, Utterance }).start();
-  assert.equal(synthesis.utterances[0].voice.name, "Voz tardia", "the first user-triggered utterance uses the late voice");
+  assert.equal(synthesis.utterances[0].voice.name, "Voz recuperada", "the first user-triggered utterance uses the latest available voice");
 });
 
 test("mixed-case initialisms and plurals use the same fallback", () => {
