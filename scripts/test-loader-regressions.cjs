@@ -102,9 +102,19 @@ async function main() {
       await page.locator("#listen-recording").click();
       await sleep(100);
       const result = { ...(await page.evaluate(() => ({ speechCalls: window.__speechCalls, mediaPlayCalls: window.__mediaPlayCalls, mediaReadyState: document.querySelector("#article-recording")?.readyState, subtitle: document.querySelector("#recording-subtitle")?.textContent, playing: document.querySelector("#recording-play")?.dataset.playing }))), lookupPendingAtGesture: apiPending && lookupPending };
-      if (!mp3Discovered) assert(result.speechCalls > 0, `API failure should use available device speech: ${JSON.stringify(result)}`);
-      else if (mp3Discovered) { assert.equal(result.speechCalls, 0, "discovered MP3 suppresses device voice even while playback promise remains pending"); assert.equal(result.mediaReadyState, 0, "discovered MP3 has not produced media metadata"); assert.equal(result.mediaPlayCalls, 1, "click awaited a pending media play promise"); }
-      if (apiPending) { assert.equal(result.lookupPendingAtGesture, true, "Release request must still be unresolved at the user gesture"); releaseLookup(); await page.waitForFunction(() => performance.getEntriesByType("resource").some(entry => entry.name.includes("api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-"))); }
+      assert(result.speechCalls > 0, `an unready/unknown MP3 must use available device speech: ${JSON.stringify(result)}`);
+      assert.equal(result.subtitle, "Tech Topics · Voz do dispositivo");
+      if (mp3Discovered) {
+        assert.equal(result.mediaReadyState, 0, "discovered MP3 has not produced media metadata");
+        assert.equal(result.mediaPlayCalls, 0, "readyState=0 falls back before calling play()");
+      } else assert.equal(result.mediaPlayCalls, 0, "unknown or missing MP3 does not invoke media playback");
+      if (apiPending) {
+        assert.equal(result.lookupPendingAtGesture, true, "Release request must still be unresolved at the user gesture");
+        releaseLookup();
+        await sleep(100);
+        const afterDiscovery = await page.evaluate(() => ({ speechCalls: window.__speechCalls, mediaPlayCalls: window.__mediaPlayCalls, subtitle: document.querySelector("#recording-subtitle")?.textContent }));
+        assert.deepEqual(afterDiscovery, { speechCalls: result.speechCalls, mediaPlayCalls: 0, subtitle: "Tech Topics · Voz do dispositivo" }, "late Release discovery cannot promote or restart an explicit local session");
+      }
       await page.close();
       return result;
     }

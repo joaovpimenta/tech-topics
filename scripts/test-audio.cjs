@@ -49,12 +49,21 @@ class AudioMock extends EventTarget {
   constructor() {
     super();
     this.paused = true; this.ended = false;
+    this.readyState = 4;
     this.currentTime = 0; this.duration = 105;
     this.playbackRate = 1;
+    this.playCalls = 0;
+    this.playPlan = null;
+    this.buffered = { length: 1, start: () => 0, end: () => this.duration };
+    this.seekable = { length: 1, start: () => 0, end: () => this.duration };
   }
-  async play() {
+  play() {
+    this.playCalls += 1;
+    if (this.playPlan) return this.playPlan();
     this.paused = false;
     this.dispatchEvent(new Event("play"));
+    this.dispatchEvent(new Event("playing"));
+    return Promise.resolve();
   }
   pause() {
     this.paused = true;
@@ -390,6 +399,172 @@ class ReadingNode extends EventTarget {
   scrollIntoView() { this.scrolls++; }
   click() { this.dispatchEvent(new Event("click")); }
 }
+
+async function playerFixture({ readyState = 4, playbackTimeoutMs = 30, playPlan = null, buffered, seekable, deviceAvailable = true } = {}) {
+  const ids = ["listen-recording", "inline-recording-anchor", "inline-recording-timeline", "inline-recording",
+    "inline-recording-seek", "inline-recording-elapsed", "inline-recording-duration", "inline-recording-rate",
+    "inline-recording-previous", "inline-recording-next", "recording-player", "recording-title",
+    "recording-subtitle", "recording-cover", "recording-ring", "recording-play", "recording-previous",
+    "recording-skip", "recording-follow", "recording-close", "recording-seek", "recording-elapsed",
+    "recording-duration", "recording-rate", "recording-status", "listen-article"];
+  const nodes = Object.fromEntries(ids.map(id => ["#" + id, new Element()]));
+  nodes["#listen-recording"].hidden = false;
+  nodes["#recording-follow"].checked = true;
+  const heading = new ReadingNode("h1", "Artigo");
+  const dek = new ReadingNode("p", "Resumo");
+  const paragraph = new ReadingNode("p", "Primeira frase. Segunda frase.");
+  const body = new ReadingNode("article", "", [paragraph]);
+  const menu = { open: false, hidden: true };
+  const doc = {
+    visibilityState: "visible",
+    baseURI: "https://joaovpimenta.github.io/tech-topics/article.html?slug=bulkhead",
+    querySelector(selector) {
+      if (selector === "#article-heading") return heading;
+      if (selector === "#article-dek") return dek;
+      if (selector === "#article-body") return body;
+      if (selector === ".recording-options") return menu;
+      return nodes[selector] || null;
+    },
+    getSelection() { return { toString: () => "" }; },
+    body: { classList: { toggle() {} } }
+  };
+  const audio = new AudioMock();
+  audio.readyState = readyState;
+  if (buffered !== undefined) audio.buffered = buffered;
+  if (seekable !== undefined) audio.seekable = seekable;
+  if (playPlan) audio.playPlan = () => playPlan(audio);
+  const blocks = [{ node: heading, words: [] }, { node: dek, words: [] }, { node: paragraph, words: [] }];
+  let state = { state: "idle", blockIndex: 0, count: blocks.length };
+  let rate = 1;
+  let controller;
+  const starts = [];
+  const devicePlayer = {
+    blocks,
+    snapshot: () => ({ ...state }),
+    start(index = 0) { state = { ...state, state: "speaking", blockIndex: index }; starts.push(index); controller.deviceChanged(this.snapshot()); },
+    toggle() { state = { ...state, state: state.state === "speaking" ? "paused" : "speaking" }; controller.deviceChanged(this.snapshot()); },
+    stop() { state = { ...state, state: "idle", blockIndex: 0 }; controller.deviceChanged(this.snapshot()); },
+    setRate(value) { rate = value; if (state.state !== "idle") controller.deviceChanged(this.snapshot()); },
+    getRate: () => rate,
+    next() { this.start(Math.min(blocks.length - 1, state.blockIndex + 1)); },
+    previous() { this.start(Math.max(0, state.blockIndex - 1)); },
+    seek(index) { this.start(index); }
+  };
+  controller = createPlayer({
+    document: doc, navigator: {}, article: { slug: "bulkhead", title: "Bulkhead" },
+    cover: { src: "assets/bulkhead/cover.jpg" }, audio, devicePlayer: deviceAvailable ? devicePlayer : null, playbackTimeoutMs,
+    startDevice: () => starts.push("unavailable"),
+    fetchAudio: async () => ({ url: "https://example.org/bulkhead.mp3", chapters: [{ start: 0 }, { start: 30 }, { start: 80 }] })
+  });
+  await controller.discover();
+  return { audio, controller, devicePlayer, starts, nodes, paragraph };
+}
+
+test("discovered MP3 with readyState zero uses device speech after the gesture", async () => {
+  const fixture = await playerFixture({ readyState: 0 });
+  assert.equal(fixture.controller.snapshot().discovered, true);
+  assert.equal(fixture.controller.snapshot().mediaReady, false);
+  await fixture.controller.play();
+  assert.equal(fixture.audio.playCalls, 0, "unready media is not treated as playable");
+  assert.equal(fixture.controller.snapshot().mode, "device");
+  assert.equal(fixture.starts.length, 1, "the available local source starts immediately");
+  assert.equal(fixture.audio.paused, true, "MP3 remains silent while device speech is active");
+  const resumed = await playerFixture({ readyState: 0 });
+  resumed.controller.beginDevice(2);
+  await resumed.controller.play();
+  assert.deepEqual(resumed.starts, [2, 2], "fallback resumes at the same device block instead of restarting at the beginning");
+  const unbuffered = await playerFixture({ buffered: { length: 0 }, seekable: { length: 0 } });
+  assert.equal(unbuffered.controller.snapshot().mediaReady, false, "metadata without a confirmed seekable buffer is not ready");
+  await unbuffered.controller.play();
+  assert.equal(unbuffered.audio.playCalls, 0);
+  assert.equal(unbuffered.controller.snapshot().mode, "device");
+  const noSpeech = await playerFixture({ readyState: 0, deviceAvailable: false });
+  await noSpeech.controller.play();
+  assert.equal(noSpeech.audio.playCalls, 0);
+  assert.equal(noSpeech.starts[0], "unavailable");
+  assert.match(noSpeech.nodes["#recording-status"].textContent, /voz do dispositivo não está disponível/);
+});
+
+test("pending and rejected media playback fall back within a bound and ignore late starts", async () => {
+  let resolveLate;
+  const fixture = await playerFixture({
+    playbackTimeoutMs: 10,
+    playPlan: audio => {
+      audio.paused = false;
+      audio.dispatchEvent(new Event("play"));
+      return new Promise(resolve => {
+        resolveLate = () => {
+          audio.paused = false;
+          audio.dispatchEvent(new Event("play"));
+          audio.dispatchEvent(new Event("playing"));
+          resolve();
+        };
+      });
+    }
+  });
+  const attempt = fixture.controller.play();
+  await new Promise(resolve => setTimeout(resolve, 25));
+  assert.equal(fixture.controller.snapshot().mode, "device", "a pending play promise cannot hold the reader");
+  assert.equal(fixture.controller.snapshot().recordedPending, false);
+  assert.equal(fixture.audio.paused, true);
+  assert.equal(fixture.starts.length, 1);
+  resolveLate();
+  await attempt;
+  await Promise.resolve();
+  assert.equal(fixture.controller.snapshot().mode, "device", "a late MP3 result cannot take over local speech");
+  assert.equal(fixture.audio.paused, true, "a late playing event is paused before becoming a second source");
+
+  const rejected = await playerFixture({
+    playPlan: audio => {
+      audio.paused = false;
+      audio.dispatchEvent(new Event("play"));
+      return Promise.reject(new Error("decode failed"));
+    }
+  });
+  await rejected.controller.play();
+  assert.equal(rejected.controller.snapshot().mode, "device");
+  assert.equal(rejected.audio.paused, true);
+  assert.equal(rejected.nodes["#recording-status"].textContent, "Não foi possível iniciar o MP3; usando voz do dispositivo.");
+});
+
+test("pause, seek, close and explicit device choice cancel pending MP3 attempts", async () => {
+  for (const action of ["pause", "seek", "close", "device"]) {
+    let resolveLate;
+    const fixture = await playerFixture({
+      playbackTimeoutMs: 1000,
+      playPlan: audio => {
+        audio.paused = false;
+        audio.dispatchEvent(new Event("play"));
+        return new Promise(resolve => {
+          resolveLate = () => {
+            audio.paused = false;
+            audio.dispatchEvent(new Event("play"));
+            audio.dispatchEvent(new Event("playing"));
+            resolve();
+          };
+        });
+      }
+    });
+    const attempt = fixture.controller.play();
+    assert.equal(fixture.controller.snapshot().recordedPending, true);
+    if (action === "pause") fixture.nodes["#recording-play"].click();
+    if (action === "seek") {
+      fixture.nodes["#recording-seek"].value = "500";
+      fixture.nodes["#recording-seek"].dispatchEvent(new Event("input"));
+      fixture.nodes["#recording-seek"].dispatchEvent(new Event("change"));
+    }
+    if (action === "close") fixture.controller.close();
+    if (action === "device") fixture.nodes["#listen-article"].click();
+    await attempt;
+    assert.equal(fixture.controller.snapshot().recordedPending, false, `${action} clears the pending attempt`);
+    assert.equal(fixture.starts.length, action === "device" ? 1 : 0, `${action} does not trigger an unrelated fallback`);
+    resolveLate();
+    await Promise.resolve();
+    assert.equal(fixture.audio.paused, true, `${action} pauses any late MP3 start`);
+    if (action === "close") assert.equal(fixture.controller.snapshot().open, false);
+    if (action === "device") assert.equal(fixture.controller.snapshot().mode, "device");
+  }
+});
 
 test("exact chapter timestamps highlight and auto-scroll the corresponding paragraph; click seeks", async () => {
   const ids = ["listen-recording", "recording-player", "recording-title", "recording-subtitle",
