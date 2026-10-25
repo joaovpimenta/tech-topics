@@ -545,6 +545,7 @@ test("pause, seek, close and explicit device choice cancel pending MP3 attempts"
         });
       }
     });
+    if (action === "device") fixture.controller.beginDevice(2);
     const attempt = fixture.controller.play();
     assert.equal(fixture.controller.snapshot().recordedPending, true);
     if (action === "pause") fixture.nodes["#recording-play"].click();
@@ -557,7 +558,7 @@ test("pause, seek, close and explicit device choice cancel pending MP3 attempts"
     if (action === "device") fixture.nodes["#listen-article"].click();
     await attempt;
     assert.equal(fixture.controller.snapshot().recordedPending, false, `${action} clears the pending attempt`);
-    assert.equal(fixture.starts.length, action === "device" ? 1 : 0, `${action} does not trigger an unrelated fallback`);
+    assert.deepEqual(fixture.starts, action === "device" ? [2, 2] : [], `${action} does not trigger an unrelated fallback or lose the local position`);
     resolveLate();
     await Promise.resolve();
     assert.equal(fixture.audio.paused, true, `${action} pauses any late MP3 start`);

@@ -143,6 +143,7 @@
     let open = false;
     let mode = null; // "recorded" or "device"; one dock owns both players.
     let deviceState = { state: "idle", blockIndex: 0, count: devicePlayer?.blocks?.length || 0 };
+    let lastDeviceIndex = 0;
     let seeking = false;
     let inlineSeeking = false;
     let inlineVisible = true;
@@ -330,18 +331,21 @@
       }
       cancelRecordedAttempt();
       if (mode === "recorded" && Number.isFinite(audio.playbackRate)) selectedRate = audio.playbackRate;
+      const targetIndex = Number.isInteger(index) ? index : lastDeviceIndex;
       devicePlayer.setRate?.(selectedRate);
       mode = "device";
       open = true;
       audio.pause();
       clearSession();
-      if (Number.isInteger(index)) devicePlayer.start(index);
+      if (Number.isInteger(targetIndex)) devicePlayer.start(targetIndex);
       else if (devicePlayer.snapshot().state === "idle") devicePlayer.start();
       else devicePlayer.toggle();
       render();
     }
     function deviceChanged(snapshot) {
       deviceState = snapshot;
+      if (snapshot.state !== "idle") lastDeviceIndex = snapshot.blockIndex;
+      else if (snapshot.message === "Leitura concluída.") lastDeviceIndex = 0;
       if (mode !== "device") return;
       if (snapshot.state === "idle") {
         open = false;
@@ -570,8 +574,11 @@
     async function play() {
       try { performance.mark("tt:audio-play-request"); } catch (_) {}
       if (!discovered) return beginDevice();
-      if (mode === "device") selectedRate = devicePlayer?.getRate?.() || selectedRate;
-      const fallbackBlock = mode === "device" ? deviceState.blockIndex : fallbackDeviceIndex();
+      if (mode === "device") {
+        selectedRate = devicePlayer?.getRate?.() || selectedRate;
+        lastDeviceIndex = deviceState.blockIndex;
+      }
+      const fallbackBlock = mode === "device" ? lastDeviceIndex : fallbackDeviceIndex();
       cancelRecordedAttempt();
       const attempt = playbackAttempt;
       recordedActive = false;
