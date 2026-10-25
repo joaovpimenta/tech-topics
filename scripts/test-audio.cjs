@@ -561,7 +561,11 @@ test("pause, seek, close and explicit device choice cancel pending MP3 attempts"
       fixture.nodes["#recording-seek"].dispatchEvent(new Event("change"));
     }
     if (action === "close") fixture.controller.close();
-    if (action === "device") fixture.nodes["#listen-article"].click();
+    if (action === "device") {
+      assert.equal(fixture.nodes["#recording-status"].textContent, "Aguardando início do MP3…");
+      fixture.nodes["#listen-article"].click();
+      assert.equal(fixture.nodes["#recording-status"].textContent, "", "explicit source choice clears the canceled MP3 waiting message");
+    }
     await attempt;
     assert.equal(fixture.controller.snapshot().recordedPending, false, `${action} clears the pending attempt`);
     assert.deepEqual(fixture.starts, action === "device" ? [2, 2] : [], `${action} does not trigger an unrelated fallback or lose the local position`);

@@ -104,8 +104,18 @@ async function main() {
       assert(await page.locator("#recording-player").isVisible(), "native TTS reuses bottom dock");
       assert.match(await page.locator("#recording-subtitle").innerText(), /Voz do dispositivo/);
       assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "true");
+      assert.match(await page.locator("#recording-elapsed").innerText(), /^\d+\/\d+$/, "device speech shows an editorial passage index instead of a fabricated clock");
+      assert.equal(await page.locator("#recording-duration").innerText(), "por trecho");
+      assert.equal(await page.locator("#speech-player").count(), 0, "device mode reuses the single dock");
       assert(await page.evaluate(() => document.querySelectorAll(".recording-block-active, .recording-sentence-active").length > 0
         || Boolean(window.CSS?.highlights?.has("tech-topics-current-sentence"))), "native paragraph highlighted");
+      assert.equal(await page.locator("#article-recording").evaluate(element => element.paused), true, "explicitly choosing device speech pauses the recorded source");
+      const speedBefore = await page.locator("#recording-rate").getAttribute("aria-label");
+      const utterancesBeforeSpeed = await page.evaluate(() => window.testUtterances.length);
+      await page.locator("#recording-rate").click();
+      assert.equal(await page.locator("#recording-rate").innerText(), "1.25×", "visible rate control advances to the next supported speed");
+      assert(await page.evaluate(() => window.testUtterances.length) > utterancesBeforeSpeed, "changing device rate restarts only the selected native passage");
+      assert.match(speedBefore, /1 vez/);
       const utterancesBefore = await page.evaluate(() => window.testUtterances.length);
       await page.locator("#article-body p.recording-readable").first().click();
       assert(await page.evaluate(() => window.testUtterances.length) > utterancesBefore, "click paragraph starts device TTS at that paragraph");
@@ -123,7 +133,84 @@ async function main() {
       assert.equal(await page.locator("#recording-player").isVisible(), true, "return to MP3 in same dock");
       await page.locator("#recording-close").click();
       assert(await page.locator("#recording-player").isHidden());
+      assert.equal(await page.locator("#article-recording").evaluate(element => element.paused), true, "closing the dock stops the recorded source");
     }
+    const racePage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    racePage.setDefaultTimeout(3000);
+    const raceClockStart = new Date("2026-10-25T12:00:00Z");
+    await racePage.clock.install({ time: raceClockStart });
+    await racePage.clock.pauseAt(raceClockStart);
+    await racePage.addInitScript(() => {
+      window.testUtterances = [];
+      window.__playCalls = 0;
+      Object.defineProperty(window, "TechTopicsAudio", { configurable: true, set(api) {
+        const createPlayer = api.createPlayer;
+        api.createPlayer = options => {
+          const player = createPlayer(options);
+          window.__recordingPlayer = player;
+          return player;
+        };
+        Object.defineProperty(window, "TechTopicsAudio", { configurable: true, writable: true, value: api });
+      } });
+      Object.defineProperty(window, "speechSynthesis", { configurable: true, value: { getVoices: () => [], speak(item) { window.testUtterances.push(item); item.onstart?.(); }, cancel() {}, pause() {}, resume() {} } });
+      window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
+      HTMLMediaElement.prototype.play = function () {
+        window.__playCalls++;
+        return new Promise(resolve => { window.__resolveLatePlay = resolve; });
+      };
+      HTMLMediaElement.prototype.pause = function () {
+        Object.defineProperty(this, "paused", { configurable: true, value: true });
+        this.dispatchEvent(new Event("pause"));
+      };
+    });
+    await racePage.route("https://**/*", route => route.abort());
+    await racePage.route("https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-*", route =>
+      route.fulfill({ status: 200, contentType: "application/json",
+        body: JSON.stringify({ body: "", assets: [{ name: "cqrs-projecoes-e-consistencia.mp3", state: "uploaded" }] }) }));
+    await racePage.goto(`${base}/article.html?slug=cqrs-projecoes-e-consistencia`);
+    await racePage.locator("#listen-recording").waitFor({ state: "visible" });
+    await racePage.waitForFunction(() => document.querySelector("#article-recording")?.src.includes(".mp3"));
+    await racePage.evaluate(() => {
+      const recording = document.querySelector("#article-recording");
+      Object.defineProperty(recording, "duration", { configurable: true, value: 125 });
+      Object.defineProperty(recording, "readyState", { configurable: true, value: 4 });
+      const range = { length: 1, start: () => 0, end: () => 125 };
+      Object.defineProperty(recording, "buffered", { configurable: true, value: range });
+      Object.defineProperty(recording, "seekable", { configurable: true, value: range });
+    });
+    await racePage.locator("#listen-recording").click();
+    await racePage.waitForFunction(() => document.querySelector("#recording-status")?.textContent.includes("Aguardando início do MP3"));
+    await racePage.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await racePage.locator("#recording-player").waitFor({ state: "visible" });
+    const pendingPlayerState = await racePage.evaluate(() => window.__recordingPlayer.snapshot());
+    assert.deepEqual(pendingPlayerState, { available: true, discovered: true, mediaReady: true, recordedPending: true, open: true, mode: "recorded", playing: false });
+    await racePage.locator(".recording-options summary").click();
+    const sourceChoiceBeforeClick = await racePage.evaluate(() => ({
+      button: document.querySelector("#listen-article")?.textContent.trim(),
+      subtitle: document.querySelector("#recording-subtitle")?.textContent,
+      playing: document.querySelector("#recording-play")?.dataset.playing,
+      status: document.querySelector("#recording-status")?.textContent
+    }));
+    assert.deepEqual(sourceChoiceBeforeClick, { button: "Usar voz do dispositivo", subtitle: "Tech Topics · Narração", playing: "false", status: "Aguardando início do MP3…" });
+    await racePage.locator("#listen-article").click();
+    await racePage.waitForFunction(() => window.__recordingPlayer?.snapshot().mode === "device");
+    const sourceChoiceAfterClick = await racePage.evaluate(() => ({ player: window.__recordingPlayer.snapshot(),
+      subtitle: document.querySelector("#recording-subtitle")?.textContent,
+      playing: document.querySelector("#recording-play")?.dataset.playing,
+      status: document.querySelector("#recording-status")?.textContent
+    }));
+    assert.deepEqual(sourceChoiceAfterClick, { player: { available: true, discovered: true, mediaReady: true, recordedPending: false, open: true, mode: "device", playing: true }, subtitle: "Tech Topics · Voz do dispositivo", playing: "true", status: "" }, `explicit device choice clears the canceled MP3 status: ${JSON.stringify(sourceChoiceAfterClick)}`);
+    assert.equal(await racePage.locator("#recording-play").getAttribute("data-playing"), "true");
+    assert.equal(await racePage.locator("#article-recording").evaluate(element => element.paused), true, "reader choice pauses the unresolved recorded attempt");
+    assert.deepEqual(await racePage.evaluate(() => ({ playCalls: window.__playCalls, utterances: window.testUtterances.length })), { playCalls: 1, utterances: 1 });
+    await racePage.evaluate(() => window.__resolveLatePlay());
+    await racePage.clock.runFor(1300);
+    await racePage.waitForTimeout(50);
+    assert.equal(await racePage.locator("#recording-subtitle").innerText(), "Tech Topics · Voz do dispositivo", "late play resolution cannot override the reader's source choice");
+    assert.equal(await racePage.locator("#recording-play").getAttribute("data-playing"), "true");
+    assert.equal(await racePage.locator("#article-recording").evaluate(element => element.paused), true);
+    assert.deepEqual(await racePage.evaluate(() => ({ playCalls: window.__playCalls, utterances: window.testUtterances.length })), { playCalls: 1, utterances: 1 });
+    await racePage.close();
     assert.deepEqual(errors, []);
     console.log("PASS: actual article loads with pronunciation, toolbar, desktop/mobile layout and clean stop.");
   } finally {

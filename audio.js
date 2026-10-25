@@ -650,7 +650,10 @@
     deviceSwitch?.addEventListener("click", () => {
       if (sourceMenu) sourceMenu.open = false;
       if (mode === "device" && discovered) void play();
-      else beginDevice();
+      else {
+        setStatus("");
+        beginDevice();
+      }
     });
     skip.addEventListener("click", nextParagraph);
     previousButton.addEventListener("click", previousParagraph);
