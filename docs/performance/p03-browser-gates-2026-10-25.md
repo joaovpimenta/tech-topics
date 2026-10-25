@@ -2,7 +2,7 @@
 
 ## Alvo e proveniência
 
-Execução sobre o checkout isolado `agent/p03-browser-gates`, HEAD exato `c24e8811ff8bb611f6cf211e46bde59321d7f291`. O comando `node scripts/validate-site.mjs` com Node `v22.23.4` reconstruiu `dist/` nesse checkout antes dos testes; não foi usado `dist/` antigo. Chrome `156.0.8078.47`; os scripts abriram servidor somente em `127.0.0.1`.
+Execução no worktree isolado `agent/p03-browser-gates`, baseado em `c24e8811ff8bb611f6cf211e46bde59321d7f291`. O tree com a correção estreita de status em `audio.js` e os testes desta entrega foi validado e testado; `node scripts/validate-site.mjs`, com Node `v22.23.4`, reconstruiu `dist/` desse tree antes dos testes. Não foi usado `dist/` antigo. Chrome `156.0.8078.47`; os scripts abriram servidor somente em `127.0.0.1`.
 
 O artefato `.site-artifact.json` foi gerado pelo build e lista os 73 arquivos públicos. SHA-256 do `dist/.site-artifact.json`: `6fbcd70e6bc6fc7ed3ecb98592595457f3000ee45b7d1513143e4806c59e6fde`. SHA-256 do HTML público `dist/article.html`: `a84ebe7791d21521657a11cfd9b2c35ee0f82cd18ed56d5861a4b3864b8370d5`. Os módulos runtime e o JSON de artigo servidos pelo loader são idênticos aos respectivos inputs versionados:
 
