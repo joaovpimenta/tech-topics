@@ -227,6 +227,14 @@
       const index = devicePlayer.blocks.findIndex(block => block.node === node);
       return index >= 0 ? index : undefined;
     }
+    function chapterForDeviceIndex(index) {
+      if (!Number.isInteger(index) || chapterNodes.length !== chapters.length || !chapters.length) return -1;
+      const block = devicePlayer?.blocks?.[index];
+      if (!block) return -1;
+      return chapters.findIndex((chapter, chapterIndex) =>
+        chapterNodes[chapterIndex] === block.node &&
+        (chapter.sentenceIndex === null || chapter.sentenceIndex === block.sentenceIndex));
+    }
     function clearHighlight() {
       activeNode?.classList.remove("recording-block-active");
       sentenceHighlighter?.clear();
@@ -320,7 +328,7 @@
         });
       }
     }
-    function beginDevice(index) {
+    function beginDevice(index, paused = false) {
       if (!devicePlayer) {
         cancelRecordedAttempt();
         audio.pause();
@@ -338,10 +346,35 @@
       open = true;
       audio.pause();
       clearSession();
-      if (Number.isInteger(targetIndex)) devicePlayer.start(targetIndex);
+      if (Number.isInteger(targetIndex)) devicePlayer.start(targetIndex, paused);
       else if (devicePlayer.snapshot().state === "idle") devicePlayer.start();
       else devicePlayer.toggle();
       render();
+    }
+    function switchToRecorded() {
+      const chapterIndex = chapterForDeviceIndex(deviceState.blockIndex);
+      if (chapterIndex < 0) {
+        setStatus("Não é possível trocar de fonte neste trecho porque os capítulos não correspondem ao texto.");
+        return;
+      }
+      selectedRate = devicePlayer?.getRate?.() || selectedRate;
+      audio.currentTime = chapters[chapterIndex].start;
+      const wasSpeaking = deviceState.state === "speaking";
+      if (!wasSpeaking) {
+        cancelRecordedAttempt();
+        mode = "recorded";
+        open = true;
+        recordedActive = false;
+        recordedPending = false;
+        audio.pause();
+        audio.playbackRate = selectedRate;
+        devicePlayer?.stop("");
+        clearSession();
+        setStatus("");
+        render();
+        return;
+      }
+      void play();
     }
     function deviceChanged(snapshot) {
       deviceState = snapshot;
@@ -581,6 +614,12 @@
       try { performance.mark("tt:audio-play-request"); } catch (_) {}
       if (!discovered) return beginDevice();
       if (mode === "device") {
+        const chapterIndex = chapterForDeviceIndex(deviceState.blockIndex);
+        if (chapterIndex < 0) {
+          setStatus("Não é possível trocar de fonte neste trecho porque os capítulos não correspondem ao texto.");
+          return;
+        }
+        audio.currentTime = chapters[chapterIndex].start;
         selectedRate = devicePlayer?.getRate?.() || selectedRate;
         lastDeviceIndex = deviceState.blockIndex;
       }
@@ -649,10 +688,16 @@
     playButton.addEventListener("click", togglePlayback);
     deviceSwitch?.addEventListener("click", () => {
       if (sourceMenu) sourceMenu.open = false;
-      if (mode === "device" && discovered) void play();
+      if (mode === "device" && discovered) switchToRecorded();
       else {
+        const index = fallbackDeviceIndex();
+        if (mode === "recorded" && discovered && index === undefined) {
+          setStatus("Não é possível trocar de fonte porque os capítulos não correspondem ao texto.");
+          return;
+        }
+        const keepPaused = mode === "recorded" && !recordedPending && !recordedActive;
         setStatus("");
-        beginDevice();
+        beginDevice(index, keepPaused);
       }
     });
     skip.addEventListener("click", nextParagraph);

@@ -98,43 +98,67 @@ async function main() {
       assert(dock.bounds.bottom <= dock.viewport.height && dock.bounds.left >= 0, "bottom dock visible");
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "recording controls don't overflow");
 
-      // Switching engines retains the very same bottom dock and artwork.
+      // This legacy V1 response has only three timestamps and cannot be matched
+      // to the article's reading nodes. The explicit choice must be rejected.
       await page.locator(".recording-options summary").click();
       await page.locator("#listen-article").click();
-      assert(await page.locator("#recording-player").isVisible(), "native TTS reuses bottom dock");
-      assert.match(await page.locator("#recording-subtitle").innerText(), /Voz do dispositivo/);
-      assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "true");
-      assert.match(await page.locator("#recording-elapsed").innerText(), /^\d+\/\d+$/, "device speech shows an editorial passage index instead of a fabricated clock");
-      assert.equal(await page.locator("#recording-duration").innerText(), "por trecho");
-      assert.equal(await page.locator("#speech-player").count(), 0, "device mode reuses the single dock");
-      assert(await page.evaluate(() => document.querySelectorAll(".recording-block-active, .recording-sentence-active").length > 0
-        || Boolean(window.CSS?.highlights?.has("tech-topics-current-sentence"))), "native paragraph highlighted");
-      assert.equal(await page.locator("#article-recording").evaluate(element => element.paused), true, "explicitly choosing device speech pauses the recorded source");
-      const speedBefore = await page.locator("#recording-rate").getAttribute("aria-label");
-      const utterancesBeforeSpeed = await page.evaluate(() => window.testUtterances.length);
-      await page.locator("#recording-rate").click();
-      assert.equal(await page.locator("#recording-rate").innerText(), "1.25×", "visible rate control advances to the next supported speed");
-      assert(await page.evaluate(() => window.testUtterances.length) > utterancesBeforeSpeed, "changing device rate restarts only the selected native passage");
-      assert.match(speedBefore, /1 vez/);
-      const utterancesBefore = await page.evaluate(() => window.testUtterances.length);
-      await page.locator("#article-body p.recording-readable").first().click();
-      assert(await page.evaluate(() => window.testUtterances.length) > utterancesBefore, "click paragraph starts device TTS at that paragraph");
-      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-      await page.locator("#recording-player").waitFor({ state: "visible" });
-      await page.locator("#recording-skip").click();
-      assert(await page.locator("#recording-elapsed").innerText() !== "0:00", "native player reports paragraph instead of fake time");
-      await page.locator("#recording-play").click();
-      assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "false", "native pause changes icon");
-      await page.locator("#recording-play").click();
-      assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "true", "native resume changes icon");
-      await page.locator(".recording-options summary").click();
-      await page.locator("#listen-article").click();
-      assert.match(await page.locator("#recording-subtitle").innerText(), /Narração/);
-      assert.equal(await page.locator("#recording-player").isVisible(), true, "return to MP3 in same dock");
+      assert.match(await page.locator("#recording-status").innerText(), /capítulos não correspondem ao texto/);
+      assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "true", "unmapped source choice leaves recorded playback active");
+      assert.equal(await page.locator("#article-recording").evaluate(element => element.paused), false, "unmapped source choice does not pause the MP3");
       await page.locator("#recording-close").click();
       assert(await page.locator("#recording-player").isHidden());
       assert.equal(await page.locator("#article-recording").evaluate(element => element.paused), true, "closing the dock stops the recorded source");
     }
+    const switchPage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await switchPage.addInitScript(() => {
+      window.testUtterances = [];
+      Object.defineProperty(window, "speechSynthesis", { configurable: true, value: {
+        getVoices: () => [], speak(item) { window.testUtterances.push(item); item.onstart?.(); },
+        cancel() {}, pause() {}, resume() {}
+      } });
+      window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
+      HTMLMediaElement.prototype.play = function () {
+        Object.defineProperties(this, {
+          duration: { configurable: true, value: 40 }, readyState: { configurable: true, value: 4 },
+          paused: { configurable: true, value: false },
+          buffered: { configurable: true, value: { length: 1, start: () => 0, end: () => 40 } },
+          seekable: { configurable: true, value: { length: 1, start: () => 0, end: () => 40 } }
+        });
+        this.dispatchEvent(new Event("play")); this.dispatchEvent(new Event("playing"));
+        return Promise.resolve();
+      };
+      HTMLMediaElement.prototype.pause = function () {
+        Object.defineProperty(this, "paused", { configurable: true, value: true });
+        this.dispatchEvent(new Event("pause"));
+      };
+    });
+    await switchPage.goto(`${base}/scripts/fixtures/audio-switch-browser.html`);
+    await switchPage.waitForFunction(() => window.fixtureReady === true);
+    await switchPage.locator("#listen-recording").click();
+    await switchPage.waitForFunction(() => window.audioSwitchController?.snapshot().playing === true);
+    await switchPage.evaluate(() => {
+      const audio = document.querySelector("#article-recording");
+      audio.currentTime = 15;
+      audio.dispatchEvent(new Event("timeupdate"));
+    });
+    await switchPage.locator("#recording-rate").click();
+    await switchPage.locator("#listen-article").click();
+    assert.equal(await switchPage.locator("#recording-elapsed").innerText(), "2/4", "recorded to device retains the V2-mapped sentence");
+    assert.equal(await switchPage.evaluate(() => window.testUtterances.at(-1).text), "Segundo trecho.");
+    assert.equal(await switchPage.evaluate(() => window.testUtterances.at(-1).rate), 1.25);
+    await switchPage.locator("#listen-article").click();
+    assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.currentTime), 10, "device to recorded seeks to the same validated V2 chapter");
+    assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.playbackRate), 1.25);
+    await switchPage.locator("#recording-play").click();
+    const pausedUtterances = await switchPage.evaluate(() => window.testUtterances.length);
+    await switchPage.locator("#listen-article").click();
+    assert.equal(await switchPage.locator("#recording-play").getAttribute("data-playing"), "false", "recorded pause intent carries into device mode");
+    assert.equal(await switchPage.evaluate(() => window.testUtterances.length), pausedUtterances, "paused source switch starts no transient utterance");
+    await switchPage.locator("#recording-play").click();
+    assert.equal(await switchPage.locator("#recording-play").getAttribute("data-playing"), "true", "device speech resumes from the mapped sentence");
+    await switchPage.locator("#listen-article").click();
+    assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.currentTime), 10);
+    await switchPage.close();
     const racePage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     racePage.setDefaultTimeout(3000);
     const raceClockStart = new Date("2026-10-25T12:00:00Z");
@@ -163,13 +187,8 @@ async function main() {
         this.dispatchEvent(new Event("pause"));
       };
     });
-    await racePage.route("https://**/*", route => route.abort());
-    await racePage.route("https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-*", route =>
-      route.fulfill({ status: 200, contentType: "application/json",
-        body: JSON.stringify({ body: "", assets: [{ name: "cqrs-projecoes-e-consistencia.mp3", state: "uploaded" }] }) }));
-    await racePage.goto(`${base}/article.html?slug=cqrs-projecoes-e-consistencia`);
-    await racePage.locator("#listen-recording").waitFor({ state: "visible" });
-    await racePage.waitForFunction(() => document.querySelector("#article-recording")?.src.includes(".mp3"));
+    await racePage.goto(`${base}/scripts/fixtures/audio-switch-browser.html`);
+    await racePage.waitForFunction(() => window.fixtureReady === true);
     await racePage.evaluate(() => {
       const recording = document.querySelector("#article-recording");
       Object.defineProperty(recording, "duration", { configurable: true, value: 125 });
@@ -180,7 +199,6 @@ async function main() {
     });
     await racePage.locator("#listen-recording").click();
     await racePage.waitForFunction(() => document.querySelector("#recording-status")?.textContent.includes("Aguardando início do MP3"));
-    await racePage.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await racePage.locator("#recording-player").waitFor({ state: "visible" });
     const pendingPlayerState = await racePage.evaluate(() => window.__recordingPlayer.snapshot());
     assert.deepEqual(pendingPlayerState, { available: true, discovered: true, mediaReady: true, recordedPending: true, open: true, mode: "recorded", playing: false });

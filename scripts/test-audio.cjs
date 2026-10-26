@@ -400,7 +400,7 @@ class ReadingNode extends EventTarget {
   click() { this.dispatchEvent(new Event("click")); }
 }
 
-async function playerFixture({ readyState = 4, playbackTimeoutMs = 30, playPlan = null, buffered, seekable, deviceAvailable = true } = {}) {
+async function playerFixture({ readyState = 4, playbackTimeoutMs = 30, playPlan = null, buffered, seekable, deviceAvailable = true, fetchAudio } = {}) {
   const ids = ["listen-recording", "inline-recording-anchor", "inline-recording-timeline", "inline-recording",
     "inline-recording-seek", "inline-recording-elapsed", "inline-recording-duration", "inline-recording-rate",
     "inline-recording-previous", "inline-recording-next", "recording-player", "recording-title",
@@ -433,7 +433,7 @@ async function playerFixture({ readyState = 4, playbackTimeoutMs = 30, playPlan 
   if (buffered !== undefined) audio.buffered = buffered;
   if (seekable !== undefined) audio.seekable = seekable;
   if (playPlan) audio.playPlan = () => playPlan(audio);
-  const blocks = [{ node: heading, words: [] }, { node: dek, words: [] }, { node: paragraph, words: [] }];
+  const blocks = [{ node: heading, sentenceIndex: 0, words: [] }, { node: dek, sentenceIndex: 0, words: [] }, { node: paragraph, sentenceIndex: 0, words: [] }];
   let state = { state: "idle", blockIndex: 0, count: blocks.length };
   let rate = 1;
   let controller;
@@ -441,7 +441,7 @@ async function playerFixture({ readyState = 4, playbackTimeoutMs = 30, playPlan 
   const devicePlayer = {
     blocks,
     snapshot: () => ({ ...state }),
-    start(index = 0) { state = { ...state, state: "speaking", blockIndex: index }; starts.push(index); controller.deviceChanged(this.snapshot()); },
+    start(index = 0, paused = false) { state = { ...state, state: paused ? "paused" : "speaking", blockIndex: index }; starts.push(index); controller.deviceChanged(this.snapshot()); },
     toggle() { state = { ...state, state: state.state === "speaking" ? "paused" : "speaking" }; controller.deviceChanged(this.snapshot()); },
     stop() { state = { ...state, state: "idle", blockIndex: 0 }; controller.deviceChanged(this.snapshot()); },
     setRate(value) { rate = value; if (state.state !== "idle") controller.deviceChanged(this.snapshot()); },
@@ -454,7 +454,7 @@ async function playerFixture({ readyState = 4, playbackTimeoutMs = 30, playPlan 
     document: doc, navigator: {}, article: { slug: "bulkhead", title: "Bulkhead" },
     cover: { src: "assets/bulkhead/cover.jpg" }, audio, devicePlayer: deviceAvailable ? devicePlayer : null, playbackTimeoutMs,
     startDevice: () => starts.push("unavailable"),
-    fetchAudio: async () => ({ url: "https://example.org/bulkhead.mp3", chapters: [{ start: 0 }, { start: 30 }, { start: 80 }] })
+    fetchAudio: fetchAudio || (async () => ({ url: "https://example.org/bulkhead.mp3", chapters: [{ start: 0 }, { start: 30 }, { start: 80 }] }))
   });
   await controller.discover();
   return { audio, controller, devicePlayer, starts, nodes, paragraph };
@@ -787,14 +787,14 @@ test("same bottom dock controls native synthesis, chapter seeking, speed, and sw
   const audio = new AudioMock();
   let controller;
   let deviceRate = 1;
-  const blocks = [first, intro, paragraph].map(node => ({ node }));
+  const blocks = [first, intro, paragraph].map(node => ({ node, sentenceIndex: 0 }));
   let snap = { state: "idle", blockIndex: 0, count: blocks.length };
   const updates = [];
   const device = {
     blocks,
     snapshot: () => ({ ...snap }),
-    start(index = 0) {
-      snap = { ...snap, state: "speaking", blockIndex: index };
+    start(index = 0, paused = false) {
+      snap = { ...snap, state: paused ? "paused" : "speaking", blockIndex: index };
       updates.push(["start", index]);
       controller.deviceChanged(this.snapshot());
     },
@@ -821,24 +821,26 @@ test("same bottom dock controls native synthesis, chapter seeking, speed, and sw
     article: { slug: "bulkhead", title: "Bulkhead" },
     cover: { src: "assets/bulkhead/cover.jpg" }, audio, devicePlayer: device,
     fetchAudio: async () => ({ url: "https://example.org/bulkhead.mp3",
-      chapters: [{ start: 0, block_index: 0 }, { start: 12, block_index: 1 }, { start: 30, block_index: 2 }] })
+      chapters: [{ start: 0, block_index: 0, sentence_index: 0 }, { start: 12, block_index: 1, sentence_index: 0 }, { start: 30, block_index: 2, sentence_index: 0 }] })
   });
   await controller.discover();
   // The single header button starts the MP3 by default.
   nodes["#listen-recording"].click();
   await Promise.resolve();
   assert.equal(controller.snapshot().mode, "recorded");
+  audio.currentTime = 18.2;
   nodes["#listen-article"].click();
   assert.equal(controller.snapshot().mode, "device");
+  assert.deepEqual(updates.at(-1), ["start", 1], "recorded to device uses the chapter validated at the current MP3 position");
   assert.equal(nodes["#recording-player"].hidden, false);
   assert.equal(nodes["#recording-subtitle"].textContent, "Tech Topics · Voz do dispositivo");
   assert.equal(nodes["#recording-play"].dataset.playing, "true");
   assert.equal(audio.paused, true, "MP3 paused when device synth starts");
   nodes["#recording-skip"].click();
-  assert.equal(snap.blockIndex, 1);
-  assert(intro.classes.has("recording-block-active"));
+  assert.equal(snap.blockIndex, 2);
+  assert(paragraph.classes.has("recording-block-active"));
   nodes["#recording-previous"].click();
-  assert.equal(snap.blockIndex, 0);
+  assert.equal(snap.blockIndex, 1);
   paragraph.click();
   assert.equal(snap.blockIndex, 2, "clicking a paragraph keeps native source");
   assert.equal(controller.snapshot().mode, "device");
@@ -853,9 +855,12 @@ test("same bottom dock controls native synthesis, chapter seeking, speed, and sw
   assert.equal(nodes["#recording-elapsed"].textContent, "3/3");
   nodes["#recording-play"].click();
   assert.equal(nodes["#recording-play"].dataset.playing, "true");
+  audio.currentTime = 35.901;
+  audio.dispatchEvent(new Event("timeupdate"));
   nodes["#listen-article"].click();
   await Promise.resolve();
   assert.equal(controller.snapshot().mode, "recorded");
+  assert.equal(audio.currentTime, 30, "device block switches back at its validated chapter timestamp");
   assert.equal(snap.state, "idle", "native synthesis stops when MP3 takes over");
   assert.equal(audio.playbackRate, 1.25, "switching to MP3 preserves the selected speed");
   assert.equal(nodes["#recording-rate"].textContent, "1.25×");
@@ -869,8 +874,48 @@ test("same bottom dock controls native synthesis, chapter seeking, speed, and sw
   assert.equal(nodes["#recording-rate"].textContent, "1.5×");
   assert.equal(nodes["#recording-rate"].attrs["aria-label"], "Velocidade da narração: 1.5 vezes");
   assert.equal(nodes["#recording-player"].hidden, false);
+  nodes["#recording-play"].click();
+  const playCallsBeforePausedSwitch = audio.playCalls;
+  nodes["#listen-article"].click();
+  assert.equal(controller.snapshot().mode, "recorded");
+  assert.equal(audio.paused, true, "a paused device session remains paused after switching sources");
+  assert.equal(audio.currentTime, 30, "paused reverse switch still seeks the validated chapter");
+  assert.equal(audio.playCalls, playCallsBeforePausedSwitch, "switching a paused source does not start a transient MP3");
+  const deviceStartsBeforePausedSwitch = updates.filter(([kind]) => kind === "start").length;
+  nodes["#listen-article"].click();
+  assert.equal(controller.snapshot().mode, "device");
+  assert.equal(snap.state, "paused", "switching a paused MP3 keeps device speech paused");
+  assert.equal(snap.blockIndex, 2, "paused switch keeps the validated sentence index");
+  assert.equal(updates.filter(([kind]) => kind === "start").length, deviceStartsBeforePausedSwitch + 1);
   nodes["#recording-close"].click();
   assert.equal(nodes["#recording-player"].hidden, true);
+});
+
+test("explicit source switches refuse unproved chapter mappings without disturbing either source", async () => {
+  const fixture = await playerFixture({ fetchAudio: async () => ({ url: "https://example.org/bulkhead.mp3",
+    chapters: [{ start: 0 }, { start: 30 }] }) });
+  await fixture.controller.play();
+  fixture.audio.currentTime = 35.901;
+  fixture.audio.playbackRate = 1.25;
+  fixture.audio.dispatchEvent(new Event("timeupdate"));
+  const playCalls = fixture.audio.playCalls;
+  fixture.nodes["#listen-article"].click();
+  assert.equal(fixture.controller.snapshot().mode, "recorded");
+  assert.equal(fixture.audio.paused, false, "the selected source keeps playing");
+  assert.equal(fixture.audio.currentTime, 35.901, "the recorded position is untouched");
+  assert.equal(fixture.audio.playbackRate, 1.25, "the selected rate is untouched");
+  assert.equal(fixture.audio.playCalls, playCalls, "rejected source choice does not restart playback");
+  assert.match(fixture.nodes["#recording-status"].textContent, /capítulos não correspondem ao texto/);
+
+  const reverse = await playerFixture({ fetchAudio: async () => ({ url: "https://example.org/bulkhead.mp3",
+    chapters: [{ start: 0 }, { start: 30 }] }) });
+  reverse.controller.beginDevice(2);
+  reverse.devicePlayer.setRate(1.25);
+  reverse.nodes["#listen-article"].click();
+  assert.equal(reverse.controller.snapshot().mode, "device", "unmapped reverse switch keeps device speech active");
+  assert.equal(reverse.devicePlayer.snapshot().state, "speaking");
+  assert.equal(reverse.devicePlayer.snapshot().blockIndex, 2);
+  assert.match(reverse.nodes["#recording-status"].textContent, /capítulos não correspondem ao texto/);
 });
 
 test("sentence metadata v2 supports repeated editorial blocks with different timestamps", () => {

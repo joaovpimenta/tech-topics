@@ -38,3 +38,11 @@ O artefato `.site-artifact.json` foi gerado pelo build e lista os 73 arquivos p�
 - A escolha manual da voz local limpa o status da tentativa MP3 cancelada. Fallback automático conserva a mensagem explicativa. Os dois comportamentos passam pela unit pública e pelo fluxo browser com clock pausado.
 - A amostra final de 1,8–3,3 ms só cobre clique→callback simulado. Não mede corpo→controles, não valida a meta global de 200 ms e não substitui a janela exclusiva pedida para 40 navegações.
 - O `dist/` e os arquivos de manifesto/cache modificados pelo build são gerados no worktree e não fazem parte dos arquivos desta entrega.
+
+## Correção de escopo — preservação de posição entre fontes
+
+As afirmações acima de que a troca no teste de browser validava a alternância entre MP3 e voz do dispositivo eram amplas demais. O caso usava somente três timestamps V1 artificiais para o artigo CQRS; esse catálogo não correspondia aos 308 blocos de fala e, portanto, não provava preservação de posição. O teste cobria apenas a pausa do MP3 e o estado de fonte escolhido. O teste de corrida com notas V1 vazias também não provava mapeamento de posição. Esses resultados não são evidência para a correção da task #109.
+
+A correção manual agora exige associação validada entre capítulo e bloco/frase. Com capítulos V2 correspondentes, a troca gravado→dispositivo inicia na frase do capítulo atual; dispositivo→gravado busca o timestamp do mesmo capítulo antes de conferir prontidão do MP3. A taxa é compartilhada. Se uma sessão estava pausada, a outra também permanece pausada, sem tocar uma utterance transitória. Sem associação comprovada, a escolha é recusada com mensagem e mantém posição, fonte, taxa e intenção atuais. A promoção automática (#111) continua fora do escopo.
+
+`node --test scripts/test-audio.cjs` passou com 22 testes, incluindo mapeamento V2 em ambos os sentidos, pausa, taxa, rejeição de V1 incompatível e cancelamento/tentativa tardia. `scripts/fixtures/audio-switch-browser.html` e os gestos Playwright adicionados em `scripts/test-speech-browser.cjs` cobrem a mesma associação por uma fixture curta controlada. Essa suíte browser não foi executada neste worktree: `playwright` não está instalado e `TECH_TOPICS_PLAYWRIGHT` não está configurado. O resultado precisa ser confirmado em ambiente com Playwright/Chromium antes de declarar QA de browser concluído.
