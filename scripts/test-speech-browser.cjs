@@ -136,9 +136,15 @@ async function main() {
     await switchPage.waitForFunction(() => window.fixtureReady === true);
     await switchPage.evaluate(() => {
       const audio = document.querySelector("#article-recording");
+      let currentTime = 0;
       Object.defineProperties(audio, {
         duration: { configurable: true, value: 40 }, readyState: { configurable: true, value: 4 },
-        currentTime: { configurable: true, writable: true, value: 0 },
+        currentTime: { configurable: true, get: () => currentTime, set: value => {
+          currentTime = value;
+          audio.dispatchEvent(new Event("seeking"));
+          audio.dispatchEvent(new Event("seeked"));
+          audio.dispatchEvent(new Event("canplay"));
+        } },
         buffered: { configurable: true, value: { length: 1, start: () => 0, end: () => 40 } },
         seekable: { configurable: true, value: { length: 1, start: () => 0, end: () => 40 } }
       });
@@ -159,6 +165,7 @@ async function main() {
     assert.equal(await switchPage.evaluate(() => window.testUtterances.at(-1).text), "Segundo trecho.");
     assert.equal(await switchPage.evaluate(() => window.testUtterances.at(-1).rate), 1.25);
     await switchPage.locator("#listen-article").click();
+    await switchPage.waitForFunction(() => window.audioSwitchController?.snapshot().mode === "recorded" && window.audioSwitchController?.snapshot().playing === true);
     assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.currentTime), 30, "device to recorded seeks to the same validated V2 chapter");
     assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.playbackRate), 1.25);
     await switchPage.locator("#recording-play").click();
@@ -169,6 +176,7 @@ async function main() {
     await switchPage.locator("#recording-play").click();
     assert.equal(await switchPage.locator("#recording-play").getAttribute("data-playing"), "true", "device speech resumes from the mapped sentence");
     await switchPage.locator("#listen-article").click();
+    await switchPage.waitForFunction(() => window.audioSwitchController?.snapshot().mode === "recorded");
     assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.currentTime), 30);
     await switchPage.close();
     const racePage = await browser.newPage({ viewport: { width: 1280, height: 800 } });

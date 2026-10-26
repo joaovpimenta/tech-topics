@@ -93,7 +93,7 @@
     return nodes;
   }
 
-  function createPlayer({ document, navigator, article, cover, audio, fetchAudio = lookupAudio, fetchChapters = loadChapters, devicePlayer = null, stopDevice = () => {}, startDevice = () => {}, playbackTimeoutMs = 1200 }) {
+  function createPlayer({ document, navigator, article, cover, audio, fetchAudio = lookupAudio, fetchChapters = loadChapters, devicePlayer = null, stopDevice = () => {}, startDevice = () => {}, playbackTimeoutMs = 1200, sourceSwitchTimeoutMs = 3000 }) {
     const button = document.querySelector("#listen-recording");
     const inlineAnchor = document.querySelector("#inline-recording-anchor");
     const inlineTimeline = document.querySelector("#inline-recording-timeline");
@@ -127,6 +127,7 @@
     let recordedPending = false;
     let recordedFallbackIndex;
     let recordedFallbackInitial = false;
+    let pendingSourceSwitch = null;
     let playbackAttempt = 0;
     let cancelPendingPlayWait = null;
     let selectedRate = Number.isFinite(audio.playbackRate) ? audio.playbackRate : 1;
@@ -342,6 +343,7 @@
       }
     }
     function beginDevice(index, paused = false) {
+      cancelPendingSourceSwitch();
       if (!devicePlayer) {
         cancelRecordedAttempt();
         audio.pause();
@@ -364,7 +366,79 @@
       else devicePlayer.toggle();
       render();
     }
-    function switchToRecorded() {
+    function cancelPendingSourceSwitch(message = "Preparação do MP3 cancelada; a voz do dispositivo permanece pausada.") {
+      const pending = pendingSourceSwitch;
+      if (!pending) return false;
+      pendingSourceSwitch = null;
+      pending.cancelWait?.();
+      audio.pause();
+      try { audio.currentTime = pending.previousPosition; } catch (_) {}
+      setStatus(message);
+      render();
+      return true;
+    }
+    function waitForMediaSeek(target, pending) {
+      return new Promise(resolve => {
+        let settled = false;
+        let timer;
+        let onError;
+        let seekCompleted = false;
+        let onSeeked;
+        const events = ["canplay", "loadedmetadata", "durationchange", "progress", "timeupdate"];
+        const cleanup = () => {
+          clearTimeout(timer);
+          for (const type of events) audio.removeEventListener(type, check);
+          if (onSeeked) audio.removeEventListener("seeked", onSeeked);
+          if (onError) audio.removeEventListener("error", onError);
+        };
+        const finish = ready => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          if (pending.cancelWait === cancel) pending.cancelWait = null;
+          resolve(ready);
+        };
+        const check = () => {
+          const atTarget = Number.isFinite(audio.currentTime) && Math.abs(audio.currentTime - target) <= 0.25;
+          if (seekCompleted && atTarget && mediaReadyAtCurrentPosition()) finish(true);
+        };
+        const cancel = () => finish(false);
+        pending.cancelWait = cancel;
+        for (const type of events) audio.addEventListener(type, check);
+        onSeeked = () => { seekCompleted = true; check(); };
+        audio.addEventListener("seeked", onSeeked);
+        onError = () => finish(false);
+        audio.addEventListener("error", onError);
+        timer = setTimeout(() => finish(false), sourceSwitchTimeoutMs);
+        try { audio.currentTime = target; }
+        catch (_) { finish(false); return; }
+        check();
+      });
+    }
+    function commitRecordedSourceSwitch(wasSpeaking) {
+      selectedRate = devicePlayer?.getRate?.() || selectedRate;
+      cancelRecordedAttempt();
+      mode = "recorded";
+      open = true;
+      recordedActive = false;
+      recordedPending = false;
+      audio.playbackRate = selectedRate;
+      audio.pause();
+      devicePlayer?.stop("");
+      clearSession();
+      setStatus("");
+      render();
+      if (wasSpeaking) void play();
+    }
+    function pendingSwitchMappingIsValid(pending) {
+      const chapterIndex = chapterForDeviceIndex(pending.blockIndex);
+      return chapterIndex >= 0 && Math.abs(chapters[chapterIndex].start - pending.target) <= 0.001;
+    }
+    async function switchToRecorded() {
+      if (pendingSourceSwitch) {
+        cancelPendingSourceSwitch();
+        return;
+      }
       const chapterIndex = chapterForDeviceIndex(deviceState.blockIndex);
       if (chapterIndex < 0) {
         setStatus("Não é possível trocar de fonte neste trecho porque os capítulos não correspondem ao texto.");
@@ -372,28 +446,31 @@
       }
       selectedRate = devicePlayer?.getRate?.() || selectedRate;
       const previousPosition = audio.currentTime;
-      audio.currentTime = chapters[chapterIndex].start;
       const wasSpeaking = deviceState.state === "speaking";
-      if (!wasSpeaking) {
-        if (!mediaReadyAtCurrentPosition()) {
-          audio.currentTime = previousPosition;
-          setStatus("O MP3 ainda não está pronto neste capítulo. A voz do dispositivo continua pausada; tente novamente.");
-          return;
-        }
-        cancelRecordedAttempt();
-        mode = "recorded";
-        open = true;
-        recordedActive = false;
-        recordedPending = false;
+      if (wasSpeaking) devicePlayer?.toggle();
+      const target = chapters[chapterIndex].start;
+      const pending = { previousPosition, wasSpeaking, target, blockIndex: deviceState.blockIndex, cancelWait: null };
+      pendingSourceSwitch = pending;
+      setStatus("Preparando o MP3 no capítulo correspondente…");
+      render();
+      const atTarget = Number.isFinite(audio.currentTime) && Math.abs(audio.currentTime - target) <= 0.25;
+      if (atTarget && mediaReadyAtCurrentPosition() && pendingSwitchMappingIsValid(pending)) {
+        pendingSourceSwitch = null;
+        commitRecordedSourceSwitch(wasSpeaking);
+        return;
+      }
+      const ready = await waitForMediaSeek(target, pending);
+      if (pendingSourceSwitch !== pending) return;
+      pendingSourceSwitch = null;
+      if (!ready || !mediaReadyAtCurrentPosition() || Math.abs(audio.currentTime - target) > 0.25 || !pendingSwitchMappingIsValid(pending)) {
         audio.pause();
-        audio.playbackRate = selectedRate;
-        devicePlayer?.stop("");
-        clearSession();
-        setStatus("");
+        try { audio.currentTime = previousPosition; } catch (_) {}
+        if (pending.wasSpeaking && deviceState.state === "paused") devicePlayer?.toggle();
+        setStatus("O MP3 não ficou pronto neste capítulo. A voz do dispositivo continua selecionada; tente novamente.");
         render();
         return;
       }
-      void play();
+      commitRecordedSourceSwitch(wasSpeaking);
     }
     function deviceChanged(snapshot) {
       deviceState = snapshot;
@@ -408,11 +485,13 @@
       render();
     }
     function nextParagraph() {
+      cancelPendingSourceSwitch();
       if (mode === "device") return devicePlayer?.next();
       const target = chapters.find(chapter => chapter.start > audio.currentTime + 0.7);
       if (target) seekTo(target.start);
     }
     function previousParagraph() {
+      cancelPendingSourceSwitch();
       if (mode === "device") return devicePlayer?.previous();
       const previous = chapters.filter(chapter => chapter.start < audio.currentTime - 2);
       if (previous.length) seekTo(previous[previous.length - 1].start);
@@ -636,14 +715,8 @@
       try { performance.mark("tt:audio-play-request"); } catch (_) {}
       if (!discovered) return beginDevice();
       if (mode === "device") {
-        const chapterIndex = chapterForDeviceIndex(deviceState.blockIndex);
-        if (chapterIndex < 0) {
-          setStatus("Não é possível trocar de fonte neste trecho porque os capítulos não correspondem ao texto.");
-          return;
-        }
-        audio.currentTime = chapters[chapterIndex].start;
-        selectedRate = devicePlayer?.getRate?.() || selectedRate;
         lastDeviceIndex = deviceState.blockIndex;
+        return switchToRecorded();
       }
       const wasDevice = mode === "device";
       const fallbackBlock = wasDevice ? lastDeviceIndex : fallbackDeviceIndex();
@@ -681,6 +754,7 @@
       render();
     }
     function close() {
+      cancelPendingSourceSwitch("");
       cancelRecordedAttempt();
       mode = null;
       open = false;
@@ -703,6 +777,10 @@
       render();
     }
     function togglePlayback() {
+      if (pendingSourceSwitch) {
+        cancelPendingSourceSwitch();
+        return;
+      }
       if (mode === "device") return devicePlayer?.toggle();
       if (!discovered) return beginDevice();
       if (mode === "recorded" && recordedPending) return pauseRecorded();
@@ -713,7 +791,8 @@
     playButton.addEventListener("click", togglePlayback);
     deviceSwitch?.addEventListener("click", () => {
       if (sourceMenu) sourceMenu.open = false;
-      if (mode === "device" && discovered) switchToRecorded();
+      if (pendingSourceSwitch) cancelPendingSourceSwitch();
+      else if (mode === "device" && discovered) void switchToRecorded();
       else {
         const index = fallbackDeviceIndex();
         if (mode === "recorded" && discovered && index === undefined) {
@@ -742,6 +821,7 @@
         : formatTime(Number(seek.value) / 1000 * (audio.duration || 0));
     });
     seek.addEventListener("change", () => {
+      cancelPendingSourceSwitch();
       if (mode === "device") devicePlayer?.seek(Math.round(Number(seek.value) / 1000 * Math.max(0, deviceState.count - 1)));
       else seekTo(Number(seek.value) / 1000 * audio.duration);
       seeking = false;
@@ -755,6 +835,7 @@
         : formatTime(percent * (audio.duration || 0));
     });
     inlineSeek?.addEventListener("change", () => {
+      cancelPendingSourceSwitch();
       const percent = Number(inlineSeek.value) / 1000;
       if (mode === "device") devicePlayer?.seek(Math.round(percent * Math.max(0, deviceState.count - 1)));
       else seekTo(percent * audio.duration);
@@ -796,6 +877,12 @@
     });
     audio.addEventListener("ended", () => { if (mode === "recorded") { render(); updatePosition(); } });
     audio.addEventListener("error", () => {
+      if (pendingSourceSwitch) {
+        const pending = pendingSourceSwitch;
+        cancelPendingSourceSwitch("O MP3 falhou durante a preparação. A voz do dispositivo permanece selecionada.");
+        if (pending.wasSpeaking && deviceState.state === "paused") devicePlayer?.toggle();
+        return;
+      }
       if (mode === "recorded" && open && (recordedPending || recordedActive)) {
         const fallbackIndex = recordedPending ? recordedFallbackIndex : fallbackDeviceIndex();
         const allowInitial = recordedPending ? recordedFallbackInitial : fallbackIndex === undefined && canStartDeviceAtBeginning();
@@ -837,6 +924,11 @@
         }
         // Even an empty or replaced catalog invalidates a prior DOM mapping.
         attachChapters();
+        if (pendingSourceSwitch && !pendingSwitchMappingIsValid(pendingSourceSwitch)) {
+          const pending = pendingSourceSwitch;
+          cancelPendingSourceSwitch("Os capítulos mudaram durante a preparação. A voz do dispositivo continua selecionada.");
+          if (pending.wasSpeaking && deviceState.state === "paused") devicePlayer?.toggle();
+        }
         render();
       } catch (_) {
         setStatus("Não foi possível verificar se existe áudio gravado.");
