@@ -32,6 +32,17 @@ assert.match(compiled.slots.body, /href="article\.html\?slug=outro(?:&|&#x26;)mo
 assert.match(compiled.slots.body, /<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Fluxo de compilação"><pre class="mermaid-source">/);
 assert.match(compiled.slots.body, /<figcaption>O fluxo separa fonte e HTML\.<\/figcaption>/);
 assert.match(compiled.slots.body, /<details class="mermaid-fallback"><summary>Ver o código Mermaid<\/summary>/);
+const alignedTable = await compileMarkdownArticle({
+  source: `${source}\n| A | B |\n| :--- | ---: |\n| 1 | 2 |\n`,
+  ...context
+});
+assert.match(alignedTable.slots.body, /class="article-table-scroll" tabindex="0" role="region" aria-label="[^"]+"><table><thead><tr><th align="left">A<\/th><th align="right">B<\/th>/);
+const footnote = await compileMarkdownArticle({ source: `${source}\nUma nota[^x].\n\n[^x]: Texto da nota.\n`, ...context });
+assert.match(footnote.slots.body, /<sup><a href="#user-content-fn-x" id="user-content-fnref-x" data-footnote-ref="" aria-describedby="footnote-label">1<\/a><\/sup>/);
+assert.match(footnote.slots.body, /<section data-footnotes="" class="footnotes"><h2 class="sr-only" id="footnote-label">Footnotes<\/h2>/);
+assert.match(footnote.slots.body, /class="data-footnote-backref"/);
+const externalLink = await compileMarkdownArticle({ source: `${source}\n[Site](https://example.com/pic.jpg)\n`, ...context });
+assert.match(externalLink.slots.body, /href="https:\/\/example\.com\/pic\.jpg"/);
 const envelope = renderArticleEnvelope(compiled, { buildId: "build-2026-10-25" });
 assert.match(envelope, /^<article data-article-format="html-v1" data-article-slug="sample" data-build-id="build-2026-10-25"><h1 data-article-slot="heading">/);
 assert.equal((envelope.match(/data-article-slot="heading"/g) ?? []).length, 1);
@@ -65,6 +76,7 @@ const failures = [
   ["invalid calendar date", mutate("publishedAt: 2026-10-25", "publishedAt: 2026-02-30"), /real ISO/],
   ["missing tags", mutate("tags: [markdown, seguranca]\n", ""), /tags/],
   ["heading before prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "## Antes da prosa\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco."), /first content block/],
+  ["raw HTML image before opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<p><img src="../../assets/sample/example.png" alt="Antes da abertura"></p>\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /image or component cannot precede/],
   ["body h1 duplicates envelope hierarchy", mutate("## Uma seção", "# Uma seção"), /only h1/],
   ["raw HTML body h1 duplicates envelope hierarchy", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.\n\n<h1>Título duplicado</h1>"), /only h1/],
   ["nested raw HTML body h1 duplicates envelope hierarchy", mutate("<div class=\"article-callout\">", "<div class=\"article-callout\"><h1>Título duplicado</h1>"), /only h1/],
@@ -76,6 +88,9 @@ const failures = [
   ["image in opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "![Capa](../../assets/sample/cover.jpg) Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco."), /first prose paragraph cannot contain an image/],
   ["HTML script", mutate("<div class=\"article-callout\">", "<script>alert(1)</script>\n\n<div class=\"article-callout\">"), /forbidden|not allowed/i],
   ["event attribute", mutate("class=\"article-callout\"", "class=\"article-callout\" onclick=\"alert(1)\""), /event handler/],
+  ["malformed raw HTML table alignment", `${source}\n<table><tr><th align="justify">A</th></tr></table>\n`, /table alignment must be left, center or right/],
+  ["remote image remains rejected beside valid external link", `${source}\n[Site](https://example.com/pic.jpg)\n\n<img src="https://example.com/pic.jpg" alt="Remote">\n`, /remote image URLs are not permitted/],
+  ["remote raw image is rejected without a link", `${source}\n<img src="https://example.com/pic.jpg" alt="Remote">\n`, /remote image URLs are not permitted/],
   ["obfuscated URL", mutate("../../assets/sample/example.png", "j%61vascript%3Aalert(1)"), /unsafe URL/],
   ["encoded path escape", mutate("../../assets/sample/example.png", "%252e%252e/%252e%252e/private.png"), /escapes repository|beneath assets/],
   ["srcset unsafe URL", mutate("../../assets/sample/thumb.png?variant=small#preview 1x", "j%61vascript%3Aalert(1) 1x"), /unsafe URL/],

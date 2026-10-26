@@ -49,9 +49,11 @@ flowchart LR
 
 Metadados órfãos, duplicados, JSON duplicado/inválido ou texto entre comentário e fence falham. A saída cria `figure.mermaid-figure`, `div[data-mermaid][data-mermaid-label]`, `pre.mermaid-source`, `figcaption` e `details.mermaid-fallback`. Para não habilitar opções permissivas da engine no navegador, o código rejeita diretivas Mermaid `%%{...}%%`, comandos `click` no início de linha ou após separador de instrução, HTML executável e esquemas JavaScript. Texto de label que apenas contenha a palavra `click` permanece válido. Diagrama técnico não precisa de HTML inline nem de uma saída SVG.
 
-## Tabelas e `srcset`
+## Tabelas, notas de rodapé e `srcset`
 
-Tabelas GFM são envolvidas em `div.article-table-scroll` com `tabindex="0"`, `role="region"` e `aria-label`. Tabelas HTML existentes podem declarar seus próprios wrappers.
+Tabelas GFM são envolvidas em `div.article-table-scroll` com `tabindex="0"`, `role="region"` e `aria-label`. Alinhamentos GFM `left`, `center` e `right` são preservados em células `th`/`td`; outros valores falham. Tabelas HTML existentes podem declarar seus próprios wrappers.
+
+Notas de rodapé GFM preservam as referências, backlinks, descrições acessíveis e classes emitidas por `remark-gfm` por meio de atributos e classes restritos.
 
 O parser local de `srcset` aceita a gramática restrita `URL [descritor]`, com um descritor positivo `x` ou `w` por candidato; não mistura densidade e largura, nem aceita descritores repetidos. Várias candidatas exigem descritores. URL, path, protocolo e existência são validados separadamente para cada candidata. Vírgulas dentro da URL devem ser percent-encoded, evitando ambiguidade com o separador GFM/HTML.
 

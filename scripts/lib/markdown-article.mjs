@@ -23,9 +23,9 @@ const TAGS = new Set([
   "a", "abbr", "article", "b", "blockquote", "br", "button", "caption", "code", "col", "colgroup", "dd", "del", "details", "div", "dl", "dt", "em", "figcaption", "figure", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "img", "input", "kbd", "label", "li", "mark", "nav", "ol", "output", "p", "pre", "s", "section", "small", "span", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"
 ]);
 const ATTRS = new Set([
-  "alt", "aria-atomic", "aria-label", "aria-labelledby", "aria-describedby", "aria-hidden", "aria-live", "checked", "class", "colspan", "data-mermaid", "data-mermaid-label", "data-tts-mode", "data-tts-say", "disabled", "download", "for", "height", "href", "id", "lang", "max", "min", "name", "open", "role", "rowspan", "scope", "src", "srcset", "step", "tabindex", "target", "title", "type", "value", "width"
+  "alt", "align", "aria-atomic", "aria-label", "aria-labelledby", "aria-describedby", "aria-hidden", "aria-live", "checked", "class", "colspan", "data-footnotes", "data-footnote-ref", "data-footnote-backref", "data-mermaid", "data-mermaid-label", "data-tts-mode", "data-tts-say", "disabled", "download", "for", "height", "href", "id", "lang", "max", "min", "name", "open", "role", "rowspan", "scope", "src", "srcset", "step", "tabindex", "target", "title", "type", "value", "width"
 ]);
-const SAFE_CLASS = /^(?:article-callout|article-back|article-table-scroll|fgs-table-scroll|signal-grid|signal-card|fgs-simulator|fgs-formula|fgs-guide|fgs-references|fgs-review|fgs-sim-results|fgs-small|fgs-toc|code-block|mermaid-figure|mermaid-diagram|mermaid-source|mermaid-fallback|language-[a-z0-9_-]+|task-list-item|contains-task-list)$/;
+const SAFE_CLASS = /^(?:article-callout|article-back|article-table-scroll|fgs-table-scroll|signal-grid|signal-card|fgs-simulator|fgs-formula|fgs-guide|fgs-references|fgs-review|fgs-sim-results|fgs-small|fgs-toc|code-block|mermaid-figure|mermaid-diagram|mermaid-source|mermaid-fallback|footnotes|sr-only|data-footnote-backref|language-[a-z0-9_-]+|task-list-item|contains-task-list)$/;
 const REQUIRED = ["slug", "language", "title", "category", "date", "publishedAt", "read", "image", "alt", "dek", "excerpt", "tags"];
 const ALLOWED_METADATA = new Set([...REQUIRED, "speechMarkup", "updatedAt", "level", "series", "seriesOrder", "prerequisites", "addedAt"]);
 
@@ -201,11 +201,12 @@ function sanitizeSchema() {
   schema.tagNames = [...TAGS];
   schema.attributes = {
     "*": ["ariaAtomic", "ariaLabel", "ariaLabelledBy", "ariaDescribedBy", "ariaHidden", "ariaLive", "className", "id", "lang", "role", "tabIndex", "title"],
-    a: ["href", "name", "download", "target", "rel"],
+    a: ["href", "name", "download", "target", "rel", "dataFootnoteRef", "dataFootnoteBackref"],
     img: ["src", "alt", "width", "height", "srcSet"],
     input: ["id", "name", "type", "min", "max", "step", "value", "checked", "disabled", "ariaLabel"],
     button: ["type", "disabled"],
-    th: ["colSpan", "rowSpan", "scope"], td: ["colSpan", "rowSpan"],
+    th: ["colSpan", "rowSpan", "scope", "align"], td: ["colSpan", "rowSpan", "align"],
+    section: ["dataFootnotes"],
     div: ["dataMermaid", "dataMermaidLabel", "dataTtsSay", "dataTtsMode"],
     span: ["dataTtsSay", "dataTtsMode"], code: ["dataTtsSay", "dataTtsMode"],
     pre: ["dataTtsSay", "dataTtsMode"]
@@ -234,9 +235,10 @@ function preflight(tree, context, location) {
     const language = attrs.lang;
     if (language !== undefined && !/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(language)) fail(location, "lang must be a valid language tag");
     for (const [key, value] of Object.entries(attrs)) {
-      const attr = key === "className" ? "class" : key === "tabIndex" ? "tabindex" : key === "srcSet" ? "srcset" : key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`).toLowerCase();
+      const attr = key === "className" ? "class" : key === "tabIndex" ? "tabindex" : key === "srcSet" ? "srcset" : key === "ariaDescribedBy" ? "aria-describedby" : key === "ariaLabelledBy" ? "aria-labelledby" : key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`).toLowerCase();
       if (/^on/i.test(attr)) fail(location, `event handler attribute ${key} is forbidden`);
       if (!ATTRS.has(attr) && !(attr === "rel" || attr === "aria-labelledby" || attr === "aria-describedby")) fail(location, `HTML attribute ${key} is not allowed`);
+      if (attr === "align" && (tag !== "th" && tag !== "td" || !/^(?:left|center|right)$/.test(String(value)))) fail(location, "table alignment must be left, center or right");
       if (attr === "class") {
         const classes = Array.isArray(value) ? value : String(value).split(/\s+/);
         for (const name of classes) if (!SAFE_CLASS.test(name) && !/^language-/.test(name)) fail(location, `HTML class is not allowed: ${name}`);
@@ -250,7 +252,7 @@ function preflight(tree, context, location) {
         const raw = String(value);
         if (attr === "href" && raw.startsWith("#")) fragments.push(decoded(raw.slice(1), location));
         safeProtocol(raw, location);
-        attrs[attr] = context.resolvedUrls?.has(raw) ? raw : resolveLocal(raw, { sourcePath: context.sourcePath, rootPath: context.rootPath, context, where: location, isImage: attr === "src" });
+        attrs[attr] = context.resolvedUrls?.has(`${attr}:${raw}`) ? raw : resolveLocal(raw, { sourcePath: context.sourcePath, rootPath: context.rootPath, context, where: location, isImage: attr === "src" });
       }
     }
     if (attrs.srcSet !== undefined) {
@@ -391,7 +393,7 @@ function transformMdast(tree, metadata, context, location) {
   walk(tree, (node, parent) => {
     if (node.type === "image" || node.type === "link") {
       const resolved = resolveLocal(node.url, { sourcePath: context.sourcePath, rootPath: context.rootPath, context, where: location, isImage: node.type === "image" });
-      (context.resolvedUrls ??= new Set()).add(resolved);
+      (context.resolvedUrls ??= new Set()).add(`${node.type === "image" ? "src" : "href"}:${resolved}`);
       node.url = resolved;
       if (node.type === "image" && (!node.alt || !node.alt.trim())) fail(location, "every image must have non-empty alt text");
     }
@@ -480,6 +482,7 @@ function validateRenderedHtml(html, location, context = {}) {
       for (const attr of node.attrs ?? []) {
         if (/^on/i.test(attr.name)) fail(location, `rendered HTML contains event attribute ${attr.name}`);
         if (!ATTRS.has(attr.name) && attr.name !== "rel" && attr.name !== "aria-labelledby" && attr.name !== "aria-describedby") fail(location, `rendered HTML contains unsupported attribute ${attr.name}`);
+        if (attr.name === "align" && (tag !== "th" && tag !== "td" || !/^(?:left|center|right)$/.test(attr.value))) fail(location, "rendered table alignment must be left, center or right");
         if (attr.name === "class") for (const name of attr.value.split(/\s+/)) if (!SAFE_CLASS.test(name)) fail(location, `rendered HTML contains unsupported class ${name}`);
         if ((attr.name === "id" || attr.name === "name") && ids.has(idKey(attr.value))) fail(location, `rendered HTML contains duplicate ID/anchor ${attr.value}`);
         if (attr.name === "id" || attr.name === "name") {
@@ -516,6 +519,20 @@ function firstProseNode(tree, location) {
   let imageBeforeText = false;
   walk(first, node => { if (node.type === "image") imageBeforeText = true; });
   if (imageBeforeText) fail(location, "first prose paragraph cannot contain an image");
+  const firstParagraphIndex = tree.children.indexOf(first);
+  for (const node of tree.children.slice(0, firstParagraphIndex)) {
+    if (node.type !== "html") continue;
+    const fragment = parseFragment(node.value);
+    const isOnlyLegacyAnchor = fragment.childNodes.every(child => !child.tagName || (
+      child.tagName === "a" && child.attrs.some(attr => attr.name === "name") &&
+      child.childNodes.every(grandchild => grandchild.nodeName === "#text" && !grandchild.value.trim())
+    ));
+    if (!isOnlyLegacyAnchor) fail(location, "an image or component cannot precede the opening prose paragraph");
+  }
+  walk(first, node => {
+    if (node.type !== "html") return;
+    if (containsTag(parseFragment(node.value), "img")) fail(location, "first prose paragraph cannot contain an image");
+  });
 }
 
 export async function compileMarkdownArticle({ source, sourcePath, rootPath = ROOT, knownTags, knownSlugs, assetExists, ...context } = {}) {
@@ -545,6 +562,7 @@ export async function compileMarkdownArticle({ source, sourcePath, rootPath = RO
   const fragment = parseFragment(html);
   const first = fragment.childNodes.find(node => node.tagName || node.nodeName === "#text");
   if (!first || first.tagName !== "p") fail(location, "compiled body must begin with exactly one paragraph");
+  if (containsTag(first, "img")) fail(location, "compiled opening prose paragraph cannot contain an image");
   const title = metadata.title;
   const dek = metadata.dek;
   const titleHtml = renderTextSlot(title, metadata.speechMarkup?.title, location);
