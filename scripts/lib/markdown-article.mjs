@@ -516,25 +516,49 @@ function containsTag(node, expectedTag) {
   return Boolean(node?.tagName === expectedTag || (node?.childNodes ?? []).some(child => containsTag(child, expectedTag)));
 }
 
-function standaloneOpeningComponentTag(paragraph) {
-  const children = (paragraph.children ?? []).filter(node =>
-    !(node.type === "text" && !node.value.trim()) &&
-    !(node.type === "html" && /^<!--[\s\S]*-->$/.test(node.value.trim()))
-  );
-  if (children.length < 2) return null;
-  const opening = children[0].type === "html" && children[0].value.match(/^\s*<\s*(button|label|span)\b[^>]*>\s*$/i);
-  const closing = children.at(-1).type === "html" && children.at(-1).value.match(/^\s*<\/\s*(button|label|span)\s*>\s*$/i);
-  return opening && closing && opening[1].toLowerCase() === closing[1].toLowerCase() ? opening[1].toLowerCase() : null;
+const OPENING_COMPONENT_TAGS = new Set(["br", "button", "input", "label", "output", "span"]);
+
+function openingCheckHtml(node) {
+  if (node.type === "html") return node.value;
+  if (node.type === "text") return escapeHtml(node.value);
+  if (node.type === "inlineCode") return `<code>${escapeHtml(node.value)}</code>`;
+  if (node.type === "break") return "<br>";
+  const tags = { emphasis: "em", strong: "strong", delete: "del", link: "a" };
+  const tag = tags[node.type];
+  const children = node.children?.map(openingCheckHtml).join("");
+  if (tag) return `<${tag}>${children ?? ""}</${tag}>`;
+  if (children !== undefined) return children;
+  return escapeHtml(textContent(node));
+}
+
+function hasStandaloneOpeningComponent(paragraph) {
+  const fragment = parseFragment((paragraph.children ?? []).map(openingCheckHtml).join(""));
+  let hasComponent = false;
+  let proseOutsideComponents = false;
+  const inspect = (node, insideComponent = false) => {
+    if (node.nodeName === "#text") {
+      if (!insideComponent && node.value.trim()) proseOutsideComponents = true;
+      return;
+    }
+    const isComponent = OPENING_COMPONENT_TAGS.has(node.tagName);
+    if (isComponent) hasComponent = true;
+    for (const child of node.childNodes ?? []) inspect(child, insideComponent || isComponent);
+  };
+  for (const child of fragment.childNodes) inspect(child);
+  return hasComponent && !proseOutsideComponents;
 }
 
 function firstProseNode(tree, location) {
   const first = tree.children.find(node => node.type !== "yaml" && node.type !== "html" && !(node.type === "paragraph" && !textContent(node).trim()));
   if (!first || first.type !== "paragraph") fail(location, "first content block after frontmatter must be a prose paragraph");
-  if (standaloneOpeningComponentTag(first)) fail(location, "opening content cannot be a standalone HTML component paragraph");
+  const firstParagraphIndex = tree.children.indexOf(first);
+  if (tree.children.slice(0, firstParagraphIndex).some(node => node.type === "paragraph" && hasStandaloneOpeningComponent(node))) {
+    fail(location, "opening content cannot be preceded by a standalone HTML component paragraph");
+  }
+  if (hasStandaloneOpeningComponent(first)) fail(location, "opening content cannot be a standalone HTML component paragraph");
   let imageBeforeText = false;
   walk(first, node => { if (node.type === "image") imageBeforeText = true; });
   if (imageBeforeText) fail(location, "first prose paragraph cannot contain an image");
-  const firstParagraphIndex = tree.children.indexOf(first);
   for (const node of tree.children.slice(0, firstParagraphIndex)) {
     if (node.type !== "html") continue;
     const fragment = parseFragment(node.value);
