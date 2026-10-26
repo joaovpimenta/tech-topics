@@ -98,32 +98,264 @@ async function main() {
       assert(dock.bounds.bottom <= dock.viewport.height && dock.bounds.left >= 0, "bottom dock visible");
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "recording controls don't overflow");
 
-      // Switching engines retains the very same bottom dock and artwork.
+      // This legacy V1 response has only three timestamps and cannot be matched
+      // to the article's reading nodes. The explicit choice must be rejected.
       await page.locator(".recording-options summary").click();
       await page.locator("#listen-article").click();
-      assert(await page.locator("#recording-player").isVisible(), "native TTS reuses bottom dock");
-      assert.match(await page.locator("#recording-subtitle").innerText(), /Voz do dispositivo/);
-      assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "true");
-      assert(await page.evaluate(() => document.querySelectorAll(".recording-block-active, .recording-sentence-active").length > 0
-        || Boolean(window.CSS?.highlights?.has("tech-topics-current-sentence"))), "native paragraph highlighted");
-      const utterancesBefore = await page.evaluate(() => window.testUtterances.length);
-      await page.locator("#article-body p.recording-readable").first().click();
-      assert(await page.evaluate(() => window.testUtterances.length) > utterancesBefore, "click paragraph starts device TTS at that paragraph");
-      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-      await page.locator("#recording-player").waitFor({ state: "visible" });
-      await page.locator("#recording-skip").click();
-      assert(await page.locator("#recording-elapsed").innerText() !== "0:00", "native player reports paragraph instead of fake time");
-      await page.locator("#recording-play").click();
-      assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "false", "native pause changes icon");
-      await page.locator("#recording-play").click();
-      assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "true", "native resume changes icon");
-      await page.locator(".recording-options summary").click();
-      await page.locator("#listen-article").click();
-      assert.match(await page.locator("#recording-subtitle").innerText(), /Narração/);
-      assert.equal(await page.locator("#recording-player").isVisible(), true, "return to MP3 in same dock");
+      assert.match(await page.locator("#recording-status").innerText(), /capítulos não correspondem ao texto/);
+      assert.equal(await page.locator("#recording-play").getAttribute("data-playing"), "true", "unmapped source choice leaves recorded playback active");
+      assert.equal(await page.locator("#article-recording").evaluate(element => element.paused), false, "unmapped source choice does not pause the MP3");
       await page.locator("#recording-close").click();
       assert(await page.locator("#recording-player").isHidden());
+      assert.equal(await page.locator("#article-recording").evaluate(element => element.paused), true, "closing the dock stops the recorded source");
     }
+    const switchPage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await switchPage.addInitScript(() => {
+      window.testUtterances = [];
+      Object.defineProperty(window, "speechSynthesis", { configurable: true, value: {
+        getVoices: () => [], speak(item) { window.testUtterances.push(item); item.onstart?.(); },
+        cancel() {}, pause() {}, resume() {}
+      } });
+      window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
+      HTMLMediaElement.prototype.play = function () {
+        Object.defineProperties(this, {
+          duration: { configurable: true, value: 40 }, readyState: { configurable: true, value: 4 },
+          paused: { configurable: true, value: false },
+          buffered: { configurable: true, value: { length: 1, start: () => 0, end: () => 40 } },
+          seekable: { configurable: true, value: { length: 1, start: () => 0, end: () => 40 } }
+        });
+        this.dispatchEvent(new Event("play")); this.dispatchEvent(new Event("playing"));
+        return Promise.resolve();
+      };
+      HTMLMediaElement.prototype.pause = function () {
+        Object.defineProperty(this, "paused", { configurable: true, value: true });
+        this.dispatchEvent(new Event("pause"));
+      };
+    });
+    await switchPage.goto(`${base}/scripts/fixtures/audio-switch-browser.html`);
+    await switchPage.waitForFunction(() => window.fixtureReady === true);
+    await switchPage.evaluate(() => {
+      const audio = document.querySelector("#article-recording");
+      let currentTime = 0;
+      Object.defineProperties(audio, {
+        duration: { configurable: true, value: 40 }, readyState: { configurable: true, value: 4 },
+        currentTime: { configurable: true, get: () => currentTime, set: value => {
+          currentTime = value;
+          audio.dispatchEvent(new Event("seeking"));
+          audio.dispatchEvent(new Event("seeked"));
+          audio.dispatchEvent(new Event("canplay"));
+        } },
+        buffered: { configurable: true, value: { length: 1, start: () => 0, end: () => 40 } },
+        seekable: { configurable: true, value: { length: 1, start: () => 0, end: () => 40 } }
+      });
+    });
+    await switchPage.locator("#listen-recording").click();
+    await switchPage.waitForFunction(() => window.audioSwitchController?.snapshot().playing === true);
+    await switchPage.evaluate(() => {
+      const audio = document.querySelector("#article-recording");
+      audio.currentTime = 35;
+      audio.dispatchEvent(new Event("timeupdate"));
+    });
+    assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.currentTime), 35, "mock media preserves the requested chapter position");
+    await switchPage.locator("#recording-rate").click();
+    assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.currentTime), 35, "changing playback rate retains the mocked MP3 position");
+    assert.equal(await switchPage.evaluate(() => window.audioSwitchController.snapshot().playing), true, "rate change leaves recorded playback active");
+    await switchPage.locator("#listen-article").click();
+    assert.equal(await switchPage.locator("#recording-elapsed").innerText(), "~0:30", "recorded to device shows the approximate V2 chapter time");
+    assert.equal(await switchPage.locator("#recording-duration").innerText(), "0:40");
+    assert.equal(await switchPage.locator("#recording-seek").inputValue(), "750",
+      "the progress range uses the mapped chapter's fraction of the recorded duration");
+    assert.equal(await switchPage.evaluate(() => window.testUtterances.at(-1).text), "Segundo trecho.");
+    assert.equal(await switchPage.evaluate(() => window.testUtterances.at(-1).rate), 1.25);
+    await switchPage.locator("#listen-article").click();
+    await switchPage.waitForFunction(() => window.audioSwitchController?.snapshot().mode === "recorded" && window.audioSwitchController?.snapshot().playing === true);
+    assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.currentTime), 30, "device to recorded seeks to the same validated V2 chapter");
+    assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.playbackRate), 1.25);
+    await switchPage.locator("#recording-play").click();
+    const pausedUtterances = await switchPage.evaluate(() => window.testUtterances.length);
+    await switchPage.locator("#listen-article").click();
+    assert.equal(await switchPage.locator("#recording-play").getAttribute("data-playing"), "false", "recorded pause intent carries into device mode");
+    assert.equal(await switchPage.evaluate(() => window.testUtterances.length), pausedUtterances, "paused source switch starts no transient utterance");
+    await switchPage.locator("#recording-play").click();
+    assert.equal(await switchPage.locator("#recording-play").getAttribute("data-playing"), "true", "device speech resumes from the mapped sentence");
+    await switchPage.locator("#listen-article").click();
+    await switchPage.waitForFunction(() => window.audioSwitchController?.snapshot().mode === "recorded");
+    assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.currentTime), 30);
+    await switchPage.close();
+
+    // Browser fixture for metadata-known/seekable media whose buffer is initially empty.
+    // The fake playback engine only fills `buffered` after the visible user gesture.
+    async function bootstrapPage(bufferOnGesture) {
+      const target = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+      await target.route("https://**/*", route => route.abort());
+      await target.addInitScript(bufferOnGesture => {
+        window.bootstrapFillOnPlay = bufferOnGesture;
+        window.testUtterances = [];
+        Object.defineProperty(window, "speechSynthesis", { configurable: true, value: {
+          getVoices: () => [], speak(item) { window.testUtterances.push(item); item.onstart?.(); },
+          cancel() {}, pause() {}, resume() {}
+        } });
+        window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
+        HTMLMediaElement.prototype.play = function () {
+          this.__playCalls = (this.__playCalls || 0) + 1;
+          const range = { length: 1, start: () => 0, end: () => 40 };
+          Object.defineProperty(this, "paused", { configurable: true, value: false });
+          if (window.bootstrapFillOnPlay) Object.defineProperties(this, {
+            readyState: { configurable: true, value: 4 },
+            buffered: { configurable: true, value: range }
+          });
+          this.dispatchEvent(new Event("play"));
+          if (window.bootstrapFillOnPlay) this.dispatchEvent(new Event("playing"));
+          return window.bootstrapFillOnPlay ? Promise.resolve() : new Promise(() => {});
+        };
+        HTMLMediaElement.prototype.pause = function () {
+          Object.defineProperty(this, "paused", { configurable: true, value: true });
+          this.dispatchEvent(new Event("pause"));
+        };
+      }, bufferOnGesture);
+      await target.goto(`${base}/scripts/fixtures/audio-switch-browser.html`);
+      await target.waitForFunction(() => window.fixtureReady === true);
+      await target.evaluate(() => {
+        const audio = document.querySelector("#article-recording");
+        const seekable = { length: 1, start: () => 0, end: () => 40 };
+        Object.defineProperties(audio, {
+          duration: { configurable: true, value: 40 },
+          readyState: { configurable: true, value: 4 },
+          buffered: { configurable: true, value: { length: 0 } },
+          seekable: { configurable: true, value: seekable },
+          paused: { configurable: true, value: true }
+        });
+        audio.dispatchEvent(new Event("durationchange"));
+      });
+      return target;
+    }
+    const bootstrapSuccess = await bootstrapPage(true);
+    await bootstrapSuccess.locator("#listen-recording").click();
+    await bootstrapSuccess.waitForFunction(() => window.audioSwitchController?.snapshot().mode === "recorded" && window.audioSwitchController?.snapshot().playing);
+    assert.equal(await bootstrapSuccess.locator("#article-recording").evaluate(element => element.__playCalls), 1,
+      "metadata and seekability allow the real user gesture to bootstrap the empty buffer");
+    assert.equal(await bootstrapSuccess.evaluate(() => window.testUtterances.length), 0,
+      "device speech does not overlap media confirmed after bootstrap");
+    await bootstrapSuccess.close();
+
+    const bootstrapFallback = await bootstrapPage(false);
+    await bootstrapFallback.locator("#listen-recording").click();
+    await bootstrapFallback.waitForFunction(() => window.audioSwitchController?.snapshot().mode === "device" && window.audioSwitchController?.snapshot().playing, { timeout: 3000 });
+    await bootstrapFallback.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await bootstrapFallback.locator("#recording-player").waitFor({ state: "visible" });
+    assert.equal(await bootstrapFallback.locator("#recording-elapsed").innerText(), "~0:00",
+      "valid chapter mapping labels device-mode elapsed time as approximate");
+    assert.equal(await bootstrapFallback.locator("#recording-duration").innerText(), "0:40",
+      "finite MP3 duration remains visible during device fallback");
+    assert.match(await bootstrapFallback.locator("#recording-subtitle").innerText(), /trecho 1 de 4/i,
+      "the sentence index remains available as a secondary reader position");
+    assert.equal(await bootstrapFallback.locator("#article-recording").evaluate(element => element.paused), true,
+      "timed-out bootstrap is paused before the device utterance begins");
+    assert.equal(await bootstrapFallback.locator("#article-recording").evaluate(element => element.__playCalls), 1,
+      "device fallback follows one bounded MP3 attempt instead of skipping it");
+    await bootstrapFallback.close();
+
+    const pausedManual = await bootstrapPage(false);
+    await pausedManual.locator("#listen-article").click();
+    await pausedManual.waitForFunction(() => window.audioSwitchController?.snapshot().mode === "device" && window.audioSwitchController?.snapshot().playing);
+    await pausedManual.locator("#listen-recording").click();
+    assert.equal(await pausedManual.evaluate(() => window.audioSwitchController.snapshot().playing), false,
+      "the reader can pause device speech before choosing the MP3 source");
+    const deviceUtterancesBeforeSwitch = await pausedManual.evaluate(() => window.testUtterances.length);
+    await pausedManual.locator("#listen-article").click();
+    await pausedManual.waitForFunction(() => window.audioSwitchController?.snapshot().mode === "recorded");
+    assert.equal(await pausedManual.locator("#article-recording").evaluate(element => element.currentTime), 0,
+      "the validated paused switch stays at its mapped chapter");
+    assert.equal(await pausedManual.locator("#article-recording").evaluate(element => element.paused), true,
+      "metadata and seekability select the paused MP3 without pretending to play it");
+    assert.equal(await pausedManual.locator("#article-recording").evaluate(element => element.__playCalls || 0), 0,
+      "paused source selection does not call play as a buffering trick");
+    assert.match(await pausedManual.locator("#recording-status").innerText(), /pressione reproduzir/i);
+    assert.equal(await pausedManual.evaluate(() => window.testUtterances.length), deviceUtterancesBeforeSwitch,
+      "switching from paused voice starts no transient utterance");
+    await pausedManual.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await pausedManual.locator("#recording-player").waitFor({ state: "visible" });
+    assert.equal(await pausedManual.locator("#recording-duration").innerText(), "0:40");
+    assert.equal(await pausedManual.locator("#recording-elapsed").innerText(), "0:00",
+      "the selected recorded source shows its real seeked position while paused");
+    await pausedManual.evaluate(() => { window.bootstrapFillOnPlay = true; });
+    await pausedManual.locator("#recording-play").click();
+    await pausedManual.waitForFunction(() => window.audioSwitchController?.snapshot().mode === "recorded" && window.audioSwitchController?.snapshot().playing);
+    assert.equal(await pausedManual.locator("#article-recording").evaluate(element => element.currentTime), 0);
+    assert.equal(await pausedManual.evaluate(() => window.testUtterances.length), deviceUtterancesBeforeSwitch,
+      "the next explicit play starts the MP3 after it supplies current buffered data");
+    await pausedManual.close();
+
+    const racePage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    racePage.setDefaultTimeout(3000);
+    const raceClockStart = new Date("2026-10-25T12:00:00Z");
+    await racePage.clock.install({ time: raceClockStart });
+    await racePage.clock.pauseAt(raceClockStart);
+    await racePage.addInitScript(() => {
+      window.testUtterances = [];
+      window.__playCalls = 0;
+      Object.defineProperty(window, "TechTopicsAudio", { configurable: true, set(api) {
+        const createPlayer = api.createPlayer;
+        api.createPlayer = options => {
+          const player = createPlayer(options);
+          window.__recordingPlayer = player;
+          return player;
+        };
+        Object.defineProperty(window, "TechTopicsAudio", { configurable: true, writable: true, value: api });
+      } });
+      Object.defineProperty(window, "speechSynthesis", { configurable: true, value: { getVoices: () => [], speak(item) { window.testUtterances.push(item); item.onstart?.(); }, cancel() {}, pause() {}, resume() {} } });
+      window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
+      HTMLMediaElement.prototype.play = function () {
+        window.__playCalls++;
+        return new Promise(resolve => { window.__resolveLatePlay = resolve; });
+      };
+      HTMLMediaElement.prototype.pause = function () {
+        Object.defineProperty(this, "paused", { configurable: true, value: true });
+        this.dispatchEvent(new Event("pause"));
+      };
+    });
+    await racePage.goto(`${base}/scripts/fixtures/audio-switch-browser.html`);
+    await racePage.waitForFunction(() => window.fixtureReady === true);
+    await racePage.evaluate(() => {
+      const recording = document.querySelector("#article-recording");
+      Object.defineProperty(recording, "duration", { configurable: true, value: 125 });
+      Object.defineProperty(recording, "readyState", { configurable: true, value: 4 });
+      const range = { length: 1, start: () => 0, end: () => 125 };
+      Object.defineProperty(recording, "buffered", { configurable: true, value: range });
+      Object.defineProperty(recording, "seekable", { configurable: true, value: range });
+    });
+    await racePage.locator("#listen-recording").click();
+    await racePage.waitForFunction(() => document.querySelector("#recording-status")?.textContent.includes("Aguardando início do MP3"));
+    await racePage.locator("#recording-player").waitFor({ state: "visible" });
+    const pendingPlayerState = await racePage.evaluate(() => window.__recordingPlayer.snapshot());
+    assert.deepEqual(pendingPlayerState, { available: true, discovered: true, mediaReady: true, recordedPending: true, open: true, mode: "recorded", playing: false });
+    await racePage.locator(".recording-options summary").click();
+    const sourceChoiceBeforeClick = await racePage.evaluate(() => ({
+      button: document.querySelector("#listen-article")?.textContent.trim(),
+      subtitle: document.querySelector("#recording-subtitle")?.textContent,
+      playing: document.querySelector("#recording-play")?.dataset.playing,
+      status: document.querySelector("#recording-status")?.textContent
+    }));
+    assert.deepEqual(sourceChoiceBeforeClick, { button: "Usar voz do dispositivo", subtitle: "Tech Topics · Narração", playing: "false", status: "Aguardando início do MP3…" });
+    await racePage.locator("#listen-article").click();
+    await racePage.waitForFunction(() => window.__recordingPlayer?.snapshot().mode === "device");
+    const sourceChoiceAfterClick = await racePage.evaluate(() => ({ player: window.__recordingPlayer.snapshot(),
+      subtitle: document.querySelector("#recording-subtitle")?.textContent,
+      playing: document.querySelector("#recording-play")?.dataset.playing,
+      status: document.querySelector("#recording-status")?.textContent
+    }));
+    assert.deepEqual(sourceChoiceAfterClick, { player: { available: true, discovered: true, mediaReady: true, recordedPending: false, open: true, mode: "device", playing: true }, subtitle: "Tech Topics · Voz do dispositivo · trecho 1 de 4", playing: "true", status: "" }, `explicit device choice clears the canceled MP3 status: ${JSON.stringify(sourceChoiceAfterClick)}`);
+    assert.equal(await racePage.locator("#recording-play").getAttribute("data-playing"), "true");
+    assert.equal(await racePage.locator("#article-recording").evaluate(element => element.paused), true, "reader choice pauses the unresolved recorded attempt");
+    assert.deepEqual(await racePage.evaluate(() => ({ playCalls: window.__playCalls, utterances: window.testUtterances.length })), { playCalls: 1, utterances: 1 });
+    await racePage.evaluate(() => window.__resolveLatePlay());
+    await racePage.clock.runFor(1300);
+    await racePage.waitForTimeout(50);
+    assert.equal(await racePage.locator("#recording-subtitle").innerText(), "Tech Topics · Voz do dispositivo · trecho 1 de 4", "late play resolution cannot override the reader's source choice");
+    assert.equal(await racePage.locator("#recording-play").getAttribute("data-playing"), "true");
+    assert.equal(await racePage.locator("#article-recording").evaluate(element => element.paused), true);
+    assert.deepEqual(await racePage.evaluate(() => ({ playCalls: window.__playCalls, utterances: window.testUtterances.length })), { playCalls: 1, utterances: 1 });
+    await racePage.close();
     assert.deepEqual(errors, []);
     console.log("PASS: actual article loads with pronunciation, toolbar, desktop/mobile layout and clean stop.");
   } finally {
