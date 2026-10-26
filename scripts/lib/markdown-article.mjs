@@ -516,7 +516,13 @@ function containsTag(node, expectedTag) {
   return Boolean(node?.tagName === expectedTag || (node?.childNodes ?? []).some(child => containsTag(child, expectedTag)));
 }
 
-const OPENING_COMPONENT_TAGS = new Set(["br", "button", "input", "label", "output", "span"]);
+const OPENING_COMPONENT_TAGS = new Set(["br", "button", "input", "label", "output"]);
+const OPENING_COMPONENT_CLASSES = new Set(["article-back", "fgs-formula"]);
+const OPENING_COMPONENT_ROLES = new Set(["button", "checkbox", "menuitem", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab", "treeitem"]);
+
+function hasVisibleProseText(value) {
+  return value.replace(/[\s\p{Default_Ignorable_Code_Point}]/gu, "").length > 0;
+}
 
 function openingCheckHtml(node) {
   if (node.type === "html") return node.value;
@@ -533,19 +539,24 @@ function openingCheckHtml(node) {
 
 function openingUiComponent(node) {
   if (OPENING_COMPONENT_TAGS.has(node.tagName)) return true;
-  if (node.tagName !== "a") return false;
-  const role = node.attrs?.find(attr => attr.name === "role")?.value.toLowerCase();
+  const role = node.attrs?.find(attr => attr.name === "role")?.value.toLowerCase().split(/\s+/) ?? [];
   const classes = node.attrs?.find(attr => attr.name === "class")?.value.split(/\s+/) ?? [];
-  return role === "button" || classes.includes("article-back") || node.attrs?.some(attr => attr.name === "download");
+  if (role.some(name => OPENING_COMPONENT_ROLES.has(name))) return true;
+  if (classes.some(name => OPENING_COMPONENT_CLASSES.has(name))) return true;
+  return node.tagName === "a" && node.attrs?.some(attr => attr.name === "download");
 }
 
-function hasLeadingOpeningComponent(paragraph) {
+function analyzeOpeningParagraph(paragraph) {
   const fragment = parseFragment((paragraph.children ?? []).map(openingCheckHtml).join(""));
   let proseStarted = false;
+  let hasProse = false;
   let componentBeforeProse = false;
   const inspect = node => {
     if (node.nodeName === "#text") {
-      if (node.value.replace(/[\s\p{Cf}]/gu, "")) proseStarted = true;
+      if (hasVisibleProseText(node.value)) {
+        proseStarted = true;
+        hasProse = true;
+      }
       return;
     }
     if (openingUiComponent(node)) {
@@ -555,17 +566,31 @@ function hasLeadingOpeningComponent(paragraph) {
     for (const child of node.childNodes ?? []) inspect(child);
   };
   for (const child of fragment.childNodes) inspect(child);
-  return componentBeforeProse;
+  return { componentBeforeProse, hasProse };
 }
 
 function firstProseNode(tree, location) {
-  const first = tree.children.find(node => node.type !== "yaml" && node.type !== "html" && !(node.type === "paragraph" && !textContent(node).trim()));
-  if (!first || first.type !== "paragraph") fail(location, "first content block after frontmatter must be a prose paragraph");
-  const firstParagraphIndex = tree.children.indexOf(first);
-  if (tree.children.slice(0, firstParagraphIndex).some(node => node.type === "paragraph" && hasLeadingOpeningComponent(node))) {
-    fail(location, "opening content cannot be preceded by a standalone HTML component paragraph");
+  let first = null;
+  let firstParagraphIndex = -1;
+  for (let index = 0; index < tree.children.length; index++) {
+    const node = tree.children[index];
+    if (node.type === "yaml" || node.type === "html") continue;
+    if (node.type !== "paragraph") fail(location, "first content block after frontmatter must be a prose paragraph");
+    const opening = analyzeOpeningParagraph(node);
+    if (opening.componentBeforeProse) fail(location, "opening content cannot begin with an HTML component");
+    if (!opening.hasProse) {
+      let hasMarkdownImage = false;
+      walk(node, child => { if (child.type === "image") hasMarkdownImage = true; });
+      if (hasMarkdownImage || node.children?.some(child => child.type === "html" && containsTag(parseFragment(child.value), "img"))) {
+        fail(location, "first prose paragraph cannot contain an image");
+      }
+      fail(location, "first content block after frontmatter must be a prose paragraph");
+    }
+    first = node;
+    firstParagraphIndex = index;
+    break;
   }
-  if (hasLeadingOpeningComponent(first)) fail(location, "opening content cannot begin with an HTML component");
+  if (!first) fail(location, "first content block after frontmatter must be a prose paragraph");
   let imageBeforeText = false;
   walk(first, node => { if (node.type === "image") imageBeforeText = true; });
   if (imageBeforeText) fail(location, "first prose paragraph cannot contain an image");

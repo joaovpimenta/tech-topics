@@ -58,6 +58,11 @@ const inlineLinkOpening = await compileMarkdownArticle({
   ...context
 });
 assert.match(inlineLinkOpening.slots.body, /Uma conversa começa com uma <a href="article\.html\?slug=outro">observação<\/a> cotidiana/);
+const multilingualUnicodeOpening = await compileMarkdownArticle({
+  source: source.replace("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<span lang="en-US">A conversation</span> começa aqui com ação e 🙂.'),
+  ...context
+});
+assert.match(multilingualUnicodeOpening.slots.body, /<span lang="en-US">A conversation<\/span> começa aqui com ação e 🙂\./);
 const componentAfterOpening = await compileMarkdownArticle({ source: `${source}\n<button type="button">Play</button>\n`, ...context });
 assert.match(componentAfterOpening.slots.body, /<button type="button">Play<\/button>/);
 const envelope = renderArticleEnvelope(compiled, { buildId: "build-2026-10-25" });
@@ -138,6 +143,19 @@ const failures = [
   ["Mermaid click word in node label remains valid", mutate("A[Markdown]", "A[click label]"), null],
   ["ID collision", mutate("[Ir para a âncora preservada](#âncora-antiga)", "## Colisao\n\n## Colisao"), /ID collision/]
 ];
+failures.push(...[
+  ["strong role button before opening prose", '<strong role="button">Play</strong>', /HTML component/],
+  ["wrapped formula class before opening prose", '<strong><span class="fgs-formula">x + y</span></strong>', /HTML component/],
+  ...[["U+200B", "\u200B"], ["U+200C", "\u200C"], ["U+200D", "\u200D"], ["U+2060", "\u2060"], ["U+202A", "\u202A"]].map(([codePoint, invisible]) => [
+    `invisible-only opening paragraph ${codePoint} before a button is rejected`,
+    `<p>${invisible}</p>\n\n<button type="button">Play</button>`,
+    /prose paragraph|HTML component/
+  ])
+].map(([name, prefix, expected]) => [
+  name,
+  mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", `${prefix}\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.`),
+  expected
+]));
 for (const [name, invalidSource, expected] of failures) {
   if (expected === null) {
     await compileMarkdownArticle({ source: invalidSource, ...context });
