@@ -91,6 +91,7 @@ const failures = [
   ["malformed raw HTML table alignment", `${source}\n<table><tr><th align="justify">A</th></tr></table>\n`, /table alignment must be left, center or right/],
   ["remote image remains rejected beside valid external link", `${source}\n[Site](https://example.com/pic.jpg)\n\n<img src="https://example.com/pic.jpg" alt="Remote">\n`, /remote image URLs are not permitted/],
   ["remote raw image is rejected without a link", `${source}\n<img src="https://example.com/pic.jpg" alt="Remote">\n`, /remote image URLs are not permitted/],
+  ["raw image fragment URL is rejected while link fragments remain valid", `${source}\n<img src="#âncora-antiga" alt="Fragment">\n`, /images cannot use fragment-only URLs/],
   ["obfuscated URL", mutate("../../assets/sample/example.png", "j%61vascript%3Aalert(1)"), /unsafe URL/],
   ["encoded path escape", mutate("../../assets/sample/example.png", "%252e%252e/%252e%252e/private.png"), /escapes repository|beneath assets/],
   ["srcset unsafe URL", mutate("../../assets/sample/thumb.png?variant=small#preview 1x", "j%61vascript%3Aalert(1) 1x"), /unsafe URL/],

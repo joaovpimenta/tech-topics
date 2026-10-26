@@ -131,7 +131,10 @@ function resolveLocal(raw, { sourcePath, rootPath, context, where, isImage = fal
     if (isImage) fail(where, "remote image URLs are not permitted");
     return raw;
   }
-  if (raw.startsWith("#")) return raw;
+  if (raw.startsWith("#")) {
+    if (isImage) fail(where, "images cannot use fragment-only URLs");
+    return raw;
+  }
   if (raw.startsWith("//")) fail(where, "protocol-relative URLs are not permitted");
   const decodedPath = decoded(raw.split(/[?#]/, 1)[0], where).replace(/\\/g, "/");
   if (/^[a-z][a-z0-9+.-]*:/i.test(decodedPath) || decodedPath.startsWith("/")) fail(where, "absolute or encoded URL paths are not permitted");
