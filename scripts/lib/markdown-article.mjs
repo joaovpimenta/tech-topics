@@ -14,7 +14,11 @@ import { parseFragment } from "parse5";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const RESERVED_IDS = new Set(["article-root", "article-heading", "article-dek", "article-body", "article-category", "article-meta", "article-actions", "article-image", "article-recording", "article-description", "article-search-input", "article-count", "article-quick-actions", "__proto__", "prototype", "constructor", "window", "document", "location", "name", "forms", "all", "body", "head", "currentScript"]);
+const RESERVED_IDS = new Set(["article-root", "article-heading", "article-dek", "article-body", "article-category", "article-meta", "article-actions", "article-image", "article-recording", "article-description", "article-search-input", "article-count", "article-quick-actions", "inline-recording", "github-stars", "favorite-article", "share-article", "share-status", "__proto__", "prototype", "constructor", "window", "document", "location", "name", "forms", "all", "body", "head", "currentScript"]);
+// The shell owns complete ID namespaces because future controls can be added
+// without a compiler release. Current exact IDs are checked against article.html
+// and the fixed selectors in article.js, audio.js and speech.js by the suite.
+const RESERVED_ID_PREFIXES = ["article-", "recording-", "speech-", "tts-", "header-", "listen-", "inline-recording-"];
 const TAGS = new Set([
   "a", "abbr", "article", "b", "blockquote", "br", "button", "caption", "code", "col", "colgroup", "dd", "del", "details", "div", "dl", "dt", "em", "figcaption", "figure", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "img", "input", "kbd", "label", "li", "mark", "nav", "ol", "output", "p", "pre", "s", "section", "small", "span", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"
 ]);
@@ -103,7 +107,7 @@ function validateMetadata(metadata, location, context, legacy = false) {
   if (!legacy && metadata.prerequisites?.length && !context.knownSlugs) errors.push("knownSlugs registry is required when prerequisites are declared");
   if (metadata.prerequisites && context.knownSlugs) for (const slug of metadata.prerequisites) if (!context.knownSlugs.has(slug)) errors.push(`unknown prerequisite slug: ${slug}`);
   if (context.knownTags && metadata.tags) for (const tag of metadata.tags) if (!context.knownTags.has(tag)) errors.push(`unknown tag ID: ${tag}`);
-  if (metadata.image && context.assetExists && !context.assetExists(metadata.image)) errors.push(`cover asset does not exist: ${metadata.image}`);
+  if (metadata.image && !assetExistsSafely(metadata.image, context, location)) errors.push(`cover asset does not exist: ${metadata.image}`);
   if (errors.length) fail(location, errors.join("; "));
 }
 
@@ -151,7 +155,7 @@ function resolveLocal(raw, { sourcePath, rootPath, context, where, isImage = fal
     return `article.html?slug=${encodeURIComponent(slug)}${query ? `&${query.slice(1)}` : ""}${hash}`;
   }
   if (!repoRelative.startsWith("assets/")) fail(where, "local links and images must resolve beneath assets/ or content/articles/");
-  const exists = context.assetExists ? context.assetExists(repoRelative) : fs.existsSync(path.join(absoluteRoot, ...repoRelative.split("/")));
+  const exists = assetExistsSafely(repoRelative, { ...context, rootPath }, where);
   if (!exists) fail(where, `asset does not exist: ${repoRelative}`);
   const suffix = raw.match(/[?#].*$/)?.[0] ?? "";
   const encodedPath = repoRelative.split("/").map(segment => encodeURIComponent(segment)).join("/");
@@ -183,7 +187,7 @@ function parseSrcset(value, { sourcePath, rootPath, context, where, alreadyResol
       safeProtocol(url, where);
       const asset = decoded(url.split(/[?#]/, 1)[0], where).replace(/\\/g, "/");
       if (!asset.startsWith("assets/") || asset.split("/").includes("..")) fail(where, `srcset URL is outside assets/: ${url}`);
-      const exists = context.assetExists ? context.assetExists(asset) : fs.existsSync(path.join(rootPath ?? ROOT, ...asset.split("/")));
+      const exists = assetExistsSafely(asset, { ...context, rootPath }, where);
       if (!exists) fail(where, `srcset asset does not exist: ${asset}`);
     } else url = resolveLocal(parts[0], { sourcePath, rootPath, context, where, isImage: true });
     return `${url}${descriptor ? ` ${descriptor}` : ""}`;
@@ -239,7 +243,7 @@ function preflight(tree, context, location) {
       }
       if (attr === "id" || attr === "name") {
         const key = idKey(String(value));
-        if (RESERVED_IDS.has(key) || ids.has(key)) fail(location, `duplicate, reserved or unsafe HTML id or anchor: ${value}`);
+        if (isReservedId(key) || ids.has(key)) fail(location, `duplicate, reserved or unsafe HTML id or anchor: ${value}`);
         ids.add(key);
       }
       if (attr === "href" || attr === "src") {
@@ -281,6 +285,27 @@ function slugify(text) {
 }
 
 function idKey(value) { return value.normalize("NFKC").toLocaleLowerCase("en-US"); }
+function isReservedId(value) {
+  const key = idKey(value);
+  return RESERVED_IDS.has(key) || RESERVED_ID_PREFIXES.some(prefix => key.startsWith(prefix));
+}
+
+function assetExistsSafely(asset, context, location) {
+  if (context.assetExists) return context.assetExists(asset);
+  const root = path.resolve(context.rootPath ?? ROOT);
+  const candidate = path.resolve(root, ...asset.split("/"));
+  const relative = path.relative(root, candidate);
+  if (!relative || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) return false;
+  try {
+    const realRoot = fs.realpathSync(root);
+    const realCandidate = fs.realpathSync(candidate);
+    const realRelative = path.relative(realRoot, realCandidate);
+    return Boolean(realRelative && !realRelative.startsWith(`..${path.sep}`) && !path.isAbsolute(realRelative) && fs.statSync(realCandidate).isFile());
+  } catch (error) {
+    if (error.code === "ENOENT" || error.code === "ENOTDIR") return false;
+    fail(location, `could not safely verify asset ${asset}: ${error.message}`);
+  }
+}
 
 function decodePercentForInspection(value) {
   let result = value;
@@ -305,7 +330,7 @@ function transformMdast(tree, metadata, context, location) {
       const id = match[2];
       if (!/^[\p{Letter}\p{Mark}\p{Number}_-]+$/u.test(id)) fail(location, `invalid explicit anchor id: ${id}`);
       const key = idKey(id);
-      if (RESERVED_IDS.has(key) || ids.has(key)) fail(location, `duplicate, reserved or unsafe anchor ID: ${id}`);
+      if (isReservedId(key) || ids.has(key)) fail(location, `duplicate, reserved or unsafe anchor ID: ${id}`);
       ids.add(key); explicitIds.add(key);
       pendingAnchor = id;
       child.type = "text";
@@ -344,7 +369,7 @@ function transformMdast(tree, metadata, context, location) {
     if (node.type === "code" && node.lang?.toLowerCase() === "mermaid") {
       if (!pendingDiagram) fail(location, "Mermaid fence requires an adjacent diagram metadata comment");
       const decodedDiagram = decodePercentForInspection(node.value);
-      if (/%%\s*\{|^\s*click\s+[\w-]+\b|<\s*\/?\s*(?:script|iframe|foreignObject)\b|javascript\s*:/im.test(decodedDiagram)) fail(location, "Mermaid init directives, click interactions and executable HTML/URLs are forbidden");
+      if (/%%\s*\{|(?:^|[;\n])\s*click\s+[^\s;]+(?:\s|$)|<\s*\/?\s*(?:script|iframe|foreignObject)\b|javascript\s*:/im.test(decodedDiagram)) fail(location, "Mermaid init directives, click interactions and executable HTML/URLs are forbidden");
       const { label, caption, fallback } = pendingDiagram;
       node.data = { ...(node.data ?? {}), mermaidData: { label, caption, fallback } };
       (context.mermaidDiagrams ??= []).push({ label, caption, fallback });
@@ -356,7 +381,7 @@ function transformMdast(tree, metadata, context, location) {
       if (node.depth === 1) fail(location, "article body headings start at level 2; the envelope owns the only h1");
       const id = node.data?.hProperties?.id ?? slugify(textContent(node));
       const key = idKey(id);
-      if (!id || (ids.has(key) && !explicitIds.has(key)) || RESERVED_IDS.has(key)) fail(location, `heading ID collision or reserved ID: ${id}`);
+      if (!id || (ids.has(key) && !explicitIds.has(key)) || isReservedId(key)) fail(location, `heading ID collision or reserved ID: ${id}`);
       explicitIds.delete(key);
       ids.add(key);
       node.data = { ...(node.data ?? {}), hProperties: { ...(node.data?.hProperties ?? {}), id } };
@@ -459,7 +484,7 @@ function validateRenderedHtml(html, location, context = {}) {
         if ((attr.name === "id" || attr.name === "name") && ids.has(idKey(attr.value))) fail(location, `rendered HTML contains duplicate ID/anchor ${attr.value}`);
         if (attr.name === "id" || attr.name === "name") {
           const key = idKey(attr.value);
-          if (RESERVED_IDS.has(key)) fail(location, `rendered HTML contains reserved ID/anchor ${attr.value}`);
+          if (isReservedId(key)) fail(location, `rendered HTML contains reserved ID/anchor ${attr.value}`);
           ids.add(key);
         }
         if (["href", "src"].includes(attr.name)) {
@@ -468,7 +493,7 @@ function validateRenderedHtml(html, location, context = {}) {
           const target = decoded(attr.value.split(/[?#]/, 1)[0], location).replace(/\\/g, "/");
           if (attr.name === "href" && ["article.html", "index.html"].includes(target)) continue;
           if (!target.startsWith("assets/") || target.split("/").includes("..")) fail(location, `rendered local URL is outside assets/: ${attr.value}`);
-          const exists = context.assetExists ? context.assetExists(target) : fs.existsSync(path.join(context.rootPath ?? ROOT, ...target.split("/")));
+          const exists = assetExistsSafely(target, context, location);
           if (!exists) fail(location, `rendered asset does not exist: ${target}`);
         }
         if (attr.name === "srcset") parseSrcset(attr.value, { sourcePath: context.sourcePath, rootPath: context.rootPath, context, where: location, alreadyResolved: true });
@@ -478,6 +503,11 @@ function validateRenderedHtml(html, location, context = {}) {
     for (const child of node.childNodes ?? []) visit(child);
   }
   visit(tree);
+  if (context.rejectBodyH1 && containsTag(tree, "h1")) fail(location, "rendered article body must not contain h1; the envelope owns the only h1");
+}
+
+function containsTag(node, expectedTag) {
+  return Boolean(node?.tagName === expectedTag || (node?.childNodes ?? []).some(child => containsTag(child, expectedTag)));
 }
 
 function firstProseNode(tree, location) {
@@ -511,7 +541,7 @@ export async function compileMarkdownArticle({ source, sourcePath, rootPath = RO
   const sanitized = await unified().use(rehypeSanitize, sanitizeSchema()).run(hast);
   if (JSON.stringify(treeSnapshot(sanitized)) !== expectedTree) fail(location, "sanitizer would alter validated content; adjust the allowlist instead of silently dropping it");
   const html = String(await unified().use(rehypeStringify).stringify(sanitized));
-  validateRenderedHtml(html, location, compilerContext);
+  validateRenderedHtml(html, location, { ...compilerContext, rejectBodyH1: true });
   const fragment = parseFragment(html);
   const first = fragment.childNodes.find(node => node.tagName || node.nodeName === "#text");
   if (!first || first.tagName !== "p") fail(location, "compiled body must begin with exactly one paragraph");

@@ -19,7 +19,7 @@ const html = renderArticleEnvelope(compiled, { buildId });
 
 `compileMarkdownArticle` retorna `{ metadata, slots: { heading, dek, body } }`. `fromLegacyArticle` adapta um registro JSON antigo em memória e aceita ausência de `tags` durante a transição, sem classificar o artigo. Nenhuma função serializa um artigo completo intermediário. `renderArticleEnvelope` monta o envelope `html-v1` usado na fronteira de integração; ele não repete o título, dek ou corpo fora dos três slots.
 
-O chamador injeta obrigatoriamente o registry `knownTags`; `knownSlugs` também é obrigatório quando o artigo declara prerequisites. `assetExists` pode ser injetado pelo build; se omitido, a verificação usa o filesystem sob `rootPath`. O módulo não cria taxonomia nem tenta deduzir slugs ou arquivos ausentes. `sourcePath` é sempre `content/articles/<slug>.md`; imagens do frontmatter usam `assets/<slug>/<slug>-cover.jpg`. URLs Markdown relativas são resolvidas desde o diretório do `.md`, confinadas à raiz e mapeadas para os URLs do shell. Recursos locais precisam existir. URLs externas são aceitas somente em links HTTP(S), `mailto:` e `tel:`; imagens remotas são recusadas.
+O chamador injeta obrigatoriamente o registry `knownTags`; `knownSlugs` também é obrigatório quando o artigo declara prerequisites. `assetExists` pode ser injetado pelo build; sem callback, o compilador exige arquivo regular existente e verifica `realpath` confinado ao `rootPath` para capas e recursos locais. O módulo não cria taxonomia nem tenta deduzir slugs ou arquivos ausentes. `sourcePath` é sempre `content/articles/<slug>.md`; imagens do frontmatter usam `assets/<slug>/<slug>-cover.jpg`. URLs Markdown relativas são resolvidas desde o diretório do `.md`, confinadas à raiz e mapeadas para os URLs do shell. Recursos locais precisam existir. URLs externas são aceitas somente em links HTTP(S), `mailto:` e `tel:`; imagens remotas são recusadas.
 
 ## Frontmatter e estrutura
 
@@ -33,7 +33,7 @@ Título e dek usam runs de `speechMarkup` que concatenam exatamente ao texto vis
 ## Título da seção
 ```
 
-O compilador associa `id-estavel` ao heading seguinte, sem criar um parágrafo narrável adicional. Títulos de seção começam em `##`; o envelope fornece o único `h1`. Unicode e links de fragmento são mantidos. IDs duplicados após normalização Unicode, IDs reservados pelo shell e nomes que possam sombrear propriedades comuns do browser falham.
+O compilador associa `id-estavel` ao heading seguinte, sem criar um parágrafo narrável adicional. Títulos de seção começam em `##`; o envelope fornece o único `h1`, inclusive quando o corpo contém HTML bruto aninhado. Unicode e links de fragmento são mantidos. IDs duplicados após normalização NFKC e case-folding falham. Os namespaces `article-`, `recording-`, `speech-`, `tts-`, `header-`, `listen-` e `inline-recording-` são reservados para que controles atuais e futuros do shell não sejam sequestrados por fragmentos; a reserva é aplicada também a âncoras legadas e atributos HTML brutos.
 
 ## Mermaid
 
@@ -47,7 +47,7 @@ flowchart LR
 ```
 ```
 
-Metadados órfãos, duplicados, JSON duplicado/inválido ou texto entre comentário e fence falham. A saída cria `figure.mermaid-figure`, `div[data-mermaid][data-mermaid-label]`, `pre.mermaid-source`, `figcaption` e `details.mermaid-fallback`. Para não habilitar opções permissivas da engine no navegador, o código rejeita diretivas Mermaid `%%{...}%%`, comandos `click`, HTML executável e esquemas JavaScript. Diagrama técnico não precisa de HTML inline nem de uma saída SVG.
+Metadados órfãos, duplicados, JSON duplicado/inválido ou texto entre comentário e fence falham. A saída cria `figure.mermaid-figure`, `div[data-mermaid][data-mermaid-label]`, `pre.mermaid-source`, `figcaption` e `details.mermaid-fallback`. Para não habilitar opções permissivas da engine no navegador, o código rejeita diretivas Mermaid `%%{...}%%`, comandos `click` no início de linha ou após separador de instrução, HTML executável e esquemas JavaScript. Texto de label que apenas contenha a palavra `click` permanece válido. Diagrama técnico não precisa de HTML inline nem de uma saída SVG.
 
 ## Tabelas e `srcset`
 

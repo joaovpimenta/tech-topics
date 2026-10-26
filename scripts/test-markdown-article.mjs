@@ -66,6 +66,11 @@ const failures = [
   ["missing tags", mutate("tags: [markdown, seguranca]\n", ""), /tags/],
   ["heading before prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "## Antes da prosa\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco."), /first content block/],
   ["body h1 duplicates envelope hierarchy", mutate("## Uma seção", "# Uma seção"), /only h1/],
+  ["raw HTML body h1 duplicates envelope hierarchy", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.\n\n<h1>Título duplicado</h1>"), /only h1/],
+  ["nested raw HTML body h1 duplicates envelope hierarchy", mutate("<div class=\"article-callout\">", "<div class=\"article-callout\"><h1>Título duplicado</h1>"), /only h1/],
+  ["shell prefix ID recording-play", mutate("âncora-antiga", "recording-play"), /reserved|unsafe/],
+  ["raw HTML shell ID recording-play", mutate("<div class=\"article-callout\">", '<p id="recording-play">Control</p>\n\n<div class="article-callout">'), /reserved|unsafe/],
+  ["shell prefix ID NFKC fullwidth collision", mutate("âncora-antiga", "ｒｅｃｏｒｄｉｎｇ-play"), /reserved|unsafe/],
   ["image in opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "![Capa](../../assets/sample/cover.jpg) Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco."), /first prose paragraph cannot contain an image/],
   ["HTML script", mutate("<div class=\"article-callout\">", "<script>alert(1)</script>\n\n<div class=\"article-callout\">"), /forbidden|not allowed/i],
   ["event attribute", mutate("class=\"article-callout\"", "class=\"article-callout\" onclick=\"alert(1)\""), /event handler/],
@@ -81,10 +86,16 @@ const failures = [
   ["duplicate Mermaid JSON key", mutate('"caption":"O fluxo separa fonte e HTML."', '"caption":"A","caption":"B"'), /diagram metadata/],
   ["diagram metadata injection", mutate('"label":"Fluxo de compilação"', '"label":"<script>"'), /diagram metadata/],
   ["Mermaid init directive", mutate("flowchart LR\n  A[Markdown] --> B[HTML]", '%%{init: {"securityLevel":"loose"}}%%\nflowchart LR\n  A[Markdown] --> B[HTML]'), /init directives/],
-  ["Mermaid click interaction", mutate("flowchart LR\n  A[Markdown] --> B[HTML]", 'flowchart LR\nclick A "javascript:alert(1)"\n  A[Markdown] --> B[HTML]'), /init directives/],
+  ["Mermaid click interaction", mutate("flowchart LR\n  A[Markdown] --> B[HTML]", 'flowchart LR\nclick A "javascript:alert(1)"\n  A[Markdown] --> B[HTML]'), /click interactions/],
+  ["Mermaid trailing click interaction", mutate("flowchart LR\n  A[Markdown] --> B[HTML]", 'flowchart LR\n  A[Markdown] --> B[HTML]\nclick A "https://example.org"'), /click interactions/],
+  ["Mermaid click word in node label remains valid", mutate("A[Markdown]", "A[click label]"), null],
   ["ID collision", mutate("[Ir para a âncora preservada](#âncora-antiga)", "## Colisao\n\n## Colisao"), /ID collision/]
 ];
 for (const [name, invalidSource, expected] of failures) {
+  if (expected === null) {
+    await compileMarkdownArticle({ source: invalidSource, ...context });
+    continue;
+  }
   await assert.rejects(() => compileMarkdownArticle({ source: invalidSource, ...context }), error => {
     assert.match(error.message, expected, name);
     return true;
@@ -93,10 +104,21 @@ for (const [name, invalidSource, expected] of failures) {
 await assert.rejects(() => compileMarkdownArticle({ source: mutate("âncora-antiga", "article-body"), ...context }), /reserved|unsafe/);
 await assert.rejects(() => compileMarkdownArticle({ source: mutate("âncora-antiga", "constructor"), ...context }), /reserved|unsafe/);
 await assert.rejects(() => compileMarkdownArticle({ source: mutate("#âncora-antiga", "#nao-existe"), ...context }), /fragment does not match/);
+const shellIds = new Set();
+const collectIds = node => { for (const attr of node.attrs ?? []) if (attr.name === "id") shellIds.add(attr.value); for (const child of node.childNodes ?? []) collectIds(child); };
+collectIds(parseFragment(fs.readFileSync(path.join(rootPath, "article.html"), "utf8")));
+for (const filename of ["article.js", "audio.js", "speech.js"]) {
+  const code = fs.readFileSync(path.join(rootPath, filename), "utf8");
+  for (const match of code.matchAll(/querySelector\(\s*["']#([\w-]+)["']\s*\)/g)) shellIds.add(match[1]);
+}
+for (const id of shellIds) {
+  await assert.rejects(() => compileMarkdownArticle({ source: mutate("âncora-antiga", id), ...context }), /reserved|unsafe/, `shell-owned ID ${id} cannot be claimed by content`);
+}
 await assert.rejects(() => compileMarkdownArticle({ source, sourcePath, rootPath, knownSlugs: context.knownSlugs, assetExists: context.assetExists }), /knownTags registry/);
 await assert.rejects(() => compileMarkdownArticle({ source: mutate("prerequisites: [base]", "prerequisites: [missing]"), ...context }), /unknown prerequisite slug/);
 await assert.rejects(() => compileMarkdownArticle({ source: mutate('<a name="âncora-antiga"></a>', '<a name="café"></a>\n\n<a name="café"></a>'), ...context }), /duplicate|reserved|unsafe/);
 await assert.rejects(() => compileMarkdownArticle({ source, ...context, assetExists: asset => asset !== "assets/sample/café.png" }), /asset does not exist/);
+await assert.rejects(() => compileMarkdownArticle({ source, sourcePath, rootPath, knownTags: context.knownTags, knownSlugs: context.knownSlugs }), /cover asset does not exist/);
 
 const legacy = {
   slug: "legacy", language: "pt-BR", title: "Artigo legado", category: "Fundamentos",
@@ -107,7 +129,7 @@ const legacy = {
 const adapted = fromLegacyArticle(legacy, { rootPath, assetExists: () => true });
 assert.equal(adapted.metadata.tags, undefined);
 assert.match(adapted.slots.body, /^<p>Primeiro parágrafo\.<\/p>/);
-assert.throws(() => fromLegacyArticle({ ...legacy, bodyHtml: '<p onclick="alert(1)">X</p>' }, { rootPath }), /event attribute/);
+assert.throws(() => fromLegacyArticle({ ...legacy, bodyHtml: '<p onclick="alert(1)">X</p>' }, { rootPath, assetExists: () => true }), /event attribute/);
 
 const domSignature = node => {
   if (node.nodeName === "#text") return ["text", node.value];
