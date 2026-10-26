@@ -23,9 +23,9 @@ const TAGS = new Set([
   "a", "abbr", "article", "b", "blockquote", "br", "button", "caption", "code", "col", "colgroup", "dd", "del", "details", "div", "dl", "dt", "em", "figcaption", "figure", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "img", "input", "kbd", "label", "li", "mark", "nav", "ol", "output", "p", "pre", "s", "section", "small", "span", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"
 ]);
 const ATTRS = new Set([
-  "alt", "aria-atomic", "aria-label", "aria-labelledby", "aria-describedby", "aria-hidden", "aria-live", "checked", "class", "colspan", "data-mermaid", "data-mermaid-label", "data-tts-mode", "data-tts-say", "disabled", "download", "for", "height", "href", "id", "lang", "max", "min", "name", "open", "role", "rowspan", "scope", "src", "srcset", "step", "tabindex", "target", "title", "type", "value", "width"
+  "alt", "align", "aria-atomic", "aria-label", "aria-labelledby", "aria-describedby", "aria-hidden", "aria-live", "checked", "class", "colspan", "data-footnotes", "data-footnote-ref", "data-footnote-backref", "data-mermaid", "data-mermaid-label", "data-tts-mode", "data-tts-say", "disabled", "download", "for", "height", "href", "id", "lang", "max", "min", "name", "open", "role", "rowspan", "scope", "src", "srcset", "step", "tabindex", "target", "title", "type", "value", "width"
 ]);
-const SAFE_CLASS = /^(?:article-callout|article-back|article-table-scroll|fgs-table-scroll|signal-grid|signal-card|fgs-simulator|fgs-formula|fgs-guide|fgs-references|fgs-review|fgs-sim-results|fgs-small|fgs-toc|code-block|mermaid-figure|mermaid-diagram|mermaid-source|mermaid-fallback|language-[a-z0-9_-]+|task-list-item|contains-task-list)$/;
+const SAFE_CLASS = /^(?:article-callout|article-back|article-table-scroll|fgs-table-scroll|signal-grid|signal-card|fgs-simulator|fgs-formula|fgs-guide|fgs-references|fgs-review|fgs-sim-results|fgs-small|fgs-toc|code-block|mermaid-figure|mermaid-diagram|mermaid-source|mermaid-fallback|footnotes|sr-only|data-footnote-backref|language-[a-z0-9_-]+|task-list-item|contains-task-list)$/;
 const REQUIRED = ["slug", "language", "title", "category", "date", "publishedAt", "read", "image", "alt", "dek", "excerpt", "tags"];
 const ALLOWED_METADATA = new Set([...REQUIRED, "speechMarkup", "updatedAt", "level", "series", "seriesOrder", "prerequisites", "addedAt"]);
 
@@ -131,7 +131,10 @@ function resolveLocal(raw, { sourcePath, rootPath, context, where, isImage = fal
     if (isImage) fail(where, "remote image URLs are not permitted");
     return raw;
   }
-  if (raw.startsWith("#")) return raw;
+  if (raw.startsWith("#")) {
+    if (isImage) fail(where, "images cannot use fragment-only URLs");
+    return raw;
+  }
   if (raw.startsWith("//")) fail(where, "protocol-relative URLs are not permitted");
   const decodedPath = decoded(raw.split(/[?#]/, 1)[0], where).replace(/\\/g, "/");
   if (/^[a-z][a-z0-9+.-]*:/i.test(decodedPath) || decodedPath.startsWith("/")) fail(where, "absolute or encoded URL paths are not permitted");
@@ -201,11 +204,12 @@ function sanitizeSchema() {
   schema.tagNames = [...TAGS];
   schema.attributes = {
     "*": ["ariaAtomic", "ariaLabel", "ariaLabelledBy", "ariaDescribedBy", "ariaHidden", "ariaLive", "className", "id", "lang", "role", "tabIndex", "title"],
-    a: ["href", "name", "download", "target", "rel"],
+    a: ["href", "name", "download", "target", "rel", "dataFootnoteRef", "dataFootnoteBackref"],
     img: ["src", "alt", "width", "height", "srcSet"],
     input: ["id", "name", "type", "min", "max", "step", "value", "checked", "disabled", "ariaLabel"],
     button: ["type", "disabled"],
-    th: ["colSpan", "rowSpan", "scope"], td: ["colSpan", "rowSpan"],
+    th: ["colSpan", "rowSpan", "scope", "align"], td: ["colSpan", "rowSpan", "align"],
+    section: ["dataFootnotes"],
     div: ["dataMermaid", "dataMermaidLabel", "dataTtsSay", "dataTtsMode"],
     span: ["dataTtsSay", "dataTtsMode"], code: ["dataTtsSay", "dataTtsMode"],
     pre: ["dataTtsSay", "dataTtsMode"]
@@ -234,9 +238,10 @@ function preflight(tree, context, location) {
     const language = attrs.lang;
     if (language !== undefined && !/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(language)) fail(location, "lang must be a valid language tag");
     for (const [key, value] of Object.entries(attrs)) {
-      const attr = key === "className" ? "class" : key === "tabIndex" ? "tabindex" : key === "srcSet" ? "srcset" : key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`).toLowerCase();
+      const attr = key === "className" ? "class" : key === "tabIndex" ? "tabindex" : key === "srcSet" ? "srcset" : key === "ariaDescribedBy" ? "aria-describedby" : key === "ariaLabelledBy" ? "aria-labelledby" : key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`).toLowerCase();
       if (/^on/i.test(attr)) fail(location, `event handler attribute ${key} is forbidden`);
       if (!ATTRS.has(attr) && !(attr === "rel" || attr === "aria-labelledby" || attr === "aria-describedby")) fail(location, `HTML attribute ${key} is not allowed`);
+      if (attr === "align" && (tag !== "th" && tag !== "td" || !/^(?:left|center|right)$/.test(String(value)))) fail(location, "table alignment must be left, center or right");
       if (attr === "class") {
         const classes = Array.isArray(value) ? value : String(value).split(/\s+/);
         for (const name of classes) if (!SAFE_CLASS.test(name) && !/^language-/.test(name)) fail(location, `HTML class is not allowed: ${name}`);
@@ -250,7 +255,7 @@ function preflight(tree, context, location) {
         const raw = String(value);
         if (attr === "href" && raw.startsWith("#")) fragments.push(decoded(raw.slice(1), location));
         safeProtocol(raw, location);
-        attrs[attr] = context.resolvedUrls?.has(raw) ? raw : resolveLocal(raw, { sourcePath: context.sourcePath, rootPath: context.rootPath, context, where: location, isImage: attr === "src" });
+        attrs[attr] = context.resolvedUrls?.has(`${attr}:${raw}`) ? raw : resolveLocal(raw, { sourcePath: context.sourcePath, rootPath: context.rootPath, context, where: location, isImage: attr === "src" });
       }
     }
     if (attrs.srcSet !== undefined) {
@@ -391,7 +396,7 @@ function transformMdast(tree, metadata, context, location) {
   walk(tree, (node, parent) => {
     if (node.type === "image" || node.type === "link") {
       const resolved = resolveLocal(node.url, { sourcePath: context.sourcePath, rootPath: context.rootPath, context, where: location, isImage: node.type === "image" });
-      (context.resolvedUrls ??= new Set()).add(resolved);
+      (context.resolvedUrls ??= new Set()).add(`${node.type === "image" ? "src" : "href"}:${resolved}`);
       node.url = resolved;
       if (node.type === "image" && (!node.alt || !node.alt.trim())) fail(location, "every image must have non-empty alt text");
     }
@@ -480,6 +485,7 @@ function validateRenderedHtml(html, location, context = {}) {
       for (const attr of node.attrs ?? []) {
         if (/^on/i.test(attr.name)) fail(location, `rendered HTML contains event attribute ${attr.name}`);
         if (!ATTRS.has(attr.name) && attr.name !== "rel" && attr.name !== "aria-labelledby" && attr.name !== "aria-describedby") fail(location, `rendered HTML contains unsupported attribute ${attr.name}`);
+        if (attr.name === "align" && (tag !== "th" && tag !== "td" || !/^(?:left|center|right)$/.test(attr.value))) fail(location, "rendered table alignment must be left, center or right");
         if (attr.name === "class") for (const name of attr.value.split(/\s+/)) if (!SAFE_CLASS.test(name)) fail(location, `rendered HTML contains unsupported class ${name}`);
         if ((attr.name === "id" || attr.name === "name") && ids.has(idKey(attr.value))) fail(location, `rendered HTML contains duplicate ID/anchor ${attr.value}`);
         if (attr.name === "id" || attr.name === "name") {
@@ -510,12 +516,97 @@ function containsTag(node, expectedTag) {
   return Boolean(node?.tagName === expectedTag || (node?.childNodes ?? []).some(child => containsTag(child, expectedTag)));
 }
 
+const OPENING_COMPONENT_TAGS = new Set(["br", "button", "input", "label", "output"]);
+const OPENING_COMPONENT_CLASSES = new Set(["article-back", "fgs-formula"]);
+const OPENING_COMPONENT_ROLES = new Set(["button", "checkbox", "menuitem", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab", "treeitem"]);
+
+function hasVisibleProseText(value) {
+  return value.replace(/[\s\p{Default_Ignorable_Code_Point}]/gu, "").length > 0;
+}
+
+function openingCheckHtml(node) {
+  if (node.type === "html") return node.value;
+  if (node.type === "text") return escapeHtml(node.value);
+  if (node.type === "inlineCode") return `<code>${escapeHtml(node.value)}</code>`;
+  if (node.type === "break") return "<br>";
+  const tags = { emphasis: "em", strong: "strong", delete: "del", link: "a" };
+  const tag = tags[node.type];
+  const children = node.children?.map(openingCheckHtml).join("");
+  if (tag) return `<${tag}>${children ?? ""}</${tag}>`;
+  if (children !== undefined) return children;
+  return escapeHtml(textContent(node));
+}
+
+function openingUiComponent(node) {
+  if (OPENING_COMPONENT_TAGS.has(node.tagName)) return true;
+  const role = node.attrs?.find(attr => attr.name === "role")?.value.toLowerCase().split(/\s+/) ?? [];
+  const classes = node.attrs?.find(attr => attr.name === "class")?.value.split(/\s+/) ?? [];
+  if (role.some(name => OPENING_COMPONENT_ROLES.has(name))) return true;
+  if (classes.some(name => OPENING_COMPONENT_CLASSES.has(name))) return true;
+  return node.tagName === "a" && node.attrs?.some(attr => attr.name === "download");
+}
+
+function analyzeOpeningParagraph(paragraph) {
+  const fragment = parseFragment((paragraph.children ?? []).map(openingCheckHtml).join(""));
+  let proseStarted = false;
+  let hasProse = false;
+  let componentBeforeProse = false;
+  const inspect = node => {
+    if (node.nodeName === "#text") {
+      if (hasVisibleProseText(node.value)) {
+        proseStarted = true;
+        hasProse = true;
+      }
+      return;
+    }
+    if (openingUiComponent(node)) {
+      if (!proseStarted) componentBeforeProse = true;
+      return;
+    }
+    for (const child of node.childNodes ?? []) inspect(child);
+  };
+  for (const child of fragment.childNodes) inspect(child);
+  return { componentBeforeProse, hasProse };
+}
+
 function firstProseNode(tree, location) {
-  const first = tree.children.find(node => node.type !== "yaml" && node.type !== "html" && !(node.type === "paragraph" && !textContent(node).trim()));
-  if (!first || first.type !== "paragraph") fail(location, "first content block after frontmatter must be a prose paragraph");
+  let first = null;
+  let firstParagraphIndex = -1;
+  for (let index = 0; index < tree.children.length; index++) {
+    const node = tree.children[index];
+    if (node.type === "yaml" || node.type === "html") continue;
+    if (node.type !== "paragraph") fail(location, "first content block after frontmatter must be a prose paragraph");
+    const opening = analyzeOpeningParagraph(node);
+    if (opening.componentBeforeProse) fail(location, "opening content cannot begin with an HTML component");
+    if (!opening.hasProse) {
+      let hasMarkdownImage = false;
+      walk(node, child => { if (child.type === "image") hasMarkdownImage = true; });
+      if (hasMarkdownImage || node.children?.some(child => child.type === "html" && containsTag(parseFragment(child.value), "img"))) {
+        fail(location, "first prose paragraph cannot contain an image");
+      }
+      fail(location, "first content block after frontmatter must be a prose paragraph");
+    }
+    first = node;
+    firstParagraphIndex = index;
+    break;
+  }
+  if (!first) fail(location, "first content block after frontmatter must be a prose paragraph");
   let imageBeforeText = false;
   walk(first, node => { if (node.type === "image") imageBeforeText = true; });
   if (imageBeforeText) fail(location, "first prose paragraph cannot contain an image");
+  for (const node of tree.children.slice(0, firstParagraphIndex)) {
+    if (node.type !== "html") continue;
+    const fragment = parseFragment(node.value);
+    const isOnlyLegacyAnchor = fragment.childNodes.every(child => !child.tagName || (
+      child.tagName === "a" && child.attrs.some(attr => attr.name === "name") &&
+      child.childNodes.every(grandchild => grandchild.nodeName === "#text" && !grandchild.value.trim())
+    ));
+    if (!isOnlyLegacyAnchor) fail(location, "an image or component cannot precede the opening prose paragraph");
+  }
+  walk(first, node => {
+    if (node.type !== "html") return;
+    if (containsTag(parseFragment(node.value), "img")) fail(location, "first prose paragraph cannot contain an image");
+  });
 }
 
 export async function compileMarkdownArticle({ source, sourcePath, rootPath = ROOT, knownTags, knownSlugs, assetExists, ...context } = {}) {
@@ -545,6 +636,7 @@ export async function compileMarkdownArticle({ source, sourcePath, rootPath = RO
   const fragment = parseFragment(html);
   const first = fragment.childNodes.find(node => node.tagName || node.nodeName === "#text");
   if (!first || first.tagName !== "p") fail(location, "compiled body must begin with exactly one paragraph");
+  if (containsTag(first, "img")) fail(location, "compiled opening prose paragraph cannot contain an image");
   const title = metadata.title;
   const dek = metadata.dek;
   const titleHtml = renderTextSlot(title, metadata.speechMarkup?.title, location);

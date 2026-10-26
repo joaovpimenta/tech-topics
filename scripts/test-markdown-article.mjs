@@ -32,6 +32,39 @@ assert.match(compiled.slots.body, /href="article\.html\?slug=outro(?:&|&#x26;)mo
 assert.match(compiled.slots.body, /<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Fluxo de compilação"><pre class="mermaid-source">/);
 assert.match(compiled.slots.body, /<figcaption>O fluxo separa fonte e HTML\.<\/figcaption>/);
 assert.match(compiled.slots.body, /<details class="mermaid-fallback"><summary>Ver o código Mermaid<\/summary>/);
+const alignedTable = await compileMarkdownArticle({
+  source: `${source}\n| A | B |\n| :--- | ---: |\n| 1 | 2 |\n`,
+  ...context
+});
+assert.match(alignedTable.slots.body, /class="article-table-scroll" tabindex="0" role="region" aria-label="[^"]+"><table><thead><tr><th align="left">A<\/th><th align="right">B<\/th>/);
+const footnote = await compileMarkdownArticle({ source: `${source}\nUma nota[^x].\n\n[^x]: Texto da nota.\n`, ...context });
+assert.match(footnote.slots.body, /<sup><a href="#user-content-fn-x" id="user-content-fnref-x" data-footnote-ref="" aria-describedby="footnote-label">1<\/a><\/sup>/);
+assert.match(footnote.slots.body, /<section data-footnotes="" class="footnotes"><h2 class="sr-only" id="footnote-label">Footnotes<\/h2>/);
+assert.match(footnote.slots.body, /class="data-footnote-backref"/);
+const externalLink = await compileMarkdownArticle({ source: `${source}\n[Site](https://example.com/pic.jpg)\n`, ...context });
+assert.match(externalLink.slots.body, /href="https:\/\/example\.com\/pic\.jpg"/);
+const inlineHtmlOpening = await compileMarkdownArticle({
+  source: source.replace("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "Uma conversa começa com <span lang=\"pt-BR\">uma observação</span> cotidiana e apresenta o conceito sem depender de outro bloco."),
+  ...context
+});
+assert.match(inlineHtmlOpening.slots.body, /^<p>Uma conversa começa com <span lang="pt-BR">uma observação<\/span> cotidiana/);
+const inlineHtmlButtonOpening = await compileMarkdownArticle({
+  source: source.replace("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "Uma conversa começa com <button type=\"button\">Play</button> uma observação cotidiana e apresenta o conceito sem depender de outro bloco."),
+  ...context
+});
+assert.match(inlineHtmlButtonOpening.slots.body, /^<p>Uma conversa começa com <button type="button">Play<\/button> uma observação/);
+const inlineLinkOpening = await compileMarkdownArticle({
+  source: source.replace("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "Uma conversa começa com uma [observação](./outro.md) cotidiana e apresenta o conceito sem depender de outro bloco."),
+  ...context
+});
+assert.match(inlineLinkOpening.slots.body, /Uma conversa começa com uma <a href="article\.html\?slug=outro">observação<\/a> cotidiana/);
+const multilingualUnicodeOpening = await compileMarkdownArticle({
+  source: source.replace("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<span lang="en-US">A conversation</span> começa aqui com ação e 🙂.'),
+  ...context
+});
+assert.match(multilingualUnicodeOpening.slots.body, /<span lang="en-US">A conversation<\/span> começa aqui com ação e 🙂\./);
+const componentAfterOpening = await compileMarkdownArticle({ source: `${source}\n<button type="button">Play</button>\n`, ...context });
+assert.match(componentAfterOpening.slots.body, /<button type="button">Play<\/button>/);
 const envelope = renderArticleEnvelope(compiled, { buildId: "build-2026-10-25" });
 assert.match(envelope, /^<article data-article-format="html-v1" data-article-slug="sample" data-build-id="build-2026-10-25"><h1 data-article-slot="heading">/);
 assert.equal((envelope.match(/data-article-slot="heading"/g) ?? []).length, 1);
@@ -65,6 +98,19 @@ const failures = [
   ["invalid calendar date", mutate("publishedAt: 2026-10-25", "publishedAt: 2026-02-30"), /real ISO/],
   ["missing tags", mutate("tags: [markdown, seguranca]\n", ""), /tags/],
   ["heading before prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "## Antes da prosa\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco."), /first content block/],
+  ["standalone button paragraph before opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<button type="button">Play</button>\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /HTML component/],
+  ["nested standalone button paragraph before opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<strong><button type="button">Play</button></strong>\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /HTML component/],
+  ["standalone button with quoted greater-than attribute before opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<button type="button" title="1 > 0">Play</button>\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /HTML component/],
+  ["standalone void input component before opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<input type="text" aria-label="Busca">\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /component cannot precede|standalone HTML component/],
+  ["standalone line break before opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<br>\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /component cannot precede|standalone HTML component/],
+  ["standalone label paragraph before opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<label for="search">Buscar</label>\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /HTML component/],
+  ["standalone span paragraph before opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<span class="article-back">Voltar</span>\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /HTML component/],
+  ["navigation anchor before opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<a class="article-back" href="./outro.md">Voltar aos artigos</a>\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /HTML component/],
+  ["role button anchor before opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<a role="button" href="./outro.md">Começar</a>\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /HTML component/],
+  ["wrapped navigation anchor before opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<strong><a class="article-back" href="./outro.md">Voltar aos artigos</a></strong>\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /HTML component/],
+  ["leading button before prose in same paragraph", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<button type="button">Play</button> Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /HTML component/],
+  ["zero-width text cannot make a leading button prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '\u200b<button type="button">Play</button>\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /HTML component/],
+  ["raw HTML image before opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<p><img src="../../assets/sample/example.png" alt="Antes da abertura"></p>\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /image or component cannot precede/],
   ["body h1 duplicates envelope hierarchy", mutate("## Uma seção", "# Uma seção"), /only h1/],
   ["raw HTML body h1 duplicates envelope hierarchy", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.\n\n<h1>Título duplicado</h1>"), /only h1/],
   ["nested raw HTML body h1 duplicates envelope hierarchy", mutate("<div class=\"article-callout\">", "<div class=\"article-callout\"><h1>Título duplicado</h1>"), /only h1/],
@@ -76,6 +122,10 @@ const failures = [
   ["image in opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "![Capa](../../assets/sample/cover.jpg) Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco."), /first prose paragraph cannot contain an image/],
   ["HTML script", mutate("<div class=\"article-callout\">", "<script>alert(1)</script>\n\n<div class=\"article-callout\">"), /forbidden|not allowed/i],
   ["event attribute", mutate("class=\"article-callout\"", "class=\"article-callout\" onclick=\"alert(1)\""), /event handler/],
+  ["malformed raw HTML table alignment", `${source}\n<table><tr><th align="justify">A</th></tr></table>\n`, /table alignment must be left, center or right/],
+  ["remote image remains rejected beside valid external link", `${source}\n[Site](https://example.com/pic.jpg)\n\n<img src="https://example.com/pic.jpg" alt="Remote">\n`, /remote image URLs are not permitted/],
+  ["remote raw image is rejected without a link", `${source}\n<img src="https://example.com/pic.jpg" alt="Remote">\n`, /remote image URLs are not permitted/],
+  ["raw image fragment URL is rejected while link fragments remain valid", `${source}\n<img src="#âncora-antiga" alt="Fragment">\n`, /images cannot use fragment-only URLs/],
   ["obfuscated URL", mutate("../../assets/sample/example.png", "j%61vascript%3Aalert(1)"), /unsafe URL/],
   ["encoded path escape", mutate("../../assets/sample/example.png", "%252e%252e/%252e%252e/private.png"), /escapes repository|beneath assets/],
   ["srcset unsafe URL", mutate("../../assets/sample/thumb.png?variant=small#preview 1x", "j%61vascript%3Aalert(1) 1x"), /unsafe URL/],
@@ -93,6 +143,19 @@ const failures = [
   ["Mermaid click word in node label remains valid", mutate("A[Markdown]", "A[click label]"), null],
   ["ID collision", mutate("[Ir para a âncora preservada](#âncora-antiga)", "## Colisao\n\n## Colisao"), /ID collision/]
 ];
+failures.push(...[
+  ["strong role button before opening prose", '<strong role="button">Play</strong>', /HTML component/],
+  ["wrapped formula class before opening prose", '<strong><span class="fgs-formula">x + y</span></strong>', /HTML component/],
+  ...[["U+200B", "\u200B"], ["U+200C", "\u200C"], ["U+200D", "\u200D"], ["U+2060", "\u2060"], ["U+202A", "\u202A"]].map(([codePoint, invisible]) => [
+    `invisible-only opening paragraph ${codePoint} before a button is rejected`,
+    `<p>${invisible}</p>\n\n<button type="button">Play</button>`,
+    /prose paragraph|HTML component/
+  ])
+].map(([name, prefix, expected]) => [
+  name,
+  mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", `${prefix}\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.`),
+  expected
+]));
 for (const [name, invalidSource, expected] of failures) {
   if (expected === null) {
     await compileMarkdownArticle({ source: invalidSource, ...context });
