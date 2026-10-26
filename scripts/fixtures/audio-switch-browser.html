@@ -28,7 +28,8 @@
   <script src="../../audio.js"></script>
   <script>
     const synthesis = window.speechSynthesis;
-    const devicePlayer = TechTopicsSpeech.mount({ document, synthesis, Utterance: SpeechSynthesisUtterance, dockMode: true });
+    const devicePlayer = TechTopicsSpeech.mount({ document, synthesis, Utterance: SpeechSynthesisUtterance, dockMode: true,
+      onStatus: snapshot => window.audioSwitchController?.deviceChanged(snapshot) });
     const chapters = devicePlayer.blocks.map((block, index) => ({ start: index * 10, block_index: index, sentence_index: 0 }));
     const audio = document.querySelector("#article-recording");
     window.audioSwitchController = TechTopicsAudio.createPlayer({

@@ -916,6 +916,17 @@ test("explicit source switches refuse unproved chapter mappings without disturbi
   assert.equal(reverse.devicePlayer.snapshot().state, "speaking");
   assert.equal(reverse.devicePlayer.snapshot().blockIndex, 2);
   assert.match(reverse.nodes["#recording-status"].textContent, /capítulos não correspondem ao texto/);
+
+  const unready = await playerFixture({ readyState: 0 });
+  unready.controller.beginDevice(2, true);
+  unready.devicePlayer.setRate(1.25);
+  unready.nodes["#listen-article"].click();
+  assert.equal(unready.controller.snapshot().mode, "device", "an unready MP3 cannot replace the selected device source");
+  assert.equal(unready.devicePlayer.snapshot().state, "paused", "unready retry leaves device playback paused");
+  assert.equal(unready.devicePlayer.snapshot().blockIndex, 2, "unready retry preserves device position");
+  assert.equal(unready.devicePlayer.getRate(), 1.25, "unready retry preserves speech rate");
+  assert.equal(unready.audio.currentTime, 0, "failed readiness check restores the recorded element position");
+  assert.match(unready.nodes["#recording-status"].textContent, /MP3 ainda não está pronto/);
 });
 
 test("sentence metadata v2 supports repeated editorial blocks with different timestamps", () => {

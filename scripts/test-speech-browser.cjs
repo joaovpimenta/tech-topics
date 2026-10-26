@@ -134,20 +134,32 @@ async function main() {
     });
     await switchPage.goto(`${base}/scripts/fixtures/audio-switch-browser.html`);
     await switchPage.waitForFunction(() => window.fixtureReady === true);
+    await switchPage.evaluate(() => {
+      const audio = document.querySelector("#article-recording");
+      Object.defineProperties(audio, {
+        duration: { configurable: true, value: 40 }, readyState: { configurable: true, value: 4 },
+        currentTime: { configurable: true, writable: true, value: 0 },
+        buffered: { configurable: true, value: { length: 1, start: () => 0, end: () => 40 } },
+        seekable: { configurable: true, value: { length: 1, start: () => 0, end: () => 40 } }
+      });
+    });
     await switchPage.locator("#listen-recording").click();
     await switchPage.waitForFunction(() => window.audioSwitchController?.snapshot().playing === true);
     await switchPage.evaluate(() => {
       const audio = document.querySelector("#article-recording");
-      audio.currentTime = 15;
+      audio.currentTime = 35;
       audio.dispatchEvent(new Event("timeupdate"));
     });
+    assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.currentTime), 35, "mock media preserves the requested chapter position");
     await switchPage.locator("#recording-rate").click();
+    assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.currentTime), 35, "changing playback rate retains the mocked MP3 position");
+    assert.equal(await switchPage.evaluate(() => window.audioSwitchController.snapshot().playing), true, "rate change leaves recorded playback active");
     await switchPage.locator("#listen-article").click();
-    assert.equal(await switchPage.locator("#recording-elapsed").innerText(), "2/4", "recorded to device retains the V2-mapped sentence");
+    assert.equal(await switchPage.locator("#recording-elapsed").innerText(), "4/4", "recorded to device retains the V2-mapped sentence");
     assert.equal(await switchPage.evaluate(() => window.testUtterances.at(-1).text), "Segundo trecho.");
     assert.equal(await switchPage.evaluate(() => window.testUtterances.at(-1).rate), 1.25);
     await switchPage.locator("#listen-article").click();
-    assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.currentTime), 10, "device to recorded seeks to the same validated V2 chapter");
+    assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.currentTime), 30, "device to recorded seeks to the same validated V2 chapter");
     assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.playbackRate), 1.25);
     await switchPage.locator("#recording-play").click();
     const pausedUtterances = await switchPage.evaluate(() => window.testUtterances.length);
@@ -157,7 +169,7 @@ async function main() {
     await switchPage.locator("#recording-play").click();
     assert.equal(await switchPage.locator("#recording-play").getAttribute("data-playing"), "true", "device speech resumes from the mapped sentence");
     await switchPage.locator("#listen-article").click();
-    assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.currentTime), 10);
+    assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.currentTime), 30);
     await switchPage.close();
     const racePage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     racePage.setDefaultTimeout(3000);

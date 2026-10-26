@@ -358,9 +358,15 @@
         return;
       }
       selectedRate = devicePlayer?.getRate?.() || selectedRate;
+      const previousPosition = audio.currentTime;
       audio.currentTime = chapters[chapterIndex].start;
       const wasSpeaking = deviceState.state === "speaking";
       if (!wasSpeaking) {
+        if (!mediaReadyAtCurrentPosition()) {
+          audio.currentTime = previousPosition;
+          setStatus("O MP3 ainda não está pronto neste capítulo. A voz do dispositivo continua pausada; tente novamente.");
+          return;
+        }
         cancelRecordedAttempt();
         mode = "recorded";
         open = true;
