@@ -516,9 +516,21 @@ function containsTag(node, expectedTag) {
   return Boolean(node?.tagName === expectedTag || (node?.childNodes ?? []).some(child => containsTag(child, expectedTag)));
 }
 
+function standaloneOpeningComponentTag(paragraph) {
+  const children = (paragraph.children ?? []).filter(node =>
+    !(node.type === "text" && !node.value.trim()) &&
+    !(node.type === "html" && /^<!--[\s\S]*-->$/.test(node.value.trim()))
+  );
+  if (children.length < 2) return null;
+  const opening = children[0].type === "html" && children[0].value.match(/^\s*<\s*(button|label|span)\b[^>]*>\s*$/i);
+  const closing = children.at(-1).type === "html" && children.at(-1).value.match(/^\s*<\/\s*(button|label|span)\s*>\s*$/i);
+  return opening && closing && opening[1].toLowerCase() === closing[1].toLowerCase() ? opening[1].toLowerCase() : null;
+}
+
 function firstProseNode(tree, location) {
   const first = tree.children.find(node => node.type !== "yaml" && node.type !== "html" && !(node.type === "paragraph" && !textContent(node).trim()));
   if (!first || first.type !== "paragraph") fail(location, "first content block after frontmatter must be a prose paragraph");
+  if (standaloneOpeningComponentTag(first)) fail(location, "opening content cannot be a standalone HTML component paragraph");
   let imageBeforeText = false;
   walk(first, node => { if (node.type === "image") imageBeforeText = true; });
   if (imageBeforeText) fail(location, "first prose paragraph cannot contain an image");

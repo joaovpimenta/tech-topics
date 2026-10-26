@@ -43,6 +43,11 @@ assert.match(footnote.slots.body, /<section data-footnotes="" class="footnotes">
 assert.match(footnote.slots.body, /class="data-footnote-backref"/);
 const externalLink = await compileMarkdownArticle({ source: `${source}\n[Site](https://example.com/pic.jpg)\n`, ...context });
 assert.match(externalLink.slots.body, /href="https:\/\/example\.com\/pic\.jpg"/);
+const inlineHtmlOpening = await compileMarkdownArticle({
+  source: source.replace("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "Uma conversa começa com <span lang=\"pt-BR\">uma observação</span> cotidiana e apresenta o conceito sem depender de outro bloco."),
+  ...context
+});
+assert.match(inlineHtmlOpening.slots.body, /^<p>Uma conversa começa com <span lang="pt-BR">uma observação<\/span> cotidiana/);
 const envelope = renderArticleEnvelope(compiled, { buildId: "build-2026-10-25" });
 assert.match(envelope, /^<article data-article-format="html-v1" data-article-slug="sample" data-build-id="build-2026-10-25"><h1 data-article-slot="heading">/);
 assert.equal((envelope.match(/data-article-slot="heading"/g) ?? []).length, 1);
@@ -76,6 +81,9 @@ const failures = [
   ["invalid calendar date", mutate("publishedAt: 2026-10-25", "publishedAt: 2026-02-30"), /real ISO/],
   ["missing tags", mutate("tags: [markdown, seguranca]\n", ""), /tags/],
   ["heading before prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "## Antes da prosa\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco."), /first content block/],
+  ["standalone button paragraph before opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<button type="button">Play</button>\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /standalone HTML component paragraph/],
+  ["standalone label paragraph before opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<label for="search">Buscar</label>\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /standalone HTML component paragraph/],
+  ["standalone span paragraph before opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<span class="article-back">Voltar</span>\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /standalone HTML component paragraph/],
   ["raw HTML image before opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", '<p><img src="../../assets/sample/example.png" alt="Antes da abertura"></p>\n\nUma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.'), /image or component cannot precede/],
   ["body h1 duplicates envelope hierarchy", mutate("## Uma seção", "# Uma seção"), /only h1/],
   ["raw HTML body h1 duplicates envelope hierarchy", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.\n\n<h1>Título duplicado</h1>"), /only h1/],
