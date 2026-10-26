@@ -554,6 +554,84 @@ test("metadata and seekability allow a bounded MP3 start attempt before buffered
   assert.equal(canceled.audio.paused, true, "late MP3 playback is paused to prevent overlap");
 });
 
+test("recorded playback requires both a start signal and buffered current-position readiness", async () => {
+  const range = { length: 1, start: () => 0, end: () => 105 };
+  const empty = { length: 0 };
+
+  let resolveNever;
+  const falseStart = await playerFixture({ readyState: 4, buffered: empty, seekable: range, playbackTimeoutMs: 10,
+    playPlan: audio => {
+      audio.paused = false;
+      return new Promise(resolve => { resolveNever = resolve; });
+    } });
+  const falseStartAttempt = falseStart.controller.play();
+  falseStart.audio.buffered = range;
+  falseStart.audio.dispatchEvent(new Event("progress"));
+  await falseStartAttempt;
+  assert.equal(falseStart.controller.snapshot().mode, "device",
+    "buffer progress without playing or a resolved play promise must not claim the MP3 started");
+  assert.equal(falseStart.audio.paused, true, "the timed out false start is paused before fallback");
+  assert.deepEqual(falseStart.starts, [0]);
+  resolveNever();
+  await Promise.resolve();
+
+  let rejectLate;
+  const lateRejection = await playerFixture({ readyState: 4, buffered: empty, seekable: range,
+    playPlan: () => new Promise((resolve, reject) => { rejectLate = reject; }) });
+  const lateRejectionAttempt = lateRejection.controller.play();
+  lateRejection.nodes["#listen-article"].click();
+  await lateRejectionAttempt;
+  rejectLate(new Error("late abort"));
+  await Promise.resolve();
+  assert.equal(lateRejection.controller.snapshot().mode, "device", "a late rejection cannot undo the explicit device choice");
+  assert.equal(lateRejection.audio.paused, true);
+  assert.deepEqual(lateRejection.starts, [0]);
+
+  let resolvePlayingEvent;
+  const eventStarted = await playerFixture({ readyState: 4, buffered: empty, seekable: range,
+    playPlan: audio => new Promise(resolve => {
+      resolvePlayingEvent = () => {
+        audio.paused = false;
+        audio.dispatchEvent(new Event("playing"));
+        resolve();
+      };
+    }) });
+  const eventStartAttempt = eventStarted.controller.play();
+  resolvePlayingEvent();
+  await Promise.resolve();
+  eventStarted.audio.buffered = range;
+  eventStarted.audio.dispatchEvent(new Event("progress"));
+  await eventStartAttempt;
+  assert.equal(eventStarted.controller.snapshot().mode, "recorded", "playing plus later data confirms without waiting for promise settlement");
+
+  for (const order of ["data-before-signal", "signal-before-data"]) {
+    let resolvePlay;
+    const fixture = await playerFixture({ readyState: 4, buffered: empty, seekable: range,
+      playPlan: audio => {
+        audio.paused = false;
+        return new Promise(resolve => { resolvePlay = resolve; });
+      } });
+    const attempt = fixture.controller.play();
+    if (order === "data-before-signal") {
+      fixture.audio.buffered = range;
+      fixture.audio.dispatchEvent(new Event("progress"));
+      assert.equal(fixture.controller.snapshot().recordedPending, true);
+      resolvePlay();
+    } else {
+      resolvePlay();
+      await Promise.resolve();
+      fixture.audio.dispatchEvent(new Event("playing"));
+      assert.equal(fixture.controller.snapshot().recordedPending, true);
+      fixture.audio.buffered = range;
+      fixture.audio.dispatchEvent(new Event("progress"));
+    }
+    await attempt;
+    assert.equal(fixture.controller.snapshot().mode, "recorded", `${order} confirms only after both signals`);
+    assert.equal(fixture.controller.snapshot().playing, true);
+    assert.deepEqual(fixture.starts, []);
+  }
+});
+
 test("device fallback keeps the real MP3 duration and never presents block counts as elapsed time", async () => {
   const noBufferedData = { length: 0 };
   const mapped = await playerFixture({ readyState: 2, buffered: noBufferedData, seekable: noBufferedData, fetchAudio: async () => ({

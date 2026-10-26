@@ -733,6 +733,7 @@
       return new Promise(resolve => {
         let settled = false;
         let started = false;
+        let startSignalReceived = false;
         let timer;
         const finish = result => {
           if (settled) return;
@@ -758,9 +759,12 @@
           if (isObsolete || mode !== "recorded" || !open) {
             if (!isObsolete || !hasRecordedIntent()) audio.pause();
             finish(false);
-          } else if (!audio.paused && !audio.ended && mediaReadyAtCurrentPosition()) finish(true);
+          } else if (startSignalReceived && !audio.paused && !audio.ended && mediaReadyAtCurrentPosition()) finish(true);
         };
-        const onPlaying = () => tryConfirmStart();
+        const onPlaying = () => {
+          startSignalReceived = true;
+          tryConfirmStart();
+        };
         cancelPendingPlayWait = cancel;
         audio.addEventListener("playing", onPlaying);
         for (const event of ["progress", "canplay", "timeupdate"]) audio.addEventListener(event, tryConfirmStart);
@@ -775,9 +779,9 @@
             finish(false);
             return;
           }
+          startSignalReceived = true;
           tryConfirmStart();
         }, () => finish(false));
-        if (result === undefined) tryConfirmStart();
       });
     }
     function fallbackToDevice(message, index, attempt, allowInitial = false) {
