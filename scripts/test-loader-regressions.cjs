@@ -219,7 +219,7 @@ async function main() {
         assert.equal(await page.locator("#article-actions").isVisible(), true, "missing Web Speech leaves article actions available");
       } else {
         assert(result.speechCalls > 0, `an unready/unknown MP3 must use available device speech: ${JSON.stringify(result)}`);
-        assert.equal(result.subtitle, "Tech Topics · Voz do dispositivo");
+        assert.match(result.subtitle, /^Tech Topics · Voz do dispositivo · trecho 1 de \d+$/, "device speech keeps its source label and reports the current phrase position");
       }
       if (["403", "429", "offline"].includes(mode)) {
         assert.equal(result.mediaPlayCalls, 0, `${mode} must not attempt unknown media`);
@@ -244,7 +244,7 @@ async function main() {
         releaseLookup();
         await sleep(100);
         const afterDiscovery = await page.evaluate(() => ({ speechCalls: window.__speechCalls, mediaPlayCalls: window.__mediaPlayCalls, subtitle: document.querySelector("#recording-subtitle")?.textContent }));
-        assert.deepEqual(afterDiscovery, { speechCalls: result.speechCalls, mediaPlayCalls: 0, subtitle: "Tech Topics · Voz do dispositivo" }, "late Release discovery cannot promote or restart an explicit local session");
+        assert.deepEqual(afterDiscovery, { speechCalls: result.speechCalls, mediaPlayCalls: 0, subtitle: result.subtitle }, "late Release discovery cannot promote, restart, or change phrase metadata in an explicit local session");
       }
       await page.close();
       return result;
