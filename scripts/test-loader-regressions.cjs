@@ -27,6 +27,8 @@ async function main() {
       const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
       await page.addInitScript(({ speech, play }) => {
         window.__speechCalls = 0;
+        window.__speechUtteranceTexts = [];
+        window.__speechCancelCalls = 0;
         window.__mediaPlayCalls = 0;
         window.__clickToSpeechMs = null;
         document.addEventListener("click", event => {
@@ -35,7 +37,7 @@ async function main() {
         if (speech !== "absent") {
           const voices = speech === "ready" ? [{ lang: "pt-BR", name: "Mock" }] : [];
           let voiceListener;
-          Object.defineProperty(window, "speechSynthesis", { configurable: true, value: { getVoices: () => voices, addEventListener(type, listener) { if (type === "voiceschanged") voiceListener = listener; }, speak(u) { window.__speechCalls++; u.onstart?.(); window.__clickToSpeechMs = performance.now() - window.__listenGestureAt; }, cancel() {}, pause() {}, resume() {}, dispatchEvent(event) { if (event.type === "voiceschanged") voiceListener?.(event); } } });
+          Object.defineProperty(window, "speechSynthesis", { configurable: true, value: { getVoices: () => voices, addEventListener(type, listener) { if (type === "voiceschanged") voiceListener = listener; }, speak(u) { window.__speechCalls++; window.__speechUtteranceTexts.push(u.text); u.onstart?.(); window.__clickToSpeechMs = performance.now() - window.__listenGestureAt; }, cancel() { window.__speechCancelCalls++; }, pause() {}, resume() {}, dispatchEvent(event) { if (event.type === "voiceschanged") voiceListener?.(event); } } });
           window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
           window.__testVoices = voices;
           window.__emitVoicesChanged = () => window.speechSynthesis.dispatchEvent(new Event("voiceschanged"));
@@ -157,7 +159,8 @@ async function main() {
     }
 
     async function audioCase(mode) {
-      const apiPending = mode === "pending";
+      const positiveLateMp3 = mode === "late-mp3";
+      const apiPending = mode === "pending" || positiveLateMp3;
       const mp3Discovered = mode === "mp3";
       const page = await pageWithMocks({ speech: mode.startsWith("no-speech") ? "absent" : mode === "empty-voices" || mode === "late-voices" ? "empty" : "ready", play: mode === "autoplay" ? "reject" : "pending" });
       let lookupPending = false;
@@ -166,7 +169,8 @@ async function main() {
       const heldLookup = new Promise(resolve => { releaseLookup = resolve; });
       const requestStarted = new Promise(resolve => { notifyStarted = resolve; });
       if (apiPending) {
-        await page.route("https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-*", async route => { lookupPending = true; notifyStarted(); await heldLookup; lookupPending = false; await route.fulfill({ status: 404, body: "{}" }); });
+        await page.route("https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-*", async route => { lookupPending = true; notifyStarted(); await heldLookup; lookupPending = false; await route.fulfill(positiveLateMp3 ? { status: 200, contentType: "application/json", body: JSON.stringify({ body: "", assets: [{ name: "consenso-raft.mp3", state: "uploaded" }] }) } : { status: 404, contentType: "application/json", body: "{}" }); });
+        if (positiveLateMp3) await page.route("https://github.com/joaovpimenta/tech-topics/releases/download/**", route => route.abort());
       } else if (mp3Discovered) {
         await page.route("https://api.github.com/repos/joaovpimenta/tech-topics/releases/tags/tts-*", route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ body: "", assets: [{ name: "consenso-raft.mp3", state: "uploaded" }] }) }));
         await page.route("https://github.com/joaovpimenta/tech-topics/releases/download/**", route => route.abort());
@@ -211,7 +215,7 @@ async function main() {
       await sleep(100);
       const statusBeforeFallbackTimeout = mode === "no-speech-mp3-unready" ? await page.locator("#recording-status").innerText() : null;
       if (mode === "no-speech-mp3-unready") await page.waitForFunction(() => document.querySelector("#recording-status")?.textContent.includes("MP3 ainda não iniciou"), null, { timeout: 3000 });
-      const result = { ...(await page.evaluate(() => ({ speechCalls: window.__speechCalls, mediaPlayCalls: window.__mediaPlayCalls, mediaReadyState: document.querySelector("#article-recording")?.readyState, subtitle: document.querySelector("#recording-subtitle")?.textContent, playing: document.querySelector("#recording-play")?.dataset.playing, clickToMockSpeechCallbackMs: window.__clickToSpeechMs }))), lookupPendingAtGesture: apiPending && lookupPending };
+      const result = { ...(await page.evaluate(() => ({ speechCalls: window.__speechCalls, speechUtteranceTexts: [...window.__speechUtteranceTexts], speechCancelCalls: window.__speechCancelCalls, mediaPlayCalls: window.__mediaPlayCalls, mediaReadyState: document.querySelector("#article-recording")?.readyState, mediaSrc: document.querySelector("#article-recording")?.src, subtitle: document.querySelector("#recording-subtitle")?.textContent, playing: document.querySelector("#recording-play")?.dataset.playing, clickToMockSpeechCallbackMs: window.__clickToSpeechMs }))), lookupPendingAtGesture: apiPending && lookupPending };
       if (mode.startsWith("no-speech")) {
         assert.equal(result.speechCalls, 0);
         assert.match(await page.locator("#recording-status").innerText(), mode === "no-speech-mp3-unready" ? /MP3 ainda não iniciou/i : /não oferece leitura por voz/i);
@@ -242,14 +246,24 @@ async function main() {
       if (apiPending) {
         assert.equal(result.lookupPendingAtGesture, true, "Release request must still be unresolved at the user gesture");
         releaseLookup();
-        await sleep(100);
-        const afterDiscovery = await page.evaluate(() => ({ speechCalls: window.__speechCalls, mediaPlayCalls: window.__mediaPlayCalls, subtitle: document.querySelector("#recording-subtitle")?.textContent }));
-        assert.deepEqual(afterDiscovery, { speechCalls: result.speechCalls, mediaPlayCalls: 0, subtitle: result.subtitle }, "late Release discovery cannot promote, restart, or change phrase metadata in an explicit local session");
+        if (positiveLateMp3) {
+          await page.waitForFunction(() => document.querySelector("#article-recording")?.src.includes("consenso-raft.mp3"));
+          const afterDiscovery = await page.evaluate(() => ({ speechCalls: window.__speechCalls, speechUtteranceTexts: [...window.__speechUtteranceTexts], speechCancelCalls: window.__speechCancelCalls, mediaPlayCalls: window.__mediaPlayCalls, mediaReadyState: document.querySelector("#article-recording")?.readyState, mediaSrc: document.querySelector("#article-recording")?.src, subtitle: document.querySelector("#recording-subtitle")?.textContent, playing: document.querySelector("#recording-play")?.dataset.playing }));
+          assert.equal(result.speechCalls, 1, "one click starts exactly one local voice source while Release is pending");
+          assert.equal(result.mediaReadyState, 0, "the recording has no media metadata before late discovery");
+          assert.deepEqual({ speechCalls: afterDiscovery.speechCalls, speechUtteranceTexts: afterDiscovery.speechUtteranceTexts, speechCancelCalls: afterDiscovery.speechCancelCalls, mediaPlayCalls: afterDiscovery.mediaPlayCalls, mediaReadyState: afterDiscovery.mediaReadyState, subtitle: afterDiscovery.subtitle, playing: afterDiscovery.playing }, { speechCalls: result.speechCalls, speechUtteranceTexts: result.speechUtteranceTexts, speechCancelCalls: result.speechCancelCalls, mediaPlayCalls: 0, mediaReadyState: 0, subtitle: result.subtitle, playing: result.playing }, "a positive late Release discovery cannot auto-promote to MP3, cancel/restart voice, or change the current phrase");
+          assert.equal(afterDiscovery.mediaSrc, "https://github.com/joaovpimenta/tech-topics/releases/download/tts-consenso-raft/consenso-raft.mp3", "the valid positive Release actually discovers the expected MP3");
+        } else {
+          await sleep(100);
+          const afterDiscovery = await page.evaluate(() => ({ speechCalls: window.__speechCalls, mediaPlayCalls: window.__mediaPlayCalls, subtitle: document.querySelector("#recording-subtitle")?.textContent }));
+          assert.deepEqual(afterDiscovery, { speechCalls: result.speechCalls, mediaPlayCalls: 0, subtitle: result.subtitle }, "late Release discovery cannot promote, restart, or change phrase metadata in an explicit local session");
+        }
       }
       await page.close();
       return result;
     }
     observations.push({ case: "release-api-pending", current: await audioCase("pending"), desiredContract: "Local speech starts on the first user gesture while lookup continues" });
+    observations.push({ case: "release-api-late-positive-mp3", current: await audioCase("late-mp3"), desiredContract: "A valid late MP3 discovery does not switch an already-started local voice session before P05" });
     observations.push({ case: "release-api-404-complete", current: await audioCase("404"), desiredContract: "Local speech starts after completed 404 lookup" });
     observations.push({ case: "mp3-discovered-media-not-ready-play-pending", current: await audioCase("mp3"), desiredContract: "Discovery does not imply readiness; start local speech if MP3 cannot begin" });
     for (const mode of ["403", "429", "offline", "autoplay", "no-speech", "no-speech-mp3-unready", "empty-voices", "late-voices"]) observations.push({ case: `release-${mode}`, current: await audioCase(mode) });
