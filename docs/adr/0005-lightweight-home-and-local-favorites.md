@@ -58,3 +58,9 @@ A home buscava `content/articles/index.json` e então todos os JSONs completos v
 - Em Android/WebKit, `:hover` pode continuar ativo no primeiro botão tocado, independentemente de a classe `is-targeted` ter mudado. Durante o gesto, o feedback visual depende **exclusivamente** de `is-targeted` e nunca de `:hover`; hover volta a valer só com ponteiro fino e fora de `data-gesture-active`.
 - O hit-test prefere o botão de centro mais próximo quando áreas ampliadas dos controles se sobrepõem. A ação ativa e o halo precisam acompanhar o dedo nas transições em ambas as direções, removendo sombra/escala do alvo anterior. Vibração ocorre na mudança de ação, não continuamente.
 - Regressão obrigatória em Chromium com toque: Ler → Favoritar → Compartilhar → Favoritar → Ler → Compartilhar → fora da área, verificando classe e `getComputedStyle().boxShadow` de **todos** os botões após cada transição. Conferir também em dispositivo Android real antes de mesclar.
+
+## Ajuste para ponteiro fino — 2026-10-26
+
+- Em desktop com `(hover: hover)` e `(pointer: fine)`, passar o cursor sobre um card abre as ações rápidas sem exigir pressão. O menu permanece aberto durante a passagem do card para suas ações e fecha ao sair da área, rolar a página ou pressionar Escape.
+- Ações continuam disponíveis por clique; o link do título mantém sua navegação normal. Enter/Espaço e Escape seguem disponíveis pelo teclado.
+- O gesto de pressão e arrasto permanece opcional com mouse e continua sendo o fluxo de toque em dispositivos com ponteiro coarse. Movimento touch antes do limite ainda permite rolagem normal.

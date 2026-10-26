@@ -85,14 +85,22 @@ async function shareArticle(article) {
   }
 }
 
-// The quick-action menu is transient for touch/mouse gestures: it stays visible
-// only while the original press is held. Keyboard access uses the same controls.
+// The quick-action menu is transient for hover and touch/mouse gestures.
+// Keyboard access uses the same controls.
 let gesture = null;
 let quickMode = null;
 let suppressedClickUntil = 0;
 let quickHint = null;
+let hoverOpenTimer = null;
+let hoverCloseTimer = null;
+let hoverCard = null;
 
 function closeQuickActions() {
+  clearTimeout(hoverOpenTimer);
+  clearTimeout(hoverCloseTimer);
+  hoverOpenTimer = null;
+  hoverCloseTimer = null;
+  hoverCard = null;
   if (quickActions) {
     quickActions.hidden = true;
     quickActions.replaceChildren();
@@ -105,6 +113,25 @@ function closeQuickActions() {
   quickHint = null;
   quickMode = null;
   document.body.classList.remove("quick-gesture-active");
+}
+
+function scheduleHoverClose() {
+  clearTimeout(hoverCloseTimer);
+  hoverCloseTimer = setTimeout(() => {
+    if (quickMode !== "hover" || hoverCard?.matches(":hover") || quickActions?.matches(":hover")) return;
+    closeQuickActions();
+  }, 180);
+}
+
+if (quickActions) {
+  quickActions.addEventListener("pointerenter", event => {
+    if (event.pointerType !== "mouse" || quickMode !== "hover") return;
+    clearTimeout(hoverCloseTimer);
+    hoverCloseTimer = null;
+  });
+  quickActions.addEventListener("pointerleave", event => {
+    if (event.pointerType === "mouse" && quickMode === "hover") scheduleHoverClose();
+  });
 }
 
 function quickActionAt(x, y, slop = 0) {
@@ -158,7 +185,7 @@ function highlightQuickAction(x, y) {
   return hovered;
 }
 
-function openQuickActions(article, favoriteButton, x, y, mode = "gesture") {
+function openQuickActions(article, favoriteButton, x, y, mode = "gesture", sourceCard = null) {
   if (!quickActions) return;
   closeQuickActions();
   const cover = element("img", "quick-cover");
@@ -202,6 +229,7 @@ function openQuickActions(article, favoriteButton, x, y, mode = "gesture") {
   quickActions.replaceChildren(cover, title, summary, controls);
   quickActions.hidden = false;
   quickMode = mode;
+  if (mode === "hover") hoverCard = sourceCard;
   if (mode === "gesture") quickActions.dataset.gestureActive = "";
   else delete quickActions.dataset.gestureActive;
 
@@ -211,6 +239,7 @@ function openQuickActions(article, favoriteButton, x, y, mode = "gesture") {
   const viewportW = window.innerWidth || document.documentElement.clientWidth;
   const viewportH = window.innerHeight || document.documentElement.clientHeight;
   const popupWidth = quickActions.getBoundingClientRect().width || 300;
+  const popupHeight = quickActions.getBoundingClientRect().height || 0;
   const left = Math.min(Math.max(10, x - popupWidth / 2), Math.max(10, viewportW - popupWidth - 10));
   const maxHeight = Math.min(500, viewportH - 24);
   const below = mode === "gesture" && y < 260;
@@ -222,7 +251,16 @@ function openQuickActions(article, favoriteButton, x, y, mode = "gesture") {
   quickActions.classList.toggle("quick-actions-compact", mode === "gesture" && !below && height < 355);
   const top = below ? y + 12 : mode === "gesture"
     ? Math.min(Math.max(12, y - height + 12), Math.max(12, viewportH - height - 12))
-    : Math.min(Math.max(12, y - height + 48), Math.max(12, viewportH - height - 12));
+    : mode === "hover"
+      ? (() => {
+          const cardBounds = sourceCard?.getBoundingClientRect();
+          const spaceAbove = cardBounds ? cardBounds.top - 24 : y - popupHeight - 12;
+          const spaceBelow = cardBounds ? viewportH - cardBounds.bottom - 24 : viewportH - y - popupHeight - 24;
+          if (spaceBelow >= popupHeight) return cardBounds.bottom + 12;
+          if (spaceAbove >= popupHeight) return cardBounds.top - popupHeight - 12;
+          return spaceBelow >= spaceAbove ? Math.max(12, viewportH - popupHeight - 12) : 12;
+        })()
+      : Math.min(Math.max(12, y - height + 48), Math.max(12, viewportH - height - 12));
   if (below) hint.textContent = "Arraste para baixo até uma ação e solte. Solte fora para fechar.";
   quickActions.style.left = left + "px";
   quickActions.style.top = top + "px";
@@ -236,7 +274,7 @@ function openQuickActions(article, favoriteButton, x, y, mode = "gesture") {
   };
   for (const button of controls.children) {
     button.addEventListener("click", () => {
-      if (quickMode === "keyboard") perform(button.dataset.quickAction);
+      if (quickMode === "keyboard" || quickMode === "hover") perform(button.dataset.quickAction);
     });
   }
   // Gesture actions are resolved on release, not via a synthetic click.
@@ -335,8 +373,11 @@ document.addEventListener("click", event => {
   }
 }, true);
 document.addEventListener("keydown", event => {
-  if (event.key === "Escape" && quickMode === "keyboard") closeQuickActions();
+  if (event.key === "Escape" && quickMode) closeQuickActions();
 });
+document.addEventListener("scroll", () => {
+  if (quickMode === "hover") closeQuickActions();
+}, { capture: true, passive: true });
 document.addEventListener("pointerdown", event => {
   if (quickMode === "keyboard" && !quickActions.contains(event.target)) closeQuickActions();
 });
@@ -344,7 +385,7 @@ document.addEventListener("pointerdown", event => {
 function articleCard(article, index) {
   const card = element("article", "recent-item");
   card.tabIndex = 0;
-  card.setAttribute("aria-label", "Ações rápidas para " + article.title + ": segure ou pressione Enter");
+  card.setAttribute("aria-label", "Ações rápidas para " + article.title + ": passe o cursor, segure ou pressione Enter");
   const imageLink = element("a", "recent-image image-link");
   imageLink.href = articleUrl(article);
   imageLink.setAttribute("aria-label", "Ler " + article.title);
@@ -400,6 +441,22 @@ function articleCard(article, index) {
   card.addEventListener("pointerdown", event => {
     if (event.pointerType === "touch" || event.button !== 0 || event.target.closest("button")) return;
     armGesture(article, like, event.clientX, event.clientY, "pointer", event.pointerId);
+  });
+  card.addEventListener("pointerenter", event => {
+    if (event.pointerType !== "mouse" || !matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    clearTimeout(hoverCloseTimer);
+    clearTimeout(hoverOpenTimer);
+    hoverOpenTimer = setTimeout(() => {
+      if (!card.matches(":hover")) return;
+      const bounds = card.getBoundingClientRect();
+      openQuickActions(article, like, bounds.left + bounds.width / 2, bounds.bottom, "hover", card);
+    }, 140);
+  });
+  card.addEventListener("pointerleave", event => {
+    if (event.pointerType !== "mouse") return;
+    clearTimeout(hoverOpenTimer);
+    hoverOpenTimer = null;
+    if (hoverCard === card && quickMode === "hover") scheduleHoverClose();
   });
   card.addEventListener("contextmenu", event => {
     if (!event.target.closest("button")) event.preventDefault();
