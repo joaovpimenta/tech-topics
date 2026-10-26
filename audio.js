@@ -268,6 +268,10 @@
       }
     }
     function attachChapters() {
+      // A new response invalidates any correspondence established by an
+      // earlier chapter catalog, even when the replacement cannot be mapped.
+      chapterNodes = [];
+      chapterWords = [];
       const elements = readingNodes(document);
       const sentenceMode = chapters.every(chapter => chapter.sentenceIndex !== null);
       if (sentenceMode) {
@@ -604,7 +608,7 @@
       }
       cancelRecordedAttempt();
       audio.pause();
-      if (devicePlayer) {
+      if (devicePlayer && Number.isInteger(index) && index >= 0 && index < devicePlayer.blocks.length) {
         setStatus(message);
         beginDevice(index);
       } else {
@@ -612,7 +616,9 @@
         open = false;
         clearSession();
         clearHighlight();
-        setStatus("O MP3 ainda não iniciou. Verifique a conexão e tente novamente.");
+        setStatus(devicePlayer
+          ? "Falha no MP3. A voz do dispositivo não foi iniciada porque os capítulos não correspondem ao texto."
+          : "O MP3 ainda não iniciou. Verifique a conexão e tente novamente.");
         render();
       }
     }
@@ -815,7 +821,8 @@
             catch (_) { chapters = []; }
           }
         }
-        if (chapters.length) attachChapters();
+        // Even an empty or replaced catalog invalidates a prior DOM mapping.
+        attachChapters();
         render();
       } catch (_) {
         setStatus("Não foi possível verificar se existe áudio gravado.");

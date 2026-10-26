@@ -672,6 +672,75 @@ test("media error during active MP3 playback falls back at the current chapter",
   assert.equal(fixture.controller.snapshot().mode, "device");
 });
 
+test("MP3 errors with no proven chapter mapping stop safely without guessing device block zero", async () => {
+  const unavailableMapping = async () => ({ url: "https://example.org/bulkhead.mp3",
+    chapters: [{ start: 0 }, { start: 30 }] });
+  const active = await playerFixture({ fetchAudio: unavailableMapping });
+  await active.controller.play();
+  active.audio.currentTime = 85;
+  active.audio.playbackRate = 1.25;
+  active.audio.dispatchEvent(new Event("error"));
+  assert.deepEqual(active.starts, [], "no synthetic block is guessed when the chapter mapping is absent");
+  assert.equal(active.controller.snapshot().mode, null);
+  assert.equal(active.audio.paused, true);
+  assert.equal(active.audio.currentTime, 85, "the advanced MP3 position is left intact");
+  assert.equal(active.audio.playbackRate, 1.25);
+  assert.equal(active.devicePlayer.snapshot().state, "idle", "no device reader session is invented");
+  assert.match(active.nodes["#recording-status"].textContent, /capítulos não correspondem ao texto/);
+
+  let resolveLate;
+  const pending = await playerFixture({ playbackTimeoutMs: 1000, fetchAudio: unavailableMapping,
+    playPlan: audio => {
+      audio.paused = false;
+      audio.dispatchEvent(new Event("play"));
+      return new Promise(resolve => {
+        resolveLate = () => {
+          audio.paused = false;
+          audio.dispatchEvent(new Event("playing"));
+          resolve();
+        };
+      });
+    } });
+  pending.audio.currentTime = 85;
+  const attempt = pending.controller.play();
+  assert.equal(pending.controller.snapshot().recordedPending, true);
+  pending.audio.playbackRate = 1.5;
+  pending.audio.dispatchEvent(new Event("error"));
+  await attempt;
+  assert.deepEqual(pending.starts, [], "pending failure does not guess block zero");
+  assert.equal(pending.controller.snapshot().mode, null);
+  assert.equal(pending.audio.paused, true);
+  assert.equal(pending.audio.currentTime, 85);
+  assert.equal(pending.audio.playbackRate, 1.5);
+  assert.match(pending.nodes["#recording-status"].textContent, /capítulos não correspondem ao texto/);
+  resolveLate();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.deepEqual(pending.starts, [], "a late playing event cannot launch an unmapped device block");
+  assert.equal(pending.controller.snapshot().mode, null);
+  assert.equal(pending.audio.paused, true);
+
+  const valid = { url: "https://example.org/bulkhead.mp3", chapters: [
+    { start: 0, block_index: 0, sentence_index: 0 },
+    { start: 30, block_index: 1, sentence_index: 0 },
+    { start: 80, block_index: 2, sentence_index: 0 }
+  ] };
+  const stale = { ...valid, chapters: valid.chapters.map(chapter => ({ ...chapter, block_index: chapter.block_index + 10 })) };
+  let catalog = valid;
+  const refreshed = await playerFixture({ fetchAudio: async () => catalog });
+  await refreshed.controller.play();
+  catalog = stale;
+  await refreshed.controller.discover();
+  refreshed.audio.currentTime = 85;
+  refreshed.audio.playbackRate = 1.75;
+  refreshed.audio.dispatchEvent(new Event("error"));
+  assert.deepEqual(refreshed.starts, [], "an invalid replacement catalog cannot reuse the old text mapping");
+  assert.equal(refreshed.controller.snapshot().mode, null);
+  assert.equal(refreshed.audio.currentTime, 85);
+  assert.equal(refreshed.audio.playbackRate, 1.75);
+  assert.match(refreshed.nodes["#recording-status"].textContent, /não correspondem ao texto/);
+});
+
 test("exact chapter timestamps highlight and auto-scroll the corresponding paragraph; click seeks", async () => {
   const ids = ["listen-recording", "recording-player", "recording-title", "recording-subtitle",
     "recording-cover", "recording-ring", "recording-play", "recording-previous",
