@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const { spawnSync } = require("node:child_process");
 const { createServer } = require("node:http");
 const { readFile } = require("node:fs/promises");
 const path = require("node:path");
@@ -263,6 +264,14 @@ async function main() {
     await browser?.close();
     await new Promise(resolve => server.close(resolve));
   }
+
+  const historyMatrix = spawnSync(process.execPath, [path.join(__dirname, "test-pwa-history-browser.cjs")], {
+    cwd: root,
+    env: process.env,
+    stdio: "inherit"
+  });
+  if (historyMatrix.error) throw historyMatrix.error;
+  if (historyMatrix.status !== 0) throw new Error(`Historical PWA matrix failed with exit code ${historyMatrix.status}`);
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });
