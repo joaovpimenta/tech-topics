@@ -150,7 +150,6 @@
           const button = document.createElement("button");
           button.type = "button";
           button.textContent = "Atualizar agora";
-          button.setAttribute("aria-label", "Atualizar agora o Tech Topics nesta aba");
           button.addEventListener("click", requestUpdate);
           const status = document.createElement("span");
           status.setAttribute("data-update-status", "");

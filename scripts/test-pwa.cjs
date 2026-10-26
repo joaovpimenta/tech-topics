@@ -432,7 +432,8 @@ async function testPwaUpdateRequiresUserAction() {
   assert.equal(button.tagName, "button");
   assert.equal(button.type, "button");
   assert.equal(button.textContent, "Atualizar agora");
-  assert.equal(button.attrs["aria-label"], "Atualizar agora o Tech Topics nesta aba");
+  assert.equal(button.attrs["aria-label"], undefined,
+    "the button's accessible name follows its visible action label");
   assert.match(message.textContent, /outras abas continuarão abertas/);
   assert.equal(updateRequests, 0, "waiting for installation has no activation side effects before the click");
   assert.equal(reloads, 0);
@@ -465,6 +466,8 @@ async function testPwaUpdateRequiresUserAction() {
   assert.equal(reloads, 0, "media that starts before reload is not interrupted");
   assert.equal(button.disabled, false);
   assert.equal(button.textContent, "Aplicar atualização");
+  assert.equal(button.attrs["aria-label"], undefined,
+    "the accessible name changes with the apply-update label");
   assert.match(notice.children[2].textContent, /Quando a leitura ou reprodução terminar/);
   assert.match(notice.children[2].textContent, /clique em “Aplicar atualização” nesta aba/);
   audioPlaying = false;
