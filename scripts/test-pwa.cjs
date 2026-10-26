@@ -341,19 +341,37 @@ async function testCacheKeysFailureKeepsExistingClients() {
   assert.equal(claimed, false, "unknown cache state never claims clients from an older version");
 }
 
-async function testPwaUpdateWaitsForClosedTabs() {
+async function testPwaUpdateRequiresUserAction() {
   const windowHandlers = {};
   const workerHandlers = {};
   let reloads = 0;
+  let updateRequests = 0;
+  let audioPlaying = false;
   const children = [];
   const element = tagName => ({
     tagName,
-    style: {}, hidden: false, disabled: false, children: [], attrs: {},
+    style: {}, hidden: false, disabled: false, children: [], attrs: {}, listeners: {},
     setAttribute(name, value) { this.attrs[name] = value; },
-    append(...items) { this.children.push(...items); }
+    append(...items) { this.children.push(...items); },
+    addEventListener(type, handler) { this.listeners[type] = handler; },
+    querySelector(selector) {
+      if (selector === "button") return this.children.find(child => child.tagName === "button") || null;
+      if (selector === "[data-update-status]") return this.children.find(child => child.attrs["data-update-status"] !== undefined) || null;
+      return null;
+    }
   });
   const body = { append(child) { children.push(child); } };
-  const waiting = { state: "installed", addEventListener(type, handler) { workerHandlers[type] = handler; } };
+  const responsePort = { onmessage: null, close() {} };
+  class MessageChannelMock { constructor() { this.port1 = responsePort; this.port2 = { peer: responsePort }; } }
+  const waiting = {
+    state: "installed",
+    addEventListener(type, handler) { workerHandlers[type] = handler; },
+    postMessage(message, ports) {
+      assert.equal(message.type, "TECH_TOPICS_ACTIVATE_UPDATE");
+      updateRequests++;
+      this.responsePort = ports[0].peer;
+    }
+  };
   const registration = {
     waiting, installing: null,
     addEventListener() {}
@@ -361,38 +379,62 @@ async function testPwaUpdateWaitsForClosedTabs() {
   const navigator = {
     serviceWorker: {
       controller: {},
+      addEventListener(type, handler) { workerHandlers[`serviceWorker:${type}`] = handler; },
       register: async () => registration
     }
   };
   const window = {
     location: { href: "https://example.com/tech-topics/article.html?slug=bulkhead#limits", reload() { reloads++; } },
-    speechSynthesis: { speaking: false, pending: false },
+    speechSynthesis: { speaking: false, pending: false }, MessageChannel: MessageChannelMock,
     addEventListener(type, handler) { windowHandlers[type] = handler; }
   };
   const document = {
     body,
     querySelector() { return null; },
+    querySelectorAll(selector) { return selector === "audio, video" && audioPlaying ? [{ paused: false, ended: false }] : []; },
     getElementById(id) { return children.find(child => child.id === id) || null; },
     createElement: element
   };
-  vm.runInNewContext(readFileSync("pwa.js", "utf8"), { document, window, navigator, console });
+  vm.runInNewContext(readFileSync("pwa.js", "utf8"), { document, window, navigator, console, setTimeout, clearTimeout });
   windowHandlers.load();
   await new Promise(setImmediate);
   workerHandlers.statechange();
   const notice = children[0];
   const message = notice.children[0];
+  const button = notice.children[1];
   assert.equal(notice.attrs.role, "status");
   assert.equal(notice.attrs["aria-live"], "polite");
-  assert.equal(notice.children.length, 1, "update notice has no action that can activate or reload other tabs");
-  assert.match(message.textContent, /feche todas as abas do Tech Topics/);
-  assert.match(message.textContent, /leitura ou reprodução/);
+  assert.equal(notice.children.length, 3, "the waiting notice offers a button and a live status");
+  assert.equal(button.tagName, "button");
+  assert.equal(button.type, "button");
+  assert.equal(button.textContent, "Atualizar agora");
+  assert.equal(button.attrs["aria-label"], "Atualizar agora o Tech Topics nesta aba");
+  assert.match(message.textContent, /outras abas continuarão abertas/);
+  assert.equal(updateRequests, 0, "waiting for installation has no activation side effects before the click");
+  assert.equal(reloads, 0);
+
   window.speechSynthesis.speaking = true;
-  assert.equal(reloads, 0, "the service worker never reloads while Web Speech is playing");
-  document.querySelectorAll = () => [{ paused: false, ended: false }];
-  assert.equal(reloads, 0, "the service worker never reloads while recorded audio is playing");
+  button.listeners.click();
+  assert.equal(updateRequests, 0, "device speech blocks the initiating tab's update action");
+  assert.match(notice.children[2].textContent, /Aguarde o fim da leitura/);
+  window.speechSynthesis.speaking = false;
+  audioPlaying = true;
+  button.listeners.click();
+  assert.equal(updateRequests, 0, "recorded playback blocks the initiating tab's update action");
+  audioPlaying = false;
+  button.listeners.click();
+  button.listeners.click();
+  assert.equal(updateRequests, 1, "duplicate clicks send only one activation request");
+  assert.equal(button.disabled, true);
+  assert.equal(reloads, 0, "the tab does not reload before activation is confirmed");
+  waiting.responsePort.onmessage({ data: { ok: true } });
+  assert.equal(reloads, 0, "the worker acknowledgement alone does not reload before activation");
+  waiting.state = "activated";
+  workerHandlers.statechange();
+  assert.equal(reloads, 1, "the requesting tab reloads only after the worker is active");
   assert.equal(window.location.href, "https://example.com/tech-topics/article.html?slug=bulkhead#limits",
-    "waiting for every tab to close preserves the current page's slug and hash");
-  assert.equal(children.length, 1, "one tab receives one update notice");
+    "the initiating tab reload preserves the current URL, including slug and hash");
+  assert.equal(children.length, 1, "one update notice is created in this tab");
 }
 
 async function testOrdering() {
@@ -717,7 +759,7 @@ async function testOrdering() {
   await testFailedInstallPreservesActiveCache();
   await testFirstInstallClaimsWithoutReload();
   await testCacheKeysFailureKeepsExistingClients();
-  await testPwaUpdateWaitsForClosedTabs();
+  await testPwaUpdateRequiresUserAction();
   await testOrdering();
   console.log("PASS: versioned cache retention, shell-bound asset query normalization, quota-safe install, natural updates, offline fallback, favorites and ordering.");
 })().catch(error => { console.error(error); process.exitCode = 1; });

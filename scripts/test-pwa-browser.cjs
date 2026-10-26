@@ -16,6 +16,28 @@ const deployments = {
   rollbackA: { directory: "a", cacheVersion: "a1" }
 };
 
+function testWaveDataUri(durationSeconds = 30) {
+  const sampleRate = 8000;
+  const samples = sampleRate * durationSeconds;
+  const wav = Buffer.alloc(44 + samples * 2);
+  wav.write("RIFF", 0);
+  wav.writeUInt32LE(wav.length - 8, 4);
+  wav.write("WAVEfmt ", 8);
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(sampleRate, 24);
+  wav.writeUInt32LE(sampleRate * 2, 28);
+  wav.writeUInt16LE(2, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.write("data", 36);
+  wav.writeUInt32LE(samples * 2, 40);
+  for (let index = 0; index < samples; index++) {
+    wav.writeInt16LE(Math.round(Math.sin(2 * Math.PI * 440 * index / sampleRate) * 8000), 44 + index * 2);
+  }
+  return `data:audio/wav;base64,${wav.toString("base64")}`;
+}
+
 async function main() {
   let chromium;
   try { ({ chromium } = require(process.env.TECH_TOPICS_PLAYWRIGHT || "playwright")); }
@@ -77,6 +99,8 @@ async function main() {
     async function newPage(pathname, expectedVersion) {
       const page = await context.newPage();
       await page.addInitScript(() => {
+        window.__pageLoads = Number(sessionStorage.getItem("__pageLoads") || 0) + 1;
+        sessionStorage.setItem("__pageLoads", String(window.__pageLoads));
         window.__controllerChanges = 0;
         navigator.serviceWorker?.addEventListener("controllerchange", () => { window.__controllerChanges++; });
       });
@@ -206,12 +230,59 @@ async function main() {
     assert.equal(networkReads.filter(item => item.pathname === "/content/articles/unvisited.json").length, 1,
       "the first miss is stored by A and later reads remain within A's cache");
 
+    const peerAudioSource = testWaveDataUri();
+    await pageAArticle.evaluate(async source => {
+      const audio = document.createElement("audio");
+      audio.id = "update-peer-audio";
+      audio.muted = true;
+      audio.src = source;
+      document.body.append(audio);
+      await audio.play();
+      window.__updatePeerAudio = audio;
+    }, peerAudioSource);
+    await pageAArticle.waitForFunction(() => window.__updatePeerAudio.currentTime > 0.2);
+    const playbackStart = await pageAArticle.evaluate(() => window.__updatePeerAudio.currentTime);
+    const peerUrlBeforeUpdate = pageAArticle.url();
+
+    await pageAHome.waitForFunction(() => Boolean(document.querySelector("#pwa-update-notice button")), null, { timeout: 5000 });
+    assert.equal(await pageAHome.evaluate(() => document.querySelector("#pwa-update-notice button").textContent), "Atualizar agora");
+    await pageAHome.locator("#pwa-update-notice button").click();
+    await pageAHome.waitForFunction(() => document.body.dataset.shellVersion === "B", null, { timeout: 12000 });
+    assert.equal(await pageAHome.evaluate(() => window.__pageLoads), 2,
+      "the requesting tab reloads after the new worker activates");
+    assert.equal(await pageAArticle.evaluate(() => window.__articleBoots), 1,
+      "another open tab is never force-reloaded by the explicit update action");
+    assert.equal(await pageAArticle.evaluate(() => window.__playbackActive), true,
+      "playback in the other tab continues through activation");
+    assert.equal(pageAArticle.url(), peerUrlBeforeUpdate,
+      "the other tab remains at its original URL without an automatic navigation");
+    const peerAfterControllerChange = await pageAArticle.evaluate(async () => {
+      const article = await (await fetch("content/articles/known.json")).json();
+      return {
+        shell: document.body.dataset.shellVersion,
+        boots: window.__articleBoots,
+        controllerChanges: window.__controllerChanges - window.__controllerChangesAtReady,
+        audioPaused: window.__updatePeerAudio.paused,
+        audioTime: window.__updatePeerAudio.currentTime,
+        articleBody: article.body
+      };
+    });
+    assert.equal(peerAfterControllerChange.shell, "A", "the already-loaded peer retains its original shell");
+    assert.equal(peerAfterControllerChange.boots, 1, "the peer document is not booted again");
+    assert.ok(peerAfterControllerChange.controllerChanges >= 1,
+      "skipWaiting updates the peer's controller without reloading its page");
+    assert.equal(peerAfterControllerChange.audioPaused, false, "the peer's actual media element keeps playing");
+    assert.ok(peerAfterControllerChange.audioTime > playbackStart + 0.5,
+      "the peer media clock continues advancing through activation and a new-worker request");
+    assert.equal(peerAfterControllerChange.articleBody, "Artigo conhecido B",
+      "a representative request through the new controller remains a valid article response");
+
     await pageAArticle.close();
     const stillWaiting = await pageAHome.evaluate(async () => {
       const registration = await navigator.serviceWorker.getRegistration();
-      return registration?.waiting?.state;
+      return registration?.waiting?.state ?? null;
     });
-    assert.equal(stillWaiting, "installed", "closing one of two A tabs does not activate B");
+    assert.equal(stillWaiting, null, "the explicit update has activated B without closing every old tab");
     await pageAHome.close();
 
     const pageB = await newPage("/article.html?slug=known", "B");

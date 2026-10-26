@@ -67,6 +67,19 @@ self.addEventListener("install", event => {
   })());
 });
 
+self.addEventListener("message", event => {
+  if (event.data?.type !== "TECH_TOPICS_ACTIVATE_UPDATE" || !event.ports?.[0]) return;
+  const responsePort = event.ports[0];
+  event.waitUntil((async () => {
+    try {
+      await self.skipWaiting();
+      responsePort.postMessage({ ok: true });
+    } catch (error) {
+      responsePort.postMessage({ ok: false });
+    }
+  })());
+});
+
 self.addEventListener("activate", event => {
   event.waitUntil((async () => {
     // Fail closed: if cache state cannot be read, do not claim old tabs.
