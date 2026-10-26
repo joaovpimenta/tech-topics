@@ -27,6 +27,7 @@ async function testWorker() {
   let cacheAccessFails = false;
   let claimed = false;
   let skipWaitingCalls = 0;
+  let skipWaitingFails = false;
   let matchAllCalls = 0;
   const updateMessages = [];
   const windows = [
@@ -41,7 +42,10 @@ async function testWorker() {
     self: {
       location: { href: "https://example.com/tech-topics/sw.js" },
       addEventListener(name, fn) { handlers[name] = fn; },
-      async skipWaiting() { skipWaitingCalls++; }, clients: {
+      async skipWaiting() {
+        skipWaitingCalls++;
+        if (skipWaitingFails) throw new Error("activation unavailable");
+      }, clients: {
         async claim() { claimed = true; },
         async matchAll() { matchAllCalls++; return windows; }
       }
@@ -96,6 +100,26 @@ async function testWorker() {
   assert.equal(matchAllCalls, 0, "the new worker does not take over or notify existing tabs during activation");
   assert.equal(updateMessages.length, 0, "activation does not claim that old tabs have updated");
   assert.equal(skipWaitingCalls, 0, "updates wait for the browser's natural service-worker lifecycle");
+  let updateResponse;
+  const sendUpdateMessage = async () => {
+    let messagePending;
+    handlers.message({
+      data: { type: "TECH_TOPICS_ACTIVATE_UPDATE" },
+      ports: [{ postMessage(value) { updateResponse = value; } }],
+      waitUntil(promise) { messagePending = promise; }
+    });
+    await messagePending;
+  };
+  handlers.message({ data: { type: "UNRELATED" }, ports: [{ postMessage() { assert.fail("unrelated message got a response"); } }], waitUntil() {} });
+  assert.equal(skipWaitingCalls, 0, "the worker ignores unrelated messages");
+  skipWaitingFails = true;
+  await sendUpdateMessage();
+  assert.equal(updateResponse.ok, false, "activation errors are reported to the initiating page");
+  assert.equal(claimed, false, "the explicit update command never calls clients.claim");
+  skipWaitingFails = false;
+  await sendUpdateMessage();
+  assert.equal(updateResponse.ok, true, "the explicit update command acknowledges skipWaiting");
+  assert.equal(skipWaitingCalls, 2, "skipWaiting runs only for explicit update messages");
   async function request(path, navigate = false) {
     let response;
     handlers.fetch({ request: { url: `https://example.com${path}`, method: "GET", mode: navigate ? "navigate" : "cors" },
@@ -427,10 +451,24 @@ async function testPwaUpdateRequiresUserAction() {
   assert.equal(updateRequests, 1, "duplicate clicks send only one activation request");
   assert.equal(button.disabled, true);
   assert.equal(reloads, 0, "the tab does not reload before activation is confirmed");
+  waiting.responsePort.onmessage({ data: { ok: false } });
+  assert.equal(button.disabled, false, "an activation error re-enables the button for retry");
+  assert.match(notice.children[2].textContent, /Não foi possível ativar/);
+  assert.equal(reloads, 0, "an activation error never reloads the page");
+  button.listeners.click();
+  assert.equal(updateRequests, 2, "the user can retry after an activation error");
   waiting.responsePort.onmessage({ data: { ok: true } });
   assert.equal(reloads, 0, "the worker acknowledgement alone does not reload before activation");
+  audioPlaying = true;
   waiting.state = "activated";
   workerHandlers.statechange();
+  assert.equal(reloads, 0, "media that starts before reload is not interrupted");
+  assert.equal(button.disabled, false);
+  assert.equal(button.textContent, "Aplicar atualização");
+  assert.match(notice.children[2].textContent, /Quando a leitura ou reprodução terminar/);
+  assert.match(notice.children[2].textContent, /clique em “Aplicar atualização” nesta aba/);
+  audioPlaying = false;
+  button.listeners.click();
   assert.equal(reloads, 1, "the requesting tab reloads only after the worker is active");
   assert.equal(window.location.href, "https://example.com/tech-topics/article.html?slug=bulkhead#limits",
     "the initiating tab reload preserves the current URL, including slug and hash");
