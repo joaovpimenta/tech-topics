@@ -1,0 +1,20 @@
+{
+  "name": "tech-topics-markdown-compiler",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test:markdown-article": "node scripts/test-markdown-article.mjs"
+  },
+  "dependencies": {
+    "parse5": "8.0.1",
+    "rehype-raw": "7.0.0",
+    "rehype-sanitize": "6.0.0",
+    "rehype-stringify": "10.0.1",
+    "remark-frontmatter": "5.0.0",
+    "remark-gfm": "4.0.1",
+    "remark-parse": "11.0.0",
+    "remark-rehype": "11.1.2",
+    "unified": "11.0.5",
+    "yaml": "2.8.3"
+  }
+}

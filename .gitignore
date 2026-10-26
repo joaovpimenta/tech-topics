@@ -12,3 +12,4 @@ __pycache__/
 
 ## Generated public artifact
 dist/
+node_modules/
