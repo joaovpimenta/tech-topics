@@ -1,5 +1,9 @@
 # Baseline de performance — P01 (histórica)
 
+## Comparação P06
+
+O relatório da comparação dos seis primeiros cards estáticos, com os SHAs exatos medidos, hashes da evidência, custos de transferência e limites, está em [p06-comparison.md](p06-comparison.md). A medição refere-se aos SHAs históricos registrados nele; não representa o código após a integração dos PRs #121–#123 na main.
+
 Referência histórica da issue #107 / plano #88, com métricas coletadas no código `856906d62bf8e965065305361c11fde11b4058a4` e relatório consolidado no SHA `7abb3284b9ae32d4551f0cddb53efaea73f38787`, antes da integração de P02/P03. O harness mede o site construído em `dist/` sob `/tech-topics/`, o prefixo usado pelo Pages, e reproduz estados no loader real. Reexecute a partir da raiz após `node scripts/validate-site.mjs`:
 
 ```powershell

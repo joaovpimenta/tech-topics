@@ -411,20 +411,36 @@ async function testOrdering() {
     const listeners = {};
     const classes = new Set();
     return {
-      hidden: true, value: "", checked: false, children: [], listeners, dataset: {}, style: {},
+      hidden: true, value: "", checked: false, children: [], listeners, dataset: {}, style: {}, attributes: {}, className: "",
       classList: {
         add(value) { classes.add(value); },
         remove(value) { classes.delete(value); },
         toggle(value, enabled) { if (enabled) classes.add(value); else classes.delete(value); },
-        contains(value) { return classes.has(value); }
+        contains(value) { return classes.has(value) || this.owner.className.split(/\s+/).includes(value); }, owner: null
       },
-      setAttribute() {}, append(...items) { this.children.push(...items); },
+      setAttribute(name, value) {
+        this.attributes[name] = String(value);
+        if (["href", "src", "alt", "title", "tabIndex"].includes(name)) this[name] = value;
+        if (name === "draggable") this.draggable = value === "true";
+        if (name === "class") this.className = String(value);
+        if (name.startsWith("data-")) this.dataset[name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = String(value);
+      },
+      getAttribute(name) { return this.attributes[name] ?? null; },
+      append(...items) { this.children.push(...items.filter(item => item.nodeType !== 3)); },
       replaceChildren(...items) { this.children = items; },
       addEventListener(type, callback) { listeners[type] = callback; },
       appendChild(node) { this.children.push(node); },
       querySelectorAll(selector) {
         if (selector !== "[data-quick-action]") return [];
         return this.children.flatMap(node => node.children || []).filter(node => node.dataset?.quickAction);
+      },
+      querySelector(selector) {
+        const all = node => [node, ...(node.children || []).flatMap(all)];
+        return all(this).find(node => selector === ".favorite-button"
+          ? node.className.split(/\s+/).includes("favorite-button")
+          : selector === ".card-actions button:not(.favorite-button)"
+            ? node.className.split(/\s+/).includes("card-icon-button") && !node.className.split(/\s+/).includes("favorite-button")
+            : false) || null;
       },
       contains(item) { return this === item || this.children.some(child => child === item || child.contains?.(item)); },
       closest(selector) { return selector === "[data-quick-action]" && this.dataset.quickAction ? this : null; },
@@ -441,15 +457,17 @@ async function testOrdering() {
       get childElementCount() { return this.children.length; }
     };
   }
+  const createElement = () => { const node = element(); node.classList.owner = node; return node; };
   const document = {
     baseURI: "https://example.com/tech-topics/",
     documentElement: { clientWidth: 375, clientHeight: 750 },
     body: { classList: { toggle() {}, remove() {} } },
-    createElement: element,
-    createElementNS: element,
+    createElement,
+    createElementNS: createElement,
+    createTextNode(text) { return { nodeType: 3, textContent: text }; },
     elementFromPoint() { return hovered; },
     addEventListener(type, listener) { docListeners[type] = listener; },
-    querySelector(selector) { if (!nodes.has(selector)) nodes.set(selector, element()); return nodes.get(selector); }
+    querySelector(selector) { if (!nodes.has(selector)) nodes.set(selector, createElement()); return nodes.get(selector); }
   };
   const records = [
     { slug: "old", publishedAt: "2026-09-10", title: "Antigo", image: "assets/old.jpg", excerpt: "Introdução", category: "Arquitetura" },
@@ -463,7 +481,7 @@ async function testOrdering() {
     innerWidth: 375, innerHeight: 750, location: { search: "", assign(path) { navigated.push(path); } }
   };
   vm.runInNewContext(readFileSync("app.js", "utf8"), {
-    document, window, navigator: mockNavigator,
+    document, window: { ...window, TechTopicsHomeCards: require("../home-card-renderer.js") }, navigator: mockNavigator,
     URL, URLSearchParams, Intl, Date, Math, setTimeout: setTimer, clearTimeout: id => timers.delete(id),
     localStorage: { getItem: key => stored.get(key) || null, setItem: (key, value) => stored.set(key, value) },
     fetch: async path => {

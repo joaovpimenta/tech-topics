@@ -14,6 +14,7 @@ const BATCH_SIZE = 6;
 let visibleCount = BATCH_SIZE;
 let observer;
 let matching = [];
+let staticInitialCardsReady = false;
 
 function readFavorites() {
   try {
@@ -62,12 +63,6 @@ function icon(kind) {
   svg.append(path);
   return svg;
 }
-
-function dateLabel(article) {
-  const date = new Date(String(article.publishedAt || "") + "T00:00:00Z");
-  return Number.isNaN(date.getTime()) ? (article.date || "") : new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeZone: "UTC" }).format(date);
-}
-
 
 async function shareArticle(article) {
   const url = new URL(articleUrl(article), document.baseURI).href;
@@ -391,52 +386,19 @@ document.addEventListener("pointerdown", event => {
   if (quickMode === "keyboard" && !quickActions.contains(event.target)) closeQuickActions();
 });
 
-function articleCard(article, index) {
-  const card = element("article", "recent-item");
-  card.tabIndex = 0;
+function articleCard(article, index, existingCard = null) {
+  const card = existingCard || window.TechTopicsHomeCards.create(document, article, index, favorites.has(article.slug));
   card.setAttribute("aria-label", "Ações rápidas para " + article.title + ": passe o cursor, segure ou pressione Enter");
-  const imageLink = element("a", "recent-image image-link");
-  imageLink.href = articleUrl(article);
-  imageLink.setAttribute("aria-label", "Ler " + article.title);
-  const image = element("img");
-  image.src = article.image;
-  image.alt = article.alt || article.title;
-  image.loading = index < 2 ? "eager" : "lazy";
-  image.decoding = "async";
-  image.draggable = false;
-  imageLink.draggable = false;
-  if (index === 0) image.fetchPriority = "high";
-  imageLink.append(image);
-
-  const copy = element("div", "recent-copy");
-  const category = element("p", "eyebrow", article.category);
-  const title = element("h3");
-  const titleLink = element("a", "", article.title);
-  titleLink.href = articleUrl(article);
-  title.append(titleLink);
-  copy.append(category, title, element("p", "excerpt", article.excerpt || article.dek || ""),
-    element("p", "post-meta", [dateLabel(article), article.read].filter(Boolean).join(" · ")));
-
-  const actions = element("div", "card-actions");
-  const like = element("button", "card-icon-button favorite-button");
+  const like = card.querySelector(".favorite-button");
   const selected = favorites.has(article.slug);
-  like.type = "button";
-  like.dataset.articleTitle = article.title;
   like.setAttribute("aria-label", (selected ? "Remover dos favoritos: " : "Adicionar aos favoritos: ") + article.title);
   like.setAttribute("aria-pressed", String(selected));
   like.title = selected ? "Remover dos favoritos" : "Adicionar aos favoritos";
-  if (selected) like.classList.add("is-favorite");
-  like.append(icon("heart"));
+  like.classList.toggle("is-favorite", selected);
   like.addEventListener("click", () => toggleFavorite(article.slug, like));
 
-  const share = element("button", "card-icon-button");
-  share.type = "button";
-  share.setAttribute("aria-label", "Compartilhar " + article.title);
-  share.title = "Compartilhar";
-  share.append(icon("share"));
+  const share = card.querySelector(".card-actions button:not(.favorite-button)");
   share.addEventListener("click", () => shareArticle(article));
-  actions.append(like, share);
-  card.append(imageLink, copy, actions);
   // Disable native image/link dragging and the browser's long-press menu.
   // The card's custom hold-to-preview interaction must own this gesture.
   card.addEventListener("dragstart", event => event.preventDefault());
@@ -494,14 +456,22 @@ function renderArchive() {
   matching = articles.filter(article =>
     normalize([article.title, article.category, article.excerpt, article.dek].join(" ")).includes(query)
   );
-  list.replaceChildren();
-  visibleCount = 0;
+  const keepStaticCards = staticInitialCardsReady && !query;
+  staticInitialCardsReady = false;
+  if (keepStaticCards) visibleCount = list.children.length;
+  else {
+    list.replaceChildren();
+    visibleCount = 0;
+  }
   count.textContent = query
     ? matching.length + " de " + articles.length + " artigos"
     : articles.length + " artigos · mais recentes primeiro";
   emptyState.hidden = matching.length > 0 || articles.length === 0;
-  if (articles.length) renderBatch();
-  else loadMore.hidden = true;
+  if (articles.length && !keepStaticCards) renderBatch();
+  else {
+    loadMore.hidden = visibleCount >= matching.length;
+    list.setAttribute("aria-busy", "false");
+  }
 }
 
 async function loadArticles() {
@@ -515,6 +485,13 @@ async function loadArticles() {
     articles.splice(0, articles.length, ...valid);
     articles.sort((a, b) => String(b.publishedAt || "").localeCompare(String(a.publishedAt || "")) ||
       (Date.parse(b.addedAt) || 0) - (Date.parse(a.addedAt) || 0) || a.slug.localeCompare(b.slug));
+    const initialCards = [...list.children];
+    const initialMatches = initialCards.length === Math.min(BATCH_SIZE, articles.length) &&
+      initialCards.every((card, index) => card.dataset.articleSlug === articles[index]?.slug);
+    if (initialMatches) {
+      initialCards.forEach((card, index) => articleCard(articles[index], index, card));
+      staticInitialCardsReady = true;
+    }
     renderArchive();
     if (!articles.length) {
       count.textContent = "0 artigos";

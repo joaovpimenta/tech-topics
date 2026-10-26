@@ -12,6 +12,7 @@ const checks = [
   ["Run generation composer tests", ["scripts/test-generation.cjs"]],
   ["Run topic queue tests", ["scripts/test-topic-queue.mjs"]],
   ["Build article manifest", ["scripts/build-articles.mjs"]],
+  ["Validate static home cards", ["scripts/test-home-card-renderer.cjs"]],
   ["Lint article content", ["scripts/lint-articles.mjs"]],
   ["Check application syntax", ["--check", "app.js"]],
   ["Check shared header syntax", ["--check", "header.js"]],

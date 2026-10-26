@@ -2,6 +2,7 @@ import { readdir, readFile, access, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { validateArticleCatalog } from "./lib/article-contract.mjs";
@@ -10,6 +11,8 @@ import { extractOpeningParagraph } from "./lib/catalog-opening.mjs";
 const run = promisify(execFile);
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const require = createRequire(import.meta.url);
+const { renderIntoHome } = require("../home-card-renderer.js");
 const articlesDir = path.join(root, "content", "articles");
 const files = (await readdir(articlesDir)).filter(file => file.endsWith(".json") && file !== "index.json" && file !== "catalog.json").sort();
 
@@ -51,12 +54,16 @@ await writeFile(path.join(articlesDir, "index.json"), `${JSON.stringify(manifest
 const catalog = records.map(({ slug, publishedAt, addedAt, title, category, date, read, image, alt, excerpt, dek, opening }) =>
   ({ slug, publishedAt, addedAt, title, category, date, read, image, alt, excerpt, dek, opening }));
 await writeFile(path.join(root, "assets", "articles-catalog.json"), `${JSON.stringify(catalog, null, 2)}\n`);
+const homePath = path.join(root, "index.html");
+const homeHtml = await readFile(homePath, "utf8");
+const nextHomeHtml = renderIntoHome(homeHtml, catalog);
+if (nextHomeHtml !== homeHtml) await writeFile(homePath, nextHomeHtml);
 console.log(`Built lightweight article catalog and manifest with ${manifest.length} article(s).`);
 
 // Regenerate the imported worker version on every content or application change.
 // Relative URLs keep the PWA inside the GitHub Pages repository subdirectory.
 const webManifest = JSON.parse(await readFile(path.join(root, "manifest.webmanifest"), "utf8"));
-const precacheFiles = [...new Set(["index.html", "article.html", "styles.css", "app.js", "article.js", "header.js", "speech.js", "audio.js", "content/tts-lexicon.json", "mermaid-theme.js", "fgs-simulator.js", "pwa.js", "manifest.webmanifest", "favicon.svg", "favicon.ico",
+const precacheFiles = [...new Set(["index.html", "article.html", "styles.css", "app.js", "home-card-renderer.js", "article.js", "header.js", "speech.js", "audio.js", "content/tts-lexicon.json", "mermaid-theme.js", "fgs-simulator.js", "pwa.js", "manifest.webmanifest", "favicon.svg", "favicon.ico",
   "assets/favicon-16x16.png", "assets/favicon-32x32.png", ...webManifest.icons.map(icon => icon.src),
   "assets/app-icon.svg", "assets/app-icon-180.png", "assets/app-icon-192.png", "assets/app-icon-512.png",
   "content/articles/index.json", "assets/articles-catalog.json"])].sort();
