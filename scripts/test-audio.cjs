@@ -400,7 +400,7 @@ class ReadingNode extends EventTarget {
   click() { this.dispatchEvent(new Event("click")); }
 }
 
-async function playerFixture({ readyState = 4, playbackTimeoutMs = 30, playPlan = null, buffered, seekable, deviceAvailable = true, fetchAudio } = {}) {
+async function playerFixture({ readyState = 4, playbackTimeoutMs = 30, playPlan = null, buffered, seekable, deviceAvailable = true, fetchAudio, autoDiscover = true } = {}) {
   const ids = ["listen-recording", "inline-recording-anchor", "inline-recording-timeline", "inline-recording",
     "inline-recording-seek", "inline-recording-elapsed", "inline-recording-duration", "inline-recording-rate",
     "inline-recording-previous", "inline-recording-next", "recording-player", "recording-title",
@@ -456,8 +456,9 @@ async function playerFixture({ readyState = 4, playbackTimeoutMs = 30, playPlan 
     startDevice: () => starts.push("unavailable"),
     fetchAudio: fetchAudio || (async () => ({ url: "https://example.org/bulkhead.mp3", chapters: [{ start: 0 }, { start: 30 }, { start: 80 }] }))
   });
-  await controller.discover();
-  return { audio, controller, devicePlayer, starts, nodes, paragraph };
+  const discovery = controller.discover();
+  if (autoDiscover) await discovery;
+  return { audio, controller, devicePlayer, starts, nodes, paragraph, discovery };
 }
 
 test("discovered MP3 with readyState zero uses device speech after the gesture", async () => {
@@ -489,6 +490,63 @@ test("discovered MP3 with readyState zero uses device speech after the gesture",
   assert.equal(noSpeech.controller.snapshot().open, false);
   assert.match(noSpeech.nodes["#recording-status"].textContent, /MP3 ainda não iniciou/);
   finishLoad();
+});
+
+test("initial unmapped playback may start device block zero, but never after recorded progress", async () => {
+  const initial = await playerFixture({ readyState: 0,
+    fetchAudio: async () => ({ url: "https://example.org/bulkhead.mp3", chapters: [] }) });
+  await initial.controller.play();
+  assert.deepEqual(initial.starts, [0], "an initial play gesture can start the device reader at its known beginning");
+  assert.equal(initial.controller.snapshot().mode, "device");
+
+  const advanced = await playerFixture({
+    fetchAudio: async () => ({ url: "https://example.org/bulkhead.mp3", chapters: [] })
+  });
+  await advanced.controller.play();
+  advanced.audio.currentTime = 85;
+  advanced.audio.dispatchEvent(new Event("timeupdate"));
+  advanced.audio.currentTime = 0;
+  advanced.audio.dispatchEvent(new Event("seeking"));
+  advanced.audio.dispatchEvent(new Event("seeked"));
+  advanced.audio.dispatchEvent(new Event("error"));
+  assert.deepEqual(advanced.starts, [], "returning to time zero does not erase the fact that recorded playback advanced");
+  assert.equal(advanced.controller.snapshot().mode, null);
+  assert.equal(advanced.audio.paused, true);
+  assert.equal(advanced.audio.currentTime, 0, "the actual seek position remains intact");
+  assert.match(advanced.nodes["#recording-status"].textContent, /capítulos não correspondem ao texto/);
+
+  let resolvePendingPlay;
+  const pending = await playerFixture({ playbackTimeoutMs: 1000,
+    fetchAudio: async () => ({ url: "https://example.org/bulkhead.mp3", chapters: [] }),
+    playPlan: audio => new Promise(resolve => {
+      resolvePendingPlay = () => {
+        audio.paused = false;
+        audio.dispatchEvent(new Event("playing"));
+        resolve();
+      };
+    }) });
+  const pendingAttempt = pending.controller.play();
+  pending.audio.currentTime = 85;
+  pending.audio.dispatchEvent(new Event("timeupdate"));
+  pending.audio.dispatchEvent(new Event("error"));
+  await pendingAttempt;
+  assert.deepEqual(pending.starts, [], "pending playback that advances cannot use the initial-zero fallback");
+  assert.equal(pending.controller.snapshot().mode, null);
+  assert.equal(pending.audio.currentTime, 85);
+  resolvePendingPlay();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.deepEqual(pending.starts, [], "a late play resolution cannot start block zero after cancellation");
+
+  let resolveSource;
+  const lateCatalog = await playerFixture({ autoDiscover: false,
+    fetchAudio: () => new Promise(resolve => { resolveSource = resolve; }) });
+  await lateCatalog.controller.play();
+  assert.deepEqual(lateCatalog.starts, [0], "a first gesture before discovery starts at the known reader beginning");
+  resolveSource({ url: "https://example.org/bulkhead.mp3", chapters: [] });
+  await lateCatalog.discovery;
+  assert.equal(lateCatalog.controller.snapshot().mode, "device", "late metadata does not automatically promote the reader to MP3");
+  assert.equal(lateCatalog.audio.playCalls, 0);
 });
 
 test("pending and rejected media playback fall back within a bound and ignore late starts", async () => {

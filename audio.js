@@ -126,6 +126,7 @@
     let recordedActive = false;
     let recordedPending = false;
     let recordedFallbackIndex;
+    let recordedFallbackInitial = false;
     let playbackAttempt = 0;
     let cancelPendingPlayWait = null;
     let selectedRate = Number.isFinite(audio.playbackRate) ? audio.playbackRate : 1;
@@ -145,6 +146,7 @@
     let mode = null; // "recorded" or "device"; one dock owns both players.
     let deviceState = { state: "idle", blockIndex: 0, count: devicePlayer?.blocks?.length || 0 };
     let lastDeviceIndex = 0;
+    let recordedProgressObserved = false;
     let seeking = false;
     let inlineSeeking = false;
     let inlineVisible = true;
@@ -226,6 +228,13 @@
       const node = chapterNodes[chapterIndex];
       const index = devicePlayer.blocks.findIndex(block => block.node === node);
       return index >= 0 ? index : undefined;
+    }
+    function canStartDeviceAtBeginning() {
+      const position = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+      return !recordedProgressObserved && position <= 0.05;
+    }
+    function rememberRecordedProgress() {
+      if (Number.isFinite(audio.currentTime) && audio.currentTime > 0.05) recordedProgressObserved = true;
     }
     function chapterForDeviceIndex(index) {
       if (!Number.isInteger(index) || chapterNodes.length !== chapters.length || !chapters.length) return -1;
@@ -601,16 +610,17 @@
         if (result === undefined && !audio.paused && !audio.ended) finish(true);
       });
     }
-    function fallbackToDevice(message, index, attempt) {
+    function fallbackToDevice(message, index, attempt, allowInitial = false) {
       if (attempt !== playbackAttempt) {
         if (!hasRecordedIntent()) audio.pause();
         return;
       }
       cancelRecordedAttempt();
       audio.pause();
-      if (devicePlayer && Number.isInteger(index) && index >= 0 && index < devicePlayer.blocks.length) {
+      const targetIndex = Number.isInteger(index) ? index : allowInitial && canStartDeviceAtBeginning() ? 0 : undefined;
+      if (devicePlayer && Number.isInteger(targetIndex) && targetIndex >= 0 && targetIndex < devicePlayer.blocks.length) {
         setStatus(message);
-        beginDevice(index);
+        beginDevice(targetIndex);
       } else {
         mode = null;
         open = false;
@@ -635,8 +645,11 @@
         selectedRate = devicePlayer?.getRate?.() || selectedRate;
         lastDeviceIndex = deviceState.blockIndex;
       }
-      const fallbackBlock = mode === "device" ? lastDeviceIndex : fallbackDeviceIndex();
+      const wasDevice = mode === "device";
+      const fallbackBlock = wasDevice ? lastDeviceIndex : fallbackDeviceIndex();
+      const allowInitialFallback = !wasDevice && fallbackBlock === undefined && canStartDeviceAtBeginning();
       recordedFallbackIndex = fallbackBlock;
+      recordedFallbackInitial = allowInitialFallback;
       cancelRecordedAttempt();
       const attempt = playbackAttempt;
       recordedActive = false;
@@ -650,7 +663,7 @@
       configureSession();
       if (!mediaReadyAtCurrentPosition()) {
         if (devicePlayer) {
-          fallbackToDevice("MP3 encontrado, mas a mídia ainda não está pronta; usando voz do dispositivo.", fallbackBlock, attempt);
+          fallbackToDevice("MP3 encontrado, mas a mídia ainda não está pronta; usando voz do dispositivo.", fallbackBlock, attempt, allowInitialFallback);
           return;
         }
         setStatus("Carregando áudio gravado…");
@@ -664,7 +677,7 @@
       }
       recordedPending = false;
       if (started) setStatus("");
-      else fallbackToDevice("Não foi possível iniciar o MP3; usando voz do dispositivo.", fallbackBlock, attempt);
+      else fallbackToDevice("Não foi possível iniciar o MP3; usando voz do dispositivo.", fallbackBlock, attempt, allowInitialFallback);
       render();
     }
     function close() {
@@ -762,8 +775,8 @@
     audio.addEventListener("loadedmetadata", () => { try { performance.mark("tt:audio-metadata"); } catch (_) {} render(); updatePosition(); });
     audio.addEventListener("canplay", () => { try { performance.mark("tt:audio-canplay"); } catch (_) {} });
     audio.addEventListener("durationchange", () => { render(); updatePosition(); });
-    audio.addEventListener("timeupdate", () => { if (mode === "recorded") render(); });
-    audio.addEventListener("seeking", render);
+    audio.addEventListener("timeupdate", () => { rememberRecordedProgress(); if (mode === "recorded") render(); });
+    audio.addEventListener("seeking", () => { rememberRecordedProgress(); render(); });
     audio.addEventListener("seeked", updatePosition);
     audio.addEventListener("ratechange", updatePosition);
     audio.addEventListener("play", () => {
@@ -785,8 +798,9 @@
     audio.addEventListener("error", () => {
       if (mode === "recorded" && open && (recordedPending || recordedActive)) {
         const fallbackIndex = recordedPending ? recordedFallbackIndex : fallbackDeviceIndex();
-        if (devicePlayer) fallbackToDevice("Falha no áudio gravado; usando voz do dispositivo.", fallbackIndex, playbackAttempt);
-        else fallbackToDevice("Falha ao carregar o MP3. Verifique a conexão e tente novamente.", fallbackIndex, playbackAttempt);
+        const allowInitial = recordedPending ? recordedFallbackInitial : fallbackIndex === undefined && canStartDeviceAtBeginning();
+        if (devicePlayer) fallbackToDevice("Falha no áudio gravado; usando voz do dispositivo.", fallbackIndex, playbackAttempt, allowInitial);
+        else fallbackToDevice("Falha ao carregar o MP3. Verifique a conexão e tente novamente.", fallbackIndex, playbackAttempt, allowInitial);
       }
       else {
         setStatus("Falha ao carregar o áudio gravado. Use a voz do dispositivo.");
