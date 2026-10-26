@@ -18,7 +18,7 @@ Os `dirtyFiles` registrados nos JSONs fazem parte da identidade da captura. Port
 - Baseline (`p06-full-fce.json`): `assets/articles-catalog.json`, `content/articles/index.json`, `favicon.svg` e `sw-version.js` aparecem em `dirtyFiles`.
 - Candidata (`p06-full-f493.json`): `favicon.svg` e `sw-version.js` aparecem em `dirtyFiles`.
 - O build regenerou o catálogo e o manifesto a partir das fontes disponíveis no workspace, incluindo `hedged-requests`, ausente no manifesto baseline versionado. Também regenerou os metadados de versão em `sw-version.js`.
-- `favicon.svg` foi o mesmo ajuste local preservado nos dois workspaces. Seu SHA-256 foi `90a6388638113b7196edebdde3a4b2404ced13f0b42c7aef260bb55298f1f556` em ambos.
+- `favicon.svg` foi o mesmo ajuste local preservado nos dois workspaces. Seu SHA-256 foi `90a6388638113b7196edebdde4a3b2404ced13f0b42c7aef260bb55298f1f556` em ambos.
 
 As medições e números abaixo pertencem a esses artefatos históricos com essa procedência. Não devem ser descritos como resultados exatos de artefatos pristine construídos apenas dos SHAs registrados.
 
