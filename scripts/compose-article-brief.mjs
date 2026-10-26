@@ -62,12 +62,15 @@ async function printCatalog(system) {
   console.log("\nFrameworks:");
   for (const [id, entry] of system.frameworks) console.log(`  ${id}\t${entry.label}`);
   console.log("\nPublished topics (catalog data; inspect full articles only for possible overlap):");
-  for (const topic of await listExistingTopics(root)) {
+  const tagLabels = system.taxonomy.tags;
+  for (const topic of await listExistingTopics(root, { taxonomy: system.taxonomy })) {
     console.log(`  ${JSON.stringify({
       slug: topic.slug,
       title: topic.title,
       dek: topic.dek.slice(0, 180),
-      excerpt: topic.excerpt.slice(0, 180)
+      excerpt: topic.excerpt.slice(0, 180),
+      source: topic.sourceType,
+      tags: topic.tags.map(id => tagLabels[id]?.label ?? id)
     })}`);
   }
 }
@@ -104,7 +107,7 @@ async function main() {
   if (!depthValues.has(options.depth)) throw new Error(`invalid depth: ${options.depth}`);
 
   const slug = slugifyTopic(topic);
-  const duplicate = await findExistingTopic(root, topic, slug);
+  const duplicate = await findExistingTopic(root, topic, slug, { taxonomy: system.taxonomy });
   if (duplicate) {
     throw new Error(`topic already exists in content/articles/${duplicate.file}: ${duplicate.title}`);
   }
@@ -126,13 +129,21 @@ async function main() {
     "",
     "## Destino",
     "",
-    `- Artigo: \`content/articles/${slug}.json\``,
+    `- Artigo: \`content/articles/${slug}.md\``,
     `- Assets: \`assets/${slug}/\``,
+    "- Use o template de `generation/templates/article.md` como ponto de partida; remova todos os placeholders antes de validar.",
+    `- Tags canônicas disponíveis: ${Object.entries(system.taxonomy.tags).map(([id, tag]) => `\`${id}\` (${tag.label})`).join(", ")}`,
     "- Não edite artigos existentes nem artefatos gerados manualmente.",
     "",
     "## Contrato autoral",
     "",
     renderModule(system.authoring.path, system.authoring.content),
+    "",
+    "## Template e rubricas opcionais",
+    "",
+    renderModule(system.template.path, system.template.content),
+    "",
+    ...Object.entries(system.taxonomy.optionalMetadata ?? {}).flatMap(([field, guidance]) => [`- \`${field}\`: ${guidance}`]),
     "",
     "## Estrutura da tarefa",
     "",
@@ -147,7 +158,7 @@ async function main() {
     "",
     "## Gate final",
     "",
-    "Use somente as lentes aplicáveis ao tópico, sem criar seções artificiais para completar checklists. Depois de escrever a abertura, gere a capa com `node scripts/compose-cover-brief.mjs` e execute `node scripts/validate-site.mjs` antes de publicar. A validação determinística, não este brief, é a autoridade sobre invariantes estruturais e de segurança.",
+    "Use somente as lentes aplicáveis ao tópico, sem criar seções artificiais para completar checklists. Tags devem vir do registro e updatedAt só entra quando houver uma fonte para a alteração. Durante #93–#96, valide Markdown por fixtures do compilador; `node scripts/validate-site.mjs` verifica o site JSON vigente e não publica essas fontes. Não substitua JSON nem trate o Markdown como publicado antes da ativação em #97. Depois de escrever a abertura, gere a capa com `node scripts/compose-cover-brief.mjs`. A validação determinística, não este brief, é a autoridade sobre invariantes estruturais e de segurança.",
     ""
   );
 

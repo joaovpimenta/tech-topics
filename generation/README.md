@@ -20,6 +20,8 @@ node scripts/compose-article-brief.mjs \
 
 O comando escreve o brief em stdout. Ele não chama um provedor de LLM, não cria arquivos e não persiste o prompt composto.
 
+O formato preparado para artigos é `content/articles/<slug>.md` com `templates/article.md`. Até a ativação HTML em #97, use Markdown somente em fixtures e previews da migração: o build público vigente ainda lê JSON e ignora `.md`. A descoberta compartilhada lê Markdown e JSON legado durante a transição, rejeita dois arquivos para o mesmo slug e valida vínculos de série e pré-requisitos no corpus combinado. Tags de Markdown são obrigatórias e devem usar IDs de `taxonomy/tags.json`; rótulos repetidos não são aliases. O template contém placeholders intencionais e não pode ser publicado sem preenchimento. `updatedAt` é opcional: inclua somente quando uma fonte sustentar a data.
+
 Após finalizar a abertura, use `node scripts/compose-cover-brief.mjs` para extrair de `docs/VISUAL_STYLE.md` apenas as instruções necessárias para criar e revisar a capa.
 
 ## Onde cada regra deve ficar

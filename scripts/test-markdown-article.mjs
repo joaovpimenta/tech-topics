@@ -16,6 +16,37 @@ const context = {
 };
 const compiled = await compileMarkdownArticle({ source, ...context });
 
+const articleTemplate = fs.readFileSync(path.join(rootPath, "generation/templates/article.md"), "utf8");
+const taxonomy = JSON.parse(fs.readFileSync(path.join(rootPath, "generation/taxonomy/tags.json"), "utf8"));
+const fixtureTagIds = Object.keys(taxonomy.tags).slice(0, 2);
+assert.match(articleTemplate, /^---\n[\s\S]*PREENCHER/);
+await assert.rejects(() => compileMarkdownArticle({ source: articleTemplate, ...context }));
+const instantiatedTemplate = articleTemplate
+  .replaceAll("PREENCHER-SLUG", "sample")
+  .replace("PREENCHER: título do artigo", "Artigo de fixture")
+  .replace("PREENCHER: categoria editorial", "Teste")
+  .replace("PREENCHER: data legível herdada do contrato vigente", "26 de outubro de 2026")
+  .replace('publishedAt: "YYYY-MM-DD"', 'publishedAt: "2026-10-26"')
+  .replace("PREENCHER: tempo de leitura", "1 min de leitura")
+  .replace("PREENCHER: descrição objetiva da capa", "Descrição de capa de fixture")
+  .replace("PREENCHER: resumo curto do artigo", "Resumo do artigo de fixture")
+  .replace("PREENCHER: resumo para descoberta e busca", "Resumo para descoberta")
+  .replace("PREENCHER-TAG-CANONICA", fixtureTagIds[0])
+  .replace(/^# .*$/gm, "")
+  .replace("PREENCHER: primeiro parágrafo em diálogo-metáfora natural, como um único parágrafo introdutório.", "Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.")
+  .replace("PREENCHER: seção que explica o problema", "O problema que a ideia resolve")
+  .replace("PREENCHER: desenvolva a explicação com fontes confiáveis, exemplos e limites.", "A explicação técnica detalha exemplos e limites.")
+  .replace("PREENCHER: seção de aplicação", "Como aplicar a ideia")
+  .replace("PREENCHER: explique decisões, trade-offs e relações com conceitos próximos.", "A aplicação discute decisões e relações com conceitos próximos.")
+  .replace("PREENCHER: sintetize as ideias centrais.", "As ideias centrais ficam resumidas aqui.")
+  .replace("PREENCHER: inclua perguntas que verifiquem a compreensão.", "Quais decisões ajudam a compreender o exemplo?")
+  .replace("PREENCHER: proponha dois ou três exercícios executáveis ou mentais.", "Compare duas alternativas em um exercício curto.")
+  .replace("PREENCHER: liste fontes com links próximos às afirmações sustentadas.", "[Fonte de fixture](https://example.com).");
+const templateCompiled = await compileMarkdownArticle({ source: instantiatedTemplate, ...context, knownTags: [fixtureTagIds[0]] });
+assert.equal(templateCompiled.metadata.slug, "sample");
+assert.deepEqual(templateCompiled.metadata.tags, [fixtureTagIds[0]]);
+assert.match(templateCompiled.slots.body, /^<p>Uma conversa/);
+
 assert.equal(compiled.metadata.publishedAt, "2026-10-25");
 assert.deepEqual(compiled.metadata.tags, ["markdown", "seguranca"]);
 assert.match(compiled.slots.heading, /<span lang="pt-BR">Título: <\/span><span lang="en-US" data-tts-say="secure">seguro<\/span>/);
