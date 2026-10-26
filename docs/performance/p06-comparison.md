@@ -11,6 +11,17 @@ A comparação completa foi executada antes da integração atual em dois SHAs e
 
 Cada SHA teve 40 amostras (10 em cada grupo home/artigo × frio/quente), todas válidas. `roundValid` e os hashes de fontes e `dist/` antes/depois passaram nos dois relatórios. A medição foi serial: baseline primeiro, candidata depois. O harness tinha SHA-256 `2621ae508f2d11f7f76813805e677ed30c827dc30dbe153a284ef18b8e9f6aff`; runtime Node `v22.23.4`, Chrome `156.0.8078.47` e Playwright do runtime primário.
 
+### Procedência dos artefatos medidos
+
+Os `dirtyFiles` registrados nos JSONs fazem parte da identidade da captura. Portanto, os artefatos testados não vieram de worktrees pristine construídas somente a partir dos SHAs acima: cada um foi construído a partir da revisão histórica indicada, com arquivos gerados deterministicamente e ajustes locais preservados no workspace. Os hashes de fontes e `dist/` registrados nos JSONs continuam sendo os hashes observados antes/depois da respectiva rodada; eles não transformam a captura em resultado de artefato pristine.
+
+- Baseline (`p06-full-fce.json`): `assets/articles-catalog.json`, `content/articles/index.json`, `favicon.svg` e `sw-version.js` aparecem em `dirtyFiles`.
+- Candidata (`p06-full-f493.json`): `favicon.svg` e `sw-version.js` aparecem em `dirtyFiles`.
+- O build regenerou o catálogo e o manifesto a partir das fontes disponíveis no workspace, incluindo `hedged-requests`, ausente no manifesto baseline versionado. Também regenerou os metadados de versão em `sw-version.js`.
+- `favicon.svg` foi o mesmo ajuste local preservado nos dois workspaces. Seu SHA-256 foi `90a6388638113b7196edebdde3a4b2404ced13f0b42c7aef260bb55298f1f556` em ambos.
+
+As medições e números abaixo pertencem a esses artefatos históricos com essa procedência. Não devem ser descritos como resultados exatos de artefatos pristine construídos apenas dos SHAs registrados.
+
 Os seis caminhos de capa da home são iguais nos dois relatórios e os seis JPGs têm hashes idênticos. O resultado foi aceito pelo Sol como evidência de redução de LCP/CLS na comparação original. Os dados abaixo continuam restritos a esses SHAs: a integração atual sobre main `06822cd62ae86640f2bcc5a5ffb0814eecea3f8d` contém mudanças de áudio (#121), hover (#122) e compiler (#123) que não estavam na candidata medida. Nenhum valor deste relatório deve ser atribuído ao SHA da integração atual sem nova medição.
 
 ## Resultados observados
@@ -57,7 +68,7 @@ O item do favicon reduz o delta líquido observado para +13.236 B (+0,49%). Não
 
 - O LCP da home fria da candidata foi 4,74 s, acima do limite de referência de 2,5 s. O CLS dos artigos continuou acima de 0,1 nos dois perfis, e o p75 body→controls de aproximadamente 287–292 ms ainda ultrapassa a referência de 200 ms.
 - `legacyContentMs` preserva o relógio Node antigo: começa antes de `goto` e termina depois de `domcontentloaded` e da condição de conteúdo. O proxy de primeiro texto usa `Range`, retângulo, viewport e estilos computados após CSS; não garante paint e não é FCP nem LCP.
-- Há uma diferença de catálogo entre os SHAs medidos: a candidata continha a entrada `hedged-requests` que faltava no manifesto baseline. Embora as seis capas iniciais sejam iguais, essa comparação não isola perfeitamente somente a mudança dos cards para métricas de bytes/carga.
+- Além da diferença de catálogo entre os SHAs medidos — a candidata continha `hedged-requests`, ausente no manifesto baseline versionado — os JSONs registram arquivos locais e saídas determinísticas de build em `dirtyFiles`. Embora as seis capas iniciais sejam iguais, essa comparação não isola perfeitamente somente a mudança dos cards para métricas de bytes/carga.
 - O servidor serviu `dist/` local sob `/tech-topics/` com `Cache-Control: max-age=3600`. Service workers ficaram bloqueados e `page.route` não foi usado. Mermaid foi um stub; fetch de Release foi 404 mockado; Web Speech foi síncrono e mockado. Não se mediu CDN/Pages, acústica, Kokoro, CPU/RSS nem hover.
 - A integração P06 na main atual tem validação funcional própria. O benchmark acima não cobre as mudanças atuais de áudio, hover ou compiler e não é evidência de ganho para o código final integrado.
 
