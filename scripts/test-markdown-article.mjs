@@ -70,6 +70,8 @@ const failures = [
   ["nested raw HTML body h1 duplicates envelope hierarchy", mutate("<div class=\"article-callout\">", "<div class=\"article-callout\"><h1>Título duplicado</h1>"), /only h1/],
   ["shell prefix ID recording-play", mutate("âncora-antiga", "recording-play"), /reserved|unsafe/],
   ["raw HTML shell ID recording-play", mutate("<div class=\"article-callout\">", '<p id="recording-play">Control</p>\n\n<div class="article-callout">'), /reserved|unsafe/],
+  ["reserved browser ID mixed case", mutate("âncora-antiga", "CurrentScript"), /reserved|unsafe/],
+  ["reserved browser ID NFKC fullwidth", mutate("âncora-antiga", "ｃｕｒｒｅｎｔＳｃｒｉｐｔ"), /reserved|unsafe/],
   ["shell prefix ID NFKC fullwidth collision", mutate("âncora-antiga", "ｒｅｃｏｒｄｉｎｇ-play"), /reserved|unsafe/],
   ["image in opening prose", mutate("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "![Capa](../../assets/sample/cover.jpg) Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco."), /first prose paragraph cannot contain an image/],
   ["HTML script", mutate("<div class=\"article-callout\">", "<script>alert(1)</script>\n\n<div class=\"article-callout\">"), /forbidden|not allowed/i],
@@ -130,6 +132,7 @@ const adapted = fromLegacyArticle(legacy, { rootPath, assetExists: () => true })
 assert.equal(adapted.metadata.tags, undefined);
 assert.match(adapted.slots.body, /^<p>Primeiro parágrafo\.<\/p>/);
 assert.throws(() => fromLegacyArticle({ ...legacy, bodyHtml: '<p onclick="alert(1)">X</p>' }, { rootPath, assetExists: () => true }), /event attribute/);
+assert.throws(() => fromLegacyArticle({ ...legacy, bodyHtml: "<p>Abertura.</p><h1>Duplicado</h1>" }, { rootPath, assetExists: () => true }), /body must not contain h1/);
 
 const domSignature = node => {
   if (node.nodeName === "#text") return ["text", node.value];

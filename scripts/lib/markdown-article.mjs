@@ -14,7 +14,7 @@ import { parseFragment } from "parse5";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const RESERVED_IDS = new Set(["article-root", "article-heading", "article-dek", "article-body", "article-category", "article-meta", "article-actions", "article-image", "article-recording", "article-description", "article-search-input", "article-count", "article-quick-actions", "inline-recording", "github-stars", "favorite-article", "share-article", "share-status", "__proto__", "prototype", "constructor", "window", "document", "location", "name", "forms", "all", "body", "head", "currentScript"]);
+const RESERVED_IDS = new Set(["article-root", "article-heading", "article-dek", "article-body", "article-category", "article-meta", "article-actions", "article-image", "article-recording", "article-description", "article-search-input", "article-count", "article-quick-actions", "inline-recording", "github-stars", "favorite-article", "share-article", "share-status", "__proto__", "prototype", "constructor", "window", "document", "location", "name", "forms", "all", "body", "head", "currentScript"].map(id => id.normalize("NFKC").toLocaleLowerCase("en-US")));
 // The shell owns complete ID namespaces because future controls can be added
 // without a compiler release. Current exact IDs are checked against article.html
 // and the fixed selectors in article.js, audio.js and speech.js by the suite.
@@ -571,7 +571,7 @@ export function fromLegacyArticle(record, context = {}) {
   if (typeof body !== "string" || !body.trim()) fail(context.sourcePath ?? record.slug, "legacy bodyHtml must be non-empty HTML");
   const fragment = parseFragment(body);
   const html = fragment.childNodes.map(node => serializeNode(node)).join("");
-  validateRenderedHtml(html, context.sourcePath ?? record.slug, context);
+  validateRenderedHtml(html, context.sourcePath ?? record.slug, { ...context, rejectBodyH1: true });
   const first = parseFragment(html).childNodes.find(node => node.tagName);
   if (!first || first.tagName !== "p") fail(record.slug, "legacy bodyHtml must begin with a paragraph");
   return { metadata, slots: { heading: renderTextSlot(record.title, record.speechMarkup?.title, record.slug), dek: renderTextSlot(record.dek, record.speechMarkup?.dek, record.slug), body: html } };
