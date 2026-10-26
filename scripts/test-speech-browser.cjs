@@ -161,7 +161,10 @@ async function main() {
     assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.currentTime), 35, "changing playback rate retains the mocked MP3 position");
     assert.equal(await switchPage.evaluate(() => window.audioSwitchController.snapshot().playing), true, "rate change leaves recorded playback active");
     await switchPage.locator("#listen-article").click();
-    assert.equal(await switchPage.locator("#recording-elapsed").innerText(), "4/4", "recorded to device retains the V2-mapped sentence");
+    assert.equal(await switchPage.locator("#recording-elapsed").innerText(), "~0:30", "recorded to device shows the approximate V2 chapter time");
+    assert.equal(await switchPage.locator("#recording-duration").innerText(), "0:40");
+    assert.equal(await switchPage.locator("#recording-seek").inputValue(), "750",
+      "the progress range uses the mapped chapter's fraction of the recorded duration");
     assert.equal(await switchPage.evaluate(() => window.testUtterances.at(-1).text), "Segundo trecho.");
     assert.equal(await switchPage.evaluate(() => window.testUtterances.at(-1).rate), 1.25);
     await switchPage.locator("#listen-article").click();
@@ -179,6 +182,110 @@ async function main() {
     await switchPage.waitForFunction(() => window.audioSwitchController?.snapshot().mode === "recorded");
     assert.equal(await switchPage.locator("#article-recording").evaluate(element => element.currentTime), 30);
     await switchPage.close();
+
+    // Browser fixture for metadata-known/seekable media whose buffer is initially empty.
+    // The fake playback engine only fills `buffered` after the visible user gesture.
+    async function bootstrapPage(bufferOnGesture) {
+      const target = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+      await target.route("https://**/*", route => route.abort());
+      await target.addInitScript(bufferOnGesture => {
+        window.bootstrapFillOnPlay = bufferOnGesture;
+        window.testUtterances = [];
+        Object.defineProperty(window, "speechSynthesis", { configurable: true, value: {
+          getVoices: () => [], speak(item) { window.testUtterances.push(item); item.onstart?.(); },
+          cancel() {}, pause() {}, resume() {}
+        } });
+        window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
+        HTMLMediaElement.prototype.play = function () {
+          this.__playCalls = (this.__playCalls || 0) + 1;
+          const range = { length: 1, start: () => 0, end: () => 40 };
+          Object.defineProperty(this, "paused", { configurable: true, value: false });
+          if (window.bootstrapFillOnPlay) Object.defineProperties(this, {
+            readyState: { configurable: true, value: 4 },
+            buffered: { configurable: true, value: range }
+          });
+          this.dispatchEvent(new Event("play"));
+          if (window.bootstrapFillOnPlay) this.dispatchEvent(new Event("playing"));
+          return window.bootstrapFillOnPlay ? Promise.resolve() : new Promise(() => {});
+        };
+        HTMLMediaElement.prototype.pause = function () {
+          Object.defineProperty(this, "paused", { configurable: true, value: true });
+          this.dispatchEvent(new Event("pause"));
+        };
+      }, bufferOnGesture);
+      await target.goto(`${base}/scripts/fixtures/audio-switch-browser.html`);
+      await target.waitForFunction(() => window.fixtureReady === true);
+      await target.evaluate(() => {
+        const audio = document.querySelector("#article-recording");
+        const seekable = { length: 1, start: () => 0, end: () => 40 };
+        Object.defineProperties(audio, {
+          duration: { configurable: true, value: 40 },
+          readyState: { configurable: true, value: 4 },
+          buffered: { configurable: true, value: { length: 0 } },
+          seekable: { configurable: true, value: seekable },
+          paused: { configurable: true, value: true }
+        });
+        audio.dispatchEvent(new Event("durationchange"));
+      });
+      return target;
+    }
+    const bootstrapSuccess = await bootstrapPage(true);
+    await bootstrapSuccess.locator("#listen-recording").click();
+    await bootstrapSuccess.waitForFunction(() => window.audioSwitchController?.snapshot().mode === "recorded" && window.audioSwitchController?.snapshot().playing);
+    assert.equal(await bootstrapSuccess.locator("#article-recording").evaluate(element => element.__playCalls), 1,
+      "metadata and seekability allow the real user gesture to bootstrap the empty buffer");
+    assert.equal(await bootstrapSuccess.evaluate(() => window.testUtterances.length), 0,
+      "device speech does not overlap media confirmed after bootstrap");
+    await bootstrapSuccess.close();
+
+    const bootstrapFallback = await bootstrapPage(false);
+    await bootstrapFallback.locator("#listen-recording").click();
+    await bootstrapFallback.waitForFunction(() => window.audioSwitchController?.snapshot().mode === "device" && window.audioSwitchController?.snapshot().playing, { timeout: 3000 });
+    await bootstrapFallback.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await bootstrapFallback.locator("#recording-player").waitFor({ state: "visible" });
+    assert.equal(await bootstrapFallback.locator("#recording-elapsed").innerText(), "~0:00",
+      "valid chapter mapping labels device-mode elapsed time as approximate");
+    assert.equal(await bootstrapFallback.locator("#recording-duration").innerText(), "0:40",
+      "finite MP3 duration remains visible during device fallback");
+    assert.match(await bootstrapFallback.locator("#recording-subtitle").innerText(), /trecho 1 de 4/i,
+      "the sentence index remains available as a secondary reader position");
+    assert.equal(await bootstrapFallback.locator("#article-recording").evaluate(element => element.paused), true,
+      "timed-out bootstrap is paused before the device utterance begins");
+    assert.equal(await bootstrapFallback.locator("#article-recording").evaluate(element => element.__playCalls), 1,
+      "device fallback follows one bounded MP3 attempt instead of skipping it");
+    await bootstrapFallback.close();
+
+    const pausedManual = await bootstrapPage(false);
+    await pausedManual.locator("#listen-article").click();
+    await pausedManual.waitForFunction(() => window.audioSwitchController?.snapshot().mode === "device" && window.audioSwitchController?.snapshot().playing);
+    await pausedManual.locator("#listen-recording").click();
+    assert.equal(await pausedManual.evaluate(() => window.audioSwitchController.snapshot().playing), false,
+      "the reader can pause device speech before choosing the MP3 source");
+    const deviceUtterancesBeforeSwitch = await pausedManual.evaluate(() => window.testUtterances.length);
+    await pausedManual.locator("#listen-article").click();
+    await pausedManual.waitForFunction(() => window.audioSwitchController?.snapshot().mode === "recorded");
+    assert.equal(await pausedManual.locator("#article-recording").evaluate(element => element.currentTime), 0,
+      "the validated paused switch stays at its mapped chapter");
+    assert.equal(await pausedManual.locator("#article-recording").evaluate(element => element.paused), true,
+      "metadata and seekability select the paused MP3 without pretending to play it");
+    assert.equal(await pausedManual.locator("#article-recording").evaluate(element => element.__playCalls || 0), 0,
+      "paused source selection does not call play as a buffering trick");
+    assert.match(await pausedManual.locator("#recording-status").innerText(), /pressione reproduzir/i);
+    assert.equal(await pausedManual.evaluate(() => window.testUtterances.length), deviceUtterancesBeforeSwitch,
+      "switching from paused voice starts no transient utterance");
+    await pausedManual.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await pausedManual.locator("#recording-player").waitFor({ state: "visible" });
+    assert.equal(await pausedManual.locator("#recording-duration").innerText(), "0:40");
+    assert.equal(await pausedManual.locator("#recording-elapsed").innerText(), "0:00",
+      "the selected recorded source shows its real seeked position while paused");
+    await pausedManual.evaluate(() => { window.bootstrapFillOnPlay = true; });
+    await pausedManual.locator("#recording-play").click();
+    await pausedManual.waitForFunction(() => window.audioSwitchController?.snapshot().mode === "recorded" && window.audioSwitchController?.snapshot().playing);
+    assert.equal(await pausedManual.locator("#article-recording").evaluate(element => element.currentTime), 0);
+    assert.equal(await pausedManual.evaluate(() => window.testUtterances.length), deviceUtterancesBeforeSwitch,
+      "the next explicit play starts the MP3 after it supplies current buffered data");
+    await pausedManual.close();
+
     const racePage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     racePage.setDefaultTimeout(3000);
     const raceClockStart = new Date("2026-10-25T12:00:00Z");
@@ -237,14 +344,14 @@ async function main() {
       playing: document.querySelector("#recording-play")?.dataset.playing,
       status: document.querySelector("#recording-status")?.textContent
     }));
-    assert.deepEqual(sourceChoiceAfterClick, { player: { available: true, discovered: true, mediaReady: true, recordedPending: false, open: true, mode: "device", playing: true }, subtitle: "Tech Topics · Voz do dispositivo", playing: "true", status: "" }, `explicit device choice clears the canceled MP3 status: ${JSON.stringify(sourceChoiceAfterClick)}`);
+    assert.deepEqual(sourceChoiceAfterClick, { player: { available: true, discovered: true, mediaReady: true, recordedPending: false, open: true, mode: "device", playing: true }, subtitle: "Tech Topics · Voz do dispositivo · trecho 1 de 4", playing: "true", status: "" }, `explicit device choice clears the canceled MP3 status: ${JSON.stringify(sourceChoiceAfterClick)}`);
     assert.equal(await racePage.locator("#recording-play").getAttribute("data-playing"), "true");
     assert.equal(await racePage.locator("#article-recording").evaluate(element => element.paused), true, "reader choice pauses the unresolved recorded attempt");
     assert.deepEqual(await racePage.evaluate(() => ({ playCalls: window.__playCalls, utterances: window.testUtterances.length })), { playCalls: 1, utterances: 1 });
     await racePage.evaluate(() => window.__resolveLatePlay());
     await racePage.clock.runFor(1300);
     await racePage.waitForTimeout(50);
-    assert.equal(await racePage.locator("#recording-subtitle").innerText(), "Tech Topics · Voz do dispositivo", "late play resolution cannot override the reader's source choice");
+    assert.equal(await racePage.locator("#recording-subtitle").innerText(), "Tech Topics · Voz do dispositivo · trecho 1 de 4", "late play resolution cannot override the reader's source choice");
     assert.equal(await racePage.locator("#recording-play").getAttribute("data-playing"), "true");
     assert.equal(await racePage.locator("#article-recording").evaluate(element => element.paused), true);
     assert.deepEqual(await racePage.evaluate(() => ({ playCalls: window.__playCalls, utterances: window.testUtterances.length })), { playCalls: 1, utterances: 1 });

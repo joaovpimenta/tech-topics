@@ -499,6 +499,113 @@ test("discovered MP3 with readyState zero uses device speech after the gesture",
   finishLoad();
 });
 
+test("metadata and seekability allow a bounded MP3 start attempt before buffered data exists", async () => {
+  const range = { length: 1, start: () => 0, end: () => 105 };
+  const empty = { length: 0 };
+  const bootstrapped = await playerFixture({ readyState: 4, buffered: empty, seekable: range,
+    playPlan: audio => {
+      audio.buffered = range;
+      audio.paused = false;
+      audio.dispatchEvent(new Event("play"));
+      audio.dispatchEvent(new Event("playing"));
+      return Promise.resolve();
+    } });
+  await bootstrapped.controller.play();
+  assert.equal(bootstrapped.audio.playCalls, 1, "the click must be allowed to bootstrap buffered data");
+  assert.equal(bootstrapped.controller.snapshot().mode, "recorded");
+  assert.equal(bootstrapped.controller.snapshot().playing, true);
+  assert.deepEqual(bootstrapped.starts, [], "device speech must not overlap a confirmed MP3 start");
+  assert.equal(bootstrapped.nodes["#recording-status"].textContent, "");
+
+  const notActuallyReady = await playerFixture({ readyState: 4, buffered: empty, seekable: range, playbackTimeoutMs: 5,
+    playPlan: audio => {
+      audio.paused = false;
+      audio.dispatchEvent(new Event("play"));
+      audio.dispatchEvent(new Event("playing"));
+      return Promise.resolve();
+    } });
+  await notActuallyReady.controller.play();
+  assert.equal(notActuallyReady.controller.snapshot().mode, "device",
+    "a playing event without a buffered target is not enough to claim MP3 playback");
+  assert.equal(notActuallyReady.audio.paused, true, "unconfirmed media is paused before local speech takes over");
+  assert.deepEqual(notActuallyReady.starts, [0]);
+
+  let resolveLate;
+  const canceled = await playerFixture({ readyState: 4, buffered: empty, seekable: range, playbackTimeoutMs: 1000,
+    playPlan: audio => new Promise(resolve => {
+      resolveLate = () => {
+        audio.buffered = range;
+        audio.paused = false;
+        audio.dispatchEvent(new Event("playing"));
+        resolve();
+      };
+    }) });
+  const pending = canceled.controller.play();
+  assert.equal(canceled.controller.snapshot().recordedPending, true);
+  canceled.nodes["#listen-article"].click();
+  await pending;
+  assert.equal(canceled.controller.snapshot().mode, "device", "an explicit choice cancels a pending MP3 bootstrap");
+  assert.equal(canceled.audio.paused, true);
+  assert.deepEqual(canceled.starts, [0]);
+  resolveLate();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(canceled.controller.snapshot().mode, "device", "late buffered data cannot take over local speech");
+  assert.equal(canceled.audio.paused, true, "late MP3 playback is paused to prevent overlap");
+});
+
+test("device fallback keeps the real MP3 duration and never presents block counts as elapsed time", async () => {
+  const noBufferedData = { length: 0 };
+  const mapped = await playerFixture({ readyState: 2, buffered: noBufferedData, seekable: noBufferedData, fetchAudio: async () => ({
+    url: "https://example.org/bulkhead.mp3",
+    chapters: [
+      { start: 0, block_index: 0, sentence_index: 0 },
+      { start: 45, block_index: 1, sentence_index: 0 },
+      { start: 90, block_index: 2, sentence_index: 0 }
+    ]
+  }) });
+  mapped.audio.duration = 147;
+  await mapped.controller.play();
+  mapped.devicePlayer.start(1);
+  assert.equal(mapped.nodes["#recording-elapsed"].textContent, "~0:45",
+    "a proven chapter mapping may provide a clearly approximate temporal position");
+  assert.equal(mapped.nodes["#recording-duration"].textContent, "2:27",
+    "the real finite MP3 duration remains the total in device mode");
+  assert.equal(mapped.nodes["#inline-recording-elapsed"].textContent, "~0:45");
+  assert.equal(mapped.nodes["#inline-recording-duration"].textContent, "2:27");
+  assert.equal(mapped.nodes["#recording-seek"].value, "306",
+    "a mapped chapter positions the visible range at its approximate time in the real duration");
+  assert.equal(mapped.nodes["#inline-recording-seek"].value, "306");
+  mapped.nodes["#recording-seek"].value = "500";
+  mapped.nodes["#recording-seek"].dispatchEvent(new Event("input"));
+  assert.equal(mapped.nodes["#recording-elapsed"].textContent, "~1:30",
+    "scrubbing announces the nearest mapped timestamp while keeping approximate notation");
+  mapped.nodes["#recording-seek"].dispatchEvent(new Event("change"));
+  assert.equal(mapped.devicePlayer.snapshot().blockIndex, 2,
+    "a temporal scrub seeks the nearest chapter validated against the speech block");
+
+  const unmapped = await playerFixture({ readyState: 2, buffered: noBufferedData, seekable: noBufferedData, fetchAudio: async () => ({
+    url: "https://example.org/bulkhead.mp3",
+    chapters: [
+      { start: 0, block_index: 10, sentence_index: 0 },
+      { start: 45, block_index: 11, sentence_index: 0 },
+      { start: 90, block_index: 12, sentence_index: 0 }
+    ]
+  }) });
+  unmapped.audio.duration = 147;
+  await unmapped.controller.play();
+  unmapped.devicePlayer.start(1);
+  assert.equal(unmapped.nodes["#recording-elapsed"].textContent, "—:––",
+    "an invalid mapping must not turn the phrase index into an elapsed-time claim");
+  assert.equal(unmapped.nodes["#recording-duration"].textContent, "2:27",
+    "the finite MP3 total remains visible even when its chapters do not map");
+  assert.match(unmapped.nodes["#recording-subtitle"].textContent, /trecho 2 de 3/i,
+    "phrase position remains available as an explicitly non-temporal alternative");
+  assert.equal(unmapped.nodes["#recording-seek"].value, "500",
+    "an unmapped reader keeps its chapter-count range rather than pretending it is time-scaled");
+  assert.match(unmapped.nodes["#recording-seek"].attrs["aria-label"], /trecho 2 de 3/i);
+});
+
 test("initial unmapped playback may start device block zero, but never after recorded progress", async () => {
   const initial = await playerFixture({ readyState: 0,
     fetchAudio: async () => ({ url: "https://example.org/bulkhead.mp3", chapters: [] }) });
@@ -968,7 +1075,7 @@ test("same bottom dock controls native synthesis, chapter seeking, speed, and sw
   assert.equal(controller.snapshot().mode, "device");
   assert.deepEqual(updates.at(-1), ["start", 1], "recorded to device uses the chapter validated at the current MP3 position");
   assert.equal(nodes["#recording-player"].hidden, false);
-  assert.equal(nodes["#recording-subtitle"].textContent, "Tech Topics · Voz do dispositivo");
+  assert.equal(nodes["#recording-subtitle"].textContent, "Tech Topics · Voz do dispositivo · trecho 2 de 3");
   assert.equal(nodes["#recording-play"].dataset.playing, "true");
   assert.equal(audio.paused, true, "MP3 paused when device synth starts");
   nodes["#recording-skip"].click();
@@ -987,7 +1094,7 @@ test("same bottom dock controls native synthesis, chapter seeking, speed, and sw
   assert.equal(nodes["#recording-rate"].attrs["aria-label"], "Velocidade da narração: 1.25 vezes");
   nodes["#recording-play"].click();
   assert.equal(nodes["#recording-play"].dataset.playing, "false");
-  assert.equal(nodes["#recording-elapsed"].textContent, "3/3");
+  assert.equal(nodes["#recording-elapsed"].textContent, "~0:30");
   nodes["#recording-play"].click();
   assert.equal(nodes["#recording-play"].dataset.playing, "true");
   audio.currentTime = 35.901;
@@ -1201,6 +1308,105 @@ test("mapped device to MP3 switches wait for the target seek and can be canceled
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(stale.controller.snapshot().mode, "device", "late readiness cannot use an invalidated chapter mapping");
   assert.equal(stale.audio.playCalls, 0);
+});
+
+test("mapped manual switch accepts seekable metadata without inventing playback before data arrives", async () => {
+  const range = { length: 1, start: () => 0, end: () => 105 };
+  const empty = { length: 0 };
+  const fixture = await playerFixture({ readyState: 1, buffered: empty, seekable: range, sourceSwitchTimeoutMs: 20,
+    fetchAudio: async () => ({ url: "https://example.org/bulkhead.mp3", chapters: [
+      { start: 0, block_index: 0, sentence_index: 0 },
+      { start: 30, block_index: 1, sentence_index: 0 },
+      { start: 80, block_index: 2, sentence_index: 0 }
+    ] }),
+    playPlan: audio => {
+      audio.readyState = 2;
+      audio.buffered = range;
+      audio.paused = false;
+      audio.dispatchEvent(new Event("play"));
+      audio.dispatchEvent(new Event("playing"));
+      return Promise.resolve();
+    } });
+  fixture.controller.beginDevice(2, true);
+  fixture.devicePlayer.setRate(1.25);
+  fixture.nodes["#listen-article"].click();
+  await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal(fixture.controller.snapshot().mode, "recorded",
+    "a mapped target confirmed by seeked plus metadata/seekable can be selected while paused");
+  assert.equal(fixture.audio.currentTime, 80, "the validated chapter target remains selected");
+  assert.equal(fixture.audio.paused, true, "preparation never plays audio just to fill the buffer");
+  assert.equal(fixture.audio.playCalls, 0, "paused source choice has no hidden play attempt");
+  assert.equal(fixture.devicePlayer.snapshot().state, "idle", "the paused device source is released only after the target seek is proven");
+  assert.equal(fixture.audio.playbackRate, 1.25, "source selection retains the chosen rate");
+  assert.match(fixture.nodes["#recording-status"].textContent, /pressione reproduzir/i,
+    "the UI explains that the MP3 is positioned but has not begun");
+
+  fixture.nodes["#recording-play"].click();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await Promise.resolve();
+  assert.equal(fixture.controller.snapshot().mode, "recorded");
+  assert.equal(fixture.controller.snapshot().playing, true, "the next explicit play gesture confirms the newly buffered position");
+  assert.equal(fixture.audio.currentTime, 80);
+  assert.equal(fixture.audio.playbackRate, 1.25);
+
+  let confirmActiveMp3;
+  const active = await playerFixture({ readyState: 1, buffered: empty, seekable: range, sourceSwitchTimeoutMs: 20,
+    playbackTimeoutMs: 1000,
+    fetchAudio: async () => ({ url: "https://example.org/bulkhead.mp3", chapters: [
+      { start: 0, block_index: 0, sentence_index: 0 },
+      { start: 30, block_index: 1, sentence_index: 0 },
+      { start: 80, block_index: 2, sentence_index: 0 }
+    ] }),
+    playPlan: audio => new Promise(resolve => {
+      audio.paused = false;
+      audio.dispatchEvent(new Event("play"));
+      confirmActiveMp3 = () => {
+        audio.readyState = 2;
+        audio.buffered = range;
+        audio.dispatchEvent(new Event("playing"));
+        resolve();
+      };
+    }) });
+  active.controller.beginDevice(2);
+  active.devicePlayer.setRate(1.25);
+  active.nodes["#listen-article"].click();
+  await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal(active.controller.snapshot().recordedPending, true, "the bounded MP3 start remains pending until data arrives");
+  assert.equal(active.devicePlayer.snapshot().state, "paused",
+    "the old voice stays paused, rather than being stopped, while the MP3 start is unconfirmed");
+  assert.equal(active.audio.playCalls, 1);
+  confirmActiveMp3();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await Promise.resolve();
+  assert.equal(active.controller.snapshot().mode, "recorded",
+    "active voice pauses during mapped preparation and yields only after the MP3 is confirmed");
+  assert.equal(active.controller.snapshot().playing, true);
+  assert.equal(active.audio.currentTime, 80);
+  assert.equal(active.audio.playbackRate, 1.25);
+  assert.equal(active.devicePlayer.snapshot().state, "idle", "the device source stops only after MP3 playback is confirmed");
+
+  const activeFallback = await playerFixture({ readyState: 1, buffered: empty, seekable: range, sourceSwitchTimeoutMs: 20,
+    fetchAudio: async () => ({ url: "https://example.org/bulkhead.mp3", chapters: [
+      { start: 0, block_index: 0, sentence_index: 0 },
+      { start: 30, block_index: 1, sentence_index: 0 },
+      { start: 80, block_index: 2, sentence_index: 0 }
+    ] }),
+    playPlan: audio => {
+      audio.paused = false;
+      audio.dispatchEvent(new Event("play"));
+      return Promise.reject(new Error("media could not start"));
+    } });
+  activeFallback.controller.beginDevice(2);
+  activeFallback.devicePlayer.setRate(1.25);
+  activeFallback.nodes["#listen-article"].click();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await Promise.resolve();
+  assert.equal(activeFallback.controller.snapshot().mode, "device",
+    "a failed mapped MP3 attempt returns to the selected device chapter");
+  assert.equal(activeFallback.devicePlayer.snapshot().state, "speaking");
+  assert.equal(activeFallback.devicePlayer.snapshot().blockIndex, 2);
+  assert.equal(activeFallback.devicePlayer.getRate(), 1.25);
+  assert.equal(activeFallback.audio.paused, true, "the failed MP3 is paused before the device source resumes");
 });
 
 test("sentence metadata v2 supports repeated editorial blocks with different timestamps", () => {
