@@ -51,6 +51,7 @@ async function testTouchBehavior(browser, base) {
       await inputPage.waitForTimeout(560);
       const popup = inputPage.locator('#article-quick-actions');
       assert.ok(await popup.isVisible(), `touch long-press must still open quick actions at ${x},${y}`);
+      assert.match(await popup.locator('.quick-hint').innerText(), /^(Arraste|Solte)/, 'touch gesture must retain drag-and-release guidance');
       if (qaDir && !touchScreenshotSaved) {
         await inputPage.screenshot({ path: join(qaDir, 'touch-longpress.png'), fullPage: false });
         touchScreenshotSaved = true;
@@ -148,11 +149,19 @@ try {
   assert.equal(await popup.getAttribute('aria-labelledby'), 'quick-preview-title');
   assert.equal(await page.locator('#quick-preview-title').innerText(), 'Rate Limiting: Token Bucket, Leaky Bucket e limites sob rajadas');
   assert.equal(await page.evaluate(() => window.__pointerDownCount), 0, 'hover must open quick actions without pressing');
+  const hoverHint = 'Clique em uma ação; afaste o cursor para fechar.';
+  assert.equal(await popup.locator('.quick-hint').innerText(), hoverHint, 'hover dialog must explain click and cursor-leave behavior');
   if (qaDir) await page.screenshot({ path: join(qaDir, 'desktop-hover-no-pointerdown.png'), fullPage: false });
   const read = page.locator('#article-quick-actions [data-quick-action="read"]');
   await read.hover();
   await page.waitForTimeout(220);
   assert.equal(await popup.isVisible(), true, 'moving from the card into the popover must keep it open');
+  assert.equal(await popup.locator('.quick-hint').innerText(), hoverHint, 'hover action movement must not restore touch drag guidance');
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.waitForTimeout(220);
+  assert.equal(await popup.isVisible(), true, 'returning to the card must keep the popover open');
+  assert.equal(await popup.locator('.quick-hint').innerText(), hoverHint, 'reopening/highlight must retain hover guidance');
+  await read.hover();
   await read.click();
   await page.waitForURL('**/article.html?slug=rate-limiting-token-bucket-leaky-bucket');
   console.log('PASS: fine-pointer hover opens the matching named quick-actions dialog without pointerdown; read action navigates');
@@ -193,6 +202,8 @@ try {
   await closeCard.focus();
   await closePage.keyboard.press('Enter');
   assert.equal(await closePopup.isVisible(), true, 'keyboard Enter must keep opening quick actions');
+  assert.equal(await closePopup.locator('.quick-hint').innerText(), 'Use Tab para escolher uma ação, Enter para ativar e Escape para fechar.',
+    'keyboard dialog must explain keyboard navigation');
   await closePage.keyboard.press('Escape');
   assert.equal(await closePopup.isVisible(), false, 'Escape must close keyboard quick actions');
   console.log('PASS: pointer leave closes the hover menu; Enter and Escape remain accessible');

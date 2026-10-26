@@ -123,6 +123,17 @@ function scheduleHoverClose() {
   }, 180);
 }
 
+function quickActionHint(mode, action = "") {
+  if (mode === "hover") return "Clique em uma ação; afaste o cursor para fechar.";
+  if (mode === "keyboard") return "Use Tab para escolher uma ação, Enter para ativar e Escape para fechar.";
+  if (action) return ({
+    read: "Solte para ler o artigo.",
+    favorite: "Solte para alternar favorito.",
+    share: "Solte para compartilhar."
+  })[action];
+  return "Arraste até uma ação e solte. Solte fora para fechar.";
+}
+
 if (quickActions) {
   quickActions.addEventListener("pointerenter", event => {
     if (event.pointerType !== "mouse" || quickMode !== "hover") return;
@@ -169,13 +180,11 @@ function highlightQuickAction(x, y) {
   for (const button of quickActions.querySelectorAll("[data-quick-action]")) {
     button.classList.toggle("is-targeted", button === hovered);
   }
+  if (quickHint && quickMode !== "gesture") quickHint.textContent = quickActionHint(quickMode);
   if (gesture?.active && gesture.highlightedAction !== name) {
     gesture.highlightedAction = name;
     quickActions.dataset.activeAction = name;
-    if (quickHint) quickHint.textContent = name
-      ? ({ read: "Solte para ler o artigo.", favorite: "Solte para alternar favorito.",
-           share: "Solte para compartilhar." })[name]
-      : "Arraste até uma ação e solte. Solte fora para fechar.";
+    if (quickHint) quickHint.textContent = quickActionHint("gesture", name);
     // Short haptic tick only when entering a *new* action, not on every move.
     // Web Vibration is unsupported on iOS and may be disabled by the device.
     if (name && gesture.kind === "touch" && typeof navigator.vibrate === "function") {
@@ -201,7 +210,7 @@ function openQuickActions(article, favoriteButton, x, y, mode = "gesture", sourc
   // Prioritize the article's own opening allegory rather than duplicating the
   // card excerpt or the header dek. All text comes from the lightweight catalog.
   const opening = element("p", "quick-opening", article.opening || article.dek || article.excerpt || "");
-  const hint = element("p", "quick-hint", "Arraste até uma ação e solte. Solte fora para fechar.");
+  const hint = element("p", "quick-hint", quickActionHint(mode));
   quickHint = hint;
   summary.append(meta, opening, hint);
   const controls = element("div", "quick-controls");
