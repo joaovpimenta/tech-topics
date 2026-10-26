@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Audio source switch contract</title>
+<body>
+  <header>
+    <h1 id="article-heading">Título do teste</h1>
+    <p id="article-dek">Resumo do teste.</p>
+    <button id="listen-article">Voz do dispositivo</button>
+    <span id="listen-status"></span>
+    <button id="listen-recording">Ouvir narração</button>
+    <details class="recording-options"><summary>Opções de áudio</summary></details>
+  </header>
+  <article id="article-body"><p>Primeiro trecho.</p><p>Segundo trecho.</p></article>
+  <audio id="article-recording"></audio>
+  <section id="recording-player" hidden>
+    <span id="recording-title"></span><span id="recording-subtitle"></span>
+    <img id="recording-cover" alt="">
+    <span id="recording-ring"></span><button id="recording-play"></button>
+    <button id="recording-previous"></button><button id="recording-skip"></button>
+    <label><input id="recording-follow" type="checkbox" checked>Acompanhar</label>
+    <button id="recording-close"></button><input id="recording-seek" type="range" min="0" max="1000" value="0" step="1">
+    <span id="recording-elapsed"></span><span id="recording-duration"></span>
+    <button id="recording-rate"></button><span id="recording-status"></span>
+  </section>
+  <section id="speech-player" hidden><span id="speech-position"></span><button id="speech-play"></button><button id="speech-previous"></button><button id="speech-next"></button><button id="speech-stop"></button></section>
+  <script src="../../speech.js"></script>
+  <script src="../../audio.js"></script>
+  <script>
+    const synthesis = window.speechSynthesis;
+    const devicePlayer = TechTopicsSpeech.mount({ document, synthesis, Utterance: SpeechSynthesisUtterance, dockMode: true,
+      onStatus: snapshot => window.audioSwitchController?.deviceChanged(snapshot) });
+    const chapters = devicePlayer.blocks.map((block, index) => ({ start: index * 10, block_index: index, sentence_index: 0 }));
+    const audio = document.querySelector("#article-recording");
+    window.audioSwitchController = TechTopicsAudio.createPlayer({
+      document, navigator: {}, article: { slug: "fixture", title: "Título do teste" }, cover: { src: "cover.jpg" },
+      audio, devicePlayer, fetchAudio: async () => ({ url: "https://example.test/fixture.mp3", chapters })
+    });
+    window.audioSwitchController.discover().then(() => { window.fixtureReady = true; });
+  </script>
+</body>
+</html>
