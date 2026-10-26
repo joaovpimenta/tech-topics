@@ -93,7 +93,7 @@
     return nodes;
   }
 
-  function createPlayer({ document, navigator, article, cover, audio, fetchAudio = lookupAudio, fetchChapters = loadChapters, devicePlayer = null, stopDevice = () => {}, startDevice = () => {}, playbackTimeoutMs = 1200 }) {
+  function createPlayer({ document, navigator, article, cover, audio, fetchAudio = lookupAudio, fetchChapters = loadChapters, devicePlayer = null, stopDevice = () => {}, startDevice = () => {}, playbackTimeoutMs = 1200, sourceSwitchTimeoutMs = 3000 }) {
     const button = document.querySelector("#listen-recording");
     const inlineAnchor = document.querySelector("#inline-recording-anchor");
     const inlineTimeline = document.querySelector("#inline-recording-timeline");
@@ -125,7 +125,11 @@
     let discovered = false;
     let recordedActive = false;
     let recordedPending = false;
+    let recordedSeekPrepared = false;
+    let deviceHandoffPending = false;
     let recordedFallbackIndex;
+    let recordedFallbackInitial = false;
+    let pendingSourceSwitch = null;
     let playbackAttempt = 0;
     let cancelPendingPlayWait = null;
     let selectedRate = Number.isFinite(audio.playbackRate) ? audio.playbackRate : 1;
@@ -145,6 +149,7 @@
     let mode = null; // "recorded" or "device"; one dock owns both players.
     let deviceState = { state: "idle", blockIndex: 0, count: devicePlayer?.blocks?.length || 0 };
     let lastDeviceIndex = 0;
+    let recordedProgressObserved = false;
     let seeking = false;
     let inlineSeeking = false;
     let inlineVisible = true;
@@ -227,6 +232,51 @@
       const index = devicePlayer.blocks.findIndex(block => block.node === node);
       return index >= 0 ? index : undefined;
     }
+    function canStartDeviceAtBeginning() {
+      const position = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+      return !recordedProgressObserved && position <= 0.05;
+    }
+    function rememberRecordedProgress() {
+      if (Number.isFinite(audio.currentTime) && audio.currentTime > 0.05) recordedProgressObserved = true;
+    }
+    function chapterForDeviceIndex(index) {
+      if (!Number.isInteger(index) || chapterNodes.length !== chapters.length || !chapters.length) return -1;
+      const block = devicePlayer?.blocks?.[index];
+      if (!block) return -1;
+      return chapters.findIndex((chapter, chapterIndex) =>
+        chapterNodes[chapterIndex] === block.node &&
+        (chapter.sentenceIndex === null || chapter.sentenceIndex === block.sentenceIndex));
+    }
+    function deviceIndexForChapter(chapterIndex) {
+      if (!Number.isInteger(chapterIndex) || chapterNodes.length !== chapters.length || !chapters.length) return -1;
+      const chapter = chapters[chapterIndex];
+      const node = chapterNodes[chapterIndex];
+      if (!chapter || !node || !devicePlayer?.blocks) return -1;
+      return devicePlayer.blocks.findIndex(block => block.node === node &&
+        (chapter.sentenceIndex === null || block.sentenceIndex === chapter.sentenceIndex));
+    }
+    function deviceChapterAtPercent(percent) {
+      const total = Number.isFinite(audio.duration) ? audio.duration : 0;
+      if (total <= 0 || chapterNodes.length !== chapters.length) return null;
+      const target = Math.min(1, Math.max(0, percent)) * total;
+      let nearest = null;
+      chapters.forEach((chapter, chapterIndex) => {
+        const deviceIndex = deviceIndexForChapter(chapterIndex);
+        if (deviceIndex < 0 || chapter.start > total) return;
+        const distance = Math.abs(chapter.start - target);
+        if (!nearest || distance < nearest.distance) nearest = { chapter, deviceIndex, distance };
+      });
+      return nearest;
+    }
+    function deviceIndexAtPercent(percent) {
+      const nearest = deviceChapterAtPercent(percent);
+      return nearest?.deviceIndex ?? Math.round(Math.min(1, Math.max(0, percent)) * Math.max(0, deviceState.count - 1));
+    }
+    function devicePositionAtPercent(percent) {
+      const nearest = deviceChapterAtPercent(percent);
+      return nearest ? `~${formatTime(nearest.chapter.start)}` :
+        (deviceState.count ? `${Math.round(Math.min(1, Math.max(0, percent)) * Math.max(0, deviceState.count - 1)) + 1}/${deviceState.count}` : "—");
+    }
     function clearHighlight() {
       activeNode?.classList.remove("recording-block-active");
       sentenceHighlighter?.clear();
@@ -260,6 +310,10 @@
       }
     }
     function attachChapters() {
+      // A new response invalidates any correspondence established by an
+      // earlier chapter catalog, even when the replacement cannot be mapped.
+      chapterNodes = [];
+      chapterWords = [];
       const elements = readingNodes(document);
       const sentenceMode = chapters.every(chapter => chapter.sentenceIndex !== null);
       if (sentenceMode) {
@@ -320,7 +374,8 @@
         });
       }
     }
-    function beginDevice(index) {
+    function beginDevice(index, paused = false) {
+      cancelPendingSourceSwitch();
       if (!devicePlayer) {
         cancelRecordedAttempt();
         audio.pause();
@@ -331,6 +386,8 @@
         return;
       }
       cancelRecordedAttempt();
+      recordedSeekPrepared = false;
+      deviceHandoffPending = false;
       if (mode === "recorded" && Number.isFinite(audio.playbackRate)) selectedRate = audio.playbackRate;
       const targetIndex = Number.isInteger(index) ? index : lastDeviceIndex;
       devicePlayer.setRate?.(selectedRate);
@@ -338,10 +395,118 @@
       open = true;
       audio.pause();
       clearSession();
-      if (Number.isInteger(targetIndex)) devicePlayer.start(targetIndex);
+      if (Number.isInteger(targetIndex)) devicePlayer.start(targetIndex, paused);
       else if (devicePlayer.snapshot().state === "idle") devicePlayer.start();
       else devicePlayer.toggle();
       render();
+    }
+    function cancelPendingSourceSwitch(message = "Preparação do MP3 cancelada; a voz do dispositivo permanece pausada.") {
+      const pending = pendingSourceSwitch;
+      if (!pending) return false;
+      pendingSourceSwitch = null;
+      pending.cancelWait?.();
+      audio.pause();
+      try { audio.currentTime = pending.previousPosition; } catch (_) {}
+      setStatus(message);
+      render();
+      return true;
+    }
+    function waitForMediaSeek(target, pending) {
+      return new Promise(resolve => {
+        let settled = false;
+        let timer;
+        let onError;
+        let seekCompleted = Number.isFinite(audio.currentTime) && Math.abs(audio.currentTime - target) <= 0.25;
+        let onSeeked;
+        const events = ["canplay", "loadedmetadata", "durationchange", "progress", "timeupdate"];
+        const cleanup = () => {
+          clearTimeout(timer);
+          for (const type of events) audio.removeEventListener(type, check);
+          if (onSeeked) audio.removeEventListener("seeked", onSeeked);
+          if (onError) audio.removeEventListener("error", onError);
+        };
+        const finish = ready => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          if (pending.cancelWait === cancel) pending.cancelWait = null;
+          resolve(ready);
+        };
+        const check = () => {
+          const atTarget = Number.isFinite(audio.currentTime) && Math.abs(audio.currentTime - target) <= 0.25;
+          if (seekCompleted && atTarget && mediaSeekableAtCurrentPosition()) finish(true);
+        };
+        const cancel = () => finish(false);
+        pending.cancelWait = cancel;
+        for (const type of events) audio.addEventListener(type, check);
+        onSeeked = () => { seekCompleted = true; check(); };
+        audio.addEventListener("seeked", onSeeked);
+        onError = () => finish(false);
+        audio.addEventListener("error", onError);
+        timer = setTimeout(() => finish(false), sourceSwitchTimeoutMs);
+        try { audio.currentTime = target; }
+        catch (_) { finish(false); return; }
+        check();
+      });
+    }
+    function commitRecordedSourceSwitch(wasSpeaking) {
+      selectedRate = devicePlayer?.getRate?.() || selectedRate;
+      cancelRecordedAttempt();
+      recordedSeekPrepared = !mediaReadyAtCurrentPosition() && mediaSeekableAtCurrentPosition();
+      deviceHandoffPending = Boolean(wasSpeaking);
+      mode = "recorded";
+      open = true;
+      recordedActive = false;
+      recordedPending = false;
+      audio.playbackRate = selectedRate;
+      audio.pause();
+      if (!deviceHandoffPending) devicePlayer?.stop("");
+      clearSession();
+      setStatus(recordedSeekPrepared ? "MP3 posicionado; pressione reproduzir para carregar o trecho." : "");
+      render();
+      if (wasSpeaking) void play();
+    }
+    function pendingSwitchMappingIsValid(pending) {
+      const chapterIndex = chapterForDeviceIndex(pending.blockIndex);
+      return chapterIndex >= 0 && Math.abs(chapters[chapterIndex].start - pending.target) <= 0.001;
+    }
+    async function switchToRecorded() {
+      if (pendingSourceSwitch) {
+        cancelPendingSourceSwitch();
+        return;
+      }
+      const chapterIndex = chapterForDeviceIndex(deviceState.blockIndex);
+      if (chapterIndex < 0) {
+        setStatus("Não é possível trocar de fonte neste trecho porque os capítulos não correspondem ao texto.");
+        return;
+      }
+      selectedRate = devicePlayer?.getRate?.() || selectedRate;
+      const previousPosition = audio.currentTime;
+      const wasSpeaking = deviceState.state === "speaking";
+      if (wasSpeaking) devicePlayer?.toggle();
+      const target = chapters[chapterIndex].start;
+      const pending = { previousPosition, wasSpeaking, target, blockIndex: deviceState.blockIndex, cancelWait: null };
+      pendingSourceSwitch = pending;
+      setStatus("Preparando o MP3 no capítulo correspondente…");
+      render();
+      const atTarget = Number.isFinite(audio.currentTime) && Math.abs(audio.currentTime - target) <= 0.25;
+      if (atTarget && mediaSeekableAtCurrentPosition() && pendingSwitchMappingIsValid(pending)) {
+        pendingSourceSwitch = null;
+        commitRecordedSourceSwitch(wasSpeaking);
+        return;
+      }
+      const ready = await waitForMediaSeek(target, pending);
+      if (pendingSourceSwitch !== pending) return;
+      pendingSourceSwitch = null;
+      if (!ready || !mediaSeekableAtCurrentPosition() || Math.abs(audio.currentTime - target) > 0.25 || !pendingSwitchMappingIsValid(pending)) {
+        audio.pause();
+        try { audio.currentTime = previousPosition; } catch (_) {}
+        if (pending.wasSpeaking && deviceState.state === "paused") devicePlayer?.toggle();
+        setStatus("O MP3 não ficou pronto neste capítulo. A voz do dispositivo continua selecionada; tente novamente.");
+        render();
+        return;
+      }
+      commitRecordedSourceSwitch(wasSpeaking);
     }
     function deviceChanged(snapshot) {
       deviceState = snapshot;
@@ -356,11 +521,13 @@
       render();
     }
     function nextParagraph() {
+      cancelPendingSourceSwitch();
       if (mode === "device") return devicePlayer?.next();
       const target = chapters.find(chapter => chapter.start > audio.currentTime + 0.7);
       if (target) seekTo(target.start);
     }
     function previousParagraph() {
+      cancelPendingSourceSwitch();
       if (mode === "device") return devicePlayer?.previous();
       const previous = chapters.filter(chapter => chapter.start < audio.currentTime - 2);
       if (previous.length) seekTo(previous[previous.length - 1].start);
@@ -370,17 +537,33 @@
       const native = mode === "device";
       const current = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
       const total = Number.isFinite(audio.duration) ? audio.duration : 0;
+      const mappedDeviceChapter = native ? chapterForDeviceIndex(deviceState.blockIndex) : -1;
+      const mappedDeviceStart = mappedDeviceChapter >= 0 ? chapters[mappedDeviceChapter]?.start : NaN;
+      const mappedDeviceTimeValid = Number.isFinite(mappedDeviceStart) && mappedDeviceStart >= 0 &&
+        (!total || mappedDeviceStart <= total);
       const fraction = native
-        ? (deviceState.count > 1 ? deviceState.blockIndex / (deviceState.count - 1) : 0)
+        ? (mappedDeviceTimeValid && total > 0
+          ? mappedDeviceStart / total
+          : (deviceState.count > 1 ? deviceState.blockIndex / (deviceState.count - 1) : 0))
         : (total > 0 ? Math.min(1, Math.max(0, current / total)) : 0);
-      const devicePosition = deviceState.count ? `${deviceState.blockIndex + 1}/${deviceState.count}` : "—";
+      const estimatedDeviceTime = mappedDeviceTimeValid ? `~${formatTime(mappedDeviceStart)}` : "—:––";
+      const devicePositionLabel = deviceState.count
+        ? `trecho ${deviceState.blockIndex + 1} de ${deviceState.count}` : "trecho indisponível";
       if (!seeking) {
         seek.value = String(Math.round(fraction * 1000));
-        elapsed.textContent = native ? devicePosition : formatTime(current);
+        elapsed.textContent = native ? estimatedDeviceTime : formatTime(current);
       }
-      duration.textContent = native ? "por trecho" : total > 0 ? formatTime(total) : "–:––";
+      duration.textContent = total > 0 ? formatTime(total) : "–:––";
       seek.disabled = native ? deviceState.count < 2 : total <= 0;
-      seek.setAttribute("aria-label", native ? "Navegar pelos trechos do artigo" : "Posição da narração");
+      seek.setAttribute("aria-label", native
+        ? `Navegar pelos trechos do artigo (${devicePositionLabel})`
+        : "Posição da narração");
+      elapsed.setAttribute("aria-label", native
+        ? (estimatedDeviceTime.startsWith("~")
+          ? "Posição aproximada pelos capítulos do áudio gravado; reprodução pela voz do dispositivo"
+          : "Posição temporal indisponível na voz do dispositivo")
+        : "Tempo decorrido do áudio gravado");
+      duration.setAttribute("aria-label", "Duração total do áudio gravado");
       ring.style.setProperty("--recording-progress", `${Math.round(fraction * 360)}deg`);
       const playing = native ? deviceState.state === "speaking" : recordedActive && !audio.paused && !audio.ended && mode === "recorded";
       playButton.setAttribute("aria-label", playing ? "Pausar narração" : "Reproduzir narração");
@@ -394,11 +577,24 @@
       if (inlineSeek) {
         if (!inlineSeeking) inlineSeek.value = String(Math.round(fraction * 1000));
         inlineSeek.disabled = native ? deviceState.count < 2 : total <= 0;
-        inlineSeek.setAttribute("aria-label", native ? "Navegar pelos trechos do artigo" : "Posição da narração");
+        inlineSeek.setAttribute("aria-label", native
+          ? `Navegar pelos trechos do artigo (${devicePositionLabel})`
+          : "Posição da narração");
       }
-      if (inlineElapsed && !inlineSeeking) inlineElapsed.textContent = native ? devicePosition : formatTime(current);
-      if (inlineDuration) inlineDuration.textContent = native ? "por trecho" : total > 0 ? formatTime(total) : "–:––";
+      if (inlineElapsed) {
+        if (!inlineSeeking) inlineElapsed.textContent = native ? estimatedDeviceTime : formatTime(current);
+        inlineElapsed.setAttribute("aria-label", native
+          ? (estimatedDeviceTime.startsWith("~")
+            ? "Posição aproximada pelos capítulos do áudio gravado; reprodução pela voz do dispositivo"
+            : "Posição temporal indisponível na voz do dispositivo")
+          : "Tempo decorrido do áudio gravado");
+      }
+      if (inlineDuration) {
+        inlineDuration.textContent = total > 0 ? formatTime(total) : "–:––";
+        inlineDuration.setAttribute("aria-label", "Duração total do áudio gravado");
+      }
       subtitle.textContent = native ? "Tech Topics · Voz do dispositivo" : "Tech Topics · Narração";
+      if (native && deviceState.count) subtitle.textContent += ` · ${devicePositionLabel}`;
       const count = native ? deviceState.count : chapters.length;
       previousButton.hidden = skip.hidden = count < 2;
       previousButton.disabled = native ? deviceState.blockIndex <= 0 : count < 2 || current < 0.7;
@@ -515,10 +711,29 @@
       if (!containsPosition(audio.buffered) || !containsPosition(audio.seekable)) return false;
       return true;
     }
+    function mediaSeekableAtCurrentPosition() {
+      const readyState = Number(audio.readyState);
+      if (!Number.isFinite(readyState) || readyState < 1 || !Number.isFinite(audio.duration) || audio.duration <= 0) return false;
+      const position = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+      const seekable = audio.seekable;
+      if (!seekable || !Number.isFinite(seekable.length) || seekable.length < 1) return false;
+      try {
+        for (let index = 0; index < seekable.length; index += 1) {
+          if (seekable.start(index) <= position + 0.05 && seekable.end(index) >= position - 0.05) return true;
+        }
+      } catch (_) { return false; }
+      return false;
+    }
+    function canAttemptPlaybackAtCurrentPosition() {
+      const readyState = Number(audio.readyState);
+      return Number.isFinite(readyState) && readyState >= (recordedSeekPrepared ? 1 : 2) &&
+        mediaSeekableAtCurrentPosition();
+    }
     function waitForRecordedStart(attempt) {
       return new Promise(resolve => {
         let settled = false;
         let started = false;
+        let startSignalReceived = false;
         let timer;
         const finish = result => {
           if (settled) return;
@@ -526,22 +741,33 @@
           started = result;
           const isCurrentAttempt = attempt === playbackAttempt;
           if (isCurrentAttempt) recordedActive = result;
+          if (result) recordedSeekPrepared = false;
+          if (result && deviceHandoffPending) {
+            deviceHandoffPending = false;
+            devicePlayer?.stop("");
+          }
           clearTimeout(timer);
           audio.removeEventListener("playing", onPlaying);
+          for (const event of ["progress", "canplay", "timeupdate"]) audio.removeEventListener(event, tryConfirmStart);
           if (cancelPendingPlayWait === cancel) cancelPendingPlayWait = null;
           if (!result && (isCurrentAttempt || !hasRecordedIntent())) audio.pause();
           resolve(result);
         };
         const cancel = () => finish(false);
-        const onPlaying = () => {
+        const tryConfirmStart = () => {
           const isObsolete = attempt !== playbackAttempt;
           if (isObsolete || mode !== "recorded" || !open) {
             if (!isObsolete || !hasRecordedIntent()) audio.pause();
             finish(false);
-          } else finish(true);
+          } else if (startSignalReceived && !audio.paused && !audio.ended && mediaReadyAtCurrentPosition()) finish(true);
+        };
+        const onPlaying = () => {
+          startSignalReceived = true;
+          tryConfirmStart();
         };
         cancelPendingPlayWait = cancel;
         audio.addEventListener("playing", onPlaying);
+        for (const event of ["progress", "canplay", "timeupdate"]) audio.addEventListener(event, tryConfirmStart);
         timer = setTimeout(() => finish(false), playbackTimeoutMs);
         let result;
         try { result = audio.play(); }
@@ -553,27 +779,32 @@
             finish(false);
             return;
           }
-          finish(!audio.paused && !audio.ended);
+          startSignalReceived = true;
+          tryConfirmStart();
         }, () => finish(false));
-        if (result === undefined && !audio.paused && !audio.ended) finish(true);
       });
     }
-    function fallbackToDevice(message, index, attempt) {
+    function fallbackToDevice(message, index, attempt, allowInitial = false) {
       if (attempt !== playbackAttempt) {
         if (!hasRecordedIntent()) audio.pause();
         return;
       }
       cancelRecordedAttempt();
+      recordedSeekPrepared = false;
+      deviceHandoffPending = false;
       audio.pause();
-      if (devicePlayer) {
+      const targetIndex = Number.isInteger(index) ? index : allowInitial && canStartDeviceAtBeginning() ? 0 : undefined;
+      if (devicePlayer && Number.isInteger(targetIndex) && targetIndex >= 0 && targetIndex < devicePlayer.blocks.length) {
         setStatus(message);
-        beginDevice(index);
+        beginDevice(targetIndex);
       } else {
         mode = null;
         open = false;
         clearSession();
         clearHighlight();
-        setStatus("O MP3 ainda não iniciou. Verifique a conexão e tente novamente.");
+        setStatus(devicePlayer
+          ? "Falha no MP3. A voz do dispositivo não foi iniciada porque os capítulos não correspondem ao texto."
+          : "O MP3 ainda não iniciou. Verifique a conexão e tente novamente.");
         render();
       }
     }
@@ -581,11 +812,14 @@
       try { performance.mark("tt:audio-play-request"); } catch (_) {}
       if (!discovered) return beginDevice();
       if (mode === "device") {
-        selectedRate = devicePlayer?.getRate?.() || selectedRate;
         lastDeviceIndex = deviceState.blockIndex;
+        return switchToRecorded();
       }
-      const fallbackBlock = mode === "device" ? lastDeviceIndex : fallbackDeviceIndex();
+      const wasDevice = mode === "device";
+      const fallbackBlock = wasDevice ? lastDeviceIndex : fallbackDeviceIndex();
+      const allowInitialFallback = !wasDevice && fallbackBlock === undefined && canStartDeviceAtBeginning();
       recordedFallbackIndex = fallbackBlock;
+      recordedFallbackInitial = allowInitialFallback;
       cancelRecordedAttempt();
       const attempt = playbackAttempt;
       recordedActive = false;
@@ -593,16 +827,17 @@
       mode = "recorded";
       open = true;
       audio.playbackRate = selectedRate;
-      if (devicePlayer) devicePlayer.stop("");
-      else stopDevice();
+      if (devicePlayer) {
+        if (!deviceHandoffPending) devicePlayer.stop("");
+      } else stopDevice();
       render();
       configureSession();
       if (!mediaReadyAtCurrentPosition()) {
-        if (devicePlayer) {
-          fallbackToDevice("MP3 encontrado, mas a mídia ainda não está pronta; usando voz do dispositivo.", fallbackBlock, attempt);
+        if (devicePlayer && !canAttemptPlaybackAtCurrentPosition()) {
+          fallbackToDevice("MP3 encontrado, mas a mídia ainda não está pronta; usando voz do dispositivo.", fallbackBlock, attempt, allowInitialFallback);
           return;
         }
-        setStatus("Carregando áudio gravado…");
+        setStatus(canAttemptPlaybackAtCurrentPosition() ? "Aguardando dados do MP3…" : "Carregando áudio gravado…");
       } else {
         setStatus("Aguardando início do MP3…");
       }
@@ -613,11 +848,14 @@
       }
       recordedPending = false;
       if (started) setStatus("");
-      else fallbackToDevice("Não foi possível iniciar o MP3; usando voz do dispositivo.", fallbackBlock, attempt);
+      else fallbackToDevice("Não foi possível iniciar o MP3; usando voz do dispositivo.", fallbackBlock, attempt, allowInitialFallback);
       render();
     }
     function close() {
+      cancelPendingSourceSwitch("");
       cancelRecordedAttempt();
+      recordedSeekPrepared = false;
+      deviceHandoffPending = false;
       mode = null;
       open = false;
       audio.pause();
@@ -639,6 +877,10 @@
       render();
     }
     function togglePlayback() {
+      if (pendingSourceSwitch) {
+        cancelPendingSourceSwitch();
+        return;
+      }
       if (mode === "device") return devicePlayer?.toggle();
       if (!discovered) return beginDevice();
       if (mode === "recorded" && recordedPending) return pauseRecorded();
@@ -649,8 +891,18 @@
     playButton.addEventListener("click", togglePlayback);
     deviceSwitch?.addEventListener("click", () => {
       if (sourceMenu) sourceMenu.open = false;
-      if (mode === "device" && discovered) void play();
-      else beginDevice();
+      if (pendingSourceSwitch) cancelPendingSourceSwitch();
+      else if (mode === "device" && discovered) void switchToRecorded();
+      else {
+        const index = fallbackDeviceIndex();
+        if (mode === "recorded" && discovered && index === undefined) {
+          setStatus("Não é possível trocar de fonte porque os capítulos não correspondem ao texto.");
+          return;
+        }
+        const keepPaused = mode === "recorded" && !recordedPending && !recordedActive;
+        setStatus("");
+        beginDevice(index, keepPaused);
+      }
     });
     skip.addEventListener("click", nextParagraph);
     previousButton.addEventListener("click", previousParagraph);
@@ -664,12 +916,12 @@
     closeButton.addEventListener("click", close);
     seek.addEventListener("input", () => {
       seeking = true;
-      elapsed.textContent = mode === "device"
-        ? `${Math.round(Number(seek.value) / 1000 * Math.max(0, deviceState.count - 1)) + 1}/${deviceState.count}`
-        : formatTime(Number(seek.value) / 1000 * (audio.duration || 0));
+      const percent = Number(seek.value) / 1000;
+      elapsed.textContent = mode === "device" ? devicePositionAtPercent(percent) : formatTime(percent * (audio.duration || 0));
     });
     seek.addEventListener("change", () => {
-      if (mode === "device") devicePlayer?.seek(Math.round(Number(seek.value) / 1000 * Math.max(0, deviceState.count - 1)));
+      cancelPendingSourceSwitch();
+      if (mode === "device") devicePlayer?.seek(deviceIndexAtPercent(Number(seek.value) / 1000));
       else seekTo(Number(seek.value) / 1000 * audio.duration);
       seeking = false;
       render();
@@ -678,12 +930,13 @@
       inlineSeeking = true;
       const percent = Number(inlineSeek.value) / 1000;
       if (inlineElapsed) inlineElapsed.textContent = mode === "device"
-        ? `${Math.round(percent * Math.max(0, deviceState.count - 1)) + 1}/${deviceState.count}`
+        ? devicePositionAtPercent(percent)
         : formatTime(percent * (audio.duration || 0));
     });
     inlineSeek?.addEventListener("change", () => {
+      cancelPendingSourceSwitch();
       const percent = Number(inlineSeek.value) / 1000;
-      if (mode === "device") devicePlayer?.seek(Math.round(percent * Math.max(0, deviceState.count - 1)));
+      if (mode === "device") devicePlayer?.seek(deviceIndexAtPercent(percent));
       else seekTo(percent * audio.duration);
       inlineSeeking = false;
       render();
@@ -702,8 +955,8 @@
     audio.addEventListener("loadedmetadata", () => { try { performance.mark("tt:audio-metadata"); } catch (_) {} render(); updatePosition(); });
     audio.addEventListener("canplay", () => { try { performance.mark("tt:audio-canplay"); } catch (_) {} });
     audio.addEventListener("durationchange", () => { render(); updatePosition(); });
-    audio.addEventListener("timeupdate", () => { if (mode === "recorded") render(); });
-    audio.addEventListener("seeking", render);
+    audio.addEventListener("timeupdate", () => { rememberRecordedProgress(); if (mode === "recorded") render(); });
+    audio.addEventListener("seeking", () => { rememberRecordedProgress(); render(); });
     audio.addEventListener("seeked", updatePosition);
     audio.addEventListener("ratechange", updatePosition);
     audio.addEventListener("play", () => {
@@ -723,10 +976,17 @@
     });
     audio.addEventListener("ended", () => { if (mode === "recorded") { render(); updatePosition(); } });
     audio.addEventListener("error", () => {
+      if (pendingSourceSwitch) {
+        const pending = pendingSourceSwitch;
+        cancelPendingSourceSwitch("O MP3 falhou durante a preparação. A voz do dispositivo permanece selecionada.");
+        if (pending.wasSpeaking && deviceState.state === "paused") devicePlayer?.toggle();
+        return;
+      }
       if (mode === "recorded" && open && (recordedPending || recordedActive)) {
         const fallbackIndex = recordedPending ? recordedFallbackIndex : fallbackDeviceIndex();
-        if (devicePlayer) fallbackToDevice("Falha no áudio gravado; usando voz do dispositivo.", fallbackIndex, playbackAttempt);
-        else fallbackToDevice("Falha ao carregar o MP3. Verifique a conexão e tente novamente.", fallbackIndex, playbackAttempt);
+        const allowInitial = recordedPending ? recordedFallbackInitial : fallbackIndex === undefined && canStartDeviceAtBeginning();
+        if (devicePlayer) fallbackToDevice("Falha no áudio gravado; usando voz do dispositivo.", fallbackIndex, playbackAttempt, allowInitial);
+        else fallbackToDevice("Falha ao carregar o MP3. Verifique a conexão e tente novamente.", fallbackIndex, playbackAttempt, allowInitial);
       }
       else {
         setStatus("Falha ao carregar o áudio gravado. Use a voz do dispositivo.");
@@ -761,7 +1021,13 @@
             catch (_) { chapters = []; }
           }
         }
-        if (chapters.length) attachChapters();
+        // Even an empty or replaced catalog invalidates a prior DOM mapping.
+        attachChapters();
+        if (pendingSourceSwitch && !pendingSwitchMappingIsValid(pendingSourceSwitch)) {
+          const pending = pendingSourceSwitch;
+          cancelPendingSourceSwitch("Os capítulos mudaram durante a preparação. A voz do dispositivo continua selecionada.");
+          if (pending.wasSpeaking && deviceState.state === "paused") devicePlayer?.toggle();
+        }
         render();
       } catch (_) {
         setStatus("Não foi possível verificar se existe áudio gravado.");
