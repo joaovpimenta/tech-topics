@@ -531,31 +531,41 @@ function openingCheckHtml(node) {
   return escapeHtml(textContent(node));
 }
 
-function hasStandaloneOpeningComponent(paragraph) {
+function openingUiComponent(node) {
+  if (OPENING_COMPONENT_TAGS.has(node.tagName)) return true;
+  if (node.tagName !== "a") return false;
+  const role = node.attrs?.find(attr => attr.name === "role")?.value.toLowerCase();
+  const classes = node.attrs?.find(attr => attr.name === "class")?.value.split(/\s+/) ?? [];
+  return role === "button" || classes.includes("article-back") || node.attrs?.some(attr => attr.name === "download");
+}
+
+function hasLeadingOpeningComponent(paragraph) {
   const fragment = parseFragment((paragraph.children ?? []).map(openingCheckHtml).join(""));
-  let hasComponent = false;
-  let proseOutsideComponents = false;
-  const inspect = (node, insideComponent = false) => {
+  let proseStarted = false;
+  let componentBeforeProse = false;
+  const inspect = node => {
     if (node.nodeName === "#text") {
-      if (!insideComponent && node.value.trim()) proseOutsideComponents = true;
+      if (node.value.replace(/[\s\p{Cf}]/gu, "")) proseStarted = true;
       return;
     }
-    const isComponent = OPENING_COMPONENT_TAGS.has(node.tagName);
-    if (isComponent) hasComponent = true;
-    for (const child of node.childNodes ?? []) inspect(child, insideComponent || isComponent);
+    if (openingUiComponent(node)) {
+      if (!proseStarted) componentBeforeProse = true;
+      return;
+    }
+    for (const child of node.childNodes ?? []) inspect(child);
   };
   for (const child of fragment.childNodes) inspect(child);
-  return hasComponent && !proseOutsideComponents;
+  return componentBeforeProse;
 }
 
 function firstProseNode(tree, location) {
   const first = tree.children.find(node => node.type !== "yaml" && node.type !== "html" && !(node.type === "paragraph" && !textContent(node).trim()));
   if (!first || first.type !== "paragraph") fail(location, "first content block after frontmatter must be a prose paragraph");
   const firstParagraphIndex = tree.children.indexOf(first);
-  if (tree.children.slice(0, firstParagraphIndex).some(node => node.type === "paragraph" && hasStandaloneOpeningComponent(node))) {
+  if (tree.children.slice(0, firstParagraphIndex).some(node => node.type === "paragraph" && hasLeadingOpeningComponent(node))) {
     fail(location, "opening content cannot be preceded by a standalone HTML component paragraph");
   }
-  if (hasStandaloneOpeningComponent(first)) fail(location, "opening content cannot be a standalone HTML component paragraph");
+  if (hasLeadingOpeningComponent(first)) fail(location, "opening content cannot begin with an HTML component");
   let imageBeforeText = false;
   walk(first, node => { if (node.type === "image") imageBeforeText = true; });
   if (imageBeforeText) fail(location, "first prose paragraph cannot contain an image");
