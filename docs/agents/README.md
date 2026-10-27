@@ -6,7 +6,7 @@ Execute `node scripts/doctor.mjs --json` para obter pré-requisitos, diagnóstic
 
 Leia somente o ramo que corresponde à tarefa:
 
-- **Artigo:** fluxo editorial de `AGENTS.md`; o compositor lista catálogo e módulos sem carregar artigos completos.
+- **Artigo:** fluxo editorial de `AGENTS.md` e [contrato autoral](../../generation/editorial/AUTHORING.md). Artigo novo tem fonte `content/articles/<slug>.md`; JSON é legado. O compositor fornece apenas um brief e não chama LLM nem escreve artigo: o modelo/redator é uma etapa externa, sem provedor ou orquestração automática neste repositório.
 - **Build, workflows ou publicação:** [PUBLISHING.md](../PUBLISHING.md). `scripts/validate-site.mjs` valida e constrói um preview temporário; `scripts/build-site.mjs` produz o pacote de produção em `dist/` a partir dos inputs editoriais do commit.
 - **Fila ou seleção:** [TOPIC_QUEUE.md](../TOPIC_QUEUE.md). A consulta JSON da fila não publica comentários; mantenha curadoria e seleção separadas.
 - **Planejador de áudio independente de engine:** [tools/tts/README.md](../../tools/tts/README.md) e [ADR 0004](../adr/0004-tts-segmentation-backend-boundary.md); a pronúncia da voz do dispositivo continua em [TTS.md](../TTS.md).

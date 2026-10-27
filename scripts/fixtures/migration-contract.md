@@ -21,7 +21,7 @@ Uma pessoa entrega uma mensagem e verifica o recibo. Este primeiro parágrafo é
 
 O <span lang="en-US">acknowledgement</span> mantém o idioma. O código <code data-tts-say="xis é igual a um">x = 1</code> preserva o alias.
 
-<!-- tech-topics:mermaid {"label":"Entrega e recibo","description":"O cliente envia a mensagem ao serviço e recebe um recibo.","caption":"O recibo confirma a entrega."} -->
+<!-- tech-topics:mermaid {"label":"Entrega e recibo"} -->
 
 ```mermaid
 sequenceDiagram
@@ -31,13 +31,11 @@ sequenceDiagram
     Servico-->>Cliente: Recibo
 ```
 
-O recibo confirma a entrega.
+<figcaption>O <span lang="pt-BR">recibo</span> confirma a entrega.</figcaption>
 
 <details class="mermaid-fallback">
 <summary>Descrição textual do fluxo</summary>
-
 Cliente envia mensagem ao serviço; o serviço responde com recibo.
-
 </details>
 
 <!-- tech-topics:table {"label":"Mensagem e confirmação"} -->
