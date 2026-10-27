@@ -1,5 +1,6 @@
 import { lstat, readFile, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
+import { parseArticleFrontmatter, validateArticleMetadata } from "./markdown-article.mjs";
 
 const ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HARD_LIMITS = Object.freeze({
@@ -123,7 +124,53 @@ export async function validateGenerationRegistry(root, registry) {
     frameworks.set(id, { ...entry, ...module });
   }
 
-  return { registry, authoring, tasks, frameworks };
+  const taxonomy = await readTagTaxonomy(generationRoot, generationRealRoot);
+  const templatePath = path.resolve(generationRoot, "templates", "article.md");
+  assert(templatePath.startsWith(`${generationRoot}${path.sep}`), "article template must stay inside generation/templates/");
+  const templateStats = await lstat(templatePath);
+  assert(templateStats.isFile() && !templateStats.isSymbolicLink() && templateStats.size <= 16 * 1024, "article template must be a regular file below 16 KiB");
+  const templateRealPath = await realpath(templatePath);
+  assert(templateRealPath.startsWith(`${generationRealRoot}${path.sep}`), "article template real path escapes generation/");
+  const templateContent = (await readFile(templateRealPath, "utf8")).replace(/\r\n?/g, "\n");
+  assert(templateContent.startsWith("---\n") && /PREENCHER|YYYY-MM-DD/.test(templateContent), "article template must be Markdown frontmatter with unresolved placeholders");
+  const template = { path: "templates/article.md", content: templateContent.trim(), bytes: Buffer.byteLength(templateContent) };
+  return { registry, authoring, tasks, frameworks, taxonomy, template };
+}
+
+function validateTagTaxonomy(taxonomy) {
+  assert(isPlainObject(taxonomy) && taxonomy.version === 1 && isPlainObject(taxonomy.tags), "tag taxonomy must have version 1 and a tags object");
+  assert(Object.keys(taxonomy).every(key => ["version", "tags", "optionalMetadata"].includes(key)), "tag taxonomy contains unknown properties");
+  assert(Object.keys(taxonomy.tags).length > 0, "tag taxonomy must not be empty");
+  const labels = new Set();
+  for (const [id, tag] of Object.entries(taxonomy.tags)) {
+    assert(ID_PATTERN.test(id), `taxonomy tag ${id}: id must be lowercase kebab-case`);
+    assert(isPlainObject(tag) && Object.keys(tag).every(key => ["label", "description"].includes(key)), `taxonomy tag ${id} must contain only label and description`);
+    assert(typeof tag.label === "string" && tag.label.trim() && tag.label.length <= 80, `taxonomy tag ${id}: invalid label`);
+    const normalizedLabel = tag.label.normalize("NFKD").replace(/\p{M}/gu, "").toLocaleLowerCase("pt-BR").trim();
+    assert(!labels.has(normalizedLabel), `taxonomy tag labels must be unique and must not define synonyms: ${tag.label}`);
+    labels.add(normalizedLabel);
+    assert(typeof tag.description === "string" && tag.description.trim() && tag.description.length <= 240, `taxonomy tag ${id}: invalid description`);
+  }
+  const optionals = taxonomy.optionalMetadata ?? {};
+  assert(isPlainObject(optionals), "taxonomy optionalMetadata must be an object");
+  for (const [field, rule] of Object.entries(optionals)) {
+    assert(["updatedAt", "level", "series", "seriesOrder", "prerequisites"].includes(field), `taxonomy optionalMetadata.${field}: unsupported field`);
+    assert(typeof rule === "string" && rule.trim(), `taxonomy optionalMetadata.${field} must document when to use the field`);
+  }
+}
+
+async function readTagTaxonomy(generationRoot, generationRealRoot) {
+  const taxonomyPath = path.resolve(generationRoot, "taxonomy", "tags.json");
+  assert(taxonomyPath.startsWith(`${generationRoot}${path.sep}`), "tag taxonomy must stay inside generation/");
+  const taxonomyStats = await lstat(taxonomyPath);
+  assert(taxonomyStats.isFile() && !taxonomyStats.isSymbolicLink() && taxonomyStats.size <= HARD_LIMITS.maxRegistryBytes, "generation/taxonomy/tags.json must be a regular file within the registry size limit");
+  const taxonomyRealPath = await realpath(taxonomyPath);
+  assert(taxonomyRealPath.startsWith(`${generationRealRoot}${path.sep}`), "tag taxonomy real path escapes generation/");
+  let taxonomy;
+  try { taxonomy = JSON.parse(await readFile(taxonomyRealPath, "utf8")); }
+  catch (error) { throw new Error(`generation/taxonomy/tags.json is invalid JSON: ${error.message}`); }
+  validateTagTaxonomy(taxonomy);
+  return taxonomy;
 }
 
 export async function loadGenerationSystem(root) {
@@ -163,26 +210,131 @@ export function slugifyTopic(value) {
   return slug;
 }
 
-export async function listExistingTopics(root) {
-  const articlesDirectory = path.resolve(root, "content", "articles");
-  const files = (await readdir(articlesDirectory)).filter(file => file.endsWith(".json") && file !== "index.json").sort();
-  return Promise.all(files.map(async file => {
-    const article = JSON.parse(await readFile(path.join(articlesDirectory, file), "utf8"));
-    const compact = value => String(value || "").replace(/\s+/g, " ").trim();
-    return {
-      slug: compact(article.slug),
-      title: compact(article.title),
-      dek: compact(article.dek),
-      excerpt: compact(article.excerpt)
-    };
-  }));
+function removeMarkdownCodeExamples(markdown) {
+  const visibleLines = [];
+  let fence = null;
+  for (const line of markdown.split("\n")) {
+    const opener = line.match(/^ {0,3}(`{3,}|~{3,})/);
+    if (!fence && opener) {
+      fence = { marker: opener[1][0], length: opener[1].length };
+      visibleLines.push("");
+      continue;
+    }
+    if (fence) {
+      const closePattern = new RegExp(`^ {0,3}${fence.marker}{${fence.length},}\\s*$`);
+      if (closePattern.test(line)) fence = null;
+      visibleLines.push("");
+      continue;
+    }
+    visibleLines.push(line);
+  }
+
+  const text = visibleLines.join("\n");
+  let output = "";
+  for (let index = 0; index < text.length;) {
+    if (text[index] !== "`") {
+      output += text[index++];
+      continue;
+    }
+    let runEnd = index + 1;
+    while (text[runEnd] === "`") runEnd++;
+    const delimiter = text.slice(index, runEnd);
+    let close = text.indexOf(delimiter, runEnd);
+    while (close !== -1 && (text[close - 1] === "`" || text[close + delimiter.length] === "`")) {
+      close = text.indexOf(delimiter, close + delimiter.length);
+    }
+    if (close === -1) {
+      output += delimiter;
+      index = runEnd;
+    } else {
+      output += " ";
+      index = close + delimiter.length;
+    }
+  }
+  return output;
 }
 
-export async function findExistingTopic(root, topic, slug) {
+function parseMarkdownMetadata(source, file) {
+  const { metadata, body, frontmatter } = parseArticleFrontmatter(source, file);
+  const placeholderSource = `${frontmatter}\n${removeMarkdownCodeExamples(body)}`;
+  assert(!/\{\{[^}]*\}\}|\b(?:TBD|PLACEHOLDER)\b|\bPREENCHER(?:\s*:|-)|YYYY-MM-DD/.test(placeholderSource), `${file}: unresolved template placeholders are not publishable`);
+  return { metadata, body };
+}
+
+export async function discoverArticleSources(root, { taxonomy } = {}) {
+  const articlesDirectory = path.resolve(root, "content", "articles");
+  const files = (await readdir(articlesDirectory)).filter(file => /\.(?:json|md)$/.test(file) && !["index.json", "catalog.json"].includes(file)).sort();
+  let activeTaxonomy = taxonomy;
+  if (!activeTaxonomy) {
+    const generationRoot = path.resolve(root, "generation");
+    activeTaxonomy = await readTagTaxonomy(generationRoot, await realpath(generationRoot));
+  }
+  validateTagTaxonomy(activeTaxonomy);
+  const tagIds = new Set(Object.keys(activeTaxonomy.tags));
+  const sources = [];
+  const metadataBySlug = new Map();
+  for (const file of files) {
+    const sourcePath = path.join(articlesDirectory, file);
+    const stats = await lstat(sourcePath);
+    assert(stats.isFile() && !stats.isSymbolicLink(), `${file}: article source must be a regular file`);
+    const sourceType = file.endsWith(".md") ? "markdown" : "json";
+    const raw = await readFile(sourcePath, "utf8");
+    const parsed = sourceType === "markdown" ? parseMarkdownMetadata(raw, file) : { metadata: JSON.parse(raw) };
+    const article = { ...parsed.metadata };
+    delete article.bodyHtml;
+    metadataBySlug.set(article.slug, article);
+    sources.push({ slug: article.slug, title: article.title, dek: article.dek, excerpt: article.excerpt || "", tags: article.tags ?? [], sourceType, file });
+  }
+  const bySlug = new Map();
+  for (const source of sources) {
+    assert(!bySlug.has(source.slug), `two article sources for slug ${source.slug}: ${bySlug.get(source.slug)} and ${source.file}`);
+    bySlug.set(source.slug, source.file);
+  }
+  const knownSlugs = new Set(bySlug.keys());
+  for (const source of sources) {
+    validateArticleMetadata(metadataBySlug.get(source.slug), {
+      sourcePath: `content/articles/${source.file}`,
+      rootPath: root,
+      knownTags: tagIds,
+      knownSlugs,
+    }, { legacy: source.sourceType === "json", checkAssets: false });
+  }
+  const bySeries = new Map();
+  for (const source of sources) {
+    const metadata = metadataBySlug.get(source.slug);
+    if (metadata.series !== undefined) {
+      const group = bySeries.get(metadata.series) ?? [];
+      group.push({ slug: source.slug, order: metadata.seriesOrder, file: source.file });
+      bySeries.set(metadata.series, group);
+    }
+  }
+  for (const [series, members] of bySeries) {
+    const orders = new Set();
+    for (const member of members) {
+      assert(!orders.has(member.order), `series ${series} must have unique seriesOrder values`);
+      orders.add(member.order);
+    }
+  }
+  const prereqs = new Map();
+  for (const source of sources) {
+    const metadata = metadataBySlug.get(source.slug);
+    prereqs.set(source.slug, metadata.prerequisites ?? []);
+  }
+  const visiting = new Set(); const visited = new Set();
+  const visit = slug => { assert(!visiting.has(slug), `prerequisite cycle detected at ${slug}`); if (visited.has(slug)) return; visiting.add(slug); for (const next of prereqs.get(slug) ?? []) visit(next); visiting.delete(slug); visited.add(slug); };
+  for (const slug of prereqs.keys()) visit(slug);
+  return sources.map(({ slug, title, dek, excerpt, tags, sourceType, file }) => ({ slug, title: String(title || "").replace(/\s+/g, " ").trim(), dek: String(dek || "").replace(/\s+/g, " ").trim(), excerpt: String(excerpt || "").replace(/\s+/g, " ").trim(), tags, sourceType, file }));
+}
+
+export async function listExistingTopics(root, options = {}) {
+  return discoverArticleSources(root, options);
+}
+
+export async function findExistingTopic(root, topic, slug, options = {}) {
   const expectedTitle = normalizeTopic(topic);
-  for (const article of await listExistingTopics(root)) {
+  for (const article of await listExistingTopics(root, options)) {
     if (article.slug === slug || normalizeTopic(article.title || "") === expectedTitle) {
-      return { file: `${article.slug}.json`, slug: article.slug, title: article.title };
+      return { file: article.file, slug: article.slug, title: article.title };
     }
   }
   return null;

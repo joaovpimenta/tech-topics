@@ -154,16 +154,35 @@ async function main() {
 
   const dist = path.join(root, "dist");
   const candidateFiles = await collectArtifactFiles(dist);
-  for (const required of ["article.html", "article.js", "sw.js", "sw-version.js", "assets/articles-catalog.json", articleJsonPath]) {
+  for (const required of ["article.html", "article.js", "sw.js", "sw-version.js", "assets/articles-catalog.json"]) {
     assert.ok(candidateFiles.has(required), `build dist before running this test: ${required}`);
   }
 
-  const sourceArticle = JSON.parse(candidateFiles.get(articleJsonPath));
   const candidateCatalog = JSON.parse(candidateFiles.get("assets/articles-catalog.json"));
-  const catalogArticle = candidateCatalog.find(item => item.slug === slug);
-  assert.ok(catalogArticle, `the real catalog contains ${slug}`);
-  catalogArticle.transport = { format: "html-v1", path: articleHtmlPath, buildId };
-  const htmlBytes = Buffer.from(htmlForArticle(sourceArticle));
+  const htmlCandidate = !Array.isArray(candidateCatalog);
+  let sourceArticle;
+  let htmlBytes;
+  let hash = "m03-recovery";
+  if (htmlCandidate) {
+    const manifest = JSON.parse(candidateFiles.get(".site-artifact.json"));
+    assert.equal(manifest.format, "html-v1", "the candidate is the managed public HTML artifact");
+    assert.equal(manifest.sourceSha, candidateCatalog.sourceSha, "catalog and artifact source revisions agree");
+    assert.equal(manifest.buildId, candidateCatalog.buildId, "catalog and artifact build identities agree");
+    const catalogArticle = candidateCatalog.articles.find(item => item.slug === slug);
+    assert.ok(catalogArticle, `the real HTML catalog contains ${slug}`);
+    assert.equal(catalogArticle.path, articleHtmlPath);
+    assert.ok(candidateFiles.has(articleHtmlPath), `the HTML package contains ${articleHtmlPath}`);
+    sourceArticle = { title: catalogArticle.title };
+    htmlBytes = candidateFiles.get(articleHtmlPath);
+    hash = "article-root";
+  } else {
+    assert.ok(candidateFiles.has(articleJsonPath), `build dist before running this legacy transition test: ${articleJsonPath}`);
+    sourceArticle = JSON.parse(candidateFiles.get(articleJsonPath));
+    const catalogArticle = candidateCatalog.find(item => item.slug === slug);
+    assert.ok(catalogArticle, `the real legacy catalog contains ${slug}`);
+    catalogArticle.transport = { format: "html-v1", path: articleHtmlPath, buildId };
+    htmlBytes = Buffer.from(htmlForArticle(sourceArticle));
+  }
   const candidateVersionText = candidateFiles.get("sw-version.js").toString("utf8")
     .replace(/const PRECACHE_VERSION = "[^"]+";/, `const PRECACHE_VERSION = ${JSON.stringify(`m03-${currentRef.slice(0, 8)}`)};`)
     .replace(/\s*"content\/articles\/index\.json",?/, "")
@@ -269,7 +288,6 @@ async function main() {
         await context.route(`${assetBase}${chaptersName}`, route => route.fulfill({ status: 200, contentType: "application/json", body: chapters }));
       }
 
-      const hash = "m03-recovery";
       const initialUrl = `${base}/article.html?slug=${slug}#${encodeURIComponent(hash)}`;
       async function openArticle() {
         const page = await context.newPage();
@@ -410,27 +428,35 @@ async function main() {
       }, previousCacheName, { timeout: 30000 });
       await candidatePage.close();
       let returnedPage;
-      let returnedTransport = null;
+      let returnedCatalogState = null;
       const returnDeadline = Date.now() + 15000;
       while (Date.now() < returnDeadline) {
         const page = await context.newPage();
         await page.goto(initialUrl, { waitUntil: "domcontentloaded" });
         await page.locator("#article-actions").waitFor({ state: "visible", timeout: 15000 });
-        returnedTransport = await page.evaluate(async articleSlug => {
+        returnedCatalogState = await page.evaluate(async articleSlug => {
           const catalog = await (await fetch("assets/articles-catalog.json")).json();
-          return catalog.find(item => item.slug === articleSlug)?.transport;
+          const records = Array.isArray(catalog) ? catalog : catalog.articles || [];
+          const article = records.find(item => item.slug === articleSlug);
+          return {
+            format: Array.isArray(catalog) ? "json-array" : catalog.transport || "unknown",
+            articleFormat: article?.format || article?.transport?.format || null,
+            articlePath: article?.path || null,
+            controlled: Boolean(navigator.serviceWorker.controller),
+            caches: await caches.keys()
+          };
         }, slug);
-        if (returnedTransport === undefined) {
+        if (returnedCatalogState.format === "json-array") {
           returnedPage = page;
           break;
         }
         await page.close();
         await new Promise(resolve => setTimeout(resolve, 50));
       }
-      assert.ok(returnedPage, "all candidate clients close and the earlier worker/catalog become active again");
+      assert.ok(returnedPage, `all candidate clients close and the earlier JSON worker/catalog become active again; observed ${JSON.stringify(returnedCatalogState)}`);
       assert.equal(await returnedPage.locator("#article-heading").innerText(), sourceArticle.title,
         "the local return to the earlier artifact serves the original JSON article");
-      assert.equal(returnedTransport, undefined, "the local return serves the earlier catalog contract without HTML transport metadata");
+      assert.equal(returnedCatalogState.format, "json-array", "the local return serves the earlier JSON catalog contract");
       const sourceLabel = artifactSources.get(client.ref) || `Git object ${client.ref}`;
       const audioEvidence = actualAudio
         ? `, real Kokoro time ${audioTimeBeforeUpdate.toFixed(3)}→${audioTimeAfterInstall.toFixed(3)}s`

@@ -305,9 +305,7 @@ async function loadHtmlFallback(slug, catalogArticle = null) {
   if (!article) {
     const catalogResponse = await fetch("assets/articles-catalog.json", { cache: "no-store" });
     if (!catalogResponse.ok) throw new Error("Catálogo indisponível");
-    const catalog = await catalogResponse.json();
-    if (!Array.isArray(catalog)) throw new Error("Catálogo inválido");
-    article = catalog.find(item => item?.slug === slug);
+    article = articleCatalogEntries(await catalogResponse.json()).find(item => item?.slug === slug);
   }
   if (!article) throw new Error("Artigo ausente no catálogo");
   if (article.slug !== slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(article.slug)) {
@@ -333,11 +331,36 @@ async function loadHtmlFallback(slug, catalogArticle = null) {
   return { article, slots };
 }
 
+function articleCatalogEntries(catalog) {
+  if (Array.isArray(catalog)) return catalog;
+  if (!catalog || typeof catalog !== "object" || catalog.version !== 1
+    || catalog.transport !== "html-v1"
+    || !/^[a-f0-9]{40}$/i.test(catalog.sourceSha || "")
+    || !/^[a-f0-9]{64}$/.test(catalog.buildId || "")
+    || !Array.isArray(catalog.articles) || !catalog.articles.length) {
+    throw new Error("Catálogo inválido");
+  }
+  const slugs = new Set();
+  return catalog.articles.map(article => {
+    const slug = article?.slug;
+    if (typeof slug !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
+      || slugs.has(slug) || article.format !== "html-v1"
+      || article.path !== `content/articles/${slug}.html`
+      || Object.hasOwn(article, "bodyHtml") || Object.hasOwn(article, "html")) {
+      throw new Error("Registro HTML inválido no catálogo");
+    }
+    slugs.add(slug);
+    return {
+      ...article,
+      transport: { format: article.format, path: article.path, buildId: catalog.buildId }
+    };
+  });
+}
+
 async function loadHtmlFromCatalog(requestedArticleSlug) {
   const catalogResponse = await fetch("assets/articles-catalog.json", { cache: "no-store" });
   if (!catalogResponse.ok) throw new Error("Catálogo indisponível");
-  const catalog = await catalogResponse.json();
-  if (!Array.isArray(catalog) || !catalog.length) throw new Error("Catálogo inválido");
+  const catalog = articleCatalogEntries(await catalogResponse.json());
   const article = requestedArticleSlug
     ? catalog.find(item => item?.slug === requestedArticleSlug)
     : catalog[0];

@@ -121,33 +121,88 @@ def collect_html_runs(node: dict | str, language: str, lexicon: dict, out: list[
 def article_blocks(article: dict, lexicon: dict) -> list[dict]:
     """Produce exactly the narratable HTML blocks, retaining language spans."""
     blocks: list[dict] = []
-    speech_markup = article.get("speechMarkup") or {}
-    for field in ("title", "dek"):
-        value = article.get(field)
-        if not isinstance(value, str) or not value.strip():
-            continue
-        markup = speech_markup.get(field) or []
-        runs: list[dict] = []
-        if markup and "".join(s["text"] for s in markup) == value:
-            for item in markup:
-                lang = language_code(item["lang"])
-                if item.get("speak"):
-                    append_run(runs, item["speak"], lang)
-                elif item.get("mode") in {"spell", "word"}:
-                    rendered = (spell(item["text"], lang) if item["mode"] == "spell"
-                                else item["text"])
-                    append_run(runs, rendered, lang)
-                else:
-                    for run in lexical_runs(item["text"], lang, lexicon):
-                        append_run(runs, run["text"], run["lang"])
-        else:
-            runs = lexical_runs(value, LANG, lexicon)
-        blocks.append({"runs": clean_runs(runs), "section": field == "title", "tag": field})
-
-    html = article.get("bodyHtml") or ""
     parser = ElementTreeParser()
-    parser.feed(html)
-    parser.close()
+    compiled_html = article.get("html")
+    if isinstance(compiled_html, str):
+        parser.feed(compiled_html)
+        parser.close()
+        envelopes = [node for node in parser.root["children"]
+                     if isinstance(node, dict) and node.get("tag") == "article"]
+        roots = parser.root["children"]
+        if (len(envelopes) != 1
+                or any(not isinstance(node, dict) and str(node).strip() for node in roots)
+                or len([node for node in roots if isinstance(node, dict)]) != 1):
+            raise ValueError("HTML compilado deve conter exatamente um envelope de artigo.")
+        envelope = envelopes[0]
+        attrs = envelope["attrs"]
+        if (attrs.get("data-article-format") != "html-v1"
+                or attrs.get("data-article-slug") != article.get("slug")
+                or not attrs.get("data-build-id")):
+            raise ValueError("Envelope HTML compilado incompatível com o artigo selecionado.")
+        direct_elements = [node for node in envelope["children"] if isinstance(node, dict)]
+        slots: dict[str, dict] = {}
+        for node in direct_elements:
+            if not isinstance(node, dict):
+                continue
+            name = node["attrs"].get("data-article-slot")
+            if name:
+                if name in slots:
+                    raise ValueError(f"Slot HTML duplicado: {name}")
+                slots[name] = node
+        heading, dek, body_root = (slots.get(name) for name in ("heading", "dek", "body"))
+        if (set(slots) != {"heading", "dek", "body"}
+                or [node["attrs"].get("data-article-slot") for node in direct_elements]
+                   != ["heading", "dek", "body"]
+                or heading is None or heading["tag"] != "h1" or dek is None or dek["tag"] != "p"
+                or body_root is None or body_root["tag"] != "section"):
+            raise ValueError("Envelope HTML precisa conter slots válidos de título, resumo e corpo.")
+        def reject_nested_slots(node: dict) -> None:
+            for child in node["children"]:
+                if isinstance(child, dict):
+                    if child["attrs"].get("data-article-slot"):
+                        raise ValueError("Slots HTML compilados não podem ser aninhados.")
+                    reject_nested_slots(child)
+        for node in (heading, dek, body_root):
+            reject_nested_slots(node)
+            if not visible_text(node).strip():
+                raise ValueError("Slots HTML compilados precisam conter conteúdo visível.")
+        for field, node in (("title", heading), ("dek", dek)):
+            expected = article.get(field)
+            if isinstance(expected, str) and " ".join(visible_text(node).split()) != " ".join(expected.split()):
+                raise ValueError(f"Texto visível do slot {field} diverge do catálogo.")
+        for field, node in (("title", heading), ("dek", dek)):
+            runs: list[dict] = []
+            collect_html_runs(node, LANG, lexicon, runs)
+            clean = clean_runs(runs)
+            if clean and "".join(run["text"] for run in clean).strip():
+                blocks.append({"runs": clean, "section": field == "title", "tag": field})
+    else:
+        speech_markup = article.get("speechMarkup") or {}
+        for field in ("title", "dek"):
+            value = article.get(field)
+            if not isinstance(value, str) or not value.strip():
+                continue
+            markup = speech_markup.get(field) or []
+            runs: list[dict] = []
+            if markup and "".join(s["text"] for s in markup) == value:
+                for item in markup:
+                    lang = language_code(item["lang"])
+                    if item.get("speak"):
+                        append_run(runs, item["speak"], lang)
+                    elif item.get("mode") in {"spell", "word"}:
+                        rendered = (spell(item["text"], lang) if item["mode"] == "spell"
+                                    else item["text"])
+                        append_run(runs, rendered, lang)
+                    else:
+                        for run in lexical_runs(item["text"], lang, lexicon):
+                            append_run(runs, run["text"], run["lang"])
+            else:
+                runs = lexical_runs(value, LANG, lexicon)
+            blocks.append({"runs": clean_runs(runs), "section": field == "title", "tag": field})
+
+        parser.feed(article.get("bodyHtml") or "")
+        parser.close()
+        body_root = parser.root
 
     def visit(node: dict | str, inherited: str = LANG) -> None:
         if isinstance(node, str) or is_ignored(node):
@@ -168,7 +223,7 @@ def article_blocks(article: dict, lexicon: dict) -> list[dict]:
         for child in node["children"]:
             visit(child, lang)
 
-    visit(parser.root)
+    visit(body_root)
     return blocks
 
 

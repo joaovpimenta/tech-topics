@@ -70,7 +70,7 @@ function validateArticleRecord(file, article) {
   const fail = message => failures.push({ file, message });
 
   if (!isArticleObject(article)) {
-    fail("article must be a JSON object");
+    fail("article must be an object");
     return failures;
   }
 
@@ -82,7 +82,10 @@ function validateArticleRecord(file, article) {
 
   if (typeof article.slug === "string") {
     if (!SLUG_PATTERN.test(article.slug)) fail("slug must be lowercase kebab-case");
-    if (article.slug !== file.slice(0, -5)) fail("slug must match the JSON filename");
+    const normalizedFile = file.replace(/\\/g, "/");
+    const sourceName = normalizedFile.slice(normalizedFile.lastIndexOf("/") + 1);
+    const sourceSlug = sourceName.replace(/\.(?:json|md)$/i, "");
+    if (sourceSlug === sourceName || article.slug !== sourceSlug) fail("slug must match the source filename");
   }
   if (typeof article.language === "string" && article.language !== "pt-BR") {
     fail("language must be pt-BR");

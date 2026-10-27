@@ -2,9 +2,14 @@ import { readdir, readFile, access } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import speech from "../speech.js";
-import { validateArticleCatalog, validateSpeechDirective } from "./lib/article-contract.mjs";
+import { validateSpeechDirective } from "./lib/article-contract.mjs";
+import { compileArticleCorpus } from "./lib/article-corpus.mjs";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const rootArgument = process.argv.indexOf("--root");
+if (rootArgument !== -1 && !process.argv[rootArgument + 1]) throw new Error("--root requires a directory");
+const root = rootArgument === -1
+  ? path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
+  : path.resolve(process.argv[rootArgument + 1]);
 const articlesDir = path.join(root, "content", "articles");
 const assetsDir = path.join(root, "assets");
 const failures = [];
@@ -171,26 +176,12 @@ function scanBody(file, bodyHtml) {
   return localRefs;
 }
 
-const articleFiles = (await readdir(articlesDir))
-  .filter(file => file.endsWith(".json") && file !== "index.json")
-  .sort();
-
-if (!articleFiles.length) {
-  console.error("No article JSON files found.");
-  process.exit(1);
+let articles = [];
+try {
+  articles = await compileArticleCorpus(root);
+} catch (error) {
+  fail("content/articles", error.message);
 }
-
-const articles = [];
-for (const file of articleFiles) {
-  const filePath = path.join(articlesDir, file);
-  try {
-    articles.push({ file, article: JSON.parse(await readFile(filePath, "utf8")) });
-  } catch (error) {
-    fail(file, "invalid JSON: " + error.message);
-  }
-}
-
-for (const { file, message } of validateArticleCatalog(articles)) fail(file, message);
 
 try {
   speech.validateLexicon(JSON.parse(await readFile(path.join(root, "content/tts-lexicon.json"), "utf8")));
@@ -238,9 +229,9 @@ for (const file of assetFiles) {
 
 try {
   const index = JSON.parse(await readFile(path.join(articlesDir, "index.json"), "utf8"));
-  const expected = new Set(articleFiles.map(file => "content/articles/" + file));
+  const expected = new Set(articles.map(({ file }) => file));
   const actual = new Set(index.map(entry => entry.path));
-  if (index.length !== articleFiles.length || expected.size !== actual.size || [...expected].some(file => !actual.has(file))) {
+  if (index.length !== articles.length || expected.size !== actual.size || [...expected].some(file => !actual.has(file))) {
     fail("content/articles/index.json", "manifest does not match the article files");
   }
 } catch (error) {
@@ -262,4 +253,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log("PASS: validated " + articleFiles.length + " article(s), contract fields, editorial structure, HTML safety, assets, Mermaid fallbacks, tables and responsive component rules.");
+console.log("PASS: validated " + articles.length + " article(s), contract fields, editorial structure, HTML safety, assets, Mermaid fallbacks, tables and responsive component rules.");

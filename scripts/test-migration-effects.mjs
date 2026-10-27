@@ -34,13 +34,14 @@ function evaluate(expression, context) {
 
 function actionContext(eventName, { generateAudio, advanceTopic, comment = "", refreshExisting = false } = {}) {
   return {
-    inputs: { generate_audio: generateAudio, advance_topic: advanceTopic, refresh_existing: refreshExisting, before_sha: refreshExisting ? "before-sha" : "", after_sha: refreshExisting ? "after-sha" : "", replace_existing: refreshExisting },
+    inputs: { generate_audio: generateAudio, advance_topic: advanceTopic, refresh_existing: refreshExisting, before_sha: refreshExisting ? "before-sha" : "", after_sha: refreshExisting ? "after-sha" : "", expected_source_sha: refreshExisting ? "after-sha" : "", expected_build_id: refreshExisting ? "a".repeat(64) : "", replace_existing: refreshExisting },
     needs: {
-      validate: { outputs: { new_article_slugs: `["new"]`, changed_speech_slugs: `["changed"]` } },
+      validate: { outputs: { new_article_slugs: `["new"]`, changed_speech_slugs: `["changed"]`, article_build_id: refreshExisting ? "a".repeat(64) : "" } },
       select: { outputs: { slugs: `["eligible"]` } },
     },
     github: {
       event_name: eventName,
+      sha: "after-sha",
       ref: "refs/heads/main",
       repository_owner: "owner",
       event: { issue: { number: 21 }, comment: { user: { login: "owner" }, body: comment } },
@@ -135,10 +136,39 @@ assert.match(audio, /generate_audio:[\s\S]*?default: false/);
 assert.match(audio, /needs: select\n\s+if: needs\.select\.outputs\.slugs != '\[\]'/);
 assert.match(queue, /advance_topic:[\s\S]*?default: false/);
 assert.match(pages, /deploy:\s*\n\s+name: Deploy GitHub Pages\n\s+needs: validate/);
+assert.match(pages, /name: Run all validation gates[\s\S]*?name: Build the production HTML artifact\s*\n\s+run: node scripts\/build-site\.mjs[\s\S]*?name: Resolve the last successfully deployed Pages revision/);
+assert.match(audio, /node scripts\/validate-site\.mjs\s+node scripts\/build-site\.mjs[\s\S]*?--verify-artifact/);
+assert.match(queue, /node scripts\/validate-site\.mjs\s+node scripts\/build-site\.mjs[\s\S]*?--verify-artifact/);
 assert.match(pages, /needs: \[validate, deploy\]/);
 assert.doesNotMatch(pages, /deploy:[\s\S]{0,160}always\(\)/);
 assert.doesNotMatch(pages.match(/  deploy:[\s\S]*?(?=\n  publish-audio:)/)?.[0] ?? "", /\n    if:/);
+assert.match(pages, /article_build_id:\s*\$\{\{\s*steps\.artifact_identity\.outputs\.build_id\s*\}\}/);
+assert.match(pages, /--verify-artifact/);
+assert.match(pages, /deployed_before_sha:/);
+assert.equal((pages.match(/if: github\.event_name == 'push' \|\| github\.event_name == 'workflow_dispatch'/g) ?? []).length, 3);
+assert.match(pages, /gh api --paginate/);
+assert.match(pages, /actions\/runs\/\$run_id\/jobs\?per_page=100/);
+assert.match(pages, /\.name == "Deploy GitHub Pages" and \.conclusion == "success"/);
+assert.doesNotMatch(pages, /gh run list --workflow pages\.yml --branch main --status success/);
+assert.match(pages, /BEFORE_SHA: \$\{\{ steps\.deployed_before\.outputs\.sha \}\}/);
+assert.match(pages, /before_sha: \$\{\{ needs\.validate\.outputs\.deployed_before_sha \}\}/);
+assert.match(audio, /expected_build_id:/);
+assert.match(audio, /tech-topics-html-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/);
+assert.match(audio, /name: Share the validated HTML artifact with the audio job[\s\S]*?path: dist\/[\s\S]*?include-hidden-files:\s*true/);
+assert.match(audio, /TECH_TOPICS_ARTIFACT_V1/);
+assert.match(audio, /Artifact \$EXPECTED_BUILD_ID already has a Release/);
+assert.doesNotMatch(audio, /pathlib\.Path\("content\/articles"\)/);
+assert.match(queue, /expected_source_sha/);
+assert.match(queue, /expected_build_id/);
+assert.match(queue, /TOPIC_QUEUE_SOURCE_SHA/);
+assert.match(queue, /TOPIC_QUEUE_BUILD_ID/);
 assert.match(validate, /name: Content and application lint/);
-const ignoredPaths = pages.match(/paths-ignore:\s*([\s\S]*?)\n  workflow_dispatch:/)?.[1] ?? "";
-assert.doesNotMatch(ignoredPaths, /select-next-topic|kokoro-audio/);
+const pagePathFilters = pages.match(/    paths:\s*([\s\S]*?)\n  workflow_dispatch:/)?.[1] ?? "";
+assert.match(pagePathFilters, /"\*\*"/);
+assert.match(pagePathFilters, /"!generation\/\*\*"/);
+assert.match(pagePathFilters, /"generation\/taxonomy\/tags\.json"/);
+assert.ok(pagePathFilters.indexOf("!generation/**") < pagePathFilters.indexOf("generation/taxonomy/tags.json"),
+  "runtime taxonomy must re-include after the generation exclusion");
+assert.match(pagePathFilters, /"!\.github\/workflows\/validate\.yml"/);
+assert.doesNotMatch(pagePathFilters, /!.*(?:kokoro-audio|select-next-topic)/);
 console.log("PASS: actual workflow conditions block every migration side effect across flag combinations and events");

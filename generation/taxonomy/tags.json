@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "tags": {
+    "algoritmos": { "label": "Algoritmos", "description": "Procedimentos, complexidade e técnicas de resolução." },
+    "arquitetura": { "label": "Arquitetura", "description": "Estrutura, fronteiras e decisões de sistemas de software." },
+    "bancos-de-dados": { "label": "Bancos de dados", "description": "Armazenamento, consulta, consistência e modelagem de dados." },
+    "confiabilidade": { "label": "Confiabilidade", "description": "Disponibilidade, recuperação e operação previsível." },
+    "dados-distribuidos": { "label": "Dados distribuídos", "description": "Replicação, particionamento e coordenação de dados." },
+    "desempenho": { "label": "Desempenho", "description": "Latência, vazão e uso eficiente de recursos." },
+    "engenharia-de-software": { "label": "Engenharia de software", "description": "Práticas e fundamentos de construção de software." },
+    "mensageria": { "label": "Mensageria", "description": "Filas, streams e comunicação assíncrona." },
+    "observabilidade": { "label": "Observabilidade", "description": "Sinais, diagnóstico e compreensão de sistemas em execução." },
+    "redes": { "label": "Redes", "description": "Protocolos, comunicação e transporte entre sistemas." },
+    "resiliencia": { "label": "Resiliência", "description": "Tolerância a falhas, contenção e degradação controlada." },
+    "seguranca": { "label": "Segurança", "description": "Identidade, confidencialidade e proteção contra ameaças." },
+    "sistemas-distribuidos": { "label": "Sistemas distribuídos", "description": "Coordenação e comportamento de componentes em múltiplos nós." },
+    "sre": { "label": "SRE", "description": "Engenharia de confiabilidade e operação de serviços." },
+    "web": { "label": "Web", "description": "APIs, protocolos e aplicações na plataforma Web." }
+  },
+  "optionalMetadata": {
+    "updatedAt": "Inclua somente quando uma fonte verificável justificar a data da última alteração editorial; omita nos demais casos.",
+    "level": "Use apenas quando o nível do artigo for relevante para orientar a leitura: introdutorio, intermediario ou avancado.",
+    "series": "Use junto de seriesOrder quando o artigo integrar uma série editorial identificada por ID canônico.",
+    "seriesOrder": "Use junto de series; cada posição deve ser um inteiro positivo e único dentro da série.",
+    "prerequisites": "Liste apenas slugs existentes de artigos necessários como leitura anterior."
+  }
+}

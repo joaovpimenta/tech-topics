@@ -6,32 +6,21 @@ Esta preparação mantém versões anteriores do cache e não recarrega abas aut
 
 1. Registre o SHA da última publicação Pages bem-sucedida e o ID/digest do artefato `github-pages` desse run.
 2. Baixe o artefato, confirme o digest e a integridade ZIP/TAR, e confira se `.site-artifact.json` contém o shell e os recursos esperados. O artefato é uma cópia verificável do deploy, mas não é consumido diretamente por `actions/deploy-pages`; a rota suportada abaixo recompila o ref escolhido.
-3. Confirme que `.github/workflows/pages.yml` no ref de recuperação ainda valida e publica `dist` e mantém `generate_audio=false` e `advance_topic=false`.
-4. Verifique execuções `queued`, `in_progress` e `waiting`, Releases/capítulos e fila editorial antes de qualquer operação real. Os jobs `skipped` não substituem essa auditoria.
+3. Para dispatch ou rollback durante a migração do transporte, gere a comparação M06 dos SHAs completos e relatórios DOM/capítulos vinculados aos artefatos exatos. Exija `distIdentityVerified: true` em cada relatório e nenhum bloqueio no resultado; sem comparação verificável, não faça o dispatch/rollback.
+4. Confirme que `.github/workflows/pages.yml` no ref de recuperação ainda valida e publica `dist` e mantém `generate_audio=false` e `advance_topic=false`.
+5. Verifique execuções `queued`, `in_progress` e `waiting`, Releases/capítulos e fila editorial antes de qualquer operação real. Os jobs `skipped` não substituem essa auditoria.
 
 Para a preparação iniciada em `d817b9489035a721bf30c14779cf7a1dfa7ab734`, o Pages run `40145875178` concluiu a validação e a publicação. A evidência da PR118 referencia o artefato `12581275738` e o digest `7fb0b2370b2f8755907f0e6fee1bb9fea65aa6ab9827362e28253db4db679aa`, mas a cópia `pages-d817b948.zip` não está disponível nesta raiz; não presuma que ela existe nem use essa referência como arquivo local. O artefato Pages original `12536011249` está disponível nesta raiz como `.local/integration-87-88/rollback-pages-12536011249.zip`; SHA-256 conferido: `d9e8de30cb8272ca348fda80da85c2525cb2e019bb268209aa2809152b29a483`.
 
 O deploy preparatório integrado de `c24e8811ff8bb611f6cf211e46bde59321d7f291` corresponde ao Pages run `40206726590` e ao artefato `12603729364`. A cópia exata está preservada como `.local/integration-87-88/rollback-c24/github-pages-12603729364.zip`, acompanhada de `provenance.json`; o SHA-256 `cf16b5ea1ffb9c37e5a50924a8abb2f5b506e5841a35e8e97eb368d996d41253` confere com o digest declarado, CRC ZIP validado e `artifact.tar` contém 73 arquivos públicos mais o manifesto. O artefato expira em `2026-10-26T15:24:05Z`; é uma cópia local exata, não um backup durável nem um rollback live.
 
-## Redeploy do último ref válido
+## Recuperação por reversão coordenada
 
-Para restaurar um deploy preparatório com um ref conhecido, crie uma branch de recuperação que aponte para o SHA validado e confira seu conteúdo antes de executar o workflow:
+O workflow Pages só despacha quando o SHA escolhido é o HEAD atual de `main` e reconstrói `dist` desse checkout. Um dispatch apontado para branch ou commit antigo falha fechado; não crie branch de rollback no SHA anterior nem use o artefato baixado como se `actions/deploy-pages` pudesse consumi-lo diretamente.
 
-```sh
-git switch --detach <sha-pages-validado>
-git switch -c rollback/pwa-<sha-curto>
-git show --stat --oneline HEAD
-node scripts/validate-site.mjs
-git push origin rollback/pwa-<sha-curto>
-gh workflow run pages.yml \
-  --ref rollback/pwa-<sha-curto> \
-  -f generate_audio=false \
-  -f advance_topic=false
-```
+Para recuperar uma publicação, prepare uma reversão coordenada a partir do `main` atual. Restaure como um conjunto compatível o transporte, o loader, as fontes e o service worker necessários ao estado escolhido; preserve alterações posteriores independentes e mantenha `generate_audio=false` e `advance_topic=false`. Revise o diff e a comparação M06, execute `node scripts/validate-site.mjs` e o build de produção com histórico completo, depois submeta a reversão para revisão e autorização humana. O deploy normal disparado pelo merge publica o pacote reconstruído a partir desse novo SHA de `main`; não publique diretamente um commit ancestral.
 
-O último comando publica em GitHub Pages. Exige autorização operacional, aprovação do environment se configurada e inspeção do run até `Deploy GitHub Pages` terminar. Não use rerun de workflows antigos. Para esta rodada, a validação local do ref `d817b948` e a inspeção de `workflow_dispatch` confirmam que o ref contém os jobs `Validate before deploy` e `Deploy GitHub Pages`; o dispatch acima não foi executado. O teste local não demonstra o resultado de um rollback live.
-
-Após futura integração de uma entrega preparatória em main, um revert seletivo do merge da entrega seguido pelo fluxo Pages normal é outra rota. Revise o diff do revert para preservar alterações posteriores independentes e mantenha os dois controles explicitamente false. Nunca force push nem reverta indiscriminadamente para `d817b948` depois que P02 ou outras entregas tiverem integrado alterações válidas.
+Antes de qualquer operação real, confirme que não há jobs `queued`, `in_progress` ou `waiting`, verifique Releases/capítulos e fila editorial em leitura, e inspecione o run até `Deploy GitHub Pages` terminar. Aprovação do environment pode ser exigida. Não use rerun de workflows antigos. Um ensaio local não demonstra rollback live. Nunca force push nem reverta indiscriminadamente para `d817b948` depois que P02 ou outras entregas tiverem integrado alterações válidas.
 
 ## Limites do cliente
 

@@ -78,10 +78,14 @@ function parseFrontmatter(source, location) {
   if (aliases) fail(location, "YAML aliases, anchors and custom tags are not allowed");
   const metadata = doc.toJS({ maxAliasCount: 0 });
   if (!plainObject(metadata)) fail(location, "frontmatter must be a mapping");
-  return { metadata, body: match[2] };
+  return { metadata, body: match[2], frontmatter: match[1] };
 }
 
-function validateMetadata(metadata, location, context, legacy = false) {
+export function parseArticleFrontmatter(source, location = "<markdown>") {
+  return parseFrontmatter(source, location);
+}
+
+function validateMetadata(metadata, location, context, legacy = false, { checkAssets = true } = {}) {
   const errors = [];
   for (const key of Object.keys(metadata)) if (!ALLOWED_METADATA.has(key)) errors.push(`unknown metadata field: ${key}`);
   for (const key of REQUIRED) {
@@ -90,7 +94,7 @@ function validateMetadata(metadata, location, context, legacy = false) {
   }
   for (const key of ["slug", "language", "title", "category", "date", "publishedAt", "read", "image", "alt", "dek", "excerpt"]) {
     if (metadata[key] !== undefined && typeof metadata[key] !== "string") errors.push(`${key} must be a string`);
-    if (typeof metadata[key] === "string" && /(?:<[^>]*>|\b(?:TODO|TBD|PLACEHOLDER)\b)/i.test(metadata[key])) errors.push(`${key} must not contain HTML or unresolved placeholders`);
+    if (typeof metadata[key] === "string" && /(?:<[^>]*>|\b(?:TBD|PLACEHOLDER)\b|\bTODO\b(?=\s|[:.]|$))/i.test(metadata[key])) errors.push(`${key} must not contain HTML or unresolved placeholders`);
   }
   if (metadata.slug !== undefined && !SLUG.test(metadata.slug)) errors.push("slug must be lowercase kebab-case");
   if (metadata.language !== undefined && metadata.language !== "pt-BR") errors.push("language must be pt-BR");
@@ -107,8 +111,24 @@ function validateMetadata(metadata, location, context, legacy = false) {
   if (!legacy && metadata.prerequisites?.length && !context.knownSlugs) errors.push("knownSlugs registry is required when prerequisites are declared");
   if (metadata.prerequisites && context.knownSlugs) for (const slug of metadata.prerequisites) if (!context.knownSlugs.has(slug)) errors.push(`unknown prerequisite slug: ${slug}`);
   if (context.knownTags && metadata.tags) for (const tag of metadata.tags) if (!context.knownTags.has(tag)) errors.push(`unknown tag ID: ${tag}`);
-  if (metadata.image && !assetExistsSafely(metadata.image, context, location)) errors.push(`cover asset does not exist: ${metadata.image}`);
+  if (checkAssets && metadata.image && !assetExistsSafely(metadata.image, context, location)) errors.push(`cover asset does not exist: ${metadata.image}`);
   if (errors.length) fail(location, errors.join("; "));
+}
+
+export function validateArticleMetadata(metadata, context = {}, { legacy = false, checkAssets = true } = {}) {
+  const location = context.sourcePath ?? "<article>";
+  if (!plainObject(metadata)) fail(location, "article metadata must be a plain object");
+  validateMetadata(metadata, location, context, legacy, { checkAssets });
+  validateSpeechMarkup(metadata, location);
+  const normalizedPath = location.replace(/\\/g, "/");
+  const extension = path.posix.extname(normalizedPath);
+  if (extension === ".md" || extension === ".json") {
+    const filenameSlug = path.posix.basename(normalizedPath, extension);
+    if (metadata.slug !== filenameSlug) fail(location, extension === ".md"
+      ? "metadata slug must match Markdown filename"
+      : "metadata slug must match JSON filename");
+  }
+  return structuredClone(metadata);
 }
 
 function decoded(value, where) {
@@ -138,6 +158,7 @@ function resolveLocal(raw, { sourcePath, rootPath, context, where, isImage = fal
   if (raw.startsWith("//")) fail(where, "protocol-relative URLs are not permitted");
   const decodedPath = decoded(raw.split(/[?#]/, 1)[0], where).replace(/\\/g, "/");
   if (/^[a-z][a-z0-9+.-]*:/i.test(decodedPath) || decodedPath.startsWith("/")) fail(where, "absolute or encoded URL paths are not permitted");
+  if (!isImage && ["article.html", "index.html"].includes(decodedPath)) return raw;
   const sourceDir = path.posix.dirname(sourcePath.replace(/\\/g, "/"));
   const normalized = path.posix.normalize(path.posix.join(sourceDir, decodedPath));
   const absoluteRoot = path.resolve(rootPath);
@@ -207,7 +228,7 @@ function sanitizeSchema() {
     a: ["href", "name", "download", "target", "rel", "dataFootnoteRef", "dataFootnoteBackref"],
     img: ["src", "alt", "width", "height", "srcSet"],
     input: ["id", "name", "type", "min", "max", "step", "value", "checked", "disabled", "ariaLabel"],
-    button: ["type", "disabled"],
+    button: ["type", "disabled"], label: ["htmlFor"], output: ["htmlFor"],
     th: ["colSpan", "rowSpan", "scope", "align"], td: ["colSpan", "rowSpan", "align"],
     section: ["dataFootnotes"],
     div: ["dataMermaid", "dataMermaidLabel", "dataTtsSay", "dataTtsMode"],
@@ -221,6 +242,18 @@ function sanitizeSchema() {
   return schema;
 }
 
+function restoreActiveRangeInputs(source, sanitized) {
+  const activeIds = new Set();
+  walk(source, node => {
+    if (node.tagName === "input" && node.properties?.type === "range"
+      && node.properties.disabled !== true && typeof node.properties.id === "string") activeIds.add(node.properties.id);
+  });
+  if (!activeIds.size) return;
+  walk(sanitized, node => {
+    if (node.tagName === "input" && activeIds.has(node.properties?.id)) delete node.properties.disabled;
+  });
+}
+
 function preflight(tree, context, location) {
   const ids = new Set();
   const fragments = [];
@@ -230,6 +263,11 @@ function preflight(tree, context, location) {
     const tag = node.tagName.toLowerCase();
     if (!TAGS.has(tag)) fail(location, `HTML element <${tag}> is not allowed`);
     const attrs = node.properties ?? {};
+    if (tag === "input") {
+      const activeRange = attrs.type === "range" && typeof attrs.id === "string" && attrs.id.trim();
+      const inertCheckbox = attrs.type === "checkbox" && attrs.disabled === true;
+      if (!activeRange && !inertCheckbox) fail(location, "inputs must be identified range controls or disabled checkboxes");
+    }
     const ttsMode = attrs.dataTtsMode ?? attrs["data-tts-mode"];
     const ttsSay = attrs.dataTtsSay ?? attrs["data-tts-say"];
     if (ttsMode !== undefined && !["spell", "word"].includes(ttsMode)) fail(location, "data-tts-mode must be spell or word");
@@ -238,7 +276,7 @@ function preflight(tree, context, location) {
     const language = attrs.lang;
     if (language !== undefined && !/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(language)) fail(location, "lang must be a valid language tag");
     for (const [key, value] of Object.entries(attrs)) {
-      const attr = key === "className" ? "class" : key === "tabIndex" ? "tabindex" : key === "srcSet" ? "srcset" : key === "ariaDescribedBy" ? "aria-describedby" : key === "ariaLabelledBy" ? "aria-labelledby" : key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`).toLowerCase();
+      const attr = key === "className" ? "class" : key === "htmlFor" ? "for" : key === "tabIndex" ? "tabindex" : key === "srcSet" ? "srcset" : key === "ariaDescribedBy" ? "aria-describedby" : key === "ariaLabelledBy" ? "aria-labelledby" : key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`).toLowerCase();
       if (/^on/i.test(attr)) fail(location, `event handler attribute ${key} is forbidden`);
       if (!ATTRS.has(attr) && !(attr === "rel" || attr === "aria-labelledby" || attr === "aria-describedby")) fail(location, `HTML attribute ${key} is not allowed`);
       if (attr === "align" && (tag !== "th" && tag !== "td" || !/^(?:left|center|right)$/.test(String(value)))) fail(location, "table alignment must be left, center or right");
@@ -618,10 +656,7 @@ export async function compileMarkdownArticle({ source, sourcePath, rootPath = RO
   if (knownSlugs !== undefined && !Array.isArray(knownSlugs) && !(knownSlugs instanceof Set)) fail(location, "knownSlugs registry must be an array or Set");
   const compilerContext = { ...context, sourcePath: location, rootPath, knownTags: knownTags && new Set(knownTags), knownSlugs: knownSlugs && new Set(knownSlugs), assetExists };
   if (!/^content\/articles\/[a-z0-9]+(?:-[a-z0-9]+)*\.md$/.test(location.replace(/\\/g, "/"))) fail(location, "sourcePath must be content/articles/<slug>.md");
-  validateMetadata(metadata, location, compilerContext);
-  validateSpeechMarkup(metadata, location);
-  const filenameSlug = path.posix.basename(location.replace(/\\/g, "/"), ".md");
-  if (metadata.slug !== filenameSlug) fail(location, "metadata slug must match Markdown filename");
+  validateArticleMetadata(metadata, compilerContext);
   const processor = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]);
   const tree = processor.parse(parsed.body);
   firstProseNode(tree, location);
@@ -630,7 +665,13 @@ export async function compileMarkdownArticle({ source, sourcePath, rootPath = RO
   preflight(hast, compilerContext, location);
   const expectedTree = JSON.stringify(treeSnapshot(hast));
   const sanitized = await unified().use(rehypeSanitize, sanitizeSchema()).run(hast);
-  if (JSON.stringify(treeSnapshot(sanitized)) !== expectedTree) fail(location, "sanitizer would alter validated content; adjust the allowlist instead of silently dropping it");
+  restoreActiveRangeInputs(hast, sanitized);
+  const sanitizedTree = JSON.stringify(treeSnapshot(sanitized));
+  if (sanitizedTree !== expectedTree) {
+    let mismatch = 0;
+    while (expectedTree[mismatch] === sanitizedTree[mismatch] && mismatch < Math.min(expectedTree.length, sanitizedTree.length)) mismatch += 1;
+    fail(location, `sanitizer would alter validated content at byte ${mismatch}: ${JSON.stringify(expectedTree.slice(Math.max(0, mismatch - 48), mismatch + 96))} -> ${JSON.stringify(sanitizedTree.slice(Math.max(0, mismatch - 48), mismatch + 96))}`);
+  }
   const html = String(await unified().use(rehypeStringify).stringify(sanitized));
   validateRenderedHtml(html, location, { ...compilerContext, rejectBodyH1: true });
   const fragment = parseFragment(html);
@@ -657,8 +698,7 @@ export function fromLegacyArticle(record, context = {}) {
   if (!plainObject(record)) throw new TypeError("legacy article must be an object");
   const metadata = structuredClone(record);
   delete metadata.bodyHtml;
-  validateMetadata(metadata, context.sourcePath ?? `${record.slug}.json`, context, true);
-  validateSpeechMarkup(metadata, context.sourcePath ?? `${record.slug}.json`);
+  validateArticleMetadata(metadata, { ...context, sourcePath: context.sourcePath ?? `${record.slug}.json` }, { legacy: true });
   const body = record.bodyHtml;
   if (typeof body !== "string" || !body.trim()) fail(context.sourcePath ?? record.slug, "legacy bodyHtml must be non-empty HTML");
   const fragment = parseFragment(body);

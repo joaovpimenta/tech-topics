@@ -20,6 +20,8 @@ node scripts/compose-article-brief.mjs \
 
 O comando escreve o brief em stdout. Ele não chama um provedor de LLM, não cria arquivos e não persiste o prompt composto.
 
+Para o formato-fonte, template, taxonomia e validação dos artigos novos, siga [o contrato autoral](editorial/AUTHORING.md). Ele também descreve como preservar as fontes JSON legadas durante a migração.
+
 Após finalizar a abertura, use `node scripts/compose-cover-brief.mjs` para extrair de `docs/VISUAL_STYLE.md` apenas as instruções necessárias para criar e revisar a capa.
 
 ## Onde cada regra deve ficar

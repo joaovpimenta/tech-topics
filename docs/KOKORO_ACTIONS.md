@@ -89,11 +89,29 @@ nativo do Kokoro.
 
 ## Automático: novos artigos após o deploy
 
-A workflow [Pages](../.github/workflows/pages.yml) chama
+O build público compila o catálogo `html-v1` e os artigos HTML diretamente das
+fontes `.json`/`.md`; as fontes individuais e `content/articles/index.json`
+não entram no pacote. A conversão das fontes começa depois dos gates M09.
+Todos os jobs de efeito permanecem congelados por condições globais `false`.
+
+Nas execuções `push` e `workflow_dispatch`, a workflow [Pages](../.github/workflows/pages.yml)
+resolve o SHA do run mais recente na `main` cujo job `Deploy GitHub Pages`
+terminou com sucesso, mesmo se outro job daquele run falhou. Confirma que essa
+revisão é ancestral do SHA atual e usa esse ponto como início do diff. Dispatch
+de revisão diferente ou ultrapassada, SHA ausente/zerado ou SHA fora da história
+atual bloqueia a validação e o deploy.
+
+Depois que uma mudança aprovada reativar os efeitos, a workflow chama
 [Publish Tech Topics audio (Kokoro Dora)](../.github/workflows/kokoro-audio.yml)
-**após o deploy bem-sucedido na `main`**.
-Somente novos arquivos `content/articles/<slug>.json` adicionados pelo push
-são publicados; mudanças em artigos existentes não refazem áudios.
+**após o deploy bem-sucedido na `main`**. Somente novos slugs do inventário
+compartilhado `content/articles/*.json` e `content/articles/*.md` são
+candidatos; mudanças em artigos existentes não refazem áudios. No estado atual,
+os cálculos continuam ativos, mas os jobs de efeito permanecem congelados.
+Com catálogo `html-v1`, o adapter Python lê o HTML compilado do artefato
+validado e confere o SHA de fonte, o `buildId` e os envelopes antes de qualquer
+trabalho. A leitura histórica JSON permanece disponível para comparação e
+rollback; o loader do site também conserva compatibilidade com artefatos JSON
+anteriores durante a transição.
 
 Cada artigo recebe uma GitHub Release `tts-<slug>` com `<slug>.mp3`
 e `<slug>.chapters.json`. O Kokoro grava os instantes de início de cada
@@ -118,7 +136,7 @@ Campo **article**:
 - `Four Golden Signals` ou `four-golden-signals`;
 - título completo de um artigo;
 - **vazio** ou `latest`: escolher o artigo com maior `publishedAt`
-  entre os JSONs da `main`; não é o commit mais recentemente editado.
+  no catálogo da revisão selecionada; não é o commit mais recentemente editado.
 
 Se um nome corresponder a mais de um título, a execução falha com aviso
 de ambiguidade, em vez de escolher um silenciosamente.
@@ -220,16 +238,17 @@ para ouvir as variantes; não publica nem substitui MP3 de Release.
 
 O workflow **Pages** continua fazendo build e deploy quando código, CSS ou
 artigos mudam: isso é necessário para atualizar o site e o cache da PWA.
-Ele **não recria o texto editorial**: os artigos existentes já estão
-versionados em `content/articles/<slug>.json`; o build apenas indexa
-e empacota esses dados.
+Ele **não recria o texto editorial**: durante a transição, cada slug tem
+uma fonte `.json` ou `.md`; o build indexa os metadados e compila o corpo
+diretamente para HTML no pacote candidato.
 
-Quando um push na `main` não adiciona nenhum `content/articles/<slug>.json`
-novo, o job de áudio **nem é agendado**. A seleção editorial automática
-também só é acionada se o push tocar artigos e de fato adicionar um JSON
-novo; mudanças de código, layout ou edição de artigo existente não
-selecionam outro tópico. A seleção por comentário autorizado ou
-`workflow_dispatch` continua explícita.
+Quando um push na `main` não adiciona nenhum slug `.json`/`.md` ao
+inventário, o job de áudio **nem é agendado**. A seleção editorial automática
+também só é acionada se o push adicionar um novo slug; mudanças de código,
+layout ou edição de artigo existente não selecionam outro tópico. O caller
+confere `sourceSha`/`buildId` contra o artefato implantado e registra essa
+identidade na seleção; reruns do mesmo artefato não avançam a fila novamente.
+A seleção por comentário autorizado ou `workflow_dispatch` continua explícita.
 
 Mesmo havendo um artigo novo, o workflow de áudio confere as Releases
 `tts-<slug>` **antes de criar jobs de síntese**. Release já existente
@@ -299,8 +318,13 @@ A pausa atual de geração continua em vigor; esta correção não dispara sínt
 
 ## Sincronização seletiva após alterações editoriais
 
-A validação Pages executa `article_selection.py --spoken-changes`
-sobre o diff do push. Compara texto narrável, spans de idioma e pausas,
+A validação Pages, tanto em `push` quanto em `workflow_dispatch`, executa
+`article_selection.py --spoken-changes` entre o SHA do último job
+`Deploy GitHub Pages` bem-sucedido e a revisão atual. O baseline considera
+o resultado desse job mesmo se uma etapa posterior do workflow falhar; se não
+houver SHA verificável na história atual, a validação bloqueia o deploy.
+Compara
+texto narrável, spans de idioma e pausas,
 sem executar Kokoro. Imagem, CSS, metadados, diagrams ou conteúdo ignorado
 pelo TTS não criam novos jobs. Depois de deploy bem-sucedido, somente
 `refresh_existing=true` vindo do Pages em `main` é autorizado:

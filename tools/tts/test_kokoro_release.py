@@ -104,6 +104,47 @@ class KokoroReleaseTests(unittest.TestCase):
             " ".join(article_narration(article, {}).split())
         )
 
+    def test_compiled_html_bridge_matches_legacy_title_dek_and_body_runs(self):
+        title = "Fila → broker"
+        dek = "Uma fila separa produtores e consumidores."
+        body = "O broker retém mensagens até o consumidor confirmar o processamento."
+        legacy = {
+            "slug": "fila-segura", "title": title, "dek": dek,
+            "speechMarkup": {
+                "title": [
+                    {"text": "Fila ", "lang": "pt-BR"},
+                    {"text": "→", "lang": "en-US", "speak": "to"},
+                    {"text": " broker", "lang": "en-US"},
+                ],
+            },
+            "bodyHtml": '<p>O <span lang="en-US">broker</span> retém mensagens até o consumidor confirmar o processamento.</p>',
+        }
+        compiled = {
+            "slug": "fila-segura", "title": title, "dek": dek,
+            "html": (
+                '<article data-article-format="html-v1" data-article-slug="fila-segura" '
+                'data-build-id="' + "a" * 64 + '">'
+                '<h1 data-article-slot="heading">Fila '
+                '<span lang="en-US" data-tts-say="to">→</span> '
+                '<span lang="en-US">broker</span></h1>'
+                '<p data-article-slot="dek">Uma fila separa produtores e consumidores.</p>'
+                '<section data-article-slot="body"><p>O '
+                '<span lang="en-US">broker</span> retém mensagens até o consumidor confirmar o processamento.</p>'
+                '</section></article>'
+            ),
+        }
+        old_segments = kokoro_release.segments_for_article(legacy, self.lexicon)
+        html_segments = kokoro_release.segments_for_article(compiled, self.lexicon)
+        self.assertEqual(html_segments, old_segments)
+        self.assertEqual([block["tag"] for block in kokoro_release.article_blocks(compiled, self.lexicon)],
+                         ["title", "dek", "p"])
+        self.assertTrue(any(run["lang"] == "en-us" and "to" in run["text"]
+                            for run in html_segments[0]["runs"]))
+        invalid = {**compiled, "html": compiled["html"].replace(
+            'data-article-slot="dek"', 'data-article-slot="body"', 1)}
+        with self.assertRaisesRegex(ValueError, "Slot HTML duplicado"):
+            kokoro_release.article_blocks(invalid, self.lexicon)
+
     def test_transactional_outbox_preserves_code_in_prose(self):
         article = article_selection.read_article("transactional-outbox")
         segments = kokoro_release.segments_for_article(article, {})
@@ -232,7 +273,8 @@ class KokoroReleaseTests(unittest.TestCase):
                 "bodyHtml": '<p>O <span lang="en-US">retry budget</span> importa.</p>',
             }
             (directory / "teste.json").write_text(json.dumps(article), encoding="utf-8")
-            with patch.object(article_selection, "ARTICLE_DIR", directory):
+            with (patch.object(article_selection, "ARTICLE_DIR", directory),
+                  patch.object(article_selection, "DIST_DIR", root / "dist")):
                 kokoro_release.prepare("teste", root / "output", max_chars=300)
             segments = json.loads((root / "output/teste.segments.json").read_text(encoding="utf-8"))
             self.assertEqual(
@@ -532,7 +574,8 @@ class KokoroReleaseTests(unittest.TestCase):
                        "dek": "Breve contextualização.", "bodyHtml": f"<p>{paragraph}</p>"}
             (directory / "sample.json").write_text(
                 json.dumps(article, ensure_ascii=False), encoding="utf-8")
-            with patch.object(article_selection, "ARTICLE_DIR", directory):
+            with (patch.object(article_selection, "ARTICLE_DIR", directory),
+                  patch.object(article_selection, "DIST_DIR", root / "dist")):
                 kokoro_release.prepare("sample", root / "audio")
             segments = json.loads((root / "audio/sample.segments.json").read_text(encoding="utf-8"))
             self.assertEqual([s["block_index"] for s in segments], [0, 1, 2])

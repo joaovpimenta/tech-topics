@@ -3,6 +3,7 @@ import { appendFile, readFile, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { loadGenerationSystem } from "./lib/generation-system.mjs";
+import { publishedArticleSlugs } from "./lib/migration-compare.mjs";
 import { githubQueueAdapter, queueSummary, runTopicQueue } from "./lib/topic-queue-service.mjs";
 
 const args = process.argv.slice(2);
@@ -29,12 +30,26 @@ if (args.includes("--help")) {
       tasks: new Map(fixture.registry.tasks.map(id => [id, {}])),
       frameworks: new Map(fixture.registry.frameworks.map(id => [id, {}]))
     } : await loadGenerationSystem(root);
-    const published = fixture?.published || (await readdir(path.join(root, "content", "articles")))
-      .filter(file => file.endsWith(".json") && file !== "index.json").map(file => file.slice(0, -5));
+    const articleDir = path.join(root, "content", "articles");
+    const sourceEntries = [];
+    for (const entry of await readdir(articleDir, { withFileTypes: true })) {
+      if (!/\.(?:json|md)$/.test(entry.name) || ["index.json", "catalog.json"].includes(entry.name)) continue;
+      if (entry.isSymbolicLink() || !entry.isFile()) {
+        throw new Error(`Article source must be a regular file: ${entry.name}`);
+      }
+      sourceEntries.push(`content/articles/${entry.name}`);
+    }
+    const published = fixture?.published || publishedArticleSlugs(sourceEntries, "working tree");
     const adapter = fixture ? { listComments: async () => fixture.comments } :
       githubQueueAdapter({ repository, issue, token: process.env.GITHUB_TOKEN });
+    const sourceSha = process.env.TOPIC_QUEUE_SOURCE_SHA || "";
+    const buildId = process.env.TOPIC_QUEUE_BUILD_ID || "";
+    if (Boolean(sourceSha) !== Boolean(buildId)) {
+      throw new Error("TOPIC_QUEUE_SOURCE_SHA and TOPIC_QUEUE_BUILD_ID must be provided together");
+    }
+    const deployment = sourceSha ? { sourceSha, buildId } : null;
     if (!dryRun && !process.env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is required to publish a selection; use --dry-run for queries");
-    const result = await runTopicQueue({ adapter, owner: repository.split("/")[0], registry, published, dryRun, randomIndex: randomInt });
+    const result = await runTopicQueue({ adapter, owner: repository.split("/")[0], registry, published, dryRun, randomIndex: randomInt, deployment });
     console.log(args.includes("--json") ? JSON.stringify(result, null, 2) : queueSummary(result));
     if (process.env.GITHUB_STEP_SUMMARY && !fixture) await appendFile(process.env.GITHUB_STEP_SUMMARY, queueSummary(result));
     if (result.status === "blocked") process.exitCode = 1;

@@ -14,11 +14,13 @@ const root = path.resolve(options.get("--root") ?? path.resolve(__dirname, "..")
 const dist = path.resolve(root, options.get("--dist") ?? "dist");
 const chaptersDir = path.resolve(options.get("--chapters-dir") ?? "");
 const basePath = options.get("--base-path") ?? "/tech-topics/";
+const sourceSha = options.get("--source-sha");
 const outputPath = options.get("--output") ? path.resolve(options.get("--output")) : null;
 const detail = options.get("--detail") ?? "summary";
 if (!["summary", "full"].includes(detail)) throw new Error("--detail must be summary or full");
 const baselinePath = path.resolve(root, options.get("--baseline") ?? "docs/migrations/baselines/capture-v3/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json");
 if (!options.has("--chapters-dir")) throw new Error("Pass --chapters-dir with the read-only snapshot of existing chapters");
+if (!sourceSha) throw new Error("Pass --source-sha with the full commit SHA used to build dist");
 if (!basePath.startsWith("/") || !basePath.endsWith("/")) throw new Error("--base-path must begin and end with /");
 const digest = value => crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const fileExists = async file => { try { await readFile(file); return true; } catch (error) { if (error.code === "ENOENT") return false; throw error; } };
@@ -26,6 +28,9 @@ const typeFor = file => file.endsWith(".js") ? "text/javascript" : file.endsWith
 
 async function main() {
   const { nativeDomUnitHash } = await import(pathToFileURL(path.join(__dirname, "lib", "migration-baseline.mjs")));
+  const { instrumentSpeechBuildBlocks, spokenRunsSignature } = await import(pathToFileURL(path.join(__dirname, "lib", "migration-dom-signature.mjs")));
+  const { verifyMarkdownSiteArtifact } = await import(pathToFileURL(path.join(__dirname, "lib", "markdown-site-artifact.mjs")));
+  const distIdentity = await verifyMarkdownSiteArtifact(dist, sourceSha);
   let chromium;
   const playwrightPath = process.env.TECH_TOPICS_PLAYWRIGHT || "playwright";
   try { ({ chromium } = require(playwrightPath)); }
@@ -56,7 +61,8 @@ async function main() {
       if (url.hostname !== "127.0.0.1") return route.abort();
       if (url.pathname.endsWith("/speech.js")) {
         const response = await route.fetch();
-        const body = `${await response.text()}\n;(() => { const originalMount = window.TechTopicsSpeech.mount; window.TechTopicsSpeech.mount = function(options) { const player = originalMount(options); window.__actualBlocks = player?.blocks ?? null; return player; }; })();`;
+        const instrumentedSource = instrumentSpeechBuildBlocks(await response.text());
+        const body = `${instrumentedSource}\n;(() => { const originalMount = window.TechTopicsSpeech.mount; window.TechTopicsSpeech.mount = function(options) { const player = originalMount(options); window.__actualBlocks = player?.blocks ?? null; return player; }; })();`;
         return route.fulfill({ response, body });
       }
       return route.continue();
@@ -88,6 +94,7 @@ async function main() {
           return units.map(unit => ({
             blockIndex: elements.indexOf(unit.node), sentenceIndex: unit.sentenceIndex,
             segments: unit.segments.map(segment => ({ text: segment.text, lang: segment.lang,
+              separatorBefore: segment.separatorBefore,
               words: segment.words.map(({ start, end, nodes }) => ({ start, end, nodeIds: nodes.map(nodeId) })) }))
           }));
         };
@@ -112,8 +119,10 @@ async function main() {
       const indexesMatch = hasChapters && chapterUnits.length === units.length && firstIndexMismatch < 0;
       const compactChapters = chapterUnits.map(item => ({ start: item.start, blockIndex: item.block_index, sentenceIndex: item.sentence_index, labelSha256: digest(item.label ?? "") }));
       const pythonBaseline = baselineBySlug.get(slug);
-      const domUnitSignatures = units.map(unit => ({ blockIndex: unit.blockIndex, sentenceIndex: unit.sentenceIndex, sha256: nativeDomUnitHash(unit) }));
-      const mountedDomUnitSignatures = mountedUnits.map(unit => ({ blockIndex: unit.blockIndex, sentenceIndex: unit.sentenceIndex, sha256: nativeDomUnitHash(unit) }));
+      const domUnitSignatures = units.map(unit => ({ blockIndex: unit.blockIndex, sentenceIndex: unit.sentenceIndex,
+        sha256: nativeDomUnitHash(unit), spokenRunsSha256: spokenRunsSignature(unit.segments) }));
+      const mountedDomUnitSignatures = mountedUnits.map(unit => ({ blockIndex: unit.blockIndex, sentenceIndex: unit.sentenceIndex,
+        sha256: nativeDomUnitHash(unit), spokenRunsSha256: spokenRunsSignature(unit.segments) }));
       records.push({ slug, chapterFile: hasChapters ? `${slug}.json` : null, chapterVersion: chapter?.version ?? null,
         domUnits: units.length, chapterUnits: chapterUnits.length, indexesMatch, firstIndexMismatch: firstIndexMismatch < 0 ? null : firstIndexMismatch,
         mountedCloneMatches, firstMountedCloneMismatch: firstMountedCloneMismatch < 0 ? null : firstMountedCloneMismatch,
@@ -123,16 +132,18 @@ async function main() {
           editorialSentences: pythonBaseline?.signatures.editorialSentences ?? null, legacyChunks: pythonBaseline?.signatures.legacyChunks ?? null },
         chaptersSignature: digest(compactChapters),
         ...(detail === "full" ? { units, chapters: compactChapters } : {}),
-        limitations: ["Python and DOM contracts are signed independently; cross-contract equivalence is not asserted.", "DOM/chapter index correspondence does not prove text or acoustic identity; no audio was rendered or heard."] });
+        limitations: ["Python sentences map to DOM units by order and normalized spoken language/text runs; numeric frame indices are not used for that correspondence.", "DOM/chapter index correspondence does not prove acoustic identity; no audio was rendered or heard."] });
     }
   } finally {
     if (browser) await browser.close();
     await new Promise(resolve => server.close(resolve));
   }
-  const report = { schemaVersion: 2, baselineSourceSha: baseline.sha, sourceRoot: ".", distRoot: path.relative(root, dist).replaceAll("\\", "/"),
+  const report = { schemaVersion: 3, baselineSourceSha: baseline.sha, sourceSha: distIdentity.sourceSha,
+    buildId: distIdentity.buildId, artifactFileCount: distIdentity.fileCount, sourceRoot: ".", distRoot: path.relative(root, dist).replaceAll("\\", "/"),
     baselinePath: path.relative(root, baselinePath).replaceAll("\\", "/"), baselineSha: baseline.sha,
-    distIdentityVerified: false, basePath, articleCount: records.length,
-    contracts: { python: "native extractor signatures stored by baseline; DOM: native player segment and word-node records hashed per unit", crossContractComparison: "not performed; equivalence is inconclusive and not asserted" },
+    distIdentityVerified: true, basePath, articleCount: records.length,
+    contracts: { python: "native extractor sentence signatures from the initial baseline", dom: "native player segment and word-node records hashed per unit",
+      crossContractComparison: "ordered Python sentence runs are matched to normalized DOM speech language/text runs" },
     chapterIndexMatchingArticles: records.filter(record => record.indexesMatch).length,
     mountedCloneMatchingArticles: records.filter(record => record.mountedCloneMatches).length,
     mountedCloneMismatches: records.filter(record => !record.mountedCloneMatches).map(({ slug, firstMountedCloneMismatch }) => ({ slug, firstMountedCloneMismatch })),
