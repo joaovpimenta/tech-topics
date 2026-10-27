@@ -196,18 +196,13 @@ shareButton?.addEventListener("click", async () => {
   }
 });
 
-async function showArticle(article, htmlSlots = null) {
+async function showArticle(article, htmlSlots) {
   document.documentElement.lang = article.language || "pt-BR";
   document.title = `${article.title} — Tech Topics`;
   document.querySelector("#article-description").content = article.excerpt;
   document.querySelector("#article-category").textContent = article.category;
-  if (htmlSlots) {
-    document.querySelector("#article-heading").innerHTML = htmlSlots.heading;
-    document.querySelector("#article-dek").innerHTML = htmlSlots.dek;
-  } else {
-    renderSpeechMarkup(document.querySelector("#article-heading"), article.title, article.speechMarkup?.title, document.documentElement.lang);
-    renderSpeechMarkup(document.querySelector("#article-dek"), article.dek || article.excerpt, article.speechMarkup?.dek, document.documentElement.lang);
-  }
+  document.querySelector("#article-heading").innerHTML = htmlSlots.heading;
+  document.querySelector("#article-dek").innerHTML = htmlSlots.dek;
   const publishedAt = new Date(`${article.publishedAt}T00:00:00Z`);
   const date = Number.isNaN(publishedAt.getTime()) ? (article.date || "") : new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeZone: "UTC" }).format(publishedAt);
   const details = [date];
@@ -218,7 +213,7 @@ async function showArticle(article, htmlSlots = null) {
   image.src = cover.src;
   image.alt = cover.alt;
   document.querySelector(".article-hero").hidden = false;
-  document.querySelector("#article-body").innerHTML = htmlSlots ? htmlSlots.body : article.bodyHtml;
+  document.querySelector("#article-body").innerHTML = htmlSlots.body;
   markArticlePerf("article-body-ready");
   void renderMermaidDiagrams();
   let lexicon = window.TechTopicsSpeechLexicon || {};
@@ -300,7 +295,7 @@ function articleHtmlSlots(source, slug, transport) {
   return Object.fromEntries(Object.entries(slots).map(([name, element]) => [name, element.innerHTML]));
 }
 
-async function loadHtmlFallback(slug, catalogArticle = null) {
+async function loadCatalogHtml(slug, catalogArticle = null) {
   let article = catalogArticle;
   if (!article) {
     const catalogResponse = await fetch("assets/articles-catalog.json", { cache: "no-store" });
@@ -332,7 +327,6 @@ async function loadHtmlFallback(slug, catalogArticle = null) {
 }
 
 function articleCatalogEntries(catalog) {
-  if (Array.isArray(catalog)) return catalog;
   if (!catalog || typeof catalog !== "object" || catalog.version !== 1
     || catalog.transport !== "html-v1"
     || !/^[a-f0-9]{40}$/i.test(catalog.sourceSha || "")
@@ -365,32 +359,13 @@ async function loadHtmlFromCatalog(requestedArticleSlug) {
     ? catalog.find(item => item?.slug === requestedArticleSlug)
     : catalog[0];
   if (!article) throw new Error("Artigo ausente no catálogo");
-  return loadHtmlFallback(article.slug, article);
+  return loadCatalogHtml(article.slug, article);
 }
 
 async function loadArticle() {
   try {
-    const manifestResponse = await fetch("content/articles/index.json", { cache: "no-store" });
-    if (manifestResponse.status === 404) {
-      const { article, slots } = await loadHtmlFromCatalog(requestedSlug);
-      await showArticle(article, slots);
-      return;
-    }
-    if (!manifestResponse.ok) throw new Error("Manifesto indisponível");
-    const manifest = await manifestResponse.json();
-    const entry = requestedSlug ? manifest.find(item => item.slug === requestedSlug) : manifest[0];
-    if (!entry || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(entry.slug)
-      || entry.path !== `content/articles/${entry.slug}.json`) throw new Error("Artigo não encontrado");
-    const articleResponse = await fetch(entry.path, { cache: "no-store" });
-    if (articleResponse.status === 404) {
-      const { article, slots } = await loadHtmlFallback(entry.slug);
-      await showArticle(article, slots);
-      return;
-    }
-    if (!articleResponse.ok) throw new Error("Artigo indisponível");
-    const article = await articleResponse.json();
-    if (article?.slug !== entry.slug) throw new Error("Identidade JSON inválida");
-    await showArticle(article);
+    const { article, slots } = await loadHtmlFromCatalog(requestedSlug);
+    await showArticle(article, slots);
   } catch (error) {
     document.querySelector("#article-category").textContent = "Arquivo";
     document.querySelector("#article-heading").textContent = "Artigo indisponível";

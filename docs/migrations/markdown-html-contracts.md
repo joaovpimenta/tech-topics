@@ -1,5 +1,7 @@
 # Contratos de integração da migração Markdown → HTML
 
+> Referência de planejamento histórica. A issue #103 conclui este corte: o checkout corrente aceita somente Markdown; regras de transição e compatibilidade ativa descritas abaixo foram substituídas. JSON individual só deve ser lido em comparações de refs antigas e inspeção de rollback.
+
 Decisões de interface para revisão em M01 (#89), subordinadas à especificação [#87](https://github.com/joaovpimenta/tech-topics/issues/87). Referência inicial: `fca72c31fcb57ffe9741a2390a04c2035639e14a`. Este documento define a interface para as entregas seguintes; não afirma que compilador, preparação PWA, corte HTML ou conversão estejam implementados. O ADR definitivo pertence a #106.
 
 ## Fonte, API e saída

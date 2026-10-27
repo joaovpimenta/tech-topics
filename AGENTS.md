@@ -19,6 +19,7 @@ Consulte os documentos detalhados somente na etapa em que forem necessários:
 ## Princípios
 
 - Escreva os artigos em português brasileiro.
+- Use somente `content/articles/<slug>.md` como fonte editorial corrente. JSON de artigo só pode ser lido em comparação de revisões Git históricas ou para inspecionar artefatos de rollback; nunca crie nem restaure fontes JSON no checkout atual.
 - Não substitua, remova nem edite artigos existentes durante a criação de um novo artigo, salvo instrução explícita.
 - Evite temas já cobertos, inclusive equivalentes semânticos, sinônimos e variações superficiais.
 - Preserve compatibilidade com GitHub Pages, o layout editorial e a identidade visual existentes.

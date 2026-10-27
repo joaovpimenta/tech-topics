@@ -90,9 +90,9 @@ nativo do Kokoro.
 ## Automático: novos artigos após o deploy
 
 O build público compila o catálogo `html-v1` e os artigos HTML diretamente das
-fontes `.json`/`.md`; as fontes individuais e `content/articles/index.json`
-não entram no pacote. A conversão das fontes começa depois dos gates M09.
-Todos os jobs de efeito permanecem congelados por condições globais `false`.
+fontes Markdown; fontes individuais e `content/articles/index.json` não entram
+no pacote. Leituras JSON ficam restritas a revisões históricas no comparador de
+migração e à inspeção de artefatos de rollback. Todos os jobs de efeito permanecem congelados por condições globais `false`.
 
 Nas execuções `push` e `workflow_dispatch`, a workflow [Pages](../.github/workflows/pages.yml)
 resolve o SHA do run mais recente na `main` cujo job `Deploy GitHub Pages`
@@ -104,14 +104,14 @@ atual bloqueia a validação e o deploy.
 Depois que uma mudança aprovada reativar os efeitos, a workflow chama
 [Publish Tech Topics audio (Kokoro Dora)](../.github/workflows/kokoro-audio.yml)
 **após o deploy bem-sucedido na `main`**. Somente novos slugs do inventário
-compartilhado `content/articles/*.json` e `content/articles/*.md` são
-candidatos; mudanças em artigos existentes não refazem áudios. No estado atual,
+compartilhado `content/articles/*.md` são candidatos; mudanças em artigos existentes não refazem áudios. No estado atual,
 os cálculos continuam ativos, mas os jobs de efeito permanecem congelados.
 Com catálogo `html-v1`, o adapter Python lê o HTML compilado do artefato
 validado e confere o SHA de fonte, o `buildId` e os envelopes antes de qualquer
 trabalho. A leitura histórica JSON permanece disponível para comparação e
-rollback; o loader do site também conserva compatibilidade com artefatos JSON
-anteriores durante a transição.
+rollback. Versões antigas do app seguem atendidas pelo cache já controlado até
+a atualização natural do service worker; o cliente atual exige o catálogo
+`html-v1` e não consulta endpoints de artigo JSON.
 
 Cada artigo recebe uma GitHub Release `tts-<slug>` com `<slug>.mp3`
 e `<slug>.chapters.json`. O Kokoro grava os instantes de início de cada
@@ -238,11 +238,10 @@ para ouvir as variantes; não publica nem substitui MP3 de Release.
 
 O workflow **Pages** continua fazendo build e deploy quando código, CSS ou
 artigos mudam: isso é necessário para atualizar o site e o cache da PWA.
-Ele **não recria o texto editorial**: durante a transição, cada slug tem
-uma fonte `.json` ou `.md`; o build indexa os metadados e compila o corpo
-diretamente para HTML no pacote candidato.
+Ele **não recria o texto editorial**: cada slug tem uma fonte `.md`; o build
+indexa os metadados e compila o corpo diretamente para HTML no pacote candidato.
 
-Quando um push na `main` não adiciona nenhum slug `.json`/`.md` ao
+Quando um push na `main` não adiciona nenhum slug `.md` ao
 inventário, o job de áudio **nem é agendado**. A seleção editorial automática
 também só é acionada se o push adicionar um novo slug; mudanças de código,
 layout ou edição de artigo existente não selecionam outro tópico. O caller

@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildSiteArtifact, PUBLIC_ROOT_FILES } from "./lib/site-artifact.mjs";
+import { PUBLIC_ROOT_FILES } from "./lib/site-artifact.mjs";
 import { buildMarkdownPreview, buildMarkdownSiteArtifact, verifyMarkdownSiteArtifact } from "./lib/markdown-site-artifact.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -137,7 +137,18 @@ ${body}
   }));
   await writeFile(path.join(legacyRoot, "content", "articles", "index.json"),
     JSON.stringify([{ slug: "legacy", path: "content/articles/legacy.json" }]));
-  await buildSiteArtifact({ root: legacyRoot });
+  const legacyFiles = [...PUBLIC_ROOT_FILES, "assets/articles-catalog.json", "assets/preview/preview-cover.jpg",
+    "content/articles/index.json", "content/articles/legacy.json"].sort();
+  const legacyDist = path.join(legacyRoot, "dist");
+  await mkdir(legacyDist, { recursive: true });
+  for (const file of legacyFiles) {
+    const destination = path.join(legacyDist, file);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await cp(path.join(legacyRoot, file), destination);
+  }
+  await writeFile(path.join(legacyDist, ".site-artifact.json"),
+    `${JSON.stringify({ version: 1, files: legacyFiles }, null, 2)}\n`);
+  await cp(legacyDist, path.join(sourceRoot, "dist"), { recursive: true });
   const rebuiltLegacy = await buildMarkdownPreview({
     root: sourceRoot, sourceSha, destination: path.join(legacyRoot, "dist"),
   });
@@ -151,6 +162,7 @@ ${body}
   await mkdir(path.dirname(legacyCoverPath), { recursive: true });
   await writeFile(legacyCoverPath, Buffer.from("legacy cover"));
   const legacySourcePath = path.join(sourceRoot, "content", "articles", "legacy.json");
+  const legacyMarkdownPath = path.join(sourceRoot, "content", "articles", "legacy.md");
   const legacySource = JSON.stringify({
     slug: "legacy", language: "pt-BR", title: "Artigo legado",
     category: "Fundamentos", date: "25 de outubro de 2026", publishedAt: "2026-10-25",
@@ -161,22 +173,46 @@ ${body}
   await writeFile(path.join(sourceRoot, "content", "articles", "index.json"), JSON.stringify([
     { slug: "legacy", path: "content/articles/legacy.json" },
   ]));
-  await buildSiteArtifact({ root: sourceRoot });
-  const savedLegacySource = await readFile(legacySourcePath, "utf8");
+  await writeFile(path.join(sourceRoot, "assets", "articles-catalog.json"), JSON.stringify([
+    { slug: "legacy", title: "Artigo legado", path: "content/articles/legacy.json" },
+  ]));
+  await writeFile(path.join(sourceRoot, "sw-version.js"),
+    'const PRECACHE_VERSION = "legacy";\nconst PRECACHE_FILES = ["index.html", "article.html", "assets/articles-catalog.json", "content/articles/index.json"];\n');
+  const sourceLegacyFiles = [...PUBLIC_ROOT_FILES, "assets/articles-catalog.json", "assets/legacy/legacy-cover.jpg",
+    "assets/preview/preview-cover.jpg", "assets/preview/manual.pdf", "content/articles/index.json",
+    "content/articles/legacy.json"].sort();
+  const sourceLegacyDist = path.join(sourceRoot, "dist");
+  await mkdir(sourceLegacyDist, { recursive: true });
+  for (const file of sourceLegacyFiles) {
+    const destination = path.join(sourceLegacyDist, file);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await cp(path.join(sourceRoot, file), destination);
+  }
+  await writeFile(path.join(sourceLegacyDist, ".site-artifact.json"),
+    `${JSON.stringify({ version: 1, files: sourceLegacyFiles }, null, 2)}\n`);
+
   execFileSync("git", ["init", "--quiet"], { cwd: sourceRoot, stdio: "ignore" });
   execFileSync("git", ["add", "content/articles/preview.md", "content/articles/legacy.json",
     "generation/taxonomy/tags.json", "content/tts-lexicon.json", "assets/preview", "assets/legacy"],
   { cwd: sourceRoot, stdio: "ignore" });
   execFileSync("git", ["-c", "user.name=Tech Topics Fixture", "-c", "user.email=fixture@example.invalid",
-    "commit", "-m", "fixture editorial snapshot"], { cwd: sourceRoot, stdio: "ignore" });
+    "commit", "-m", "legacy JSON source snapshot"], { cwd: sourceRoot, stdio: "ignore" });
+  const legacyMarkdown = relationalMarkdown("legacy", "Artigo legado", "Conteúdo legado.");
+  await writeFile(legacyMarkdownPath, legacyMarkdown, "utf8");
+  await rm(legacySourcePath);
+  await rm(path.join(sourceRoot, "content", "articles", "index.json"));
+  execFileSync("git", ["add", "--all", "content/articles"], { cwd: sourceRoot, stdio: "ignore" });
+  execFileSync("git", ["-c", "user.name=Tech Topics Fixture", "-c", "user.email=fixture@example.invalid",
+    "commit", "-m", "migrate the legacy fixture to Markdown"], { cwd: sourceRoot, stdio: "ignore" });
   const initialArticleAddition = execFileSync("git", ["log", "--reverse", "--diff-filter=A", "--format=%cI", "HEAD",
-    "--", "content/articles/preview.md", "content/articles/legacy.json"],
+    "--", "content/articles/preview.md", "content/articles/legacy.json", "content/articles/legacy.md"],
   { cwd: sourceRoot, encoding: "utf8" }).split(/\r?\n/).find(Boolean);
+  const savedLegacyMarkdown = await readFile(legacyMarkdownPath, "utf8");
+  const productionSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: sourceRoot, encoding: "utf8" }).trim();
   await writeFile(path.join(sourceRoot, "history-marker.txt"), "keeps the article source commit behind HEAD\n");
   execFileSync("git", ["add", "history-marker.txt"], { cwd: sourceRoot, stdio: "ignore" });
   execFileSync("git", ["-c", "user.name=Tech Topics Fixture", "-c", "user.email=fixture@example.invalid",
     "commit", "-m", "fixture follow-up commit"], { cwd: sourceRoot, stdio: "ignore" });
-  const productionSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: sourceRoot, encoding: "utf8" }).trim();
   const shallowFile = path.join(sourceRoot, ".git", "shallow");
   await writeFile(shallowFile, `${productionSha}\n`);
   assert.equal(execFileSync("git", ["rev-parse", "--is-shallow-repository"],
@@ -197,8 +233,8 @@ ${body}
   assert.equal(productionCatalog.transport, "html-v1");
   assert.ok(productionCatalog.articles.every(article => article.addedAt === initialArticleAddition),
     "production catalog dates must come from the first article additions, not the latest source commit");
-  assert.equal(await readFile(legacySourcePath, "utf8"), savedLegacySource,
-    "publishing the HTML transport preserves the mixed editorial sources");
+  assert.equal(await readFile(legacyMarkdownPath, "utf8"), savedLegacyMarkdown,
+    "publishing the HTML transport preserves the Markdown editorial source");
   await assert.rejects(buildMarkdownSiteArtifact({ root: sourceRoot, destination: path.join(temporaryRoot, "outside-dist"), sourceSha: productionSha }),
     /destination must be <root>\/dist/);
 
@@ -209,11 +245,11 @@ ${body}
   await writeFile(verifiedHtmlPath, Buffer.concat([verifiedHtml, Buffer.from(" ")]));
   await assert.rejects(verifyMarkdownSiteArtifact(production.destination, productionSha), /content does not match its build ID/);
   await writeFile(verifiedHtmlPath, verifiedHtml);
-  await rm(legacySourcePath);
+  await rm(legacyMarkdownPath);
   await assert.rejects(buildMarkdownSiteArtifact({ root: sourceRoot, sourceSha: productionSha }), /Article source inventory differs from sourceSha/);
   assert.equal(await readFile(productionManifestPath, "utf8"), productionManifest,
     "a removed committed article preserves the last valid HTML package");
-  await writeFile(legacySourcePath, savedLegacySource);
+  await writeFile(legacyMarkdownPath, savedLegacyMarkdown);
 
   const legacyCover = await readFile(legacyCoverPath);
   await rm(legacyCoverPath);

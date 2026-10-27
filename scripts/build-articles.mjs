@@ -24,6 +24,7 @@ for (const { file, article } of articles) {
   await access(imagePath);
   let addedAt = "";
   try {
+    // Preserve publication ordering across the historical JSON→Markdown rename.
     const history = await run("git", ["log", "--reverse", "--diff-filter=A", "--format=%cI", "--",
       `content/articles/${article.slug}.json`, `content/articles/${article.slug}.md`], { cwd: root });
     addedAt = history.stdout.trim().split(/\r?\n/).find(Boolean) || "";
@@ -41,11 +42,9 @@ for (const { file, article } of articles) {
 }
 
 records.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || (Date.parse(b.addedAt) || 0) - (Date.parse(a.addedAt) || 0) || a.slug.localeCompare(b.slug));
-const manifest = records.map(({ slug, path, addedAt }) => ({ slug, path, addedAt }));
-await writeFile(path.join(articlesDir, "index.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 const catalog = records.map(({ path: sourcePath, ...record }) => record);
 await writeFile(path.join(root, "assets", "articles-catalog.json"), `${JSON.stringify(catalog, null, 2)}\n`);
-console.log(`Built lightweight article catalog and manifest with ${manifest.length} article(s).`);
+console.log(`Built lightweight article catalog with ${records.length} article(s).`);
 
 // Regenerate the imported worker version on every content or application change.
 // Relative URLs keep the PWA inside the GitHub Pages repository subdirectory.
@@ -53,7 +52,7 @@ const webManifest = JSON.parse(await readFile(path.join(root, "manifest.webmanif
 const precacheFiles = [...new Set(["index.html", "article.html", "styles.css", "app.js", "article.js", "header.js", "speech.js", "audio.js", "content/tts-lexicon.json", "mermaid-theme.js", "fgs-simulator.js", "pwa.js", "manifest.webmanifest", "favicon.svg", "favicon.ico",
   "assets/favicon-16x16.png", "assets/favicon-32x32.png", ...webManifest.icons.map(icon => icon.src),
   "assets/app-icon.svg", "assets/app-icon-180.png", "assets/app-icon-192.png", "assets/app-icon-512.png",
-  "content/articles/index.json", "assets/articles-catalog.json"])].sort();
+  "assets/articles-catalog.json"])].sort();
 const hash = createHash("sha256");
 for (const file of [...precacheFiles, "sw.js"]) {
   hash.update(file);

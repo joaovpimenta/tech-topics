@@ -33,7 +33,10 @@ if (args.includes("--help")) {
     const articleDir = path.join(root, "content", "articles");
     const sourceEntries = [];
     for (const entry of await readdir(articleDir, { withFileTypes: true })) {
-      if (!/\.(?:json|md)$/.test(entry.name) || ["index.json", "catalog.json"].includes(entry.name)) continue;
+      if (entry.name.endsWith(".json")) {
+        throw new Error(`JSON files are not allowed in the current article source directory: ${entry.name}`);
+      }
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*\.md$/.test(entry.name)) continue;
       if (entry.isSymbolicLink() || !entry.isFile()) {
         throw new Error(`Article source must be a regular file: ${entry.name}`);
       }

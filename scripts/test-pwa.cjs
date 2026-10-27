@@ -58,7 +58,7 @@ async function testWorker() {
     async fetch(request) {
       networkRequests.push(request.url);
       if (offline) throw Error("Offline");
-      if (request.url === "https://example.com/tech-topics/content/articles/retired.json") {
+      if (request.url === "https://example.com/tech-topics/content/articles/retired.html") {
         return new Response("retired endpoint", { status: 404 });
       }
       if (request.url.startsWith("https://example.com/tech-topics/content/articles/retired.html")) {
@@ -73,11 +73,11 @@ async function testWorker() {
   const candidate = [...cachesByName.keys()].find(name => name.startsWith("tech-topics-") && name !== "tech-topics-old");
   const entries = cachesByName.get(candidate).entries;
   assert(entries.has("https://example.com/tech-topics/index.html"));
-  assert(entries.has("https://example.com/tech-topics/content/articles/index.json"));
+  assert(!entries.has("https://example.com/tech-topics/content/articles/index.json"), "the retired article index must not be precached");
   if (!process.env.TECH_TOPICS_SW_SOURCE_PATH) {
     assert(entries.has("https://example.com/tech-topics/assets/articles-catalog.json"));
   }
-  assert(!entries.has("https://example.com/tech-topics/content/articles/bulkhead.json"), "full articles must not be precached");
+  assert(!entries.has("https://example.com/tech-topics/content/articles/bulkhead.html"), "full articles must not be precached");
   assert(!entries.has("https://example.com/tech-topics/assets/bulkhead/bulkhead-cover.jpg"), "covers must not be precached");
   assert.equal(skipWaitingCalls, 0, "an installed update waits for the browser's natural lifecycle");
   const manifestIcons = JSON.parse(readFileSync("manifest.webmanifest", "utf8")).icons;
@@ -119,11 +119,11 @@ async function testWorker() {
   assert.match(await (await request("/tech-topics/article.html?slug=uncached#part", true)).text(), /^fresh:/);
   assert.equal(entries.has(articleShellUrl), true, "a shell network miss is saved under its canonical pathname");
   assert.equal(entries.has(queryShellUrl), false, "a shell response never enters a query-specific cache key");
-  const uncached = await request("/tech-topics/content/articles/cached-on-first-visit.json");
+  const uncached = await request("/tech-topics/content/articles/cached-on-first-visit.html");
   assert.match(await uncached.text(), /^fresh:/, "a cache miss uses the network and joins this worker's version cache");
-  const retired = await request("/tech-topics/content/articles/retired.json");
-  assert.equal(retired.status, 404, "an old JSON endpoint's 404 is passed to the client for its HTML fallback");
-  assert.equal(await cachesByName.get(candidate).match("https://example.com/tech-topics/content/articles/retired.json"), undefined,
+  const retired = await request("/tech-topics/content/articles/retired.html");
+  assert.equal(retired.status, 404, "a missing compiled HTML article returns 404 to the client");
+  assert.equal(await cachesByName.get(candidate).match("https://example.com/tech-topics/content/articles/retired.html"), undefined,
     "404 responses never become stale cached articles");
   const candidateArticle = await request("/tech-topics/content/articles/retired.html?build=candidate");
   assert.equal(candidateArticle.status, 200, "a candidate HTML transport can be fetched and cached by its version");
@@ -133,7 +133,7 @@ async function testWorker() {
   cacheAccessFails = false;
   offline = true;
   assert.equal(await (await request("/tech-topics/app.js")).text(), "https://example.com/tech-topics/app.js");
-  assert.match(await (await request("/tech-topics/content/articles/cached-on-first-visit.json")).text(), /^fresh:/);
+  assert.match(await (await request("/tech-topics/content/articles/cached-on-first-visit.html")).text(), /^fresh:/);
   assert.match(await (await request("/tech-topics/content/articles/retired.html?build=candidate")).text(), /article data-article-format/,
     "a cached candidate document remains available to a prepared client offline");
   assert.equal((await request("/tech-topics/article.html?slug=four-golden-signals", true)).status, 200);
