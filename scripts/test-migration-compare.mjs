@@ -8,6 +8,7 @@ import { runInNewContext } from "node:vm";
 import { stringify as stringifyYaml } from "yaml";
 import { articleForNarrationExtraction, baselineCoverageBlockers, baselineReplayBlockers, compareArticleStates, compareAgainstInitialBaseline, compareDomAgainstInitialBaseline, discoverArticleSources, firstAdditionDate, isArticleNavigationLink, publishedArticleSlugs, runGitText, validateDomAuditReport, validateIndependentBaseline } from "./lib/migration-compare.mjs";
 import { instrumentSpeechBuildBlocks, spokenRunsSignature } from "./lib/migration-dom-signature.mjs";
+import { nativeDomUnitHash } from "./lib/migration-baseline.mjs";
 import { migrationDomCatalogArticles } from "./lib/migration-dom-catalog.mjs";
 let compileMarkdownArticle, fromLegacyArticle;
 try { ({ compileMarkdownArticle, fromLegacyArticle } = await import("./lib/markdown-article.mjs")); }
@@ -137,6 +138,81 @@ test("production DOM segment limits preserve spaces in Python-to-DOM run signatu
   const articleState = state(article("alpha", text));
   const result = compareArticleStates(articleState, articleState, { domBefore: dom, domAfter: dom });
   assert.deepEqual(result.blockers, []);
+});
+
+test("canonical speech mapping preserves words, word languages, punctuation and observed spaces across DOM runs", async () => {
+  const speechSource = await readFile(new URL("../speech.js", import.meta.url), "utf8");
+  const module = { exports: {} };
+  runInNewContext(instrumentSpeechBuildBlocks(speechSource), { module, exports: module.exports, globalThis: {} });
+  const fakeDocument = {
+    createDocumentFragment: () => ({ append() {} }),
+    createTextNode: nodeValue => ({ nodeType: 3, nodeValue, ownerDocument: fakeDocument, replaceWith() {} }),
+    createElement: () => ({ nodeType: 1, className: "", textContent: "" })
+  };
+  function domRuns(ptText, { ptLanguage = "pt-BR", english = "Bulkhead" } = {}) {
+    const text = value => ({ nodeType: 3, nodeValue: value, ownerDocument: fakeDocument, replaceWith() {} });
+    const span = (lang, value) => ({ nodeType: 1, childNodes: [text(value)], matches: () => false,
+      getAttribute: name => name === "lang" ? lang : null });
+    const root = { nodeType: 1, childNodes: [span("en-US", english), span(ptLanguage, ptText)],
+      matches: selector => selector.startsWith("h1,h2,h3,h4,p"), getAttribute: () => null,
+      closest: () => ({ lang: "pt-BR" }) };
+    return module.exports.buildBlocks([root])[0].segments;
+  }
+  const source = [{ lang: "en-us", text: "Bulkhead" }, { lang: "pt-br", text: ": isolar" }];
+  const withObservedSpace = domRuns(": isolar");
+  assert.equal(withObservedSpace.length, 2);
+  assert.equal(withObservedSpace[1].separatorBefore, true,
+    "the space from the real pt-BR text node must be recorded before the language boundary trims it");
+  assert.equal(spokenRunsSignature(source), spokenRunsSignature(withObservedSpace),
+    "case-insensitive language tags and punctuation moved to the adjacent run preserve the exact token sequence");
+
+  const nodeIds = new Map();
+  const nativeSegments = withObservedSpace.map(segment => ({ text: segment.text, lang: segment.lang,
+    separatorBefore: segment.separatorBefore,
+    words: segment.words.map(word => ({ start: word.start, end: word.end, nodeIds: word.nodes.map(node => {
+      if (!nodeIds.has(node)) nodeIds.set(node, String(nodeIds.size + 1));
+      return nodeIds.get(node);
+    }) })) }));
+  const nativeUnit = { blockIndex: 0, sentenceIndex: 0, segments: nativeSegments };
+  const withoutAuditMetadata = { ...nativeUnit, segments: nativeSegments.map(({ separatorBefore: _separatorBefore, ...segment }) => segment) };
+  assert.equal(nativeDomUnitHash(nativeUnit), nativeDomUnitHash(withoutAuditMetadata),
+    "audit-only provenance metadata is excluded from the native DOM signature");
+
+  const withoutObservedSpace = domRuns(":isolar");
+  assert.equal(withoutObservedSpace[1].separatorBefore, false);
+  assert.equal(spokenRunsSignature(source), spokenRunsSignature(withoutObservedSpace),
+    "whitespace-only differences are neutral once lexical and punctuation tokens match");
+  assert.equal(spokenRunsSignature(source), spokenRunsSignature([{ lang: "en-us", text: "Bulkhead" }, { lang: "pt-br", text: ":  \tisolar" }]),
+    "whitespace kind and amount are ignored while preserving the same word boundaries");
+  const separatedAcrossRuns = [{ lang: "en-US", text: "New" }, { lang: "en-US", text: "York", separatorBefore: true }];
+  const joinedAcrossRuns = [{ lang: "en-US", text: "New" }, { lang: "en-US", text: "York" }];
+  assert.notEqual(spokenRunsSignature(separatedAcrossRuns), spokenRunsSignature(joinedAcrossRuns),
+    "New York remains different from NewYork even when the word boundary crosses DOM runs");
+  assert.equal(spokenRunsSignature([{ lang: "en-US", text: "New" }, { lang: "en-us", text: "York" }]),
+    spokenRunsSignature([{ lang: "en-us", text: "NewYork" }]),
+    "a same-language word may continue across adjacent runs when no whitespace was observed");
+  assert.notEqual(spokenRunsSignature([{ lang: "en-US", text: "New" }, { lang: "pt-BR", text: "York" }]),
+    spokenRunsSignature([{ lang: "en-US", text: "NewYork" }]),
+    "a word crossing a language boundary retains the language of each part");
+  assert.equal(spokenRunsSignature([{ lang: "en-US", text: "New\t" }, { lang: "en-us", text: "\nYork" }]),
+    spokenRunsSignature([{ lang: "en-us", text: "New York" }]),
+    "tabs and newlines delimit the same lexical words while remaining whitespace-neutral");
+  assert.equal(spokenRunsSignature([{ lang: "en-us", text: "Bulkhead" }, { lang: "pt-br", text: ": isolar" }]),
+    spokenRunsSignature([{ lang: "en-US", text: "Bulkhead:" }, { lang: "pt-BR", text: " isolar" }]),
+    "moving exact punctuation ownership between adjacent languages preserves word languages and punctuation order");
+  assert.notEqual(spokenRunsSignature([{ lang: "pt-BR", text: "café" }]),
+    spokenRunsSignature([{ lang: "pt-BR", text: "cafe\u0301" }]),
+    "NFC and NFD spellings remain distinct code-point sequences");
+  assert.notEqual(spokenRunsSignature(source), spokenRunsSignature([{ ...source[0] }, { lang: "pt-br", text: "; isolar" }]),
+    "punctuation changes remain visible");
+  assert.notEqual(spokenRunsSignature([{ lang: "pt-br", text: "A, B." }]),
+    spokenRunsSignature([{ lang: "pt-br", text: "A. B," }]), "punctuation order remains visible");
+  assert.notEqual(spokenRunsSignature(source), spokenRunsSignature([{ ...source[0], text: "Bulkheds" }, source[1]]),
+    "lexical changes remain visible");
+  assert.notEqual(spokenRunsSignature(source), spokenRunsSignature([{ ...source[0] }, { lang: "es-MX", text: ": isolar" }]),
+    "word-language changes remain visible");
+  assert.equal(spokenRunsSignature([{ lang: "en-us", text: "Bulkhead" }, { lang: "pt-br", text: ":  isolar" }]),
+    spokenRunsSignature(source), "repeated whitespace is neutral without changing lexical token boundaries");
 });
 
 test("a narration edit does not hide a DOM signature regression in an unchanged sentence", () => {

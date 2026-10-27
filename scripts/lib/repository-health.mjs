@@ -28,7 +28,7 @@ export async function diagnoseRepository({ root, nodeVersion = process.versions.
   } catch (error) {
     checks.push({ name: "node", status: "error", message: error.message });
   }
-  for (const file of ["AGENTS.md", "generation/registry.json", "content/articles/index.json", "scripts/validate-site.mjs"]) {
+  for (const file of ["AGENTS.md", "generation/registry.json", "scripts/validate-site.mjs"]) {
     try { await access(path.join(root, file)); checks.push({ name: file, status: "ok" }); }
     catch { checks.push({ name: file, status: "error", message: "Required repository file is missing" }); }
   }

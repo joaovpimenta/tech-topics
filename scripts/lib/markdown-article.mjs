@@ -127,6 +127,7 @@ export function validateArticleMetadata(metadata, context = {}, { legacy = false
   validateSpeechMarkup(metadata, location);
   const normalizedPath = location.replace(/\\/g, "/");
   const extension = path.posix.extname(normalizedPath);
+  if (extension === ".json" && !legacy) fail(location, "JSON article sources are only supported for historical migration reads");
   if (extension === ".md" || extension === ".json") {
     const filenameSlug = path.posix.basename(normalizedPath, extension);
     if (metadata.slug !== filenameSlug) fail(location, extension === ".md"

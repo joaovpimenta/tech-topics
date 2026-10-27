@@ -282,18 +282,8 @@ assert.match(adapted.slots.body, /^<p>Primeiro parágrafo\.<\/p>/);
 assert.throws(() => fromLegacyArticle({ ...legacy, bodyHtml: '<p onclick="alert(1)">X</p>' }, { rootPath, assetExists: () => true }), /event attribute/);
 assert.throws(() => fromLegacyArticle({ ...legacy, bodyHtml: "<p>Abertura.</p><h1>Duplicado</h1>" }, { rootPath, assetExists: () => true }), /body must not contain h1/);
 
-const domSignature = node => {
-  if (node.nodeName === "#text") return ["text", node.value];
-  const attrs = [...(node.attrs ?? [])].map(({ name, value }) => [name, value]).sort(([a], [b]) => a.localeCompare(b));
-  return [node.tagName ?? node.nodeName, attrs, ...(node.childNodes ?? []).filter(child => child.nodeName !== "#comment").map(domSignature)];
-};
-const articleFiles = fs.readdirSync(path.join(rootPath, "content/articles")).filter(name => name.endsWith(".json") && name !== "index.json");
-for (const filename of articleFiles) {
-  const record = JSON.parse(fs.readFileSync(path.join(rootPath, "content/articles", filename), "utf8"));
-  const legacyCompiled = fromLegacyArticle(record, { rootPath });
-  const expectedMetadata = Object.fromEntries(Object.entries(record).filter(([key]) => key !== "bodyHtml"));
-  assert.deepEqual(legacyCompiled.metadata, expectedMetadata, `${filename}: legacy metadata is preserved without classification`);
-  assert.deepEqual(domSignature(parseFragment(legacyCompiled.slots.body)), domSignature(parseFragment(record.bodyHtml)), `${filename}: legacy HTML DOM semantics are preserved`);
-}
+const articleFiles = fs.readdirSync(path.join(rootPath, "content/articles"));
+assert.deepEqual(articleFiles.filter(name => name.endsWith(".json")), [],
+  "the current article directory must contain no JSON source or retired index");
 
-console.log(`markdown article compiler: ${failures.length} table-driven negative cases + guard checks + complex fixture + ${articleFiles.length} legacy DOM/metadata parity checks passed`);
+console.log(`markdown article compiler: ${failures.length} table-driven negative cases + guard checks + complex fixture + Markdown-only source inventory passed`);

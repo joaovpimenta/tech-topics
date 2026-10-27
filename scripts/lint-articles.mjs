@@ -228,17 +228,6 @@ for (const file of assetFiles) {
 }
 
 try {
-  const index = JSON.parse(await readFile(path.join(articlesDir, "index.json"), "utf8"));
-  const expected = new Set(articles.map(({ file }) => file));
-  const actual = new Set(index.map(entry => entry.path));
-  if (index.length !== articles.length || expected.size !== actual.size || [...expected].some(file => !actual.has(file))) {
-    fail("content/articles/index.json", "manifest does not match the article files");
-  }
-} catch (error) {
-  fail("content/articles/index.json", "invalid or unreadable manifest: " + error.message);
-}
-
-try {
   const css = await readFile(path.join(root, "styles.css"), "utf8");
   for (const selector of [".article-table-scroll", ".code-block", ".mermaid-diagram"]) {
     if (!css.includes(selector)) fail("styles.css", "missing responsive component selector: " + selector);

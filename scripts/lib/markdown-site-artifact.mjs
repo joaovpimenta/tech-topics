@@ -6,7 +6,7 @@ import path from "node:path";
 import { PUBLIC_ROOT_FILES, validatePublicReferences } from "./site-artifact.mjs";
 import { discoverArticleSources as discoverMigrationSources, assertCommitSha } from "./migration-compare.mjs";
 import { discoverArticleSources as discoverEditorialSources } from "./generation-system.mjs";
-import { compileMarkdownArticle, fromLegacyArticle, renderArticleEnvelope } from "./markdown-article.mjs";
+import { compileMarkdownArticle, renderArticleEnvelope } from "./markdown-article.mjs";
 import { extractOpeningParagraph } from "./catalog-opening.mjs";
 
 const speechLexiconMarker = "/* TECH_TOPICS_SPEECH_LEXICON */";
@@ -80,9 +80,11 @@ function assertSamePaths(label, expected, actual, sourceSha) {
 async function assertEditorialInputsMatchCommit(root, sourceSha, inventory) {
   const committedPaths = gitPaths(root, sourceSha, "content/articles");
   const committedSources = committedPaths.filter(file => {
-    const match = file.match(/^content\/articles\/([a-z0-9]+(?:-[a-z0-9]+)*)\.(?:json|md)$/);
+    const match = file.match(/^content\/articles\/([a-z0-9]+(?:-[a-z0-9]+)*)\.md$/);
     return match && !["index", "catalog"].includes(match[1]);
   });
+  const currentJsonSources = committedPaths.filter(file => /^content\/articles\/[^/]+\.json$/.test(file));
+  if (currentJsonSources.length) throw new Error(`Individual JSON article sources are not allowed in the current checkout: ${currentJsonSources.join(", ")}`);
   assertSamePaths("Article source inventory", committedSources, inventory.map(source => source.file), sourceSha);
 
   const slugs = new Set(inventory.map(source => source.slug));
@@ -197,6 +199,8 @@ function safeManagedPath(file) {
 
 function isManagedArtifactFile(file, version) {
   if (PUBLIC_ROOT_FILES.includes(file) || file.startsWith("assets/")) return true;
+  // Version 1 outputs are recognized only so a new build can safely replace
+  // them; this does not enable JSON sources in the current checkout.
   if (version === 1) return /^content\/articles\/[^/]+\.json$/.test(file);
   return /^content\/articles\/[^/]+\.html$/.test(file);
 }
@@ -383,9 +387,7 @@ async function buildFiles(root, sourceSha, { production = false } = {}) {
   for (const source of inventory) {
     const text = await readFile(path.join(root, source.file), "utf8");
     const context = { ...contextBase, sourcePath: source.file };
-    const compiled = source.extension === "json"
-      ? fromLegacyArticle(JSON.parse(text), context)
-      : await compileMarkdownArticle({ source: text, ...context });
+    const compiled = await compileMarkdownArticle({ source: text, ...context });
     if (compiled.metadata.slug !== source.slug) throw new Error(`${source.file}: metadata slug does not match filename`);
     compiled.metadata.tagLabels = Object.fromEntries((compiled.metadata.tags ?? []).map(tag => [
       tag,
@@ -465,7 +467,7 @@ async function buildMarkdownPackage({ root, destination, sourceSha, production =
       files: publicFiles,
     };
     await writeFile(path.join(staging, artifactManifest), `${JSON.stringify(manifest, null, 2)}\n`, { flag: "wx" });
-    await validatePublicReferences(staging, publicFiles, { allowMissing: ["content/articles/index.json"] });
+    await validatePublicReferences(staging, publicFiles);
     if (JSON.stringify(JSON.parse(await readFile(path.join(staging, "assets/articles-catalog.json"), "utf8")))
         !== JSON.stringify(built.catalog)) throw new Error("Staged HTML catalog changed during packaging");
     const previousManaged = await inspectManagedOutput(output);

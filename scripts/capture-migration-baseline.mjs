@@ -1,12 +1,27 @@
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { closeSync, existsSync, openSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseDocument } from "yaml";
+import { compileMarkdownArticle } from "./lib/markdown-article.mjs";
+import { discoverArticleSources, firstAdditionDate } from "./lib/migration-compare.mjs";
 import { articleSignatures, compareBaselines, compareCaptureTools, validateBaseline } from "./lib/migration-baseline.mjs";
 
-const exec = (...args) => execFileSync(...args);
+const historicalArticleModule = existsSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "lib/historical-article.mjs"))
+  ? "./lib/historical-article.mjs"
+  : "./lib/markdown-article.mjs";
+const { fromLegacyArticle } = await import(historicalArticleModule);
+
+const exec = (command, commandArgs, options) => {
+  const result = spawnSync(command, commandArgs, options);
+  // The managed runner can report EPERM after a child has exited successfully;
+  // the non-zero/null status remains the command failure signal.
+  if (result.status !== 0) throw result.error ?? new Error(result.stderr || `${command} exited with ${result.status}`);
+  return result.stdout;
+};
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const value = flag => { const i = args.indexOf(flag); return i < 0 ? undefined : args[i + 1]; };
@@ -23,17 +38,44 @@ const tree = (await git("ls-tree", "-r", sha)).trim().split("\n").filter(Boolean
   return match && { blob: match[1], file: match[2] };
 }).filter(Boolean);
 const treeByPath = new Map(tree.map(item => [item.file, item.blob]));
-const articlePaths = tree.map(item => item.file).filter(file => file.startsWith("content/articles/") && file.endsWith(".json") && !["index.json", "catalog.json"].includes(path.posix.basename(file))).sort();
-if (!articlePaths.length) throw new Error(`No article source JSON files at ${sha}`);
-
+const inventory = discoverArticleSources(tree.map(item => item.file), sha);
+const isLegacyCorpus = inventory.every(source => source.extension === "json");
+const sourceTexts = await Promise.all(inventory.map(async source => ({
+  ...source, text: await git("show", `${sha}:${source.file}`)
+})));
+function metadataFor(source) {
+  if (source.extension === "json") return JSON.parse(source.text);
+  const match = source.text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
+  if (!match) throw new Error(`${source.file}: Markdown frontmatter was not found`);
+  const document = parseDocument(match[1], { version: "1.2", schema: "core", strict: true });
+  if (document.errors.length) throw new Error(`${source.file}: Markdown frontmatter is invalid: ${document.errors.map(error => error.message).join("; ")}`);
+  return document.toJS();
+}
+const knownTags = new Set(sourceTexts.flatMap(source => metadataFor(source).tags ?? []));
+const knownSlugs = new Set(inventory.map(source => source.slug));
 const articles = [];
-for (const file of articlePaths) {
-  const article = JSON.parse(await git("show", `${sha}:${file}`));
-  if (article.slug !== path.posix.basename(file, ".json")) throw new Error(`${file}: slug does not match path`);
-  const addedLog = (await git("log", "--follow", "--diff-filter=A", "--format=%cI", sha, "--", file)).trim().split("\n").filter(Boolean);
-  const addedAt = addedLog.at(-1) ?? "";
-  if (!addedAt) throw new Error(`${file}: Git history has no original addition date`);
-  articles.push({ article, file, addedAt, sourceBlob: treeByPath.get(file) });
+for (const source of sourceTexts) {
+  let article, addedAt;
+  if (isLegacyCorpus) {
+    article = JSON.parse(source.text);
+    if (article.slug !== source.slug) throw new Error(`${source.file}: slug does not match path`);
+    const addedLog = (await git("log", "--follow", "--diff-filter=A", "--format=%cI", sha, "--", source.file)).trim().split("\n").filter(Boolean);
+    addedAt = addedLog.at(-1) ?? "";
+    if (!addedAt) throw new Error(`${source.file}: Git history has no original addition date`);
+  } else {
+    const metadata = metadataFor(source);
+    const context = { sourcePath: source.file, rootPath: root, knownTags, knownSlugs,
+      assetExists: asset => treeByPath.has(asset) };
+    const compiled = source.extension === "json"
+      ? fromLegacyArticle(metadata, context)
+      : await compileMarkdownArticle({ source: source.text, ...context });
+    if (compiled.metadata.slug !== source.slug) throw new Error(`${source.file}: slug does not match path`);
+    article = { ...compiled.metadata, bodyHtml: compiled.slots.body };
+    const history = await git("log", "--reverse", "--diff-filter=A", "--format=%cI", sha, "--",
+      `content/articles/${source.slug}.json`, `content/articles/${source.slug}.md`);
+    addedAt = firstAdditionDate(history, source.slug);
+  }
+  articles.push({ article, file: source.file, addedAt, sourceBlob: treeByPath.get(source.file) });
 }
 articles.sort((a, b) => b.article.publishedAt.localeCompare(a.article.publishedAt) || (Date.parse(b.addedAt) || 0) - (Date.parse(a.addedAt) || 0) || a.article.slug.localeCompare(b.article.slug));
 
@@ -54,14 +96,18 @@ for (const file of speechFiles) {
 }
 let python = process.env.TECH_TOPICS_PYTHON ?? "python";
 const payload = JSON.stringify({ articles: articles.map(({ article }) => article), lexicon });
+const payloadPath = path.join(snapshotDir, "extractor-input.json");
+await writeFile(payloadPath, payload, "utf8");
+const payloadFd = openSync(payloadPath, "r");
 let extracted;
 try {
-  const result = exec(python, ["-X", "utf8", extractor], { cwd: root, input: payload, maxBuffer: 50 * 1024 * 1024, encoding: "utf8",
+  const result = exec(python, ["-X", "utf8", extractor], { cwd: root, stdio: [payloadFd, "pipe", "pipe"], maxBuffer: 50 * 1024 * 1024, encoding: "utf8",
     env: { ...process.env, TECH_TOPICS_BASELINE_TTS_DIR: historicalTtsDir } });
   extracted = JSON.parse(result);
 } catch (error) {
   throw new Error(`Model-free HTML/narration extraction failed (${python}): ${error.message}`);
 } finally {
+  closeSync(payloadFd);
   await rm(snapshotDir, { recursive: true, force: true });
 }
 const hasReplacementCharacter = value => typeof value === "string" ? value.includes("\uFFFD") :
@@ -80,7 +126,8 @@ const records = articles.map(({ article, file, addedAt, sourceBlob }, index) => 
   return { slug: article.slug, source: file, sourceBlob, addedAt, publishedAt: article.publishedAt,
     order: index + 1, ...details };
 });
-const captureFiles = ["scripts/capture-migration-baseline.mjs", "scripts/lib/migration-baseline.mjs", "scripts/lib/migration-baseline-extract.py"];
+const captureFiles = ["scripts/capture-migration-baseline.mjs", "scripts/lib/migration-baseline.mjs", "scripts/lib/migration-baseline-extract.py",
+  ...(!isLegacyCorpus ? [...new Set(["scripts/lib/markdown-article.mjs", `scripts/lib/${path.basename(historicalArticleModule)}`, "scripts/lib/migration-compare.mjs"])] : [])];
 const baseline = { schemaVersion: 3, sha, sourceCount: records.length,
   capture: { synthesis: false,
     contracts: { python: "native extractor editorial sentences and legacy chunks; exact text, language runs, indices, pauses and metadata", dom: "native player blocks; exact segment text, language, indices and original word-node mapping", comparison: "cross-contract equivalence is inconclusive and is not asserted" },

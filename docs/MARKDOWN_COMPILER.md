@@ -13,17 +13,18 @@ const compiled = await compileMarkdownArticle({
   knownSlugs,
   assetExists
 });
+// Historical comparison only; current checkouts accept Markdown sources.
 const legacy = fromLegacyArticle(existingRecord, { rootPath, assetExists });
 const html = renderArticleEnvelope(compiled, { buildId });
 ```
 
-`compileMarkdownArticle` retorna `{ metadata, slots: { heading, dek, body } }`. `fromLegacyArticle` adapta um registro JSON antigo em memória e aceita ausência de `tags` durante a transição, sem classificar o artigo; o corpo legado também precisa começar com parágrafo e não pode trazer outro `h1`, pois o envelope mantém o único título de nível superior. Nenhuma função serializa um artigo completo intermediário. `renderArticleEnvelope` monta o envelope `html-v1` usado na fronteira de integração; ele não repete o título, dek ou corpo fora dos três slots.
+`compileMarkdownArticle` retorna `{ metadata, slots: { heading, dek, body } }`. `fromLegacyArticle` adapta um registro JSON antigo em memória exclusivamente para comparação de revisões históricas e recuperação de rollback; não é chamado por build, lint, autoria, fila ou carregador corrente. O corpo legado também precisa começar com parágrafo e não pode trazer outro `h1`, pois o envelope mantém o único título de nível superior. Nenhuma função serializa um artigo completo intermediário. `renderArticleEnvelope` monta o envelope `html-v1` usado na fronteira de integração; ele não repete o título, dek ou corpo fora dos três slots.
 
 O chamador injeta obrigatoriamente o registry `knownTags`; `knownSlugs` também é obrigatório quando o artigo declara prerequisites. `assetExists` pode ser injetado pelo build; sem callback, o compilador exige arquivo regular existente e verifica `realpath` confinado ao `rootPath` para capas e recursos locais. O módulo não cria taxonomia nem tenta deduzir slugs ou arquivos ausentes. `sourcePath` é sempre `content/articles/<slug>.md`; imagens do frontmatter usam `assets/<slug>/<slug>-cover.jpg`. URLs Markdown relativas são resolvidas desde o diretório do `.md`, confinadas à raiz e mapeadas para os URLs do shell. Recursos locais precisam existir. URLs externas são aceitas somente em links HTTP(S), `mailto:` e `tel:`; imagens remotas são recusadas.
 
 ## Frontmatter e estrutura
 
-YAML é interpretado com YAML 1.2 Core. A data ISO é uma string e precisa ser uma data real. O contrato rejeita chaves duplicadas/desconhecidas, tipos de tag personalizados, anchors/aliases, merge keys e limites acima de 128 KiB, 10 mil nós ou 40 níveis. `tags` é obrigatório no Markdown e composto por IDs únicos kebab-case ASCII. `updatedAt`, `level`, `series`/`seriesOrder` e `prerequisites` são opcionais; prerequisites são validados contra os slugs injetados quando presentes. `fromLegacyArticle` não inventa tags.
+YAML é interpretado com YAML 1.2 Core. A data ISO é uma string e precisa ser uma data real. O contrato rejeita chaves duplicadas/desconhecidas, tipos de tag personalizados, anchors/aliases, merge keys e limites acima de 128 KiB, 10 mil nós ou 40 níveis. `tags` é obrigatório no Markdown e composto por IDs únicos kebab-case ASCII. `updatedAt`, `level`, `series`/`seriesOrder` e `prerequisites` são opcionais; prerequisites são validados contra os slugs injetados quando presentes.
 
 Título e dek usam runs de `speechMarkup` que concatenam exatamente ao texto visível. `lang` e `data-tts-say`/`data-tts-mode` do corpo sobrevivem como atributos semânticos; conflitos e valores inválidos falham. A primeira unidade de conteúdo deve ser prosa num único `<p>`, sem imagem antes ou dentro dela. Âncoras legadas são a única forma de IDs explícitos:
 

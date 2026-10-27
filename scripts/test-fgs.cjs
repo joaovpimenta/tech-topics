@@ -8,8 +8,8 @@ async function main() {
     const { compileMarkdownArticle } = await import("./lib/markdown-article.mjs");
     const taxonomy = JSON.parse(fs.readFileSync("generation/taxonomy/tags.json", "utf8"));
     const knownSlugs = new Set(fs.readdirSync("content/articles")
-      .filter(file => /\.(?:json|md)$/.test(file) && file !== "index.json")
-      .map(file => file.replace(/\.(?:json|md)$/, "")));
+      .filter(file => file.endsWith(".md"))
+      .map(file => file.slice(0, -3)));
     const compiled = await compileMarkdownArticle({
       source: fs.readFileSync(markdownPath, "utf8"),
       sourcePath: markdownPath,
@@ -19,9 +19,7 @@ async function main() {
       assetExists: file => fs.existsSync(file),
     });
     article = { ...compiled.metadata, bodyHtml: compiled.slots.body };
-  } else {
-    article = JSON.parse(fs.readFileSync("content/articles/four-golden-signals.json", "utf8"));
-  }
+  } else throw new Error("Markdown source is missing: " + markdownPath);
 assert.equal(article.slug, "four-golden-signals");
 assert.equal(article.publishedAt, "2026-09-12");
 assert(fs.existsSync(article.image));

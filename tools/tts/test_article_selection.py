@@ -80,11 +80,7 @@ class ArticleSelectionTests(unittest.TestCase):
                 {"slug": "sre-capacidade", "language": "pt-BR",
                  "title": "SRE: Capacidade", "publishedAt": "2026-04-20"},
             ]
-            for article in articles:
-                (directory / (article["slug"] + ".json")).write_text(
-                    json.dumps(article), encoding="utf-8")
-            with patch.object(article_selection, "ARTICLE_DIR", directory), \
-                    patch.object(article_selection, "DIST_DIR", directory / "dist"):
+            with patch.object(article_selection, "catalog", return_value=articles):
                 self.assertEqual(article_selection.select_manual("Bulkhead"), ["bulkhead"])
                 self.assertEqual(article_selection.select_manual("four golden signals"),
                                  ["four-golden-signals"])
@@ -97,31 +93,27 @@ class ArticleSelectionTests(unittest.TestCase):
                     article_selection.select_manual("bookhead")
 
 
-    def test_all_articles_selection_includes_old_and_new_without_index(self):
+    def test_local_inventory_accepts_markdown_and_rejects_json_sources(self):
         with tempfile.TemporaryDirectory() as temp:
             directory = Path(temp)
             for slug in ("bulkhead", "hedged-requests", "four-golden-signals"):
-                (directory / f"{slug}.json").write_text(json.dumps({
-                    "slug": slug, "language": "pt-BR", "title": slug
-                }), encoding="utf-8")
-            (directory / "index.json").write_text("[]", encoding="utf-8")
-            with patch.object(article_selection, "ARTICLE_DIR", directory), \
-                    patch.object(article_selection, "DIST_DIR", directory / "dist"):
-                self.assertEqual(sorted(a["slug"] for a in article_selection.catalog()),
-                                 ["bulkhead", "four-golden-signals", "hedged-requests"])
+                (directory / f"{slug}.md").write_text(f"---\nslug: {slug}\n---\n", encoding="utf-8")
+            self.assertEqual(sorted(article_selection.local_source_inventory(directory)),
+                             ["bulkhead", "four-golden-signals", "hedged-requests"])
+            (directory / "reintroduced.json").write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Arquivos JSON não são permitidos"):
+                article_selection.local_source_inventory(directory)
+            with self.assertRaisesRegex(ValueError, "Arquivos JSON não são permitidos"):
+                article_selection.read_article("reintroduced", directory, directory / "dist")
 
     def test_ambiguous_titles_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             directory = Path(temp)
-            for slug in ("four-golden-signals-1", "four-golden-signals-2"):
-                (directory / (slug + ".json")).write_text(
-                    json.dumps({"slug": slug, "language": "pt-BR",
-                                "title": "Four Golden Signals: " + slug,
-                                "publishedAt": "2026-03-10"}),
-                    encoding="utf-8",
-                )
-            with patch.object(article_selection, "ARTICLE_DIR", directory), \
-                    patch.object(article_selection, "DIST_DIR", directory / "dist"):
+            articles = [{"slug": slug, "language": "pt-BR",
+                         "title": "Four Golden Signals: " + slug,
+                         "publishedAt": "2026-03-10"}
+                        for slug in ("four-golden-signals-1", "four-golden-signals-2")]
+            with patch.object(article_selection, "catalog", return_value=articles):
                 with self.assertRaisesRegex(ValueError, "ambíguo"):
                     article_selection.select_manual("Four Golden Signals")
 
@@ -136,7 +128,7 @@ class ArticleSelectionTests(unittest.TestCase):
             git("config", "user.name", "Test")
             directory = root / "content" / "articles"
             directory.mkdir(parents=True)
-            article = directory / "bulkhead.json"
+            article = directory / "bulkhead.md"
             article.write_text('{"text":"published"}', encoding="utf-8")
             (root / "article.js").write_text("console.log('v1')", encoding="utf-8")
             git("add", ".")
@@ -183,7 +175,7 @@ class ArticleSelectionTests(unittest.TestCase):
             self.assertEqual(article_selection.spoken_changes(three, four, root), ["bulkhead"])
             self.assertEqual(article_selection.added_slugs(one, four, root), [])
 
-    def test_only_added_jsons_trigger_automatic_workflow(self):
+    def test_only_added_markdown_sources_trigger_automatic_workflow(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             def git(*args):
@@ -194,17 +186,23 @@ class ArticleSelectionTests(unittest.TestCase):
             git("config", "user.name", "Test")
             directory = root / "content" / "articles"
             directory.mkdir(parents=True)
-            (directory / "older.json").write_text("{}", encoding="utf-8")
+            (directory / "older.md").write_text("---\nslug: older\n---\n", encoding="utf-8")
             git("add", ".")
             git("commit", "-m", "old")
             before = git("rev-parse", "HEAD")
-            (directory / "older.json").write_text('{"modified":true}', encoding="utf-8")
-            (directory / "new.json").write_text(
-                '{"slug":"new","language":"pt-BR"}', encoding="utf-8")
-            (directory / "index.json").write_text("[]", encoding="utf-8")
+            (directory / "older.md").write_text("---\nslug: older\n---\n\nAtualização.\n", encoding="utf-8")
+            (directory / "new.md").write_text("---\nslug: new\n---\n\nNovo artigo.\n", encoding="utf-8")
             git("add", ".")
             git("commit", "-m", "new")
             after = git("rev-parse", "HEAD")
+            template = ('<article data-article-format="html-v1" data-article-slug="new" '
+                        'data-build-id="{buildId}"><h1 data-article-slot="heading">New</h1>'
+                        '<p data-article-slot="dek">Resumo</p>'
+                        '<section data-article-slot="body"><p>Texto compilado.</p></section></article>')
+            write_html_artifact(root / "dist", after, [
+                {"slug": "older", "path": "content/articles/older.html", "format": "html-v1", "title": "Older"},
+                {"slug": "new", "path": "content/articles/new.html", "format": "html-v1", "title": "New"},
+            ], {"new": template})
             self.assertEqual(article_selection.added_slugs(before, after, root), ["new"])
 
     def test_compiled_markdown_is_read_from_validated_html_and_source_sha(self):
@@ -252,7 +250,7 @@ class ArticleSelectionTests(unittest.TestCase):
             git("config", "user.name", "Test")
             article_dir = root / "content" / "articles"
             article_dir.mkdir(parents=True)
-            (article_dir / "older.json").write_text('{"slug":"older"}', encoding="utf-8")
+            (article_dir / "older.md").write_text("---\nslug: older\n---\n", encoding="utf-8")
             git("add", ".")
             git("commit", "-m", "initial")
             before = git("rev-parse", "HEAD")

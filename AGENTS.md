@@ -4,7 +4,7 @@ Este repositório mantém o site Tech Topics e seus artigos.
 
 Para manutenção, workflows, fila ou ferramentas locais, comece com `node scripts/doctor.mjs --json` e consulte somente o ramo pertinente em [docs/agents/README.md](docs/agents/README.md). O vocabulário editorial está em [CONTEXT.md](CONTEXT.md).
 
-Ao criar um artigo, não carregue toda a documentação no contexto por padrão. Use `node scripts/compose-article-brief.mjs --list` para ver as tasks, os frameworks e o catálogo compacto dos temas publicados. Leia artigos completos somente quando o catálogo indicar possível sobreposição. Depois de escolher um tema inédito, componha o brief mínimo com uma task e de um a três frameworks do registry. Esse brief é o contrato ativo de escrita e inclui apenas as lentes selecionadas. O compositor apenas monta instruções; não invoca LLM nem escreve o artigo. Não há provedor, seleção de modelo ou orquestração automática de escrita no repositório. Escreva artigos novos em `content/articles/<slug>.md`, a fonte editorial Markdown; JSONs existentes são entradas legadas e não devem ser convertidos sem autorização.
+Ao criar um artigo, não carregue toda a documentação no contexto por padrão. Use `node scripts/compose-article-brief.mjs --list` para ver as tasks, os frameworks e o catálogo compacto dos temas publicados. Leia artigos completos somente quando o catálogo indicar possível sobreposição. Depois de escolher um tema inédito, componha o brief mínimo com uma task e de um a três frameworks do registry. Esse brief é o contrato ativo de escrita e inclui apenas as lentes selecionadas. O compositor apenas monta instruções; não invoca LLM nem escreve o artigo. Não há provedor, seleção de modelo ou orquestração automática de escrita no repositório. Escreva artigos em `content/articles/<slug>.md`, a única fonte editorial corrente. JSON de artigo só pode ser consultado em comparações do histórico Git ou para inspecionar artefatos de rollback; não mantenha nem crie fontes JSON no checkout atual.
 
 Consulte os documentos detalhados somente na etapa em que forem necessários:
 
@@ -19,6 +19,7 @@ Consulte os documentos detalhados somente na etapa em que forem necessários:
 ## Princípios
 
 - Escreva os artigos em português brasileiro.
+- Use somente `content/articles/<slug>.md` como fonte editorial corrente. JSON de artigo só pode ser lido em comparação de revisões Git históricas ou para inspecionar artefatos de rollback; nunca crie nem restaure fontes JSON no checkout atual.
 - Não substitua, remova nem edite artigos existentes durante a criação de um novo artigo, salvo instrução explícita.
 - Evite temas já cobertos, inclusive equivalentes semânticos, sinônimos e variações superficiais.
 - Preserve compatibilidade com GitHub Pages, o layout editorial e a identidade visual existentes.
