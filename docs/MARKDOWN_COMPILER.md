@@ -37,17 +37,23 @@ O compilador associa `id-estavel` ao heading seguinte, sem criar um parágrafo n
 
 ## Mermaid
 
-O fence continua legível para o preview Markdown do GitHub. Um comentário HTML declarativo imediatamente antes guarda JSON com exatamente `label`, `caption` e `fallback` não vazios:
+O fence continua legível para o preview Markdown do GitHub. Um comentário HTML declarativo imediatamente antes guarda JSON com exatamente `label`; legenda e fallback são nós HTML adjacentes visíveis no preview e preservados no HTML compilado:
 
-```html
-<!-- diagram: {"label":"Fluxo acessível","caption":"A origem chega ao destino.","fallback":"flowchart LR\n  A --> B"} -->
+````md
+<!-- tech-topics:mermaid {"label":"Fluxo acessível"} -->
 ```mermaid
 flowchart LR
   A[Origem] --> B[Destino]
 ```
-```
+<figcaption>A <span lang="pt-BR">origem</span> chega ao destino.</figcaption>
+<details class="mermaid-fallback">
+<summary>Descrição textual</summary>
 
-Metadados órfãos, duplicados, JSON duplicado/inválido ou texto entre comentário e fence falham. A saída cria `figure.mermaid-figure`, `div[data-mermaid][data-mermaid-label]`, `pre.mermaid-source`, `figcaption` e `details.mermaid-fallback`. Para não habilitar opções permissivas da engine no navegador, o código rejeita diretivas Mermaid `%%{...}%%`, comandos `click` no início de linha ou após separador de instrução, HTML executável e esquemas JavaScript. Texto de label que apenas contenha a palavra `click` permanece válido. Diagrama técnico não precisa de HTML inline nem de uma saída SVG.
+A origem envia uma mensagem ao destino.
+</details>
+````
+
+Metadados órfãos, duplicados, JSON duplicado/inválido ou texto entre comentário e fence falham. A legenda precisa ser exatamente um `figcaption` e o fallback exatamente um `details.mermaid-fallback` com `summary`; ausência ou marcação insegura falha. O compilador move esses nós raw para dentro de `figure.mermaid-figure`, sem recriá-los ou duplicá-los. O formato legado `diagram:` com `label`, `caption` e `fallback` continua aceito. A saída preserva `div[data-mermaid][data-mermaid-label]` e `pre.mermaid-source`. Para não habilitar opções permissivas da engine no navegador, o código rejeita diretivas Mermaid `%%{...}%%`, comandos `click` no início de linha ou após separador de instrução, HTML executável e esquemas JavaScript. Texto de label que apenas contenha a palavra `click` permanece válido.
 
 ## Tabelas, notas de rodapé e `srcset`
 
