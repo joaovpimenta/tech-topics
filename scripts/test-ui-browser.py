@@ -9,7 +9,7 @@ from threading import Thread
 
 from playwright.sync_api import sync_playwright
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent / "dist"
 
 
 class QuietHandler(SimpleHTTPRequestHandler):
@@ -207,6 +207,8 @@ def test_touch_buttons_do_not_keep_hover(browser, base):
 
 
 if __name__ == "__main__":
+    if not (ROOT / "article.html").is_file():
+        raise SystemExit("Build the production artifact in dist/ before running the UI browser test.")
     handler = functools.partial(QuietHandler, directory=str(ROOT))
     server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = Thread(target=server.serve_forever, daemon=True)

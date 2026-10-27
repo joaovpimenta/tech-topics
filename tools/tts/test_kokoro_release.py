@@ -1,6 +1,8 @@
 """Offline tests: code-switching without adding an English narrator or model."""
 
 import json
+import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -146,8 +148,18 @@ class KokoroReleaseTests(unittest.TestCase):
             kokoro_release.article_blocks(invalid, self.lexicon)
 
     def test_transactional_outbox_preserves_code_in_prose(self):
-        article = article_selection.read_article("transactional-outbox")
-        segments = kokoro_release.segments_for_article(article, {})
+        # Exercise the same compiled HTML that the audio pipeline consumes,
+        # regardless of whether this article is still JSON or already Markdown.
+        root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory(prefix="tts-article-preview-") as temporary:
+            preview = Path(temporary) / "site"
+            subprocess.run(
+                [os.environ.get("TECH_TOPICS_NODE", "node"),
+                 str(root / "scripts/build-markdown-preview.mjs"), "--output-dir", str(preview)],
+                cwd=root, check=True, capture_output=True, text=True,
+            )
+            article = article_selection.read_article("transactional-outbox", dist_dir=preview)
+            segments = kokoro_release.segments_for_article(article, {})
         text = " ".join(segment["text"] for segment in segments)
         self.assertIn("Um bloco try catch não fecha essa janela", text)
         self.assertIn("Banco para o broker", text)
