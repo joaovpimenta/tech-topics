@@ -36,7 +36,35 @@ No TLS 1.3, descrito pela [RFC 8446](<https://www.rfc-editor.org/rfc/rfc8446>), 
 
 A mudança parece pequena no diagrama, mas altera o modelo operacional. O servidor deixa de confiar apenas em uma credencial de aplicação e passa a depender também de uma PKI: quem emite certificados, que identidades podem ser emitidas, que raízes são confiáveis, quanto tempo os certificados duram, como são renovados e como uma credencial comprometida deixa de ser aceita.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Comparação entre um handshake TLS com autenticação apenas do servidor e um handshake mTLS em que o servidor também solicita e valida o certificado do cliente."><pre class="mermaid-source">sequenceDiagram&#10;  participant C as Serviço cliente&#10;  participant S as Serviço servidor&#10;  C-&gt;&gt;S: ClientHello&#10;  S-&gt;&gt;C: ServerHello + Certificate&#10;  S-&gt;&gt;C: CertificateRequest&#10;  C-&gt;&gt;S: Certificate&#10;  C-&gt;&gt;S: CertificateVerify&#10;  Note over C,S: Ambos validam cadeia, identidade e prova de posse&#10;  C-&gt;&gt;S: Dados de aplicação cifrados&#10;  S-&gt;&gt;C: Dados de aplicação cifrados</pre></div><figcaption>Fluxo conceitual de mTLS em TLS 1.3. Mensagens intermediárias foram omitidas para destacar a autenticação por certificado; a RFC 8446 define o handshake completo.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram&#10;  participant C as Serviço cliente&#10;  participant S as Serviço servidor&#10;  C-&gt;&gt;S: ClientHello&#10;  S-&gt;&gt;C: ServerHello + Certificate&#10;  S-&gt;&gt;C: CertificateRequest&#10;  C-&gt;&gt;S: Certificate&#10;  C-&gt;&gt;S: CertificateVerify&#10;  Note over C,S: Ambos validam cadeia, identidade e prova de posse&#10;  C-&gt;&gt;S: Dados de aplicação cifrados&#10;  S-&gt;&gt;C: Dados de aplicação cifrados</pre></details></figure>
+<!-- tech-topics:mermaid {"label":"Comparação entre um handshake TLS com autenticação apenas do servidor e um handshake mTLS em que o servidor também solicita e valida o certificado do cliente."} -->
+
+```mermaid
+sequenceDiagram
+  participant C as Serviço cliente
+  participant S as Serviço servidor
+  C->>S: ClientHello
+  S->>C: ServerHello + Certificate
+  S->>C: CertificateRequest
+  C->>S: Certificate
+  C->>S: CertificateVerify
+  Note over C,S: Ambos validam cadeia, identidade e prova de posse
+  C->>S: Dados de aplicação cifrados
+  S->>C: Dados de aplicação cifrados
+```
+
+<figcaption>Fluxo conceitual de mTLS em TLS 1.3. Mensagens intermediárias foram omitidas para destacar a autenticação por certificado; a RFC 8446 define o handshake completo.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
+  participant C as Serviço cliente
+  participant S as Serviço servidor
+  C-&gt;&gt;S: ClientHello
+  S-&gt;&gt;C: ServerHello + Certificate
+  S-&gt;&gt;C: CertificateRequest
+  C-&gt;&gt;S: Certificate
+  C-&gt;&gt;S: CertificateVerify
+  Note over C,S: Ambos validam cadeia, identidade e prova de posse
+  C-&gt;&gt;S: Dados de aplicação cifrados
+  S-&gt;&gt;C: Dados de aplicação cifrados</pre></details>
 
 <h2>2. O certificado precisa responder qual serviço é este</h2>
 
@@ -65,7 +93,25 @@ Nesse modelo, `prod.exemplo.com` é o <span lang="en-US">trust domain</span> e o
 
 Essa separação reduz um acoplamento perigoso. Descoberta de serviço decide *onde* abrir a conexão; validação de identidade decide *quem* deve responder naquele destino. Em uma chamada para o serviço de estoque, resolver `estoque.svc` para um IP não deveria bastar. O cliente precisa verificar que o certificado recebido representa uma identidade autorizada a executar estoque.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="A descoberta resolve o endereço do serviço, enquanto a validação mTLS verifica separadamente a identidade apresentada no certificado contra a identidade esperada."><pre class="mermaid-source">flowchart LR&#10;  A[Cliente: checkout] -- resolve destino --&gt; D[DNS ou service discovery]&#10;  D -- endereço atual --&gt; B[Endpoint de estoque]&#10;  B -- certificado com identidade --&gt; A&#10;  A -- valida cadeia + SAN + política --&gt; T[Trust bundle e mapa de identidades]&#10;  T -- identidade esperada --&gt; A</pre></div><figcaption>Descoberta e identidade são planos diferentes. O endereço leva ao endpoint; o certificado precisa provar que esse endpoint é uma identidade aceitável para o serviço pretendido.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR&#10;  A[Cliente: checkout] -- resolve destino --&gt; D[DNS ou service discovery]&#10;  D -- endereço atual --&gt; B[Endpoint de estoque]&#10;  B -- certificado com identidade --&gt; A&#10;  A -- valida cadeia + SAN + política --&gt; T[Trust bundle e mapa de identidades]&#10;  T -- identidade esperada --&gt; A</pre></details></figure>
+<!-- tech-topics:mermaid {"label":"A descoberta resolve o endereço do serviço, enquanto a validação mTLS verifica separadamente a identidade apresentada no certificado contra a identidade esperada."} -->
+
+```mermaid
+flowchart LR
+  A[Cliente: checkout] -- resolve destino --> D[DNS ou service discovery]
+  D -- endereço atual --> B[Endpoint de estoque]
+  B -- certificado com identidade --> A
+  A -- valida cadeia + SAN + política --> T[Trust bundle e mapa de identidades]
+  T -- identidade esperada --> A
+```
+
+<figcaption>Descoberta e identidade são planos diferentes. O endereço leva ao endpoint; o certificado precisa provar que esse endpoint é uma identidade aceitável para o serviço pretendido.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
+  A[Cliente: checkout] -- resolve destino --&gt; D[DNS ou service discovery]
+  D -- endereço atual --&gt; B[Endpoint de estoque]
+  B -- certificado com identidade --&gt; A
+  A -- valida cadeia + SAN + política --&gt; T[Trust bundle e mapa de identidades]
+  T -- identidade esperada --&gt; A</pre></details>
 
 <h2>4. Trust anchor define o universo que pode provar identidades</h2>
 
@@ -134,7 +180,25 @@ Em cada salto, pergunte:
 - por que o próximo componente confia nesse transporte de identidade;
 - se existe um caminho alternativo que contorna o proxy.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Uma conexão mTLS termina no proxy do servidor; dali para a aplicação, a identidade depende da confiança local no proxy e do mecanismo usado para propagá-la."><pre class="mermaid-source">flowchart LR&#10;  C -- mTLS --&gt; P[Proxy servidor]&#10;  P -- identidade validada --&gt; Z[Política de autorização]&#10;  Z -- permitido --&gt; A[Aplicação]&#10;  P -. conexão local .-&gt; A&#10;  X[Cliente não confiável] -. header forjado .-&gt; P</pre></div><figcaption>A identidade é criptograficamente forte até o ponto de terminação TLS. Depois dele, qualquer propagação precisa de uma fronteira local confiável e de proteção contra valores forjados.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR&#10;  C -- mTLS --&gt; P[Proxy servidor]&#10;  P -- identidade validada --&gt; Z[Política de autorização]&#10;  Z -- permitido --&gt; A[Aplicação]&#10;  P -. conexão local .-&gt; A&#10;  X[Cliente não confiável] -. header forjado .-&gt; P</pre></details></figure>
+<!-- tech-topics:mermaid {"label":"Uma conexão mTLS termina no proxy do servidor; dali para a aplicação, a identidade depende da confiança local no proxy e do mecanismo usado para propagá-la."} -->
+
+```mermaid
+flowchart LR
+  C -- mTLS --> P[Proxy servidor]
+  P -- identidade validada --> Z[Política de autorização]
+  Z -- permitido --> A[Aplicação]
+  P -. conexão local .-> A
+  X[Cliente não confiável] -. header forjado .-> P
+```
+
+<figcaption>A identidade é criptograficamente forte até o ponto de terminação TLS. Depois dele, qualquer propagação precisa de uma fronteira local confiável e de proteção contra valores forjados.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
+  C -- mTLS --&gt; P[Proxy servidor]
+  P -- identidade validada --&gt; Z[Política de autorização]
+  Z -- permitido --&gt; A[Aplicação]
+  P -. conexão local .-&gt; A
+  X[Cliente não confiável] -. header forjado .-&gt; P</pre></details>
 
 <h2>9. Conexões longas criam uma diferença entre identidade no handshake e identidade agora</h2>
 

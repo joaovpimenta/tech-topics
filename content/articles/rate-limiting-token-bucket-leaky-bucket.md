@@ -82,7 +82,39 @@ Outra interpretação, presente em literatura de policiamento, acompanha um nív
 
 O próprio [RFC 3290](<https://www.rfc-editor.org/rfc/rfc3290>) alerta para diferentes usos dos termos e descreve o leaky bucket associado a uma saída suavizada. Em sistemas de aplicação, portanto, escrever apenas leaky bucket numa configuração é insuficiente: documente se há fila, se a chegada espera e qual é a política quando a capacidade se esgota.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Comparação entre Token Bucket, que acumula tokens e admite uma rajada imediata quando há crédito, e Leaky Bucket como shaper, que coloca chegadas em fila e as libera numa taxa de drenagem."><pre class="mermaid-source">flowchart LR&#10;  subgraph TB[Token Bucket]&#10;    I1[Requisições] --&gt; D1{Há tokens?}&#10;    D1 --&gt;|sim| A1[Admitir agora]&#10;    D1 --&gt;|não| R1[Rejeitar ou aguardar]&#10;    F1[Recarga a taxa r] --&gt; B1[Balde até B]&#10;    B1 --&gt; D1&#10;  end&#10;  subgraph LB[Leaky Bucket como shaper]&#10;    I2[Requisições] --&gt; Q2[Fila limitada C]&#10;    Q2 --&gt; O2[Saída a taxa d]&#10;    Q2 --&gt;|cheia| R2[Rejeitar excesso]&#10;  end</pre></div><figcaption>Fluxo conceitual. Token Bucket preserva crédito de períodos ociosos; Leaky Bucket como shaper converte parte da rajada em espera para regularizar a saída.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR&#10;  subgraph TB[Token Bucket]&#10;    I1[Requisições] --&gt; D1{Há tokens?}&#10;    D1 --&gt;|sim| A1[Admitir agora]&#10;    D1 --&gt;|não| R1[Rejeitar ou aguardar]&#10;    F1[Recarga a taxa r] --&gt; B1[Balde até B]&#10;    B1 --&gt; D1&#10;  end&#10;  subgraph LB[Leaky Bucket como shaper]&#10;    I2[Requisições] --&gt; Q2[Fila limitada C]&#10;    Q2 --&gt; O2[Saída a taxa d]&#10;    Q2 --&gt;|cheia| R2[Rejeitar excesso]&#10;  end</pre></details></figure>
+<!-- tech-topics:mermaid {"label":"Comparação entre Token Bucket, que acumula tokens e admite uma rajada imediata quando há crédito, e Leaky Bucket como shaper, que coloca chegadas em fila e as libera numa taxa de drenagem."} -->
+
+```mermaid
+flowchart LR
+  subgraph TB[Token Bucket]
+    I1[Requisições] --> D1{Há tokens?}
+    D1 -->|sim| A1[Admitir agora]
+    D1 -->|não| R1[Rejeitar ou aguardar]
+    F1[Recarga a taxa r] --> B1[Balde até B]
+    B1 --> D1
+  end
+  subgraph LB[Leaky Bucket como shaper]
+    I2[Requisições] --> Q2[Fila limitada C]
+    Q2 --> O2[Saída a taxa d]
+    Q2 -->|cheia| R2[Rejeitar excesso]
+  end
+```
+
+<figcaption>Fluxo conceitual. Token Bucket preserva crédito de períodos ociosos; Leaky Bucket como shaper converte parte da rajada em espera para regularizar a saída.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
+  subgraph TB[Token Bucket]
+    I1[Requisições] --&gt; D1{Há tokens?}
+    D1 --&gt;|sim| A1[Admitir agora]
+    D1 --&gt;|não| R1[Rejeitar ou aguardar]
+    F1[Recarga a taxa r] --&gt; B1[Balde até B]
+    B1 --&gt; D1
+  end
+  subgraph LB[Leaky Bucket como shaper]
+    I2[Requisições] --&gt; Q2[Fila limitada C]
+    Q2 --&gt; O2[Saída a taxa d]
+    Q2 --&gt;|cheia| R2[Rejeitar excesso]
+  end</pre></details>
 
 <a name="rl-comparacao"></a>
 

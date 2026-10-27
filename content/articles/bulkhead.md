@@ -66,7 +66,33 @@ O padrão começa por classificar trabalho em grupos que merecem destinos de fal
 
 Depois, cada grupo recebe uma fronteira de capacidade. O princípio é simples: quando o compartimento A chega ao limite, ele deve esperar, rejeitar, degradar ou falhar **dentro de A**. Não pode pegar silenciosamente toda a capacidade reservada para B e C.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Fluxo de uma API que classifica requisições em três pools isolados. O pool de relatórios pode saturar sem ocupar os pools de pagamentos e catálogo."><pre class="mermaid-source">flowchart LR&#10;  R[Requisições] --&gt; C{Classificar}&#10;  C --&gt; P[Pool pagamentos]&#10;  C --&gt; K[Pool catálogo]&#10;  C --&gt; B[Pool relatórios]&#10;  P --&gt; DP[Dependência pagamentos]&#10;  K --&gt; DK[Dependência catálogo]&#10;  B --&gt; DR[Dependência relatórios lenta]&#10;  DR --&gt; S[Saturação local]&#10;  S --&gt; X[Espera limitada ou rejeição]</pre></div><figcaption>Fluxo conceitual. A saturação em relatórios termina na própria fronteira; pagamentos e catálogo mantêm seus orçamentos de concorrência. A separação só funciona se não houver outro recurso crítico compartilhado fora do desenho.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR&#10;  R[Requisições] --&gt; C{Classificar}&#10;  C --&gt; P[Pool pagamentos]&#10;  C --&gt; K[Pool catálogo]&#10;  C --&gt; B[Pool relatórios]&#10;  P --&gt; DP[Dependência pagamentos]&#10;  K --&gt; DK[Dependência catálogo]&#10;  B --&gt; DR[Dependência relatórios lenta]&#10;  DR --&gt; S[Saturação local]&#10;  S --&gt; X[Espera limitada ou rejeição]</pre></details></figure>
+<!-- tech-topics:mermaid {"label":"Fluxo de uma API que classifica requisições em três pools isolados. O pool de relatórios pode saturar sem ocupar os pools de pagamentos e catálogo."} -->
+
+```mermaid
+flowchart LR
+  R[Requisições] --> C{Classificar}
+  C --> P[Pool pagamentos]
+  C --> K[Pool catálogo]
+  C --> B[Pool relatórios]
+  P --> DP[Dependência pagamentos]
+  K --> DK[Dependência catálogo]
+  B --> DR[Dependência relatórios lenta]
+  DR --> S[Saturação local]
+  S --> X[Espera limitada ou rejeição]
+```
+
+<figcaption>Fluxo conceitual. A saturação em relatórios termina na própria fronteira; pagamentos e catálogo mantêm seus orçamentos de concorrência. A separação só funciona se não houver outro recurso crítico compartilhado fora do desenho.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
+  R[Requisições] --&gt; C{Classificar}
+  C --&gt; P[Pool pagamentos]
+  C --&gt; K[Pool catálogo]
+  C --&gt; B[Pool relatórios]
+  P --&gt; DP[Dependência pagamentos]
+  K --&gt; DK[Dependência catálogo]
+  B --&gt; DR[Dependência relatórios lenta]
+  DR --&gt; S[Saturação local]
+  S --&gt; X[Espera limitada ou rejeição]</pre></details>
 
 <h3>Execução normal</h3>
 

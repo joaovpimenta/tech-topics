@@ -74,13 +74,31 @@ No benchmark descrito em [<span lang="en-US">The Tail at Scale</span>](<https://
 
 Considere uma operação lógica `R` que pode ser atendida por duas réplicas equivalentes. O cliente envia a tentativa primária para A no instante `t = 0`. Se A responder antes do atraso `d`, nada muda: houve uma única tentativa. Se `d` expirar e a chamada ainda estiver pendente, o cliente envia uma segunda tentativa para B. A primeira resposta que satisfaz a política vence, e o cliente cancela a tentativa perdedora.
 
-<figure class="mermaid-figure">
-  <div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Linha do tempo de uma requisição hedged: a tentativa primária começa primeiro, a cópia começa após o atraso, a cópia responde antes e o cliente cancela a tentativa original.">
-    <pre class="mermaid-source">sequenceDiagram&#10;  participant C as Cliente&#10;  participant A as Réplica A&#10;  participant B as Réplica B&#10;  C-&gt;&gt;A: tentativa 1 em t=0&#10;  Note over C,A: aguarda o atraso d&#10;  C-&gt;&gt;B: tentativa 2 se A ainda está pendente&#10;  B--&gt;&gt;C: primeira resposta aceitável&#10;  C--&gt;&gt;A: cancelamento da tentativa perdedora</pre>
-  </div>
-  <figcaption>A segunda tentativa só existe para chamadas que atravessam o atraso. O cancelamento reduz desperdício, mas não deve ser tratado como rollback de efeitos já aplicados.</figcaption>
-  <details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram&#10;  participant C as Cliente&#10;  participant A as Réplica A&#10;  participant B as Réplica B&#10;  C-&gt;&gt;A: tentativa 1 em t=0&#10;  Note over C,A: aguarda o atraso d&#10;  C-&gt;&gt;B: tentativa 2 se A ainda está pendente&#10;  B--&gt;&gt;C: primeira resposta aceitável&#10;  C--&gt;&gt;A: cancelamento da tentativa perdedora</pre></details>
-</figure>
+<!-- tech-topics:mermaid {"label":"Linha do tempo de uma requisição hedged: a tentativa primária começa primeiro, a cópia começa após o atraso, a cópia responde antes e o cliente cancela a tentativa original."} -->
+
+```mermaid
+sequenceDiagram
+  participant C as Cliente
+  participant A as Réplica A
+  participant B as Réplica B
+  C->>A: tentativa 1 em t=0
+  Note over C,A: aguarda o atraso d
+  C->>B: tentativa 2 se A ainda está pendente
+  B-->>C: primeira resposta aceitável
+  C-->>A: cancelamento da tentativa perdedora
+```
+
+<figcaption>A segunda tentativa só existe para chamadas que atravessam o atraso. O cancelamento reduz desperdício, mas não deve ser tratado como rollback de efeitos já aplicados.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
+  participant C as Cliente
+  participant A as Réplica A
+  participant B as Réplica B
+  C-&gt;&gt;A: tentativa 1 em t=0
+  Note over C,A: aguarda o atraso d
+  C-&gt;&gt;B: tentativa 2 se A ainda está pendente
+  B--&gt;&gt;C: primeira resposta aceitável
+  C--&gt;&gt;A: cancelamento da tentativa perdedora</pre></details>
 
 A política oficial de [<span lang="en-US">request hedging</span> do gRPC](<https://grpc.io/docs/guides/request-hedging/>) segue essa estrutura: `hedgingDelay` controla o intervalo antes das cópias, `maxAttempts` limita o número de tentativas simultâneas e uma lista de status não fatais define quais respostas permitem continuar. O <span lang="en-US">deadline</span> da chamada vale para toda a cadeia, não reinicia a cada cópia.
 
