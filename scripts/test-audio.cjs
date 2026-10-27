@@ -1079,6 +1079,62 @@ test("chapter-to-DOM drift disables unsafe text highlighting without blocking au
   assert.equal(paragraph.scrolls, 0);
 });
 
+test("chapter v2 maps real table examples through narratable blocks, skipping code-only cells", async () => {
+  const ids = ["listen-recording", "recording-player", "recording-title", "recording-subtitle",
+    "recording-cover", "recording-ring", "recording-play", "recording-previous",
+    "recording-skip", "recording-follow", "recording-close", "recording-seek",
+    "recording-elapsed", "recording-duration", "recording-rate", "recording-status"];
+  const cases = [
+    { slug: "consenso-raft", blockIndex: 16, silent: ["currentTerm"], alsoSilentAfter: ["votedFor"], target: "Durável" },
+    { slug: "relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global", blockIndex: 30,
+      silent: ["a → b", "C(a) < C(b)"], target: "Que a diferença mede tempo." },
+    { slug: "github-governance-as-code", blockIndex: 30, silent: ["type:bug"], target: "Area" }
+  ];
+  for (const fixture of cases) {
+    const nodes = Object.fromEntries(ids.map(id => ["#" + id, new Element()]));
+    const heading = new ReadingNode("h1", "Título");
+    const dek = new ReadingNode("p", "Resumo");
+    const narratedPrefix = Array.from({ length: fixture.blockIndex - 2 }, (_, index) =>
+      new ReadingNode("td", `Bloco narrável ${index}`));
+    const codeCells = [...fixture.silent, ...(fixture.alsoSilentAfter || [])].map(text =>
+      new ReadingNode("td", text, [new ReadingNode("code", text)]));
+    const target = new ReadingNode("td", fixture.target);
+    const orderedCells = [...narratedPrefix, ...codeCells.slice(0, fixture.silent.length), target,
+      ...codeCells.slice(fixture.silent.length)];
+    const table = new ReadingNode("table", "", [new ReadingNode("tr", "", orderedCells)]);
+    const body = new ReadingNode("article", "", [table]);
+    const document = {
+      visibilityState: "visible",
+      baseURI: `https://joaovpimenta.github.io/tech-topics/article.html?slug=${fixture.slug}`,
+      querySelector(selector) {
+        return ({ "#article-heading": heading, "#article-dek": dek, "#article-body": body })[selector] || nodes[selector] || null;
+      },
+      body: { classList: { toggle() {} } }
+    };
+    const spokenNodes = [heading, dek, ...narratedPrefix, target];
+    const devicePlayer = {
+      blocks: spokenNodes.map(node => ({ node, sentenceIndex: 0, words: [] })),
+      getRate: () => 1,
+      stop() {}
+    };
+    const audio = new AudioMock();
+    const player = createPlayer({
+      document, navigator: {}, article: { slug: fixture.slug, title: "Título" },
+      cover: { src: `assets/${fixture.slug}/cover.jpg` }, audio, devicePlayer,
+      fetchAudio: async () => ({ url: `https://example.com/${fixture.slug}.mp3`, chapters: spokenNodes.map((_, blockIndex) => ({
+        start: blockIndex, block_index: blockIndex, sentence_index: 0
+      })) })
+    });
+    await player.discover();
+    await player.play();
+    audio.currentTime = fixture.blockIndex;
+    audio.dispatchEvent(new Event("timeupdate"));
+    assert(target.classes.has("recording-block-active"), `${fixture.slug}: chapter block_index maps to the matching narratable node`);
+    for (const cell of codeCells) assert(!cell.classes.has("recording-block-active"), `${fixture.slug}: ignored code is never highlighted`);
+    player.close();
+  }
+});
+
 
 test("same bottom dock controls native synthesis, chapter seeking, speed, and switch back to MP3", async () => {
   const ids = ["listen-recording", "recording-player", "recording-title", "recording-subtitle",

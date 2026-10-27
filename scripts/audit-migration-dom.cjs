@@ -88,12 +88,14 @@ async function main() {
         const compact = (units, elements) => {
           const nodeIds = new WeakMap();
           let nextNodeId = 0;
+          const narratableNodes = [...new Set(units.map(unit => unit.node))];
           const nodeId = node => {
             if (!nodeIds.has(node)) nodeIds.set(node, String(++nextNodeId));
             return nodeIds.get(node);
           };
           return units.map(unit => ({
             blockIndex: elements.indexOf(unit.node), sentenceIndex: unit.sentenceIndex,
+            chapterBlockIndex: narratableNodes.indexOf(unit.node),
             segments: unit.segments.map(segment => ({ text: segment.text, lang: segment.lang,
               separatorBefore: segment.separatorBefore,
               words: segment.words.map(({ start, end, nodes }) => ({ start, end, nodeIds: nodes.map(nodeId) })) }))
@@ -116,7 +118,7 @@ async function main() {
       let chapter = null;
       if (hasChapters) chapter = JSON.parse(await readFile(chapterPath, "utf8"));
       const chapterUnits = chapter?.chapters ?? [];
-      const firstIndexMismatch = units.findIndex((unit, index) => chapterUnits[index]?.block_index !== unit.blockIndex || chapterUnits[index]?.sentence_index !== unit.sentenceIndex);
+      const firstIndexMismatch = units.findIndex((unit, index) => chapterUnits[index]?.block_index !== unit.chapterBlockIndex || chapterUnits[index]?.sentence_index !== unit.sentenceIndex);
       const indexesMatch = hasChapters && chapterUnits.length === units.length && firstIndexMismatch < 0;
       const compactChapters = chapterUnits.map(item => ({ start: item.start, blockIndex: item.block_index, sentenceIndex: item.sentence_index, labelSha256: digest(item.label ?? "") }));
       const pythonBaseline = baselineBySlug.get(slug);
