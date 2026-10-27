@@ -61,8 +61,42 @@ assert.match(compiled.slots.body, /srcset="assets\/sample\/thumb.png\?variant=sm
 assert.match(compiled.slots.body, /srcset="assets\/sample\/width-small.png 320w, assets\/sample\/width-large.png 640w"/);
 assert.match(compiled.slots.body, /href="article\.html\?slug=outro(?:&|&#x26;)modo=leitura#intro"/);
 assert.match(compiled.slots.body, /<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Fluxo de compilação"><pre class="mermaid-source">/);
-assert.match(compiled.slots.body, /<figcaption>O fluxo separa fonte e HTML\.<\/figcaption>/);
-assert.match(compiled.slots.body, /<details class="mermaid-fallback"><summary>Ver o código Mermaid<\/summary>/);
+assert.match(compiled.slots.body, /<figcaption>O fluxo <span lang="pt-BR">separa fonte<\/span> e HTML\.<\/figcaption>/);
+assert.match(compiled.slots.body, /<details class="mermaid-fallback">\s*<summary lang="pt-BR">Descrição alternativa<\/summary>/);
+assert.match(compiled.slots.body, /O Markdown é transformado em HTML por uma etapa de compilação separada\./);
+assert.equal((compiled.slots.body.match(/<figcaption>/g) ?? []).length, 1);
+const legacyMermaid = source.replace(/<!-- tech-topics:mermaid \{"label":"Fluxo de compilação"\} -->[\s\S]*?<\/details>/, '<!-- diagram: {"label":"Fluxo de compilação","caption":"Legenda antiga.","fallback":"fallback antigo"} -->\n```mermaid\nflowchart LR\n A --> B\n```');
+const legacyMermaidCompiled = await compileMarkdownArticle({ source: legacyMermaid, ...context });
+assert.match(legacyMermaidCompiled.slots.body, /<figcaption>Legenda antiga\.<\/figcaption>/);
+assert.match(legacyMermaidCompiled.slots.body, /fallback antigo/);
+function findNode(node, predicate) {
+  if (predicate(node)) return node;
+  for (const child of node.childNodes ?? []) {
+    const found = findNode(child, predicate);
+    if (found) return found;
+  }
+  return null;
+}
+function nodeText(node) {
+  if (node.nodeName === "#text") return node.value;
+  return (node.childNodes ?? []).map(nodeText).join("");
+}
+for (const trailingNewlines of [0, 1, 2]) {
+  const originalDiagram = `flowchart LR\n  A --> B${"\n".repeat(trailingNewlines)}`;
+  const canonicalMermaid = source.replace(/<!-- tech-topics:mermaid \{"label":"Fluxo de compilação"\} -->[\s\S]*?<\/details>/, `<!-- tech-topics:mermaid {"label":"LF ${trailingNewlines}"} -->\n\n\`\`\`mermaid\n${originalDiagram}\n\`\`\`\n\n<figcaption>Legenda de teste.</figcaption>\n\n<details class="mermaid-fallback"><summary>Alternativa</summary>Texto do fallback.</details>`);
+  const exactCompiled = await compileMarkdownArticle({ source: canonicalMermaid, ...context });
+  const root = parseFragment(exactCompiled.slots.body);
+  const pre = findNode(root, node => node.tagName === "pre" && node.attrs?.some(attr => attr.name === "class" && attr.value === "mermaid-source"));
+  assert.ok(pre, `Mermaid source pre exists for ${trailingNewlines} terminal LF`);
+  assert.equal(nodeText(pre), originalDiagram, `canonical Mermaid source preserves exactly ${trailingNewlines} terminal LF`);
+}
+const secondMermaidSource = `${source}\n\n<!-- tech-topics:mermaid {"label":"Segundo fluxo"} -->\n\n\`\`\`mermaid\nflowchart LR\n  C --> D\n\`\`\`\n\n<figcaption>Segunda legenda.</figcaption>\n\n<details class="mermaid-fallback"><summary>Alternativa</summary>Texto alternativo distinto.</details>\n`;
+const secondMermaidCompiled = await compileMarkdownArticle({ source: secondMermaidSource, ...context });
+assert.equal((secondMermaidCompiled.slots.body.match(/<figure class="mermaid-figure">/g) ?? []).length, 2);
+assert.match(secondMermaidCompiled.slots.body, /data-mermaid-label="Segundo fluxo"[\s\S]*?<figcaption>Segunda legenda\.<\/figcaption><details class="mermaid-fallback"><summary>Alternativa<\/summary>Texto alternativo distinto\.<\/details>/);
+const wrappedMermaid = source.replace('<!-- tech-topics:mermaid {"label":"Fluxo de compilação"} -->', '<div class="fgs-guide">\n\n<!-- tech-topics:mermaid {"label":"Fluxo de compilação"} -->').replace('</details>\n\n[Ir para a âncora', '</details>\n\n</div>\n\n[Ir para a âncora');
+const wrappedMermaidCompiled = await compileMarkdownArticle({ source: wrappedMermaid, ...context });
+assert.match(wrappedMermaidCompiled.slots.body, /<div class="fgs-guide">[\s\S]*?<figure class="mermaid-figure">[\s\S]*?<\/figure>[\s\S]*?<\/div>/);
 const alignedTable = await compileMarkdownArticle({
   source: `${source}\n| A | B |\n| :--- | ---: |\n| 1 | 2 |\n`,
   ...context
@@ -178,9 +212,15 @@ const failures = [
   ["srcset duplicate descriptor", mutate("width-large.png 640w", "width-large.png 320w"), /duplicate srcset descriptor/],
   ["srcset encoded path escape", mutate("../../assets/sample/thumb.png?variant=small#preview 1x", "%252e%252e/%252e%252e/private.png 1x"), /escapes repository|beneath assets/],
   ["missing image alt", mutate("![Diagrama de exemplo](../../assets/sample/example.png)", "![](../../assets/sample/example.png)"), /alt/],
-  ["unmarked Mermaid", mutate('<!-- diagram: {"label":"Fluxo de compilação","caption":"O fluxo separa fonte e HTML.","fallback":"flowchart LR\\n A --> B"} -->\n', ""), /requires an adjacent/],
+  ["unmarked Mermaid", mutate('<!-- tech-topics:mermaid {"label":"Fluxo de compilação"} -->\n', ""), /requires an adjacent/],
+  ["canonical Mermaid without caption", mutate('<figcaption>O fluxo <span lang="pt-BR">separa fonte</span> e HTML.</figcaption>\n\n', ""), /requires an adjacent non-empty figcaption/],
+  ["canonical Mermaid caption event handler", mutate('<figcaption>O fluxo <span lang="pt-BR">separa fonte</span> e HTML.</figcaption>', '<figcaption onclick="alert(1)">Legenda</figcaption>'), /event handler|unsafe|not allowed/i],
+  ["canonical Mermaid caption executable URL", mutate('<span lang="pt-BR">separa fonte</span>', '<a href="javascript:alert(1)">separa fonte</a>'), /unsafe URL|protocol|not allowed/i],
+  ["canonical Mermaid fallback event handler", mutate('<details class="mermaid-fallback">', '<details class="mermaid-fallback" onmouseover="alert(1)">'), /event handler|unsafe|not allowed/i],
+  ["canonical Mermaid fallback executable URL", mutate('O Markdown é transformado em HTML por uma etapa de compilação separada.', '<a href="javascript:alert(1)">fallback</a>'), /unsafe URL|protocol|not allowed/i],
+  ["canonical Mermaid empty fallback", mutate('<details class="mermaid-fallback">\n<summary lang="pt-BR">Descrição alternativa</summary>\nO Markdown é transformado em HTML por uma etapa de compilação separada.\n</details>', '<details class="mermaid-fallback">\n<summary lang="pt-BR">Descrição alternativa</summary>\n</details>'), /non-empty fallback content/],
   ["orphan Mermaid metadata", mutate("```mermaid", "texto intermediário\n\n```mermaid"), /immediately precede|adjacent/],
-  ["duplicate Mermaid JSON key", mutate('"caption":"O fluxo separa fonte e HTML."', '"caption":"A","caption":"B"'), /diagram metadata/],
+  ["duplicate Mermaid JSON key", mutate('{"label":"Fluxo de compilação"}', '{"label":"A","label":"B"}'), /diagram metadata/],
   ["diagram metadata injection", mutate('"label":"Fluxo de compilação"', '"label":"<script>"'), /diagram metadata/],
   ["Mermaid init directive", mutate("flowchart LR\n  A[Markdown] --> B[HTML]", '%%{init: {"securityLevel":"loose"}}%%\nflowchart LR\n  A[Markdown] --> B[HTML]'), /init directives/],
   ["Mermaid click interaction", mutate("flowchart LR\n  A[Markdown] --> B[HTML]", 'flowchart LR\nclick A "javascript:alert(1)"\n  A[Markdown] --> B[HTML]'), /click interactions/],

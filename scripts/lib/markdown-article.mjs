@@ -43,6 +43,11 @@ function plainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function fragmentText(node) {
+  if (node.nodeName === "#text") return node.value ?? "";
+  return (node.childNodes ?? []).map(fragmentText).join("");
+}
+
 function isIsoDate(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
     !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
@@ -391,19 +396,20 @@ function transformMdast(tree, metadata, context, location) {
   if (pendingAnchor) fail(location, `explicit anchor ${pendingAnchor} has no following heading`);
   for (let i = 0; i < tree.children.length; i++) {
     const node = tree.children[i];
-    if (node.type === "html" && /^\s*<!--\s*diagram:/i.test(node.value)) {
+    if (node.type === "html" && /^\s*<!--\s*(?:diagram:|tech-topics:mermaid)/i.test(node.value)) {
       if (pendingDiagram) fail(location, "duplicate or orphan diagram metadata comment");
-      const match = node.value.match(/^\s*<!--\s*diagram:\s*([\s\S]*?)\s*-->\s*$/i);
+      const canonical = /^\s*<!--\s*tech-topics:mermaid\s+([\s\S]*?)\s*-->\s*$/i.test(node.value);
+      const match = node.value.match(canonical ? /^\s*<!--\s*tech-topics:mermaid\s+([\s\S]*?)\s*-->\s*$/i : /^\s*<!--\s*diagram:\s*([\s\S]*?)\s*-->\s*$/i);
       if (!match) fail(location, "invalid diagram metadata comment");
       let data;
       const diagramDoc = parseDocument(match[1], { version: "1.2", schema: "json", strict: true, uniqueKeys: true, merge: false, maxAliasCount: 0, customTags: [], resolveKnownTags: false });
       if (diagramDoc.errors.length) fail(location, `invalid diagram metadata JSON: ${diagramDoc.errors.map(error => error.message).join("; ")}`);
       data = diagramDoc.toJS({ maxAliasCount: 0 });
       const keys = Object.keys(data ?? {}).sort();
-      if (JSON.stringify(keys) !== JSON.stringify(["caption", "fallback", "label"]) || keys.some(key => typeof data[key] !== "string" || !data[key].trim())) fail(location, "diagram metadata requires exactly non-empty label, caption and fallback strings");
+      if (canonical ? JSON.stringify(keys) !== JSON.stringify(["label"]) || typeof data.label !== "string" || !data.label.trim() : JSON.stringify(keys) !== JSON.stringify(["caption", "fallback", "label"]) || keys.some(key => typeof data[key] !== "string" || !data[key].trim())) fail(location, canonical ? "Mermaid metadata requires exactly a non-empty label" : "diagram metadata requires exactly non-empty label, caption and fallback strings");
       if (Object.values(data).some(value => /<\s*\/?\s*(?:script|[a-z][\w-]*)(?:\s|>|\/)/i.test(value))) fail(location, "HTML-like injection is not allowed in diagram metadata");
       if (tree.children[i + 1]?.type !== "code" || tree.children[i + 1]?.lang?.toLowerCase() !== "mermaid") fail(location, "diagram metadata comment must immediately precede one Mermaid fence");
-      pendingDiagram = data;
+      pendingDiagram = { ...data, canonical };
       node.type = "text";
       node.value = "";
       node.data = undefined;
@@ -413,9 +419,9 @@ function transformMdast(tree, metadata, context, location) {
       if (!pendingDiagram) fail(location, "Mermaid fence requires an adjacent diagram metadata comment");
       const decodedDiagram = decodePercentForInspection(node.value);
       if (/%%\s*\{|(?:^|[;\n])\s*click\s+[^\s;]+(?:\s|$)|<\s*\/?\s*(?:script|iframe|foreignObject)\b|javascript\s*:/im.test(decodedDiagram)) fail(location, "Mermaid init directives, click interactions and executable HTML/URLs are forbidden");
-      const { label, caption, fallback } = pendingDiagram;
-      node.data = { ...(node.data ?? {}), mermaidData: { label, caption, fallback } };
-      (context.mermaidDiagrams ??= []).push({ label, caption, fallback });
+      const { label, caption, fallback, canonical } = pendingDiagram;
+      node.data = { ...(node.data ?? {}), mermaidData: { label, caption, fallback, canonical, source: canonical ? node.value : undefined } };
+      (context.mermaidDiagrams ??= []).push({ label, caption, fallback, canonical, source: canonical ? node.value : undefined });
       pendingDiagram = null;
       continue;
     }
@@ -450,14 +456,38 @@ function renderMermaidFences(options = {}) {
         const pre = parent.children[index];
         const code = pre.type === "element" && pre.tagName === "pre" ? pre.children?.find(child => child.type === "element" && child.tagName === "code" && (child.properties?.className ?? []).includes("language-mermaid")) : null;
         if (code) {
-          const source = code.children?.map(child => child.value ?? "").join("") ?? "";
           const data = options.mermaidDiagrams?.[diagramIndex++];
           if (!data) throw new Error("Mermaid fence lost its declarative metadata during conversion");
-          parent.children[index] = { type: "element", tagName: "figure", properties: { className: ["mermaid-figure"] }, children: [
+          const source = data.canonical ? data.source : code.children?.map(child => child.value ?? "").join("") ?? "";
+          const figureChildren = [
             { type: "element", tagName: "div", properties: { className: ["mermaid-diagram"], dataMermaid: "true", dataMermaidLabel: data.label }, children: [{ type: "element", tagName: "pre", properties: { className: ["mermaid-source"] }, children: [{ type: "text", value: source }] }] },
-            { type: "element", tagName: "figcaption", properties: {}, children: [{ type: "text", value: data.caption }] },
-            { type: "element", tagName: "details", properties: { className: ["mermaid-fallback"] }, children: [{ type: "element", tagName: "summary", properties: {}, children: [{ type: "text", value: "Ver o código Mermaid" }] }, { type: "element", tagName: "pre", properties: { className: ["code-block"] }, children: [{ type: "text", value: data.fallback }] }] }
-          ] };
+          ];
+          if (data.canonical) {
+            let next = index + 1;
+            while (parent.children[next]?.type === "text" && !parent.children[next].value.trim()) next++;
+            const caption = parent.children[next];
+            const captionRaw = caption?.type === "raw" ? caption.value : "";
+            if (!/^\s*<figcaption(?:\s[^>]*)?>[\s\S]*\S[\s\S]*<\/figcaption>\s*$/i.test(captionRaw)) throw new Error("Canonical Mermaid fence requires an adjacent non-empty figcaption");
+            const parsedCaption = parseFragment(captionRaw);
+            if (parsedCaption.childNodes.length !== 1 || parsedCaption.childNodes[0].tagName !== "figcaption" || !fragmentText(parsedCaption.childNodes[0]).trim()) throw new Error("Canonical Mermaid caption must be exactly one non-empty figcaption");
+            next++;
+            while (parent.children[next]?.type === "text" && !parent.children[next].value.trim()) next++;
+            const fallback = parent.children[next];
+            const fallbackRaw = fallback?.type === "raw" ? fallback.value : "";
+            if (!/^\s*<details\s+class=["']mermaid-fallback["'][^>]*>[\s\S]*<\/details>\s*$/i.test(fallbackRaw) || !/<summary(?:\s[^>]*)?>[\s\S]*\S[\s\S]*<\/summary>/i.test(fallbackRaw)) throw new Error("Canonical Mermaid fence requires adjacent details.mermaid-fallback with summary");
+            const parsedFallback = parseFragment(fallbackRaw);
+            const detailsNode = parsedFallback.childNodes[0];
+            const fallbackText = detailsNode?.childNodes?.filter(child => child.tagName !== "summary").map(fragmentText).join("") ?? "";
+            if (parsedFallback.childNodes.length !== 1 || detailsNode.tagName !== "details" || !fallbackText.trim()) throw new Error("Canonical Mermaid fallback must be exactly one details element with non-empty fallback content");
+            figureChildren.push({ type: "raw", value: captionRaw }, { type: "raw", value: fallbackRaw });
+            parent.children.splice(index + 1, next - index);
+          } else {
+            figureChildren.push(
+              { type: "element", tagName: "figcaption", properties: {}, children: [{ type: "text", value: data.caption }] },
+              { type: "element", tagName: "details", properties: { className: ["mermaid-fallback"] }, children: [{ type: "element", tagName: "summary", properties: {}, children: [{ type: "text", value: "Ver o código Mermaid" }] }, { type: "element", tagName: "pre", properties: { className: ["code-block"] }, children: [{ type: "text", value: data.fallback }] }] }
+            );
+          }
+          parent.children[index] = { type: "element", tagName: "figure", properties: { className: ["mermaid-figure"] }, children: figureChildren };
         } else visitChildren(pre);
       }
     };
