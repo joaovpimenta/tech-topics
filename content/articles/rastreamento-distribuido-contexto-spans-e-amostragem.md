@@ -29,19 +29,27 @@ Imagine um pedido que atravessa gateway, catálogo, pagamento, estoque e entrega
 
 Buscar um identificador de requisição em todos os logs ajuda, mas exige que ele seja propagado e registrado em toda fronteira. Métricas revelam que a latência p99 aumentou, mas agregam muitas requisições e não mostram o percurso de uma ocorrência. Um rastreamento liga as unidades de trabalho da mesma operação e preserva relações de parentesco ou de causalidade.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Uma trace de compra começa no gateway e se divide em chamadas para catálogo e checkout; checkout chama pagamento e estoque."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"Uma trace de compra começa no gateway e se divide em chamadas para catálogo e checkout; checkout chama pagamento e estoque."} -->
+
+```mermaid
+flowchart LR
+  T[Trace da compra] --> G[Gateway 42 ms]
+  G --> C[Catálogo 31 ms]
+  G --> K[Checkout 380 ms]
+  K --> P[Pagamento 240 ms]
+  K --> E[Estoque 75 ms]
+  P --> B[Banco 180 ms]
+```
+
+<figcaption>Estrutura ilustrativa de uma <span lang="en-US">trace</span>. Cada caixa representa um <span lang="en-US">span</span> e cada seta, uma relação causal. Durações são hipotéticas e não devem ser somadas sem considerar sobreposição.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
   T[Trace da compra] --&gt; G[Gateway 42 ms]
   G --&gt; C[Catálogo 31 ms]
   G --&gt; K[Checkout 380 ms]
   K --&gt; P[Pagamento 240 ms]
   K --&gt; E[Estoque 75 ms]
-  P --&gt; B[Banco 180 ms]</pre></div><figcaption>Estrutura ilustrativa de uma <span lang="en-US">trace</span>. Cada caixa representa um <span lang="en-US">span</span> e cada seta, uma relação causal. Durações são hipotéticas e não devem ser somadas sem considerar sobreposição.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  T[Trace da compra] --&gt; G[Gateway 42 ms]
-  G --&gt; C[Catálogo 31 ms]
-  G --&gt; K[Checkout 380 ms]
-  K --&gt; P[Pagamento 240 ms]
-  K --&gt; E[Estoque 75 ms]
-  P --&gt; B[Banco 180 ms]</pre></details></figure>
+  P --&gt; B[Banco 180 ms]</pre></details>
 
 O objetivo não é gravar tudo para sempre. É manter evidência suficiente para responder perguntas como: a demora estava no serviço ou na dependência? Houve repetição? Um consumidor processou a mensagem horas depois? A execução falhou antes ou depois de um efeito externo? As respostas dependem tanto da semântica dos <span lang="en-US">spans</span> quanto da existência deles.
 
@@ -81,7 +89,28 @@ Um cabeçalho `traceparent` na versão atual tem quatro campos separados por hí
 
 O exemplo segue a forma da especificação W3C. O sufixo `01` indica que o bit de amostragem está ligado; ele é uma recomendação de gravação, não autorização de segurança nem prova de que todos os <span lang="en-US">spans</span> existirão. O `tracestate` pode transportar estado específico de fornecedores sem alterar a identidade comum.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Sequência de propagação: cliente envia traceparent ao gateway, que cria um span filho e envia novo parent-id ao serviço de pedidos, mantendo o trace-id."><pre class="mermaid-source">sequenceDiagram
+<!-- tech-topics:mermaid {"label":"Sequência de propagação: cliente envia traceparent ao gateway, que cria um span filho e envia novo parent-id ao serviço de pedidos, mantendo o trace-id."} -->
+
+```mermaid
+sequenceDiagram
+  participant C as Cliente
+  participant G as Gateway
+  participant O as Pedidos
+  participant P as Pagamento
+  C->>G: traceparent com trace A e pai C1
+  G->>G: cria span G1
+  G->>O: trace A e pai G1
+  O->>O: cria span O1
+  O->>P: trace A e pai O1
+  P->>P: cria span P1
+  P-->>O: resposta
+  O-->>G: resposta
+  G-->>C: resposta
+```
+
+<figcaption>Fluxo conceitual. O <span lang="en-US">trace ID</span> A permanece; o identificador de pai muda a cada hop. Se Pedidos não extrair e injetar o contexto, Pagamento começará outra <span lang="en-US">trace</span> e o percurso ficará dividido.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
   participant C as Cliente
   participant G as Gateway
   participant O as Pedidos
@@ -94,20 +123,7 @@ O exemplo segue a forma da especificação W3C. O sufixo `01` indica que o bit d
   P-&gt;&gt;P: cria span P1
   P--&gt;&gt;O: resposta
   O--&gt;&gt;G: resposta
-  G--&gt;&gt;C: resposta</pre></div><figcaption>Fluxo conceitual. O <span lang="en-US">trace ID</span> A permanece; o identificador de pai muda a cada hop. Se Pedidos não extrair e injetar o contexto, Pagamento começará outra <span lang="en-US">trace</span> e o percurso ficará dividido.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
-  participant C as Cliente
-  participant G as Gateway
-  participant O as Pedidos
-  participant P as Pagamento
-  C-&gt;&gt;G: traceparent com trace A e pai C1
-  G-&gt;&gt;G: cria span G1
-  G-&gt;&gt;O: trace A e pai G1
-  O-&gt;&gt;O: cria span O1
-  O-&gt;&gt;P: trace A e pai O1
-  P-&gt;&gt;P: cria span P1
-  P--&gt;&gt;O: resposta
-  O--&gt;&gt;G: resposta
-  G--&gt;&gt;C: resposta</pre></details></figure>
+  G--&gt;&gt;C: resposta</pre></details>
 
 1.  **Extrair.** O servidor lê e valida os cabeçalhos recebidos. Contexto inválido deve ser tratado conforme a biblioteca e a política de confiança.
 2.  **Criar.** O servidor inicia um <span lang="en-US">span</span> com novo <span lang="en-US">span ID</span> e usa o contexto remoto como pai.
@@ -129,7 +145,23 @@ Em RPC síncrono, o parentesco costuma ser natural: a operação no servidor é 
 
 OpenTelemetry oferece <span lang="en-US">span links</span> para associar um <span lang="en-US">span</span> a um ou mais contextos que contribuíram para seu trabalho. Um consumidor de lote pode iniciar uma nova <span lang="en-US">trace</span> operacional e criar <span lang="en-US">links</span> para cada mensagem. Isso preserva o fato de que houve várias causas sem inventar um único pai.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="À esquerda, uma chamada síncrona usa relação pai e filho. À direita, um consumidor em lote recebe três mensagens e cria links para três contextos produtores."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"À esquerda, uma chamada síncrona usa relação pai e filho. À direita, um consumidor em lote recebe três mensagens e cria links para três contextos produtores."} -->
+
+```mermaid
+flowchart LR
+  subgraph Sincrono
+    A[Cliente A] -- pai --> B[Servidor B]
+  end
+  subgraph Assincrono
+    M1[Mensagem 1] -. link .-> L[Consumidor em lote]
+    M2[Mensagem 2] -. link .-> L
+    M3[Mensagem 3] -. link .-> L
+  end
+```
+
+<figcaption>Comparação semântica. Relação pai-filho modela uma continuação direta; <span lang="en-US">links</span> registram causas múltiplas ou independentes. Linhas tracejadas reforçam que <span lang="en-US">link</span> não é parentesco.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
   subgraph Sincrono
     A[Cliente A] -- pai --&gt; B[Servidor B]
   end
@@ -137,15 +169,7 @@ OpenTelemetry oferece <span lang="en-US">span links</span> para associar um <spa
     M1[Mensagem 1] -. link .-&gt; L[Consumidor em lote]
     M2[Mensagem 2] -. link .-&gt; L
     M3[Mensagem 3] -. link .-&gt; L
-  end</pre></div><figcaption>Comparação semântica. Relação pai-filho modela uma continuação direta; <span lang="en-US">links</span> registram causas múltiplas ou independentes. Linhas tracejadas reforçam que <span lang="en-US">link</span> não é parentesco.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  subgraph Sincrono
-    A[Cliente A] -- pai --&gt; B[Servidor B]
-  end
-  subgraph Assincrono
-    M1[Mensagem 1] -. link .-&gt; L[Consumidor em lote]
-    M2[Mensagem 2] -. link .-&gt; L
-    M3[Mensagem 3] -. link .-&gt; L
-  end</pre></details></figure>
+  end</pre></details>
 
 Propagar contexto em uma mensagem também cria perguntas de ciclo de vida. O produtor deve injetar no envelope, não em um campo mutável compartilhado. O consumidor deve extrair antes de iniciar o processamento. Em redelivery, registre a tentativa como atributo ou evento e evite sobrescrever silenciosamente a origem. Para mensagens armazenadas por meses, trate versão e retenção dos cabeçalhos como parte do contrato.
 
@@ -186,21 +210,29 @@ A decisão ocorre depois de observar parte ou toda a <span lang="en-US">trace</s
 
 Considere um cálculo ilustrativo: 20 mil <span lang="en-US">traces</span>/s, janela de decisão de 5 s, 12 <span lang="en-US">spans</span> por <span lang="en-US">trace</span> e 1,5 KB por <span lang="en-US">span</span>. O conteúdo bruto em espera seria `20.000 × 5 × 12 × 1,5 KB = 1,8 GB`, sem overhead de objetos, índices ou réplicas. A política precisa de limites, distribuição coerente e comportamento explícito quando o coletor satura.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Head sampling decide no início e descarta cedo. Tail sampling coleta spans temporariamente, avalia erro ou duração e então mantém ou descarta a trace."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"Head sampling decide no início e descarta cedo. Tail sampling coleta spans temporariamente, avalia erro ou duração e então mantém ou descarta a trace."} -->
+
+```mermaid
+flowchart LR
+  R[Trace inicia] --> H{Decisão no início}
+  H -- manter --> HE[Exporta spans]
+  H -- descartar --> HD[Descarta cedo]
+  R --> B[Buffer temporário]
+  B --> T{Erro ou lenta}
+  T -- sim --> TE[Mantém trace]
+  T -- não --> TP[Amostra normais]
+```
+
+<figcaption>Fluxo comparativo. O ramo superior representa <span lang="en-US">head sampling</span>; o inferior, <span lang="en-US">tail sampling</span>. O segundo conhece o resultado, mas paga por buffer, espera e coordenação.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
   R[Trace inicia] --&gt; H{Decisão no início}
   H -- manter --&gt; HE[Exporta spans]
   H -- descartar --&gt; HD[Descarta cedo]
   R --&gt; B[Buffer temporário]
   B --&gt; T{Erro ou lenta}
   T -- sim --&gt; TE[Mantém trace]
-  T -- não --&gt; TP[Amostra normais]</pre></div><figcaption>Fluxo comparativo. O ramo superior representa <span lang="en-US">head sampling</span>; o inferior, <span lang="en-US">tail sampling</span>. O segundo conhece o resultado, mas paga por buffer, espera e coordenação.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  R[Trace inicia] --&gt; H{Decisão no início}
-  H -- manter --&gt; HE[Exporta spans]
-  H -- descartar --&gt; HD[Descarta cedo]
-  R --&gt; B[Buffer temporário]
-  B --&gt; T{Erro ou lenta}
-  T -- sim --&gt; TE[Mantém trace]
-  T -- não --&gt; TP[Amostra normais]</pre></details></figure>
+  T -- não --&gt; TP[Amostra normais]</pre></details>
 
 <div class="article-table-scroll" tabindex="0" role="region" aria-label="Comparação entre head sampling e tail sampling"><table><thead><tr><th scope="col">Critério</th><th scope="col"><span lang="en-US">Head sampling</span></th><th scope="col"><span lang="en-US">Tail sampling</span></th></tr></thead><tbody><tr><td>Momento</td><td>No início da <span lang="en-US">trace</span>.</td><td>Depois de receber <span lang="en-US">spans</span> suficientes.</td></tr><tr><td>Custo antes da decisão</td><td>Baixo para <span lang="en-US">traces</span> descartadas.</td><td><span lang="en-US">Spans</span> precisam chegar e aguardar.</td></tr><tr><td>Conhece erro e duração final</td><td>Não.</td><td>Sim, se a <span lang="en-US">trace</span> estiver completa e no prazo.</td></tr><tr><td>Estado</td><td>Pouco ou nenhum estado global.</td><td>Estado por <span lang="en-US">trace</span> e janela de decisão.</td></tr><tr><td>Risco principal</td><td>Perder casos raros.</td><td>Pressão de memória e <span lang="en-US">traces</span> parciais.</td></tr><tr><td>Uso frequente</td><td>Base probabilística consistente.</td><td>Regras para erros, lentidão e atributos.</td></tr></tbody></table></div>
 
@@ -218,7 +250,23 @@ Amostragem consistente importa quando vários serviços tomam decisões probabil
 
 O caminho típico é aplicação, SDK, exportador, OpenTelemetry <span lang="en-US">Collector</span> e <span lang="en-US">backend</span>. A [documentação do <span lang="en-US">Collector</span>](https://opentelemetry.io/docs/collector/) o descreve como componente independente de fornecedor que recebe, processa e exporta telemetria. Ele pode agrupar envios, aplicar filtros, repetir exportações e separar credenciais do código da aplicação.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Aplicações enviam telemetria a coletores locais; uma camada gateway aplica processamento e amostragem; o backend armazena e consulta. Métricas internas observam cada etapa."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"Aplicações enviam telemetria a coletores locais; uma camada gateway aplica processamento e amostragem; o backend armazena e consulta. Métricas internas observam cada etapa."} -->
+
+```mermaid
+flowchart LR
+  A1[Aplicação A] -- OTLP --> C1[Collector local]
+  A2[Aplicação B] -- OTLP --> C2[Collector local]
+  C1 --> G[Gateway de coleta]
+  C2 --> G
+  G -- processa e amostra --> B[Backend]
+  M[Métricas internas] -. observa .-> C1
+  M -. observa .-> C2
+  M -. observa .-> G
+```
+
+<figcaption>Arquitetura ilustrativa, não topologia obrigatória. Coletores locais reduzem acoplamento das aplicações; a camada gateway centraliza políticas, mas cria estado e capacidade a operar.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
   A1[Aplicação A] -- OTLP --&gt; C1[Collector local]
   A2[Aplicação B] -- OTLP --&gt; C2[Collector local]
   C1 --&gt; G[Gateway de coleta]
@@ -226,15 +274,7 @@ O caminho típico é aplicação, SDK, exportador, OpenTelemetry <span lang="en-
   G -- processa e amostra --&gt; B[Backend]
   M[Métricas internas] -. observa .-&gt; C1
   M -. observa .-&gt; C2
-  M -. observa .-&gt; G</pre></div><figcaption>Arquitetura ilustrativa, não topologia obrigatória. Coletores locais reduzem acoplamento das aplicações; a camada gateway centraliza políticas, mas cria estado e capacidade a operar.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  A1[Aplicação A] -- OTLP --&gt; C1[Collector local]
-  A2[Aplicação B] -- OTLP --&gt; C2[Collector local]
-  C1 --&gt; G[Gateway de coleta]
-  C2 --&gt; G
-  G -- processa e amostra --&gt; B[Backend]
-  M[Métricas internas] -. observa .-&gt; C1
-  M -. observa .-&gt; C2
-  M -. observa .-&gt; G</pre></details></figure>
+  M -. observa .-&gt; G</pre></details>
 
 O pipeline deve ser observável sem depender apenas de si mesmo. Exponha métricas de <span lang="en-US">spans</span> aceitos, descartados, filas, falhas de exportação, latência, memória, decisões de amostragem e <span lang="en-US">traces</span> incompletas. Se o <span lang="en-US">backend</span> estiver fora, bloquear threads de negócio até a telemetria chegar geralmente amplia o incidente. Use buffers limitados e uma política explícita de perda.
 
@@ -283,15 +323,23 @@ interessantes=2036 (2.04%)
 head_5pct: mantidas=4982 (4.98%), interessantes_cobertas=108/2036 (5.30%)
 tail_erros_lentas_mais_1pct_normais: mantidas=3030 (3.03%), interessantes_cobertas=2036/2036 (100.00%)</code></pre>
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="No experimento, head sampling de cinco por cento cobre 108 traces interessantes, enquanto a política tail cobre 2036, mantendo menos traces no total."><pre class="mermaid-source">xychart-beta
-  title &quot;Cobertura das 2036 traces interessantes&quot;
+<!-- tech-topics:mermaid {"label":"No experimento, head sampling de cinco por cento cobre 108 traces interessantes, enquanto a política tail cobre 2036, mantendo menos traces no total."} -->
+
+```mermaid
+xychart-beta
+  title "Cobertura das 2036 traces interessantes"
   x-axis [Head-5pct, Tail-por-resultado]
-  y-axis &quot;traces interessantes mantidas&quot; 0 --&gt; 2200
-  bar [108, 2036]</pre></div><figcaption>Dados calculados pelo experimento determinístico incluído no artigo, não benchmark de produção. A política tail conhece o resultado e mantém todos os erros e lentidões por definição; seu custo de buffer não é simulado.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
-  title &quot;Cobertura das 2036 traces interessantes&quot;
+  y-axis "traces interessantes mantidas" 0 --> 2200
+  bar [108, 2036]
+```
+
+<figcaption>Dados calculados pelo experimento determinístico incluído no artigo, não benchmark de produção. A política tail conhece o resultado e mantém todos os erros e lentidões por definição; seu custo de buffer não é simulado.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
+  title "Cobertura das 2036 traces interessantes"
   x-axis [Head-5pct, Tail-por-resultado]
-  y-axis &quot;traces interessantes mantidas&quot; 0 --&gt; 2200
-  bar [108, 2036]</pre></details></figure>
+  y-axis "traces interessantes mantidas" 0 --&gt; 2200
+  bar [108, 2036]</pre></details>
 
 O resultado não prova que <span lang="en-US">tail sampling</span> seja sempre superior. A simulação ignora <span lang="en-US">spans</span> atrasados, memória, distribuição, falhas do coletor e custo de processar as 100 mil <span lang="en-US">traces</span> antes da decisão. Ela demonstra uma troca: conhecer o resultado permite gastar menos volume final e cobrir mais casos definidos como interessantes, ao preço de estado e complexidade.
 

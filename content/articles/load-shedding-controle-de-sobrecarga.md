@@ -29,7 +29,23 @@ Um serviço tem capacidade finita de CPU, memória, conexões, threads, I/O e de
 
 Se o excesso persiste, a espera aumenta. Clientes atingem o tempo limite e repetem chamadas. O trabalho antigo continua consumindo recursos mesmo quando sua resposta já não tem valor. Coleta de lixo, troca de contexto e contenção encarecem cada operação. O sistema passa a concluir menos justamente quando recebe mais: é o início do colapso por sobrecarga.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Ciclo de colapso: excesso de chegadas cria fila e latência, que geram timeouts e retries, ampliando a carga."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"Ciclo de colapso: excesso de chegadas cria fila e latência, que geram timeouts e retries, ampliando a carga."} -->
+
+```mermaid
+flowchart LR
+  A[Chegadas acima da capacidade] --> Q[Fila cresce]
+  Q --> L[Latência aumenta]
+  L --> T[Tempo limite no cliente]
+  T --> R[Novas tentativas]
+  R --> A
+  Q --> S[Memória e contenção]
+  S --> C[Capacidade efetiva cai]
+  C --> Q
+```
+
+<figcaption>Ciclo causal ilustrativo. Há dois reforços: repetições aumentam a entrada e contenção reduz a capacidade efetiva. O texto ao redor descreve os mesmos caminhos.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
   A[Chegadas acima da capacidade] --&gt; Q[Fila cresce]
   Q --&gt; L[Latência aumenta]
   L --&gt; T[Tempo limite no cliente]
@@ -37,15 +53,7 @@ Se o excesso persiste, a espera aumenta. Clientes atingem o tempo limite e repet
   R --&gt; A
   Q --&gt; S[Memória e contenção]
   S --&gt; C[Capacidade efetiva cai]
-  C --&gt; Q</pre></div><figcaption>Ciclo causal ilustrativo. Há dois reforços: repetições aumentam a entrada e contenção reduz a capacidade efetiva. O texto ao redor descreve os mesmos caminhos.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  A[Chegadas acima da capacidade] --&gt; Q[Fila cresce]
-  Q --&gt; L[Latência aumenta]
-  L --&gt; T[Tempo limite no cliente]
-  T --&gt; R[Novas tentativas]
-  R --&gt; A
-  Q --&gt; S[Memória e contenção]
-  S --&gt; C[Capacidade efetiva cai]
-  C --&gt; Q</pre></details></figure>
+  C --&gt; Q</pre></details>
 
 O capítulo [<em lang="en-US">Addressing Cascading Failures</em>, do livro de SRE do Google](https://sre.google/sre-book/addressing-cascading-failures/), define <span lang="en-US">load shedding</span> como descartar parte da carga quando o servidor se aproxima da sobrecarga, para evitar falta de memória, latência extrema e falhas de saúde enquanto preserva trabalho útil. É uma descrição operacional, não uma garantia de que qualquer limite escolhido será correto.
 
@@ -82,17 +90,25 @@ Se há `Q` itens à frente e a vazão disponível é `μ`, uma aproximação da 
 
 O Google SRE mostra um exemplo em que uma fila dez vezes maior que o pool acrescenta cerca de um segundo de espera a operações de 100 ms e recomenda filas pequenas para tráfego estável. Em redes, o [RFC 8289, sobre CoDel](https://www.rfc-editor.org/rfc/rfc8289), argumenta que o tempo de permanência do pacote na fila é um sinal melhor de congestionamento persistente do que apenas o tamanho da fila. A aplicação dessa ideia a RPCs é uma analogia de engenharia; o RFC especifica filas de rede, não um algoritmo universal para APIs.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Gráfico ilustrativo da vazão útil: sem rejeição ela cai após a saturação; com rejeição precoce permanece próxima da capacidade."><pre class="mermaid-source">xychart-beta
-  title &quot;Carga oferecida e conclusões úteis&quot;
+<!-- tech-topics:mermaid {"label":"Gráfico ilustrativo da vazão útil: sem rejeição ela cai após a saturação; com rejeição precoce permanece próxima da capacidade."} -->
+
+```mermaid
+xychart-beta
+  title "Carga oferecida e conclusões úteis"
   x-axis [500, 900, 1100, 1500, 2000]
-  y-axis &quot;conclusões úteis por segundo&quot; 0 --&gt; 1200
+  y-axis "conclusões úteis por segundo" 0 --> 1200
   line [500, 900, 850, 600, 300]
-  line [500, 900, 1000, 1000, 1000]</pre></div><figcaption>Dados puramente ilustrativos, não medição. A primeira linha representa um sistema que continua aceitando e entra em colapso; a segunda, um sistema que limita admissão perto de 1.000 por segundo. Os valores servem para mostrar a forma do problema, não para estimar uma implantação.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
-  title &quot;Carga oferecida e conclusões úteis&quot;
+  line [500, 900, 1000, 1000, 1000]
+```
+
+<figcaption>Dados puramente ilustrativos, não medição. A primeira linha representa um sistema que continua aceitando e entra em colapso; a segunda, um sistema que limita admissão perto de 1.000 por segundo. Os valores servem para mostrar a forma do problema, não para estimar uma implantação.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
+  title "Carga oferecida e conclusões úteis"
   x-axis [500, 900, 1100, 1500, 2000]
-  y-axis &quot;conclusões úteis por segundo&quot; 0 --&gt; 1200
+  y-axis "conclusões úteis por segundo" 0 --&gt; 1200
   line [500, 900, 850, 600, 300]
-  line [500, 900, 1000, 1000, 1000]</pre></details></figure>
+  line [500, 900, 1000, 1000, 1000]</pre></details>
 
 <h2 id="ls-politicas">4. Cinco famílias de política</h2>
 
@@ -126,7 +142,23 @@ Esse feedback adapta-se a mudanças, mas pode confundir aumento legítimo do tem
 
 <h2 id="ls-arquitetura">5. Arquitetura: uma decisão barata antes do trabalho caro</h2>
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Arquitetura de controle de admissão: sinais locais ajustam um limite; requisições aceitas seguem para fila curta e workers, enquanto excesso é rejeitado cedo."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"Arquitetura de controle de admissão: sinais locais ajustam um limite; requisições aceitas seguem para fila curta e workers, enquanto excesso é rejeitado cedo."} -->
+
+```mermaid
+flowchart LR
+  R[Requisição] --> A{Cabe no orçamento?}
+  A -- sim --> Q[Fila curta]
+  Q --> W[Workers]
+  W --> D[Dependência]
+  A -- não --> J[Rejeição rápida]
+  W -. duração e concorrência .-> C[Controlador]
+  D -. erro e saturação .-> C
+  C -. ajusta limite .-> A
+```
+
+<figcaption>Arquitetura conceitual. A checagem fica antes da alocação cara; sinais de execução e dependências fecham a malha. A fila é pequena e limitada.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
   R[Requisição] --&gt; A{Cabe no orçamento?}
   A -- sim --&gt; Q[Fila curta]
   Q --&gt; W[Workers]
@@ -134,15 +166,7 @@ Esse feedback adapta-se a mudanças, mas pode confundir aumento legítimo do tem
   A -- não --&gt; J[Rejeição rápida]
   W -. duração e concorrência .-&gt; C[Controlador]
   D -. erro e saturação .-&gt; C
-  C -. ajusta limite .-&gt; A</pre></div><figcaption>Arquitetura conceitual. A checagem fica antes da alocação cara; sinais de execução e dependências fecham a malha. A fila é pequena e limitada.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  R[Requisição] --&gt; A{Cabe no orçamento?}
-  A -- sim --&gt; Q[Fila curta]
-  Q --&gt; W[Workers]
-  W --&gt; D[Dependência]
-  A -- não --&gt; J[Rejeição rápida]
-  W -. duração e concorrência .-&gt; C[Controlador]
-  D -. erro e saturação .-&gt; C
-  C -. ajusta limite .-&gt; A</pre></details></figure>
+  C -. ajusta limite .-&gt; A</pre></details>
 
 1.  **Classifique a solicitação.** Identifique rota, locatário, custo estimado, criticidade e prazo, sem confiar em prioridade arbitrária enviada pelo usuário.
 2.  **Leia sinais locais.** Concorrência, espera, memória e capacidade da dependência devem refletir a instância que será protegida.
@@ -179,7 +203,25 @@ O exemplo é um contrato hipotético. `Retry-After: 2` não deve fazer todos os 
 
 No gRPC, `RESOURCE_EXHAUSTED` pode representar cota ou recurso esgotado; `UNAVAILABLE` indica condição transitória que pode admitir repetição com atraso. A [documentação de códigos do gRPC](https://grpc.io/docs/guides/status-codes/) também alerta que operações não idempotentes não são automaticamente seguras para repetir. Padronize metadados de causa e comportamento entre serviços.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Sequência de uma rejeição rápida: o gateway propaga prazo e classe; o controlador recusa sem iniciar dependências; o cliente espera com jitter dentro do orçamento."><pre class="mermaid-source">sequenceDiagram
+<!-- tech-topics:mermaid {"label":"Sequência de uma rejeição rápida: o gateway propaga prazo e classe; o controlador recusa sem iniciar dependências; o cliente espera com jitter dentro do orçamento."} -->
+
+```mermaid
+sequenceDiagram
+  participant C as Cliente
+  participant G as Gateway
+  participant A as Controle de admissão
+  participant S as Serviço
+  C->>G: requisição com prazo
+  G->>A: classe, custo e prazo restante
+  A-->>G: sem capacidade — rejeitar
+  G-->>C: 503 e Retry-After
+  Note over A,S: nenhuma dependência cara foi iniciada
+  C->>C: espera com dispersão e orçamento
+```
+
+<figcaption>Sequência ilustrativa. O ponto essencial é recusar antes de iniciar o serviço caro e impedir repetição sincronizada.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
   participant C as Cliente
   participant G as Gateway
   participant A as Controle de admissão
@@ -189,17 +231,7 @@ No gRPC, `RESOURCE_EXHAUSTED` pode representar cota ou recurso esgotado; `UNAVAI
   A--&gt;&gt;G: sem capacidade — rejeitar
   G--&gt;&gt;C: 503 e Retry-After
   Note over A,S: nenhuma dependência cara foi iniciada
-  C-&gt;&gt;C: espera com dispersão e orçamento</pre></div><figcaption>Sequência ilustrativa. O ponto essencial é recusar antes de iniciar o serviço caro e impedir repetição sincronizada.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
-  participant C as Cliente
-  participant G as Gateway
-  participant A as Controle de admissão
-  participant S as Serviço
-  C-&gt;&gt;G: requisição com prazo
-  G-&gt;&gt;A: classe, custo e prazo restante
-  A--&gt;&gt;G: sem capacidade — rejeitar
-  G--&gt;&gt;C: 503 e Retry-After
-  Note over A,S: nenhuma dependência cara foi iniciada
-  C-&gt;&gt;C: espera com dispersão e orçamento</pre></details></figure>
+  C-&gt;&gt;C: espera com dispersão e orçamento</pre></details>
 
 <h2>7. Rejeitar, degradar ou adiar?</h2>
 
@@ -245,15 +277,23 @@ O arquivo <a href="../../assets/load-shedding-controle-de-sobrecarga/load-sheddi
 
 Na fila ilimitada, as 3.900 chegadas são aceitas. O modelo conclui 2.900 dentro da janela, mas somente 512 antes do prazo; 2.388 conclusões já expiraram e 1.000 itens permanecem na fila. Com limite de 25 itens, 1.176 chegadas são rejeitadas, todas as 2.724 admitidas terminam dentro do prazo e a fila drena.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Resultados do experimento: fila ilimitada conclui 512 trabalhos úteis; admissão limitada conclui 2724."><pre class="mermaid-source">xychart-beta
-  title &quot;Conclusões dentro do prazo&quot;
+<!-- tech-topics:mermaid {"label":"Resultados do experimento: fila ilimitada conclui 512 trabalhos úteis; admissão limitada conclui 2724."} -->
+
+```mermaid
+xychart-beta
+  title "Conclusões dentro do prazo"
   x-axis [Ilimitada, Limitada]
-  y-axis &quot;requisições úteis em 30 s&quot; 0 --&gt; 3000
-  bar [512, 2724]</pre></div><figcaption>Dados calculados pelo experimento determinístico incluído no artigo, não benchmark de produção. A admissão limitada rejeita cedo 1.176 chegadas e entrega 2.724 respostas úteis; a fila ilimitada aceita tudo, mas entrega só 512 dentro de 500 ms.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
-  title &quot;Conclusões dentro do prazo&quot;
+  y-axis "requisições úteis em 30 s" 0 --> 3000
+  bar [512, 2724]
+```
+
+<figcaption>Dados calculados pelo experimento determinístico incluído no artigo, não benchmark de produção. A admissão limitada rejeita cedo 1.176 chegadas e entrega 2.724 respostas úteis; a fila ilimitada aceita tudo, mas entrega só 512 dentro de 500 ms.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
+  title "Conclusões dentro do prazo"
   x-axis [Ilimitada, Limitada]
-  y-axis &quot;requisições úteis em 30 s&quot; 0 --&gt; 3000
-  bar [512, 2724]</pre></details></figure>
+  y-axis "requisições úteis em 30 s" 0 --&gt; 3000
+  bar [512, 2724]</pre></details>
 
 O resultado não prova que 25 seja um limite ideal nem modela múltiplos workers, variância, cancelamento ou rede. Ele isola uma ideia: conclusão depois do prazo pode consumir capacidade sem produzir valor. Altere `QUEUE_LIMIT`, `DEADLINE_SECONDS` e a função `arrival_rate`; procure o ponto em que a rejeição cai sem reintroduzir expiração.
 

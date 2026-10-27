@@ -30,7 +30,10 @@ Considere dois serviços que gravam atualizações às 10:00:00.100 e 10:00:00.0
 
 Leslie Lamport abriu seu artigo de 1978 observando que, em um sistema distribuído, às vezes é impossível afirmar qual de dois eventos ocorreu primeiro. Seu passo decisivo foi definir ordem sem recorrer ao tempo físico: a partir da sequência dentro de cada processo e das mensagens realmente trocadas. O resultado é uma ordem parcial, não uma única fila universal.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Três processos executam eventos; mensagens criam caminhos causais de A para B, enquanto um evento em C permanece sem caminho para os demais."><pre class="mermaid-source">sequenceDiagram
+<!-- tech-topics:mermaid {"label":"Três processos executam eventos; mensagens criam caminhos causais de A para B, enquanto um evento em C permanece sem caminho para os demais."} -->
+
+```mermaid
+sequenceDiagram
   participant A as Processo A
   participant B as Processo B
   participant C as Processo C
@@ -38,15 +41,20 @@ Leslie Lamport abriu seu artigo de 1978 observando que, em um sistema distribuí
   A->>B: a2 envia m1
   C->>C: c1 evento local
   B->>B: b1 recebe m1
-  B->>B: b2 evento local</pre></div><figcaption>Sequência ilustrativa. Há um caminho causal de a1 para a2, b1 e b2. Não há mensagem nem sequência local ligando c1 a esses eventos; c1 é concorrente com eles no modelo.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
+  B->>B: b2 evento local
+```
+
+<figcaption>Sequência ilustrativa. Há um caminho causal de a1 para a2, b1 e b2. Não há mensagem nem sequência local ligando c1 a esses eventos; c1 é concorrente com eles no modelo.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
   participant A as Processo A
   participant B as Processo B
   participant C as Processo C
-  A->>A: a1 evento local
-  A->>B: a2 envia m1
-  C->>C: c1 evento local
-  B->>B: b1 recebe m1
-  B->>B: b2 evento local</pre></details></figure>
+  A-&gt;&gt;A: a1 evento local
+  A-&gt;&gt;B: a2 envia m1
+  C-&gt;&gt;C: c1 evento local
+  B-&gt;&gt;B: b1 recebe m1
+  B-&gt;&gt;B: b2 evento local</pre></details>
 
 <h2 id="rl-happened-before">2. A relação <span lang="en-US">happened-before</span></h2>
 
@@ -80,21 +88,29 @@ Cada processo mantém um inteiro `C`. O algoritmo recebe como entrada eventos lo
 
 A regra de recebimento faz o relógio local saltar além tanto do passado conhecido localmente quanto do passado carregado pela mensagem. Se o envio recebeu 2, o recebimento será pelo menos 3. A transitividade mantém o crescimento ao longo de qualquer caminho causal.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Processo A marca eventos com 1 e 2, envia a marca 2; B estava em 1 e ao receber calcula máximo de 1 e 2 mais 1, obtendo 3."><pre class="mermaid-source">sequenceDiagram
+<!-- tech-topics:mermaid {"label":"Processo A marca eventos com 1 e 2, envia a marca 2; B estava em 1 e ao receber calcula máximo de 1 e 2 mais 1, obtendo 3."} -->
+
+```mermaid
+sequenceDiagram
   participant A as Processo A
   participant B as Processo B
   A->>A: evento local C=1
   A->>B: envia m com C=2
   B->>B: evento local C=1
   B->>B: recebe m, max 1 e 2 mais 1 = 3
-  B->>B: próximo evento C=4</pre></div><figcaption>Execução calculada pelas regras de Lamport. Os números crescem ao longo da causalidade, mas não medem duração nem atraso de rede.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
+  B->>B: próximo evento C=4
+```
+
+<figcaption>Execução calculada pelas regras de Lamport. Os números crescem ao longo da causalidade, mas não medem duração nem atraso de rede.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
   participant A as Processo A
   participant B as Processo B
-  A->>A: evento local C=1
-  A->>B: envia m com C=2
-  B->>B: evento local C=1
-  B->>B: recebe m, max 1 e 2 mais 1 = 3
-  B->>B: próximo evento C=4</pre></details></figure>
+  A-&gt;&gt;A: evento local C=1
+  A-&gt;&gt;B: envia m com C=2
+  B-&gt;&gt;B: evento local C=1
+  B-&gt;&gt;B: recebe m, max 1 e 2 mais 1 = 3
+  B-&gt;&gt;B: próximo evento C=4</pre></details>
 
 <h3>Por que o algoritmo está correto</h3>
 
@@ -127,17 +143,25 @@ Cada processo `i` guarda um vetor `V` de tamanho `N`:
 
 O máximo componente a componente faz uma união do conhecimento causal. O incremento final registra o novo evento local de recebimento. Para comparar dois vetores `X` e `Y`, definimos `X < Y` quando todo componente de X é menor ou igual ao de Y e pelo menos um é estritamente menor.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="A cria vetores 100 e 200 e envia 200 a B; B combina e chega a 210. C produz 001 sem comunicação. Os vetores 210 e 001 são incomparáveis."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"A cria vetores 100 e 200 e envia 200 a B; B combina e chega a 210. C produz 001 sem comunicação. Os vetores 210 e 001 são incomparáveis."} -->
+
+```mermaid
+flowchart LR
   A1[A local: 1,0,0] --> A2[A envia: 2,0,0]
   A2 -->|mensagem| B1[B recebe: 2,1,0]
   B1 --> B2[B local: 2,2,0]
   C1[C local: 0,0,1]
-  B2 -. nenhum vetor domina .- C1</pre></div><figcaption>Valores calculados para três processos. B2 contém a história de A e B. C1 contém apenas a de C. Como 2,2,0 e 0,0,1 são incomparáveis, os eventos são concorrentes.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  A1[A local: 1,0,0] --> A2[A envia: 2,0,0]
-  A2 -->|mensagem| B1[B recebe: 2,1,0]
-  B1 --> B2[B local: 2,2,0]
+  B2 -. nenhum vetor domina .- C1
+```
+
+<figcaption>Valores calculados para três processos. B2 contém a história de A e B. C1 contém apenas a de C. Como 2,2,0 e 0,0,1 são incomparáveis, os eventos são concorrentes.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
+  A1[A local: 1,0,0] --&gt; A2[A envia: 2,0,0]
+  A2 --&gt;|mensagem| B1[B recebe: 2,1,0]
+  B1 --&gt; B2[B local: 2,2,0]
   C1[C local: 0,0,1]
-  B2 -. nenhum vetor domina .- C1</pre></details></figure>
+  B2 -. nenhum vetor domina .- C1</pre></details>
 
 <h3>A equivalência que o escalar não oferece</h3>
 
@@ -167,7 +191,10 @@ Em armazenamento replicado, a pergunta costuma mudar de evento para versão: est
 
 O artigo do Amazon Dynamo, publicado em 2007, descreve objetos imutáveis versionados e ramificações quando falhas ou partições permitem atualizações concorrentes. Vetores de versão permitem dizer que uma versão descende de outra ou que ambas são irmãs concorrentes. O sistema pode descartar versões dominadas e preservar irmãos para reconciliação semântica.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Uma versão base se ramifica durante uma partição em atualização na réplica A e atualização na réplica C; após reconexão, os vetores são incomparáveis e ambas as versões são preservadas para fusão."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"Uma versão base se ramifica durante uma partição em atualização na réplica A e atualização na réplica C; após reconexão, os vetores são incomparáveis e ambas as versões são preservadas para fusão."} -->
+
+```mermaid
+flowchart LR
   V0[Base 1,0,0] --> P{Partição}
   P --> VA[A atualiza 2,0,0]
   P --> VC[C atualiza 1,0,1]
@@ -175,15 +202,20 @@ O artigo do Amazon Dynamo, publicado em 2007, descreve objetos imutáveis versio
   VC --> J
   J --> K[Versões concorrentes]
   K --> M[Fusão de negócio]
-  M --> VF[Nova versão que inclui ambas]</pre></div><figcaption>Fluxo ilustrativo de replicação otimista. Os vetores 2,0,0 e 1,0,1 são incomparáveis; escolher apenas o maior horário poderia perder uma atualização válida.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  V0[Base 1,0,0] --> P{Partição}
-  P --> VA[A atualiza 2,0,0]
-  P --> VC[C atualiza 1,0,1]
-  VA --> J{Reconexão}
-  VC --> J
-  J --> K[Versões concorrentes]
-  K --> M[Fusão de negócio]
-  M --> VF[Nova versão que inclui ambas]</pre></details></figure>
+  M --> VF[Nova versão que inclui ambas]
+```
+
+<figcaption>Fluxo ilustrativo de replicação otimista. Os vetores 2,0,0 e 1,0,1 são incomparáveis; escolher apenas o maior horário poderia perder uma atualização válida.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
+  V0[Base 1,0,0] --&gt; P{Partição}
+  P --&gt; VA[A atualiza 2,0,0]
+  P --&gt; VC[C atualiza 1,0,1]
+  VA --&gt; J{Reconexão}
+  VC --&gt; J
+  J --&gt; K[Versões concorrentes]
+  K --&gt; M[Fusão de negócio]
+  M --&gt; VF[Nova versão que inclui ambas]</pre></details>
 
 <h3>Relógio vetorial não é automaticamente um <span lang="en-US">version vector</span></h3>
 

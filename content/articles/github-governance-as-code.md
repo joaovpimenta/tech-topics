@@ -69,21 +69,29 @@ A arquitetura adequada precisa resolver os quatro problemas. O quadro é apenas 
 
 Um desenho útil é importar uma distinção comum de sistemas distribuídos. O <span lang="en-US">control plane</span> contém a política e decide o estado desejado. Os repositórios e o Project são o plano onde o trabalho real acontece. Um <span lang="en-US">reconciler</span> compara os dois e corrige diferenças.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Arquitetura de governança como código: controlador, repositórios e Project central."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"Arquitetura de governança como código: controlador, repositórios e Project central."} -->
+
+```mermaid
+flowchart LR
+  C[Controlador] --> A[Repositório A]
+  C --> B[Repositório B]
+  C --> N[Repositório N]
+  A --> P[Project central]
+  B --> P
+  N --> P
+  R[Reconciler periódico] --> C
+```
+
+<figcaption>Arquitetura conceitual: lógica centralizada, gatilhos pequenos nos repositórios e um Project que agrega o estado de planejamento.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
   C[Controlador] --&gt; A[Repositório A]
   C --&gt; B[Repositório B]
   C --&gt; N[Repositório N]
   A --&gt; P[Project central]
   B --&gt; P
   N --&gt; P
-  R[Reconciler periódico] --&gt; C</pre></div><figcaption>Arquitetura conceitual: lógica centralizada, gatilhos pequenos nos repositórios e um Project que agrega o estado de planejamento.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  C[Controlador] --&gt; A[Repositório A]
-  C --&gt; B[Repositório B]
-  C --&gt; N[Repositório N]
-  A --&gt; P[Project central]
-  B --&gt; P
-  N --&gt; P
-  R[Reconciler periódico] --&gt; C</pre></details></figure>
+  R[Reconciler periódico] --&gt; C</pre></details>
 
 O repositório controlador pode versionar uma política como:
 
@@ -102,7 +110,23 @@ A vantagem não é o JSON em si. É a propriedade de **declarar intenção antes
 
 Um dos maiores ganhos vem de não usar <span lang="en-US">labels</span> para tudo. <span lang="en-US">Labels</span> são excelentes para classificação local e busca dentro do repositório. Campos de Project são melhores para planejamento transversal. Metadados derivados não precisam ser perguntados ao usuário. E relações entre <span lang="en-US">issues</span> devem usar recursos nativos quando existem.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Separação entre classificação, planejamento, identidade derivada e relações."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"Separação entre classificação, planejamento, identidade derivada e relações."} -->
+
+```mermaid
+flowchart LR
+  I[Issue] --> C[Classificação]
+  I --> P[Planejamento]
+  I --> D[Identidade derivada]
+  I --> R[Relações]
+  C --> Q{Uma fonte de verdade}
+  P --> Q
+  D --> Q
+  R --> Q
+```
+
+<figcaption>Uma taxonomia sustentável minimiza duplicação: cada dimensão tem uma fonte de verdade clara.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
   I[Issue] --&gt; C[Classificação]
   I --&gt; P[Planejamento]
   I --&gt; D[Identidade derivada]
@@ -110,15 +134,7 @@ Um dos maiores ganhos vem de não usar <span lang="en-US">labels</span> para tud
   C --&gt; Q{Uma fonte de verdade}
   P --&gt; Q
   D --&gt; Q
-  R --&gt; Q</pre></div><figcaption>Uma taxonomia sustentável minimiza duplicação: cada dimensão tem uma fonte de verdade clara.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  I[Issue] --&gt; C[Classificação]
-  I --&gt; P[Planejamento]
-  I --&gt; D[Identidade derivada]
-  I --&gt; R[Relações]
-  C --&gt; Q{Uma fonte de verdade}
-  P --&gt; Q
-  D --&gt; Q
-  R --&gt; Q</pre></details></figure>
+  R --&gt; Q</pre></details>
 
 <div class="article-table-scroll" tabindex="0" role="region" aria-label="Tabela rolável horizontalmente"><table><thead><tr><th>Dimensão</th><th>Fonte de verdade sugerida</th><th>Exemplo</th></tr></thead><tbody>
 <tr><td>Type</td><td><span lang="en-US">Issue Form</span> → <span lang="en-US">label</span> gerenciada → espelho no Project</td><td><code>type:bug</code></td></tr>
@@ -290,19 +306,27 @@ Evite inventar <span lang="en-US">labels</span> como `depends-on-123`. Elas não
 
 Governança só funciona de verdade quando o histórico deixa de ser uma exceção permanente. Um <span lang="en-US">retrofit</span> deve varrer <span lang="en-US">Issues</span> e PRs abertos e fechados, interpretar o que já existe e convergir para a taxonomia atual.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Retrofit histórico: leitura, classificação segura, triagem, normalização e Project."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"Retrofit histórico: leitura, classificação segura, triagem, normalização e Project."} -->
+
+```mermaid
+flowchart LR
+  H[Histórico] --> L[Leitura]
+  L --> K{Classificação segura?}
+  K -->|sim| N[Normalização]
+  K -->|ambíguo| T[Triagem]
+  T --> N
+  N --> P[Project]
+```
+
+<figcaption><span lang="en-US">Retrofit</span> seguro: o objetivo é convergir o histórico sem inventar intenção que não está documentada.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
   H[Histórico] --&gt; L[Leitura]
   L --&gt; K{Classificação segura?}
   K --&gt;|sim| N[Normalização]
   K --&gt;|ambíguo| T[Triagem]
   T --&gt; N
-  N --&gt; P[Project]</pre></div><figcaption><span lang="en-US">Retrofit</span> seguro: o objetivo é convergir o histórico sem inventar intenção que não está documentada.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  H[Histórico] --&gt; L[Leitura]
-  L --&gt; K{Classificação segura?}
-  K --&gt;|sim| N[Normalização]
-  K --&gt;|ambíguo| T[Triagem]
-  T --&gt; N
-  N --&gt; P[Project]</pre></details></figure>
+  N --&gt; P[Project]</pre></details>
 
 A migração pode usar evidências em ordem de confiança:
 
