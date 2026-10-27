@@ -24,7 +24,7 @@ Articles are sorted by valid `publishedAt` dates, newest first, both during the 
 2. In **Settings → Pages**, set the source to **GitHub Actions**.
 3. The included workflow deploys automatically on site-relevant pushes to `main` (docs/tooling-only changes are ignored) and can also be started manually from the **Actions** tab.
 
-The site is a static multi-article archive. New articles use `content/articles/<slug>.md` as their editorial source, with YAML frontmatter and Markdown body. Existing `.json` articles remain supported as legacy inputs until a separately authorized conversion. Each article has its own cover image under `assets/`. The Pages workflow runs `node scripts/validate-site.mjs`, which compiles the mixed Markdown/JSON corpus and validates the site before publishing. The homepage loads every article in the folder and each card opens `article.html?slug=<slug>`.
+The site is a static multi-article archive. New articles use `content/articles/<slug>.md` as their editorial source, with YAML frontmatter and Markdown body. Existing `.json` articles remain supported as legacy inputs until a separately authorized conversion. Each article has its own cover image under `assets/`. The Pages workflow runs `node scripts/validate-site.mjs`, which compiles the mixed Markdown/JSON corpus and validates the site before publishing. The homepage uses the generated catalog, and each card opens `article.html?slug=<slug>`.
 
 ## Article contract
 
