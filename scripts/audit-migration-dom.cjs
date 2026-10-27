@@ -35,7 +35,8 @@ async function main() {
   const playwrightPath = process.env.TECH_TOPICS_PLAYWRIGHT || "playwright";
   try { ({ chromium } = require(playwrightPath)); }
   catch (error) { throw new Error(`Playwright unavailable; set TECH_TOPICS_PLAYWRIGHT to its module path (${error.message})`); }
-  const catalog = JSON.parse(await readFile(path.join(dist, "assets/articles-catalog.json"), "utf8"));
+  const { migrationDomCatalogArticles } = await import(pathToFileURL(path.join(__dirname, "lib", "migration-dom-catalog.mjs")));
+  const catalog = migrationDomCatalogArticles(JSON.parse(await readFile(path.join(dist, "assets/articles-catalog.json"), "utf8")));
   const lexicon = JSON.parse(await readFile(path.join(dist, "content/tts-lexicon.json"), "utf8"));
   const baseline = JSON.parse(await readFile(baselinePath, "utf8"));
   const baselineBySlug = new Map(baseline.articles.map(article => [article.slug, article]));
