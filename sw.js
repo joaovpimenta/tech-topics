@@ -67,6 +67,19 @@ self.addEventListener("install", event => {
   })());
 });
 
+self.addEventListener("message", event => {
+  if (event.data?.type !== "TECH_TOPICS_ACTIVATE_UPDATE" || !event.ports?.[0]) return;
+  const responsePort = event.ports[0];
+  event.waitUntil((async () => {
+    try {
+      await self.skipWaiting();
+      responsePort.postMessage({ ok: true });
+    } catch (error) {
+      responsePort.postMessage({ ok: false });
+    }
+  })());
+});
+
 self.addEventListener("activate", event => {
   event.waitUntil((async () => {
     // Fail closed: if cache state cannot be read, do not claim old tabs.
@@ -80,8 +93,8 @@ self.addEventListener("activate", event => {
       // without requiring an extra navigation.
       await self.clients.claim();
     }
-    // Updates activate naturally after all clients of the previous worker close.
-    // Never take control of or reload those clients from a waiting worker.
+    // Without an explicit user update, the waiting worker activates after old clients close.
+    // The explicit path uses skipWaiting, but updates never claim already-open clients.
   })());
 });
 
