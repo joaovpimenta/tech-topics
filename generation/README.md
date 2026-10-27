@@ -18,7 +18,9 @@ node scripts/compose-article-brief.mjs \
   --depth advanced
 ```
 
-O comando escreve o brief em stdout. Ele não chama um provedor de LLM, não cria arquivos e não persiste o prompt composto.
+O comando escreve o brief em stdout. Ele não chama um provedor de LLM, não cria arquivos e não persiste o prompt composto. A geração do texto é uma etapa externa, feita pelo modelo/redator que recebe o brief; este repositório não escolhe o modelo, envia prompts a uma API nem orquestra essa etapa. Grave artigos novos em `content/articles/<slug>.md`, usando o template Markdown; o compilador do site consome essa fonte editorial diretamente.
+
+Para o formato-fonte, template, taxonomia e validação dos artigos, siga [o contrato autoral](editorial/AUTHORING.md). O checkout e os comandos correntes aceitam somente fontes Markdown.
 
 Após finalizar a abertura, use `node scripts/compose-cover-brief.mjs` para extrair de `docs/VISUAL_STYLE.md` apenas as instruções necessárias para criar e revisar a capa.
 

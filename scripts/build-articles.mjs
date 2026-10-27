@@ -1,31 +1,21 @@
-import { readdir, readFile, access, writeFile } from "node:fs/promises";
+import { readFile, access, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { validateArticleCatalog } from "./lib/article-contract.mjs";
+import { compileArticleCorpus } from "./lib/article-corpus.mjs";
 import { extractOpeningParagraph } from "./lib/catalog-opening.mjs";
 
 const run = promisify(execFile);
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const rootArgument = process.argv.indexOf("--root");
+if (rootArgument !== -1 && !process.argv[rootArgument + 1]) throw new Error("--root requires a directory");
+const root = rootArgument === -1
+  ? path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
+  : path.resolve(process.argv[rootArgument + 1]);
 const articlesDir = path.join(root, "content", "articles");
-const files = (await readdir(articlesDir)).filter(file => file.endsWith(".json") && file !== "index.json" && file !== "catalog.json").sort();
-
-if (!files.length) throw new Error("No article JSON files found in content/articles");
-
-const articles = [];
-for (const file of files) {
-  const filePath = path.join(articlesDir, file);
-  const article = JSON.parse(await readFile(filePath, "utf8"));
-  articles.push({ file, article });
-}
-
-const contractFailures = validateArticleCatalog(articles);
-if (contractFailures.length) {
-  throw new Error(contractFailures.map(({ file, message }) => `${file}: ${message}`).join("\n"));
-}
+const articles = await compileArticleCorpus(root);
 
 const records = [];
 
@@ -34,24 +24,27 @@ for (const { file, article } of articles) {
   await access(imagePath);
   let addedAt = "";
   try {
-    const history = await run("git", ["log", "--diff-filter=A", "--format=%cI", "--", `content/articles/${file}`], { cwd: root });
-    addedAt = history.stdout.trim().split("\n").filter(Boolean).at(-1) || "";
+    // Preserve publication ordering across the historical JSON→Markdown rename.
+    const history = await run("git", ["log", "--reverse", "--diff-filter=A", "--format=%cI", "--",
+      `content/articles/${article.slug}.json`, `content/articles/${article.slug}.md`], { cwd: root });
+    addedAt = history.stdout.trim().split(/\r?\n/).find(Boolean) || "";
   } catch (error) { /* Local copies without Git still sort by publication date. */ }
-  records.push({
-    slug: article.slug, path: `content/articles/${file}`, publishedAt: article.publishedAt, addedAt,
+  const record = {
+    slug: article.slug, path: file, publishedAt: article.publishedAt, addedAt,
     title: article.title, category: article.category, date: article.date, read: article.read,
     image: article.image, alt: article.alt, excerpt: article.excerpt, dek: article.dek,
     opening: extractOpeningParagraph(article.bodyHtml)
-  });
+  };
+  for (const field of ["tags", "updatedAt", "level", "series", "seriesOrder", "prerequisites"]) {
+    if (Object.hasOwn(article, field)) record[field] = article[field];
+  }
+  records.push(record);
 }
 
 records.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || (Date.parse(b.addedAt) || 0) - (Date.parse(a.addedAt) || 0) || a.slug.localeCompare(b.slug));
-const manifest = records.map(({ slug, path, addedAt }) => ({ slug, path, addedAt }));
-await writeFile(path.join(articlesDir, "index.json"), `${JSON.stringify(manifest, null, 2)}\n`);
-const catalog = records.map(({ slug, publishedAt, addedAt, title, category, date, read, image, alt, excerpt, dek, opening }) =>
-  ({ slug, publishedAt, addedAt, title, category, date, read, image, alt, excerpt, dek, opening }));
+const catalog = records.map(({ path: sourcePath, ...record }) => record);
 await writeFile(path.join(root, "assets", "articles-catalog.json"), `${JSON.stringify(catalog, null, 2)}\n`);
-console.log(`Built lightweight article catalog and manifest with ${manifest.length} article(s).`);
+console.log(`Built lightweight article catalog with ${records.length} article(s).`);
 
 // Regenerate the imported worker version on every content or application change.
 // Relative URLs keep the PWA inside the GitHub Pages repository subdirectory.
@@ -59,7 +52,7 @@ const webManifest = JSON.parse(await readFile(path.join(root, "manifest.webmanif
 const precacheFiles = [...new Set(["index.html", "article.html", "styles.css", "app.js", "article.js", "header.js", "speech.js", "audio.js", "content/tts-lexicon.json", "mermaid-theme.js", "fgs-simulator.js", "pwa.js", "manifest.webmanifest", "favicon.svg", "favicon.ico",
   "assets/favicon-16x16.png", "assets/favicon-32x32.png", ...webManifest.icons.map(icon => icon.src),
   "assets/app-icon.svg", "assets/app-icon-180.png", "assets/app-icon-192.png", "assets/app-icon-512.png",
-  "content/articles/index.json", "assets/articles-catalog.json"])].sort();
+  "assets/articles-catalog.json"])].sort();
 const hash = createHash("sha256");
 for (const file of [...precacheFiles, "sw.js"]) {
   hash.update(file);

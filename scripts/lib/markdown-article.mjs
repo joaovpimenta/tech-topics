@@ -23,9 +23,9 @@ const TAGS = new Set([
   "a", "abbr", "article", "b", "blockquote", "br", "button", "caption", "code", "col", "colgroup", "dd", "del", "details", "div", "dl", "dt", "em", "figcaption", "figure", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "img", "input", "kbd", "label", "li", "mark", "nav", "ol", "output", "p", "pre", "s", "section", "small", "span", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"
 ]);
 const ATTRS = new Set([
-  "alt", "aria-atomic", "aria-label", "aria-labelledby", "aria-describedby", "aria-hidden", "aria-live", "checked", "class", "colspan", "data-mermaid", "data-mermaid-label", "data-tts-mode", "data-tts-say", "disabled", "download", "for", "height", "href", "id", "lang", "max", "min", "name", "open", "role", "rowspan", "scope", "src", "srcset", "step", "tabindex", "target", "title", "type", "value", "width"
+  "alt", "align", "aria-atomic", "aria-label", "aria-labelledby", "aria-describedby", "aria-hidden", "aria-live", "checked", "class", "colspan", "data-footnotes", "data-footnote-ref", "data-footnote-backref", "data-mermaid", "data-mermaid-label", "data-tts-mode", "data-tts-say", "disabled", "download", "for", "height", "href", "id", "lang", "max", "min", "name", "open", "role", "rowspan", "scope", "src", "srcset", "step", "tabindex", "target", "title", "type", "value", "width"
 ]);
-const SAFE_CLASS = /^(?:article-callout|article-back|article-table-scroll|fgs-table-scroll|signal-grid|signal-card|fgs-simulator|fgs-formula|fgs-guide|fgs-references|fgs-review|fgs-sim-results|fgs-small|fgs-toc|code-block|mermaid-figure|mermaid-diagram|mermaid-source|mermaid-fallback|language-[a-z0-9_-]+|task-list-item|contains-task-list)$/;
+const SAFE_CLASS = /^(?:article-callout|article-back|article-table-scroll|fgs-table-scroll|signal-grid|signal-card|fgs-simulator|fgs-formula|fgs-guide|fgs-references|fgs-review|fgs-sim-results|fgs-small|fgs-toc|code-block|mermaid-figure|mermaid-diagram|mermaid-source|mermaid-fallback|footnotes|sr-only|data-footnote-backref|language-[a-z0-9_-]+|task-list-item|contains-task-list)$/;
 const REQUIRED = ["slug", "language", "title", "category", "date", "publishedAt", "read", "image", "alt", "dek", "excerpt", "tags"];
 const ALLOWED_METADATA = new Set([...REQUIRED, "speechMarkup", "updatedAt", "level", "series", "seriesOrder", "prerequisites", "addedAt"]);
 
@@ -41,6 +41,11 @@ function walk(tree, visit, parent = null) {
 
 function plainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function fragmentText(node) {
+  if (node.nodeName === "#text") return node.value ?? "";
+  return (node.childNodes ?? []).map(fragmentText).join("");
 }
 
 function isIsoDate(value) {
@@ -78,10 +83,14 @@ function parseFrontmatter(source, location) {
   if (aliases) fail(location, "YAML aliases, anchors and custom tags are not allowed");
   const metadata = doc.toJS({ maxAliasCount: 0 });
   if (!plainObject(metadata)) fail(location, "frontmatter must be a mapping");
-  return { metadata, body: match[2] };
+  return { metadata, body: match[2], frontmatter: match[1] };
 }
 
-function validateMetadata(metadata, location, context, legacy = false) {
+export function parseArticleFrontmatter(source, location = "<markdown>") {
+  return parseFrontmatter(source, location);
+}
+
+function validateMetadata(metadata, location, context, legacy = false, { checkAssets = true } = {}) {
   const errors = [];
   for (const key of Object.keys(metadata)) if (!ALLOWED_METADATA.has(key)) errors.push(`unknown metadata field: ${key}`);
   for (const key of REQUIRED) {
@@ -90,7 +99,7 @@ function validateMetadata(metadata, location, context, legacy = false) {
   }
   for (const key of ["slug", "language", "title", "category", "date", "publishedAt", "read", "image", "alt", "dek", "excerpt"]) {
     if (metadata[key] !== undefined && typeof metadata[key] !== "string") errors.push(`${key} must be a string`);
-    if (typeof metadata[key] === "string" && /(?:<[^>]*>|\b(?:TODO|TBD|PLACEHOLDER)\b)/i.test(metadata[key])) errors.push(`${key} must not contain HTML or unresolved placeholders`);
+    if (typeof metadata[key] === "string" && /(?:<[^>]*>|\b(?:TBD|PLACEHOLDER)\b|\bTODO\b(?=\s|[:.]|$))/i.test(metadata[key])) errors.push(`${key} must not contain HTML or unresolved placeholders`);
   }
   if (metadata.slug !== undefined && !SLUG.test(metadata.slug)) errors.push("slug must be lowercase kebab-case");
   if (metadata.language !== undefined && metadata.language !== "pt-BR") errors.push("language must be pt-BR");
@@ -107,8 +116,25 @@ function validateMetadata(metadata, location, context, legacy = false) {
   if (!legacy && metadata.prerequisites?.length && !context.knownSlugs) errors.push("knownSlugs registry is required when prerequisites are declared");
   if (metadata.prerequisites && context.knownSlugs) for (const slug of metadata.prerequisites) if (!context.knownSlugs.has(slug)) errors.push(`unknown prerequisite slug: ${slug}`);
   if (context.knownTags && metadata.tags) for (const tag of metadata.tags) if (!context.knownTags.has(tag)) errors.push(`unknown tag ID: ${tag}`);
-  if (metadata.image && !assetExistsSafely(metadata.image, context, location)) errors.push(`cover asset does not exist: ${metadata.image}`);
+  if (checkAssets && metadata.image && !assetExistsSafely(metadata.image, context, location)) errors.push(`cover asset does not exist: ${metadata.image}`);
   if (errors.length) fail(location, errors.join("; "));
+}
+
+export function validateArticleMetadata(metadata, context = {}, { legacy = false, checkAssets = true } = {}) {
+  const location = context.sourcePath ?? "<article>";
+  if (!plainObject(metadata)) fail(location, "article metadata must be a plain object");
+  validateMetadata(metadata, location, context, legacy, { checkAssets });
+  validateSpeechMarkup(metadata, location);
+  const normalizedPath = location.replace(/\\/g, "/");
+  const extension = path.posix.extname(normalizedPath);
+  if (extension === ".json" && !legacy) fail(location, "JSON article sources are only supported for historical migration reads");
+  if (extension === ".md" || extension === ".json") {
+    const filenameSlug = path.posix.basename(normalizedPath, extension);
+    if (metadata.slug !== filenameSlug) fail(location, extension === ".md"
+      ? "metadata slug must match Markdown filename"
+      : "metadata slug must match JSON filename");
+  }
+  return structuredClone(metadata);
 }
 
 function decoded(value, where) {
@@ -131,10 +157,14 @@ function resolveLocal(raw, { sourcePath, rootPath, context, where, isImage = fal
     if (isImage) fail(where, "remote image URLs are not permitted");
     return raw;
   }
-  if (raw.startsWith("#")) return raw;
+  if (raw.startsWith("#")) {
+    if (isImage) fail(where, "images cannot use fragment-only URLs");
+    return raw;
+  }
   if (raw.startsWith("//")) fail(where, "protocol-relative URLs are not permitted");
   const decodedPath = decoded(raw.split(/[?#]/, 1)[0], where).replace(/\\/g, "/");
   if (/^[a-z][a-z0-9+.-]*:/i.test(decodedPath) || decodedPath.startsWith("/")) fail(where, "absolute or encoded URL paths are not permitted");
+  if (!isImage && ["article.html", "index.html"].includes(decodedPath)) return raw;
   const sourceDir = path.posix.dirname(sourcePath.replace(/\\/g, "/"));
   const normalized = path.posix.normalize(path.posix.join(sourceDir, decodedPath));
   const absoluteRoot = path.resolve(rootPath);
@@ -201,11 +231,12 @@ function sanitizeSchema() {
   schema.tagNames = [...TAGS];
   schema.attributes = {
     "*": ["ariaAtomic", "ariaLabel", "ariaLabelledBy", "ariaDescribedBy", "ariaHidden", "ariaLive", "className", "id", "lang", "role", "tabIndex", "title"],
-    a: ["href", "name", "download", "target", "rel"],
+    a: ["href", "name", "download", "target", "rel", "dataFootnoteRef", "dataFootnoteBackref"],
     img: ["src", "alt", "width", "height", "srcSet"],
     input: ["id", "name", "type", "min", "max", "step", "value", "checked", "disabled", "ariaLabel"],
-    button: ["type", "disabled"],
-    th: ["colSpan", "rowSpan", "scope"], td: ["colSpan", "rowSpan"],
+    button: ["type", "disabled"], label: ["htmlFor"], output: ["htmlFor"],
+    th: ["colSpan", "rowSpan", "scope", "align"], td: ["colSpan", "rowSpan", "align"],
+    section: ["dataFootnotes"],
     div: ["dataMermaid", "dataMermaidLabel", "dataTtsSay", "dataTtsMode"],
     span: ["dataTtsSay", "dataTtsMode"], code: ["dataTtsSay", "dataTtsMode"],
     pre: ["dataTtsSay", "dataTtsMode"]
@@ -217,6 +248,18 @@ function sanitizeSchema() {
   return schema;
 }
 
+function restoreActiveRangeInputs(source, sanitized) {
+  const activeIds = new Set();
+  walk(source, node => {
+    if (node.tagName === "input" && node.properties?.type === "range"
+      && node.properties.disabled !== true && typeof node.properties.id === "string") activeIds.add(node.properties.id);
+  });
+  if (!activeIds.size) return;
+  walk(sanitized, node => {
+    if (node.tagName === "input" && activeIds.has(node.properties?.id)) delete node.properties.disabled;
+  });
+}
+
 function preflight(tree, context, location) {
   const ids = new Set();
   const fragments = [];
@@ -226,6 +269,11 @@ function preflight(tree, context, location) {
     const tag = node.tagName.toLowerCase();
     if (!TAGS.has(tag)) fail(location, `HTML element <${tag}> is not allowed`);
     const attrs = node.properties ?? {};
+    if (tag === "input") {
+      const activeRange = attrs.type === "range" && typeof attrs.id === "string" && attrs.id.trim();
+      const inertCheckbox = attrs.type === "checkbox" && attrs.disabled === true;
+      if (!activeRange && !inertCheckbox) fail(location, "inputs must be identified range controls or disabled checkboxes");
+    }
     const ttsMode = attrs.dataTtsMode ?? attrs["data-tts-mode"];
     const ttsSay = attrs.dataTtsSay ?? attrs["data-tts-say"];
     if (ttsMode !== undefined && !["spell", "word"].includes(ttsMode)) fail(location, "data-tts-mode must be spell or word");
@@ -234,9 +282,10 @@ function preflight(tree, context, location) {
     const language = attrs.lang;
     if (language !== undefined && !/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(language)) fail(location, "lang must be a valid language tag");
     for (const [key, value] of Object.entries(attrs)) {
-      const attr = key === "className" ? "class" : key === "tabIndex" ? "tabindex" : key === "srcSet" ? "srcset" : key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`).toLowerCase();
+      const attr = key === "className" ? "class" : key === "htmlFor" ? "for" : key === "tabIndex" ? "tabindex" : key === "srcSet" ? "srcset" : key === "ariaDescribedBy" ? "aria-describedby" : key === "ariaLabelledBy" ? "aria-labelledby" : key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`).toLowerCase();
       if (/^on/i.test(attr)) fail(location, `event handler attribute ${key} is forbidden`);
       if (!ATTRS.has(attr) && !(attr === "rel" || attr === "aria-labelledby" || attr === "aria-describedby")) fail(location, `HTML attribute ${key} is not allowed`);
+      if (attr === "align" && (tag !== "th" && tag !== "td" || !/^(?:left|center|right)$/.test(String(value)))) fail(location, "table alignment must be left, center or right");
       if (attr === "class") {
         const classes = Array.isArray(value) ? value : String(value).split(/\s+/);
         for (const name of classes) if (!SAFE_CLASS.test(name) && !/^language-/.test(name)) fail(location, `HTML class is not allowed: ${name}`);
@@ -250,7 +299,7 @@ function preflight(tree, context, location) {
         const raw = String(value);
         if (attr === "href" && raw.startsWith("#")) fragments.push(decoded(raw.slice(1), location));
         safeProtocol(raw, location);
-        attrs[attr] = context.resolvedUrls?.has(raw) ? raw : resolveLocal(raw, { sourcePath: context.sourcePath, rootPath: context.rootPath, context, where: location, isImage: attr === "src" });
+        attrs[attr] = context.resolvedUrls?.has(`${attr}:${raw}`) ? raw : resolveLocal(raw, { sourcePath: context.sourcePath, rootPath: context.rootPath, context, where: location, isImage: attr === "src" });
       }
     }
     if (attrs.srcSet !== undefined) {
@@ -348,19 +397,20 @@ function transformMdast(tree, metadata, context, location) {
   if (pendingAnchor) fail(location, `explicit anchor ${pendingAnchor} has no following heading`);
   for (let i = 0; i < tree.children.length; i++) {
     const node = tree.children[i];
-    if (node.type === "html" && /^\s*<!--\s*diagram:/i.test(node.value)) {
+    if (node.type === "html" && /^\s*<!--\s*(?:diagram:|tech-topics:mermaid)/i.test(node.value)) {
       if (pendingDiagram) fail(location, "duplicate or orphan diagram metadata comment");
-      const match = node.value.match(/^\s*<!--\s*diagram:\s*([\s\S]*?)\s*-->\s*$/i);
+      const canonical = /^\s*<!--\s*tech-topics:mermaid\s+([\s\S]*?)\s*-->\s*$/i.test(node.value);
+      const match = node.value.match(canonical ? /^\s*<!--\s*tech-topics:mermaid\s+([\s\S]*?)\s*-->\s*$/i : /^\s*<!--\s*diagram:\s*([\s\S]*?)\s*-->\s*$/i);
       if (!match) fail(location, "invalid diagram metadata comment");
       let data;
       const diagramDoc = parseDocument(match[1], { version: "1.2", schema: "json", strict: true, uniqueKeys: true, merge: false, maxAliasCount: 0, customTags: [], resolveKnownTags: false });
       if (diagramDoc.errors.length) fail(location, `invalid diagram metadata JSON: ${diagramDoc.errors.map(error => error.message).join("; ")}`);
       data = diagramDoc.toJS({ maxAliasCount: 0 });
       const keys = Object.keys(data ?? {}).sort();
-      if (JSON.stringify(keys) !== JSON.stringify(["caption", "fallback", "label"]) || keys.some(key => typeof data[key] !== "string" || !data[key].trim())) fail(location, "diagram metadata requires exactly non-empty label, caption and fallback strings");
+      if (canonical ? JSON.stringify(keys) !== JSON.stringify(["label"]) || typeof data.label !== "string" || !data.label.trim() : JSON.stringify(keys) !== JSON.stringify(["caption", "fallback", "label"]) || keys.some(key => typeof data[key] !== "string" || !data[key].trim())) fail(location, canonical ? "Mermaid metadata requires exactly a non-empty label" : "diagram metadata requires exactly non-empty label, caption and fallback strings");
       if (Object.values(data).some(value => /<\s*\/?\s*(?:script|[a-z][\w-]*)(?:\s|>|\/)/i.test(value))) fail(location, "HTML-like injection is not allowed in diagram metadata");
       if (tree.children[i + 1]?.type !== "code" || tree.children[i + 1]?.lang?.toLowerCase() !== "mermaid") fail(location, "diagram metadata comment must immediately precede one Mermaid fence");
-      pendingDiagram = data;
+      pendingDiagram = { ...data, canonical };
       node.type = "text";
       node.value = "";
       node.data = undefined;
@@ -370,9 +420,9 @@ function transformMdast(tree, metadata, context, location) {
       if (!pendingDiagram) fail(location, "Mermaid fence requires an adjacent diagram metadata comment");
       const decodedDiagram = decodePercentForInspection(node.value);
       if (/%%\s*\{|(?:^|[;\n])\s*click\s+[^\s;]+(?:\s|$)|<\s*\/?\s*(?:script|iframe|foreignObject)\b|javascript\s*:/im.test(decodedDiagram)) fail(location, "Mermaid init directives, click interactions and executable HTML/URLs are forbidden");
-      const { label, caption, fallback } = pendingDiagram;
-      node.data = { ...(node.data ?? {}), mermaidData: { label, caption, fallback } };
-      (context.mermaidDiagrams ??= []).push({ label, caption, fallback });
+      const { label, caption, fallback, canonical } = pendingDiagram;
+      node.data = { ...(node.data ?? {}), mermaidData: { label, caption, fallback, canonical, source: canonical ? node.value : undefined } };
+      (context.mermaidDiagrams ??= []).push({ label, caption, fallback, canonical, source: canonical ? node.value : undefined });
       pendingDiagram = null;
       continue;
     }
@@ -391,7 +441,7 @@ function transformMdast(tree, metadata, context, location) {
   walk(tree, (node, parent) => {
     if (node.type === "image" || node.type === "link") {
       const resolved = resolveLocal(node.url, { sourcePath: context.sourcePath, rootPath: context.rootPath, context, where: location, isImage: node.type === "image" });
-      (context.resolvedUrls ??= new Set()).add(resolved);
+      (context.resolvedUrls ??= new Set()).add(`${node.type === "image" ? "src" : "href"}:${resolved}`);
       node.url = resolved;
       if (node.type === "image" && (!node.alt || !node.alt.trim())) fail(location, "every image must have non-empty alt text");
     }
@@ -407,14 +457,38 @@ function renderMermaidFences(options = {}) {
         const pre = parent.children[index];
         const code = pre.type === "element" && pre.tagName === "pre" ? pre.children?.find(child => child.type === "element" && child.tagName === "code" && (child.properties?.className ?? []).includes("language-mermaid")) : null;
         if (code) {
-          const source = code.children?.map(child => child.value ?? "").join("") ?? "";
           const data = options.mermaidDiagrams?.[diagramIndex++];
           if (!data) throw new Error("Mermaid fence lost its declarative metadata during conversion");
-          parent.children[index] = { type: "element", tagName: "figure", properties: { className: ["mermaid-figure"] }, children: [
+          const source = data.canonical ? data.source : code.children?.map(child => child.value ?? "").join("") ?? "";
+          const figureChildren = [
             { type: "element", tagName: "div", properties: { className: ["mermaid-diagram"], dataMermaid: "true", dataMermaidLabel: data.label }, children: [{ type: "element", tagName: "pre", properties: { className: ["mermaid-source"] }, children: [{ type: "text", value: source }] }] },
-            { type: "element", tagName: "figcaption", properties: {}, children: [{ type: "text", value: data.caption }] },
-            { type: "element", tagName: "details", properties: { className: ["mermaid-fallback"] }, children: [{ type: "element", tagName: "summary", properties: {}, children: [{ type: "text", value: "Ver o código Mermaid" }] }, { type: "element", tagName: "pre", properties: { className: ["code-block"] }, children: [{ type: "text", value: data.fallback }] }] }
-          ] };
+          ];
+          if (data.canonical) {
+            let next = index + 1;
+            while (parent.children[next]?.type === "text" && !parent.children[next].value.trim()) next++;
+            const caption = parent.children[next];
+            const captionRaw = caption?.type === "raw" ? caption.value : "";
+            if (!/^\s*<figcaption(?:\s[^>]*)?>[\s\S]*\S[\s\S]*<\/figcaption>\s*$/i.test(captionRaw)) throw new Error("Canonical Mermaid fence requires an adjacent non-empty figcaption");
+            const parsedCaption = parseFragment(captionRaw);
+            if (parsedCaption.childNodes.length !== 1 || parsedCaption.childNodes[0].tagName !== "figcaption" || !fragmentText(parsedCaption.childNodes[0]).trim()) throw new Error("Canonical Mermaid caption must be exactly one non-empty figcaption");
+            next++;
+            while (parent.children[next]?.type === "text" && !parent.children[next].value.trim()) next++;
+            const fallback = parent.children[next];
+            const fallbackRaw = fallback?.type === "raw" ? fallback.value : "";
+            if (!/^\s*<details\s+class=["']mermaid-fallback["'][^>]*>[\s\S]*<\/details>\s*$/i.test(fallbackRaw) || !/<summary(?:\s[^>]*)?>[\s\S]*\S[\s\S]*<\/summary>/i.test(fallbackRaw)) throw new Error("Canonical Mermaid fence requires adjacent details.mermaid-fallback with summary");
+            const parsedFallback = parseFragment(fallbackRaw);
+            const detailsNode = parsedFallback.childNodes[0];
+            const fallbackText = detailsNode?.childNodes?.filter(child => child.tagName !== "summary").map(fragmentText).join("") ?? "";
+            if (parsedFallback.childNodes.length !== 1 || detailsNode.tagName !== "details" || !fallbackText.trim()) throw new Error("Canonical Mermaid fallback must be exactly one details element with non-empty fallback content");
+            figureChildren.push({ type: "raw", value: captionRaw }, { type: "raw", value: fallbackRaw });
+            parent.children.splice(index + 1, next - index);
+          } else {
+            figureChildren.push(
+              { type: "element", tagName: "figcaption", properties: {}, children: [{ type: "text", value: data.caption }] },
+              { type: "element", tagName: "details", properties: { className: ["mermaid-fallback"] }, children: [{ type: "element", tagName: "summary", properties: {}, children: [{ type: "text", value: "Ver o código Mermaid" }] }, { type: "element", tagName: "pre", properties: { className: ["code-block"] }, children: [{ type: "text", value: data.fallback }] }] }
+            );
+          }
+          parent.children[index] = { type: "element", tagName: "figure", properties: { className: ["mermaid-figure"] }, children: figureChildren };
         } else visitChildren(pre);
       }
     };
@@ -480,6 +554,7 @@ function validateRenderedHtml(html, location, context = {}) {
       for (const attr of node.attrs ?? []) {
         if (/^on/i.test(attr.name)) fail(location, `rendered HTML contains event attribute ${attr.name}`);
         if (!ATTRS.has(attr.name) && attr.name !== "rel" && attr.name !== "aria-labelledby" && attr.name !== "aria-describedby") fail(location, `rendered HTML contains unsupported attribute ${attr.name}`);
+        if (attr.name === "align" && (tag !== "th" && tag !== "td" || !/^(?:left|center|right)$/.test(attr.value))) fail(location, "rendered table alignment must be left, center or right");
         if (attr.name === "class") for (const name of attr.value.split(/\s+/)) if (!SAFE_CLASS.test(name)) fail(location, `rendered HTML contains unsupported class ${name}`);
         if ((attr.name === "id" || attr.name === "name") && ids.has(idKey(attr.value))) fail(location, `rendered HTML contains duplicate ID/anchor ${attr.value}`);
         if (attr.name === "id" || attr.name === "name") {
@@ -510,12 +585,97 @@ function containsTag(node, expectedTag) {
   return Boolean(node?.tagName === expectedTag || (node?.childNodes ?? []).some(child => containsTag(child, expectedTag)));
 }
 
+const OPENING_COMPONENT_TAGS = new Set(["br", "button", "input", "label", "output"]);
+const OPENING_COMPONENT_CLASSES = new Set(["article-back", "fgs-formula"]);
+const OPENING_COMPONENT_ROLES = new Set(["button", "checkbox", "menuitem", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab", "treeitem"]);
+
+function hasVisibleProseText(value) {
+  return value.replace(/[\s\p{Default_Ignorable_Code_Point}]/gu, "").length > 0;
+}
+
+function openingCheckHtml(node) {
+  if (node.type === "html") return node.value;
+  if (node.type === "text") return escapeHtml(node.value);
+  if (node.type === "inlineCode") return `<code>${escapeHtml(node.value)}</code>`;
+  if (node.type === "break") return "<br>";
+  const tags = { emphasis: "em", strong: "strong", delete: "del", link: "a" };
+  const tag = tags[node.type];
+  const children = node.children?.map(openingCheckHtml).join("");
+  if (tag) return `<${tag}>${children ?? ""}</${tag}>`;
+  if (children !== undefined) return children;
+  return escapeHtml(textContent(node));
+}
+
+function openingUiComponent(node) {
+  if (OPENING_COMPONENT_TAGS.has(node.tagName)) return true;
+  const role = node.attrs?.find(attr => attr.name === "role")?.value.toLowerCase().split(/\s+/) ?? [];
+  const classes = node.attrs?.find(attr => attr.name === "class")?.value.split(/\s+/) ?? [];
+  if (role.some(name => OPENING_COMPONENT_ROLES.has(name))) return true;
+  if (classes.some(name => OPENING_COMPONENT_CLASSES.has(name))) return true;
+  return node.tagName === "a" && node.attrs?.some(attr => attr.name === "download");
+}
+
+function analyzeOpeningParagraph(paragraph) {
+  const fragment = parseFragment((paragraph.children ?? []).map(openingCheckHtml).join(""));
+  let proseStarted = false;
+  let hasProse = false;
+  let componentBeforeProse = false;
+  const inspect = node => {
+    if (node.nodeName === "#text") {
+      if (hasVisibleProseText(node.value)) {
+        proseStarted = true;
+        hasProse = true;
+      }
+      return;
+    }
+    if (openingUiComponent(node)) {
+      if (!proseStarted) componentBeforeProse = true;
+      return;
+    }
+    for (const child of node.childNodes ?? []) inspect(child);
+  };
+  for (const child of fragment.childNodes) inspect(child);
+  return { componentBeforeProse, hasProse };
+}
+
 function firstProseNode(tree, location) {
-  const first = tree.children.find(node => node.type !== "yaml" && node.type !== "html" && !(node.type === "paragraph" && !textContent(node).trim()));
-  if (!first || first.type !== "paragraph") fail(location, "first content block after frontmatter must be a prose paragraph");
+  let first = null;
+  let firstParagraphIndex = -1;
+  for (let index = 0; index < tree.children.length; index++) {
+    const node = tree.children[index];
+    if (node.type === "yaml" || node.type === "html") continue;
+    if (node.type !== "paragraph") fail(location, "first content block after frontmatter must be a prose paragraph");
+    const opening = analyzeOpeningParagraph(node);
+    if (opening.componentBeforeProse) fail(location, "opening content cannot begin with an HTML component");
+    if (!opening.hasProse) {
+      let hasMarkdownImage = false;
+      walk(node, child => { if (child.type === "image") hasMarkdownImage = true; });
+      if (hasMarkdownImage || node.children?.some(child => child.type === "html" && containsTag(parseFragment(child.value), "img"))) {
+        fail(location, "first prose paragraph cannot contain an image");
+      }
+      fail(location, "first content block after frontmatter must be a prose paragraph");
+    }
+    first = node;
+    firstParagraphIndex = index;
+    break;
+  }
+  if (!first) fail(location, "first content block after frontmatter must be a prose paragraph");
   let imageBeforeText = false;
   walk(first, node => { if (node.type === "image") imageBeforeText = true; });
   if (imageBeforeText) fail(location, "first prose paragraph cannot contain an image");
+  for (const node of tree.children.slice(0, firstParagraphIndex)) {
+    if (node.type !== "html") continue;
+    const fragment = parseFragment(node.value);
+    const isOnlyLegacyAnchor = fragment.childNodes.every(child => !child.tagName || (
+      child.tagName === "a" && child.attrs.some(attr => attr.name === "name") &&
+      child.childNodes.every(grandchild => grandchild.nodeName === "#text" && !grandchild.value.trim())
+    ));
+    if (!isOnlyLegacyAnchor) fail(location, "an image or component cannot precede the opening prose paragraph");
+  }
+  walk(first, node => {
+    if (node.type !== "html") return;
+    if (containsTag(parseFragment(node.value), "img")) fail(location, "first prose paragraph cannot contain an image");
+  });
 }
 
 export async function compileMarkdownArticle({ source, sourcePath, rootPath = ROOT, knownTags, knownSlugs, assetExists, ...context } = {}) {
@@ -527,10 +687,7 @@ export async function compileMarkdownArticle({ source, sourcePath, rootPath = RO
   if (knownSlugs !== undefined && !Array.isArray(knownSlugs) && !(knownSlugs instanceof Set)) fail(location, "knownSlugs registry must be an array or Set");
   const compilerContext = { ...context, sourcePath: location, rootPath, knownTags: knownTags && new Set(knownTags), knownSlugs: knownSlugs && new Set(knownSlugs), assetExists };
   if (!/^content\/articles\/[a-z0-9]+(?:-[a-z0-9]+)*\.md$/.test(location.replace(/\\/g, "/"))) fail(location, "sourcePath must be content/articles/<slug>.md");
-  validateMetadata(metadata, location, compilerContext);
-  validateSpeechMarkup(metadata, location);
-  const filenameSlug = path.posix.basename(location.replace(/\\/g, "/"), ".md");
-  if (metadata.slug !== filenameSlug) fail(location, "metadata slug must match Markdown filename");
+  validateArticleMetadata(metadata, compilerContext);
   const processor = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]);
   const tree = processor.parse(parsed.body);
   firstProseNode(tree, location);
@@ -539,12 +696,19 @@ export async function compileMarkdownArticle({ source, sourcePath, rootPath = RO
   preflight(hast, compilerContext, location);
   const expectedTree = JSON.stringify(treeSnapshot(hast));
   const sanitized = await unified().use(rehypeSanitize, sanitizeSchema()).run(hast);
-  if (JSON.stringify(treeSnapshot(sanitized)) !== expectedTree) fail(location, "sanitizer would alter validated content; adjust the allowlist instead of silently dropping it");
+  restoreActiveRangeInputs(hast, sanitized);
+  const sanitizedTree = JSON.stringify(treeSnapshot(sanitized));
+  if (sanitizedTree !== expectedTree) {
+    let mismatch = 0;
+    while (expectedTree[mismatch] === sanitizedTree[mismatch] && mismatch < Math.min(expectedTree.length, sanitizedTree.length)) mismatch += 1;
+    fail(location, `sanitizer would alter validated content at byte ${mismatch}: ${JSON.stringify(expectedTree.slice(Math.max(0, mismatch - 48), mismatch + 96))} -> ${JSON.stringify(sanitizedTree.slice(Math.max(0, mismatch - 48), mismatch + 96))}`);
+  }
   const html = String(await unified().use(rehypeStringify).stringify(sanitized));
   validateRenderedHtml(html, location, { ...compilerContext, rejectBodyH1: true });
   const fragment = parseFragment(html);
   const first = fragment.childNodes.find(node => node.tagName || node.nodeName === "#text");
   if (!first || first.tagName !== "p") fail(location, "compiled body must begin with exactly one paragraph");
+  if (containsTag(first, "img")) fail(location, "compiled opening prose paragraph cannot contain an image");
   const title = metadata.title;
   const dek = metadata.dek;
   const titleHtml = renderTextSlot(title, metadata.speechMarkup?.title, location);
@@ -565,8 +729,7 @@ export function fromLegacyArticle(record, context = {}) {
   if (!plainObject(record)) throw new TypeError("legacy article must be an object");
   const metadata = structuredClone(record);
   delete metadata.bodyHtml;
-  validateMetadata(metadata, context.sourcePath ?? `${record.slug}.json`, context, true);
-  validateSpeechMarkup(metadata, context.sourcePath ?? `${record.slug}.json`);
+  validateArticleMetadata(metadata, { ...context, sourcePath: context.sourcePath ?? `${record.slug}.json` }, { legacy: true });
   const body = record.bodyHtml;
   if (typeof body !== "string" || !body.trim()) fail(context.sourcePath ?? record.slug, "legacy bodyHtml must be non-empty HTML");
   const fragment = parseFragment(body);

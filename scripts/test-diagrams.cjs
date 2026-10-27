@@ -24,18 +24,28 @@ async function main() {
     }
   }
 
-  const articleFiles = (await readdir(articlesDir))
-    .filter(file => file.endsWith(".json") && file !== "index.json");
+  const [{ compileMarkdownArticle }] = await Promise.all([import("./lib/markdown-article.mjs")]);
+  const taxonomy = JSON.parse(await readFile(path.join(root, "generation", "taxonomy", "tags.json"), "utf8"));
+  const articleFiles = (await readdir(articlesDir)).filter(file => file.endsWith(".md"));
+  const knownSlugs = new Set(articleFiles.map(file => file.slice(0, -3)));
   let total = 0;
   for (const file of articleFiles) {
-    const article = JSON.parse(await readFile(path.join(articlesDir, file), "utf8"));
-    const diagrams = (article.bodyHtml.match(/data-mermaid\s*=\s*["']true["']/gi) || []).length;
-    const sources = (article.bodyHtml.match(/class\s*=\s*["'][^"']*\bmermaid-source\b[^"']*["']/gi) || []).length;
-    const fallbacks = (article.bodyHtml.match(/class\s*=\s*["'][^"']*\bmermaid-fallback\b[^"']*["']/gi) || []).length;
+    const sourcePath = path.join(articlesDir, file);
+    const compiled = await compileMarkdownArticle({
+      source: await readFile(sourcePath, "utf8"),
+      sourcePath: path.relative(root, sourcePath),
+      rootPath: root,
+      knownTags: new Set(Object.keys(taxonomy.tags)),
+      knownSlugs,
+    });
+    const bodyHtml = compiled.slots.body;
+    const diagrams = (bodyHtml.match(/data-mermaid\s*=\s*["']true["']/gi) || []).length;
+    const sources = (bodyHtml.match(/class\s*=\s*["'][^"']*\bmermaid-source\b[^"']*["']/gi) || []).length;
+    const fallbacks = (bodyHtml.match(/class\s*=\s*["'][^"']*\bmermaid-fallback\b[^"']*["']/gi) || []).length;
     if (diagrams !== sources || diagrams !== fallbacks) {
       failures.push(file + ": Mermaid diagram/source/fallback count mismatch");
     }
-    if (/<svg\b|\.svg(?:["')?#]|$)/i.test(article.bodyHtml)) {
+    if (/<svg\b|\.svg(?:["')?#]|$)/i.test(bodyHtml)) {
       failures.push(file + ": SVG visual reference remains");
     }
     total += diagrams;

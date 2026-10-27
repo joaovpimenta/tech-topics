@@ -3,7 +3,7 @@
 Escreva em português brasileiro para uma pessoa desenvolvedora que parte do zero e quer chegar a uma compreensão prática e rigorosa.
 
 - Pesquise fontes primárias e atuais antes de afirmar fatos, datas ou propriedades; coloque links próximos das afirmações e encerre com fontes.
-- Comece o `bodyHtml` com uma única cena cotidiana em forma de diálogo-metáfora natural. Não marque falas com aspas, travessões ou nomes. A cena deve antecipar o problema técnico e poder virar uma única capa física.
+- Comece o corpo do artigo com uma única cena cotidiana em forma de diálogo-metáfora natural. Não marque falas com aspas, travessões ou nomes. A cena deve antecipar o problema técnico e poder virar uma única capa física.
 - Explique a intuição antes da nomenclatura; depois aprofunde mecanismo, exemplos, limites, falhas e decisões operacionais.
 - Use exemplos concretos e quantificados quando eles aumentarem a compreensão. Diferencie garantias, hipóteses e simplificações didáticas.
 - Prefira headings informativos; evite “Introdução”, metalinguagem, bordões, repetição e conclusão que apenas reescreve a abertura.
@@ -15,4 +15,6 @@ Escreva em português brasileiro para uma pessoa desenvolvedora que parte do zer
 - **Setas e símbolos no texto narrável:** decida o significado **em cada ocorrência**, incluindo `→`, `←`, `↑` e `↓`. Se o símbolo transmitir fluxo, ordem, retorno, crescimento, queda, transformação ou implicação, mantenha-o visível e envolva **somente o símbolo** em `<span data-tts-say="...">…</span>` com uma expressão contextual: `Banco <span data-tts-say="para o">→</span> broker`, `latência <span data-tts-say="aumenta">↑</span>` ou `erros <span data-tts-say="diminuem">↓</span>`. Escolha também entre “retorna para”, “resulta em” e “implica” conforme a relação. Não narre “seta para a direita/esquerda” por padrão, não traduza símbolos globalmente e não anote setas decorativas, de navegação ou pertencentes a código/diagramas ignorados pelo TTS.
 - **Revisão de acessibilidade TTS antes de entregar:** releia como fala contínua títulos, cartões, legendas e parágrafos; verifique que termos inline essenciais e setas com significado tenham aliases naturais e que o HTML visível continue idêntico. Consulte os exemplos e exceções de [docs/TTS.md](../../docs/TTS.md#código-e-conteúdo-não-narrativo).
 
-Entregue um artigo no contrato JSON vigente em `content/articles/<slug>.json`. O lint é a autoridade para campos, HTML seguro, assets, acessibilidade, referências locais e estrutura verificável. Corrija o artigo até `node scripts/validate-site.mjs` passar; não tente contornar o lint em prosa.
+Entregue um arquivo `content/articles/<slug>.md` baseado em `generation/templates/article.md`, com tags canônicas de `generation/taxonomy/tags.json`. O build público aceita somente fontes Markdown e compila cada artigo diretamente para HTML. Fontes JSON individuais são rejeitadas; o comparador de migração pode ler JSON apenas em revisões históricas.
+
+O compilador compartilhado valida metadados, catálogo e estrutura Markdown. `node scripts/validate-site.mjs` valida o corpus Markdown e constrói um preview `html-v1` temporário e descartável; `node scripts/build-site.mjs` monta o pacote de produção em `dist/`. Não declare publicação concluída sem verificar o deploy e a experiência no navegador. Não tente contornar os gates em prosa.

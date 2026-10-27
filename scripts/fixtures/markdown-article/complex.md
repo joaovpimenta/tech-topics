@@ -44,11 +44,17 @@ Uma conversa começa com uma observação cotidiana e apresenta o conceito sem d
 
 [Outro artigo](../../content/articles/outro.md?modo=leitura#intro)
 
-<!-- diagram: {"label":"Fluxo de compilação","caption":"O fluxo separa fonte e HTML.","fallback":"flowchart LR\n A --> B"} -->
+<!-- tech-topics:mermaid {"label":"Fluxo de compilação"} -->
 ```mermaid
 flowchart LR
   A[Markdown] --> B[HTML]
 ```
+<figcaption>O fluxo <span lang="pt-BR">separa fonte</span> e HTML.</figcaption>
+
+<details class="mermaid-fallback">
+<summary lang="pt-BR">Descrição alternativa</summary>
+O Markdown é transformado em HTML por uma etapa de compilação separada.
+</details>
 
 [Ir para a âncora preservada](#âncora-antiga)
 

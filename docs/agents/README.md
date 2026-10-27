@@ -6,8 +6,8 @@ Execute `node scripts/doctor.mjs --json` para obter pré-requisitos, diagnóstic
 
 Leia somente o ramo que corresponde à tarefa:
 
-- **Artigo:** fluxo editorial de `AGENTS.md`; o compositor lista catálogo e módulos sem carregar artigos completos.
-- **Build, workflows ou publicação:** [PUBLISHING.md](../PUBLISHING.md). `scripts/validate-site.mjs` valida e gera; `scripts/build-site.mjs` empacota o estado já gerado em `dist/`.
+- **Artigo:** fluxo editorial de `AGENTS.md` e [contrato autoral](../../generation/editorial/AUTHORING.md). Artigo novo tem fonte `content/articles/<slug>.md`; JSON é legado. O compositor fornece apenas um brief e não chama LLM nem escreve artigo: o modelo/redator é uma etapa externa, sem provedor ou orquestração automática neste repositório.
+- **Build, workflows ou publicação:** [PUBLISHING.md](../PUBLISHING.md). `scripts/validate-site.mjs` valida e constrói um preview temporário; `scripts/build-site.mjs` produz o pacote de produção em `dist/` a partir dos inputs editoriais do commit.
 - **Fila ou seleção:** [TOPIC_QUEUE.md](../TOPIC_QUEUE.md). A consulta JSON da fila não publica comentários; mantenha curadoria e seleção separadas.
 - **Planejador de áudio independente de engine:** [tools/tts/README.md](../../tools/tts/README.md) e [ADR 0004](../adr/0004-tts-segmentation-backend-boundary.md); a pronúncia da voz do dispositivo continua em [TTS.md](../TTS.md).
 - **Narração pública Kokoro/Actions:** [KOKORO_ACTIONS.md](../KOKORO_ACTIONS.md); decisões em [ADR 0001 (Dora/tokens/codecs)](../adr/0001-kokoro-dora-prosody-and-encoding.md), [ADR 0002 (execução e skips)](../adr/0002-kokoro-execution-cost-and-parallelism.md) e [ADR 0003 (player/capítulos)](../adr/0003-unified-article-audio-and-chapter-synchronization.md).
@@ -25,6 +25,6 @@ Leia somente o ramo que corresponde à tarefa:
 
 ## Verificação e entrega
 
-Preserve alterações locais anteriores. Rode o comando único após integrar mudanças. Ele gera `content/articles/index.json`, `sw-version.js` e o pacote ignorado `dist/`; sucesso local não confirma publicação. Verifique os checks do PR e o deploy antes de declarar a mudança publicada. Registre testes pulados e falhas separadamente.
+Preserve alterações locais anteriores. Rode o comando único após integrar mudanças. Ele gera o catálogo leve, `sw-version.js` e um preview HTML temporário; a CI produz o pacote ignorado `dist/` antes de validar o deploy. Sucesso local não confirma publicação. Verifique os checks do PR e o deploy antes de declarar a mudança publicada. Registre testes pulados e falhas separadamente.
 
 As revisões de rigor factual, metáfora, aparência de aquarela e qualidade da voz continuam exigindo julgamento. Automação não equivale a essas revisões.

@@ -33,13 +33,13 @@ node scripts/validate-site.mjs
 
 Esse comando executa o build, o lint editorial determinístico, as verificações de sintaxe JavaScript, os testes funcionais e a validação do registry de geração. Ele também verifica os diagramas Mermaid presentes, suas fontes e fallbacks; um artigo sem diagrama não precisa de um visual artificial.
 
-Ao final, o comando testa e gera o pacote público em `dist/`. O empacotamento usa uma allowlist, verifica referências locais e preserva os caminhos relativos. Documentação, instruções de geração, scripts e ferramentas locais não fazem parte do deploy. O conjunto público é distinto do precache: um download local pode ser publicado sem ser baixado antecipadamente pela PWA.
+Ao final, o comando constrói e valida um pacote HTML temporário. Esse preview aceita fontes editoriais ainda não commitadas e não altera `dist/`. O empacotamento usa uma allowlist, verifica referências locais e preserva os caminhos relativos. Documentação, instruções de geração, scripts e ferramentas locais não fazem parte do deploy. O conjunto público é distinto do precache: um download local pode ser publicado sem ser baixado antecipadamente pela PWA.
 
-`node scripts/build-site.mjs` apenas empacota os arquivos já gerados. Para inspecionar o que será publicado, sirva `dist/` e abra os mesmos caminhos de página. A CI exige os testes rápidos do TTS, sem síntese ou modelos; localmente são pulados com diagnóstico explícito quando Python não está disponível. Use `TECH_TOPICS_PYTHON` para indicar outro interpretador.
+`node scripts/build-site.mjs` constrói o pacote de produção em `dist/` e exige que fontes, taxonomia, léxico e assets editoriais coincidam com o `sourceSha`; a CI chama esse build no commit validado. O build de produção também exige histórico Git completo para recuperar o `addedAt` original; checkouts rasos falham, então jobs que constroem `dist` usam `fetch-depth: 0`. O preview local pode usar o catálogo anterior quando o histórico não estiver disponível. Para inspecionar fontes locais ainda não commitadas, gere um preview descartável com `node scripts/build-markdown-preview.mjs --output-dir <novo-diretório-dentro-do-temp-do-sistema>`. A CI exige os testes rápidos do TTS, sem síntese ou modelos; localmente são pulados com diagnóstico explícito quando Python não está disponível. Use `TECH_TOPICS_PYTHON` para indicar outro interpretador.
 
-O build reconstrói o manifesto com todos os artigos, ordenados do mais novo para o mais antigo, e atualiza os dados necessários ao cache da PWA. A mesma sequência é usada nas workflows de Pull Request e de GitHub Pages.
+O build reconstrói o catálogo leve com todos os artigos, ordenados do mais novo para o mais antigo, e atualiza os dados necessários ao cache da PWA. A mesma sequência é usada nas workflows de Pull Request e de GitHub Pages.
 
-Não edite manualmente `content/articles/index.json` ou `sw-version.js` quando eles forem artefatos gerados pelo build.
+Não edite manualmente `sw-version.js` quando ele for artefato gerado pelo build. O antigo índice de artigos foi removido.
 
 ## Verificações obrigatórias
 
@@ -100,7 +100,7 @@ Publique na branch `main` com mensagem de commit descritiva, conforme o fluxo vi
 
 O workflow do GitHub Pages deve terminar com sucesso antes de declarar a publicação concluída.
 
-Na publicação agendada, o job reutilizável `Select next Tech Topics article` escolhe a próxima pauta da [fila editorial](TOPIC_QUEUE.md) **após o deploy bem-sucedido do Pages** e somente se o push adicionou um novo JSON de artigo. Mudanças apenas de código ou documentação não acionam a seleção. Confirme o estado dessa Action e o comentário de seleção; se a fila estiver vazia, registre a limitação sem confundir o status do deploy do artigo com o preparo da próxima execução.
+Antes do deploy, tanto `push` quanto `workflow_dispatch` resolvem a revisão do último job `Deploy GitHub Pages` concluído com sucesso, mesmo que outro job posterior daquele workflow tenha falhado. No dispatch, a revisão selecionada também precisa ser o HEAD atual da `main`; um ref manual diferente ou ultrapassado falha fechado. Se não houver SHA anterior verificável ou ele não pertencer à história atual, a validação falha e bloqueia o deploy; não invente uma baseline vazia. Na publicação agendada, o job reutilizável `Select next Tech Topics article` escolhe a próxima pauta da [fila editorial](TOPIC_QUEUE.md) **após o deploy bem-sucedido do Pages** e somente se o inventário `.md` entre esse deploy anterior e a revisão atual contiver um slug novo. Em `html-v1`, o caller fixa o SHA da fonte e o `buildId` do pacote; reruns do mesmo artefato não criam outra seleção. Mudanças apenas de código ou documentação não acionam a seleção. Confirme o estado dessa Action e o comentário de seleção; se a fila estiver vazia, registre a limitação sem confundir o status do deploy do artigo com o preparo da próxima execução.
 
 Se ocorrer uma falha:
 
@@ -124,9 +124,9 @@ Ao concluir uma publicação de artigo, informe brevemente:
 
 ## Esteira de validação
 
-A workflow `Validate Tech Topics` executa em Pull Requests e sob acionamento manual. Em pushes relevantes para o site na `main`, a workflow de Pages executa a mesma validação antes do deploy e publica o artefato validado, sem reconstruí-lo na etapa de deploy. Pushes que modificam exclusivamente documentação, registry editorial, ferramentas TTS ou workflows de suporte (não o Pages) não disparam um novo build do site.
+A workflow `Validate Tech Topics` executa em Pull Requests e sob acionamento manual. Em pushes relevantes para o site na `main`, a workflow de Pages executa a mesma validação, constrói o pacote de produção no mesmo SHA e o envia para deploy sem reconstruí-lo na etapa de deploy. Pushes que modificam exclusivamente documentação, instruções de geração (exceto `generation/taxonomy/tags.json`, consumido pelo catálogo público), ferramentas TTS ou o workflow de validação `.github/workflows/validate.yml` não disparam um novo build do site. Mudanças nos workflows Kokoro e de seleção de pauta continuam acionando Pages para que mudanças de política sejam propagadas.
 
-Os checks de PR executam a validação em Ubuntu, usando a versão declarada em `.node-version`; a proteção de branch continua exigindo `Content and application lint`. A workflow de Pages envia somente `dist/`. A seleção automática da fila ocorre apenas após inclusão de novo JSON de artigo; mudanças de código, CSS ou JavaScript não autorizam outra seleção e não reprocessam a narração publicada.
+Os checks de PR executam a validação em Ubuntu, usando a versão declarada em `.node-version`; a proteção de branch continua exigindo `Content and application lint`. A workflow de Pages envia somente `dist/`. O build desta etapa compila o catálogo `html-v1` e um HTML por slug diretamente das fontes `.md`; fontes individuais e o antigo `content/articles/index.json` ficam fora do pacote. O inventário corrente rejeita artigos JSON. A seleção automática da fila ocorre apenas após inclusão de novo slug `.md`; mudanças de código, CSS ou JavaScript não autorizam outra seleção e não reprocessam a narração publicada. Os efeitos de áudio e fila continuam bloqueados.
 
 A proteção da `main` exige o check estável `Content and application lint`. Esse check agrega a matriz do PR e só passa quando todas as plataformas passam; não renomeie sem atualizar a proteção correspondente.
 

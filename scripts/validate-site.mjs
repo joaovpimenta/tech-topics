@@ -7,6 +7,7 @@ const checks = [
   ["Check repository diagnostics", ["scripts/test-repository-health.mjs"]],
   ["Run article contract tests", ["scripts/test-article-contract.mjs"]],
   ["Run migration baseline contract tests", ["scripts/test-migration-baseline.mjs"]],
+  ["Run migration comparison tests", ["scripts/test-migration-compare.mjs"]],
   ["Run migration effect workflow tests", ["scripts/test-migration-effects.mjs"]],
   ["Validate generation registry", ["scripts/validate-generation.mjs"]],
   ["Run generation composer tests", ["scripts/test-generation.cjs"]],
@@ -24,9 +25,10 @@ const checks = [
   ["Run PWA tests", ["scripts/test-pwa.cjs"]],
   ["Run FGS tests", ["scripts/test-fgs.cjs"]],
   ["Run diagram tests", ["scripts/test-diagrams.cjs"]],
-  ["Run public artifact tests", ["scripts/test-site-artifact.mjs"]],
+  ["Run deterministic Markdown HTML preview tests", ["scripts/test-markdown-preview.mjs"]],
+  ["Run Markdown-only article pipeline tests", ["scripts/test-markdown-article-pipeline.mjs"]],
   ["Run local TTS tests", ["scripts/test-tts.mjs"]],
-  ["Build public site artifact", ["scripts/build-site.mjs"]]
+  ["Build local HTML preview artifact", ["scripts/build-site.mjs", "--preview"]]
 ];
 
 function run(label, args) {

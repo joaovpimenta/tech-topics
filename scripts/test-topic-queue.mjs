@@ -100,6 +100,45 @@ assert.equal(newSelection.status, "selected");
 assert.equal(newSelection.eligible.length, 4);
 assert.equal((await execute(false)).status, "pending");
 assert.equal(posts, 1);
+
+// A successful publication event is keyed by the exact source/artifact pair.
+// Rerunning it after the selected article becomes published must not consume
+// another candidate; a later deployed revision may select the next article.
+const deploymentComments = [...trustedCandidates];
+let deploymentPosts = 0;
+const deploymentAdapter = {
+  listComments: async () => [...deploymentComments],
+  postSelection: async (topic, deployment) => {
+    deploymentPosts++;
+    const posted = {
+      id: 399 + deploymentPosts,
+      body: selectionComment(topic, deployment),
+      user: { login: "github-actions[bot]" }
+    };
+    deploymentComments.push(posted);
+    return posted;
+  }
+};
+const firstDeployment = { sourceSha: "a".repeat(40), buildId: "b".repeat(64) };
+const firstResult = await runTopicQueue({
+  adapter: deploymentAdapter, owner, registry, published: [], deployment: firstDeployment, randomIndex: () => 0
+});
+assert.equal(firstResult.status, "selected");
+assert.equal(firstResult.selection.sourceSha, firstDeployment.sourceSha);
+assert.equal(firstResult.selection.buildId, firstDeployment.buildId);
+const deployedSlug = firstResult.selection.slug;
+assert.equal((await runTopicQueue({
+  adapter: deploymentAdapter, owner, registry, published: [deployedSlug], deployment: firstDeployment, randomIndex: () => 0
+})).status, "already-processed");
+assert.equal(deploymentPosts, 1, "the same deployed artifact must not post another selection");
+const laterDeployment = { sourceSha: "c".repeat(40), buildId: "d".repeat(64) };
+const laterResult = await runTopicQueue({
+  adapter: deploymentAdapter, owner, registry, published: [deployedSlug], deployment: laterDeployment, randomIndex: () => 0
+});
+assert.equal(laterResult.status, "selected");
+assert.notEqual(laterResult.selection.slug, deployedSlug);
+assert.equal(deploymentPosts, 2, "a later deployed artifact may advance the queue once");
+
 let reads = 0;
 const intervening = {
   listComments: async () => ++reads === 1 ? trustedCandidates : stored,

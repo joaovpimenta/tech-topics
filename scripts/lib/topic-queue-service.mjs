@@ -23,11 +23,11 @@ export function githubQueueAdapter({ repository, issue, token, fetchImpl = fetch
         if (batch.length < 100) return comments;
       }
     },
-    async postSelection(topic) {
+    async postSelection(topic, deployment = null) {
       if (!token) throw new Error("GITHUB_TOKEN is required to publish a selection");
       return request(endpoint, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: selectionComment(topic) })
+        body: JSON.stringify({ body: selectionComment(topic, deployment) })
       });
     }
   };
@@ -65,19 +65,31 @@ export function inspectTopicQueue({ comments, owner, registry, published }) {
   }
 }
 
-export async function runTopicQueue({ adapter, owner, registry, published, dryRun = false, randomIndex }) {
+export async function runTopicQueue({ adapter, owner, registry, published, dryRun = false, randomIndex, deployment = null }) {
+  if (deployment && (!/^[a-f0-9]{40}$/i.test(deployment.sourceSha || "")
+    || !/^[a-f0-9]{64}$/.test(deployment.buildId || ""))) {
+    throw new Error("A deployment identity requires a full source SHA and HTML build ID");
+  }
   const inspect = async () => inspectTopicQueue({ comments: await adapter.listComments(), owner, registry, published });
   let state = await inspect();
+  if (state.status === "blocked") return publicState(state);
+  const completed = deployment && state.queue?.selections.find(selection =>
+    selection.sourceSha === deployment.sourceSha && selection.buildId === deployment.buildId);
+  if (completed) return { ...publicState(state), status: "already-processed", selection: completed };
   if (dryRun || state.status !== "ready") return publicState(state);
   // Recheck before writing. External writers still need workflow concurrency;
   // the comments API has no compare-and-swap operation.
   state = await inspect();
+  if (state.status === "blocked") return publicState(state);
+  const completedAfterRecheck = deployment && state.queue?.selections.find(selection =>
+    selection.sourceSha === deployment.sourceSha && selection.buildId === deployment.buildId);
+  if (completedAfterRecheck) return { ...publicState(state), status: "already-processed", selection: completedAfterRecheck };
   if (state.status !== "ready") return publicState(state);
   const result = chooseNext(state.queue, published, randomIndex);
-  const comment = await adapter.postSelection(result.topic);
+  const comment = await adapter.postSelection(result.topic, deployment);
   return {
     ...publicState(state), status: "selected",
-    selection: { ...result.topic, commentId: comment.id },
+    selection: { ...result.topic, ...(deployment || {}), commentId: comment.id },
     eligible: state.eligible.filter(topic => topic.slug !== result.topic.slug)
   };
 }

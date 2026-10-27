@@ -41,20 +41,22 @@ Marque `lang="en-US"` quando:
 
 A marcação deve ser semântica. Não mantenha uma lista fechada de palavras como única regra: novos termos técnicos podem aparecer a qualquer momento.
 
-Os campos `title` e `dek` são texto simples, não HTML. Quando incluírem trechos que devam ser falados em outro idioma, declare segmentos em `speechMarkup` no JSON do artigo:
+Os campos `title` e `dek` são texto simples, não HTML. Em artigos novos ou migrados, quando incluírem trechos que devam ser falados em outro idioma, declare segmentos em `speechMarkup` no frontmatter Markdown:
 
-```json
-"speechMarkup": {
-  "title": [
-    { "text": "Transactional Outbox", "lang": "en-US" },
-    { "text": ": do ", "lang": "pt-BR" },
-    { "text": "commit", "lang": "en-US" },
-    { "text": " local à entrega confiável", "lang": "pt-BR" }
-  ]
-}
+```yaml
+speechMarkup:
+  title:
+    - text: "Transactional Outbox"
+      lang: en-US
+    - text: ": do "
+      lang: pt-BR
+    - text: "commit"
+      lang: en-US
+    - text: " local à entrega confiável"
+      lang: pt-BR
 ```
 
-Os segmentos devem concatenar exatamente o texto visível do campo correspondente. O player monta os elementos `lang` no DOM sem interpretar o conteúdo como HTML.
+Os segmentos devem concatenar exatamente o texto visível do campo correspondente. O compilador leva os metadados ao catálogo e o player monta os elementos `lang` no DOM sem interpretar o conteúdo como HTML. Fontes JSON não são aceitas no checkout corrente; o adaptador de leitura permanece apenas para revisões históricas comparadas ou restauradas.
 
 ## Quando não marcar
 
@@ -84,7 +86,7 @@ Essa regra vale mesmo quando a sigla aparece dentro de um trecho marcado em ingl
 
 Cada entrada contém `speak` (texto falado) e `lang` (idioma da fala). Preserve a grafia visível; não escreva a expansão fonética na prosa. `HTTP`, `SRE` e `p99` já possuem entradas. Acrescente decisões editoriais ao léxico; termos estrangeiros comuns podem continuar usando apenas `lang`.
 
-Para uma exceção local no `bodyHtml`, use uma destas formas:
+Para uma exceção local no corpo narrável, use uma destas formas de HTML inline no Markdown. `bodyHtml` é a saída compilada, não um campo de autoria:
 
 ```html
 <span lang="en-US" data-tts-mode="spell">API</span>
@@ -157,7 +159,7 @@ intacta, inclusive para seleção, cópia e leitura visual.
 
 ## Responsabilidade do autor do artigo
 
-Quem gera ou edita o artigo deve inserir a marcação `lang` correta no próprio `bodyHtml` e declarar em `speechMarkup` os idiomas mistos de `title` ou `dek`. Não dependa de detecção automática de idioma no navegador para corrigir o conteúdo depois.
+Quem gera ou edita um artigo Markdown deve inserir a marcação `lang` correta no corpo usando HTML inline quando necessário, e declarar em `speechMarkup` os idiomas mistos de `title` ou `dek` no frontmatter. Não dependa de detecção automática de idioma no navegador para corrigir o conteúdo depois.
 
 Antes de publicar, revise expressões técnicas inglesas e siglas em título, subtítulo e corpo. Consulte o léxico, aplique a soletração padrão às siglas sem decisão editorial e registre as exceções necessárias. Maiúsculas são um auxílio de detecção, não uma decisão editorial automática sobre acrônimos ou marcas.
 
@@ -205,8 +207,11 @@ e léxico continuam tendo precedência.
 
 Para gerar MP3 sem alterar uma Release, usar **preview** no workflow Kokoro.
 A seleção manual aceita slug, título ou campo vazio para o artigo publicado
-mais recentemente. O fluxo automático cria áudio apenas para novos arquivos
-JSON após o deploy da página. Ver [guia do Kokoro](KOKORO_ACTIONS.md).
+mais recentemente. Depois do deploy, os cálculos de alteração narrável
+reconhecem fontes `.md`. Os jobs de efeito continuam bloqueados; a exceção
+seletiva para alteração narrável só pode operar quando liberada pela política
+aprovada. Ver
+[guia do Kokoro](KOKORO_ACTIONS.md).
 
 A revisão de pronúncia por escuta é necessária, sobretudo para nomes próprios
 e termos ingleses não marcados. A geração de roteiros dedicados ou em diálogo

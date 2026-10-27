@@ -13,17 +13,18 @@ const compiled = await compileMarkdownArticle({
   knownSlugs,
   assetExists
 });
+// Historical comparison only; current checkouts accept Markdown sources.
 const legacy = fromLegacyArticle(existingRecord, { rootPath, assetExists });
 const html = renderArticleEnvelope(compiled, { buildId });
 ```
 
-`compileMarkdownArticle` retorna `{ metadata, slots: { heading, dek, body } }`. `fromLegacyArticle` adapta um registro JSON antigo em memória e aceita ausência de `tags` durante a transição, sem classificar o artigo; o corpo legado também precisa começar com parágrafo e não pode trazer outro `h1`, pois o envelope mantém o único título de nível superior. Nenhuma função serializa um artigo completo intermediário. `renderArticleEnvelope` monta o envelope `html-v1` usado na fronteira de integração; ele não repete o título, dek ou corpo fora dos três slots.
+`compileMarkdownArticle` retorna `{ metadata, slots: { heading, dek, body } }`. `fromLegacyArticle` adapta um registro JSON antigo em memória exclusivamente para comparação de revisões históricas e recuperação de rollback; não é chamado por build, lint, autoria, fila ou carregador corrente. O corpo legado também precisa começar com parágrafo e não pode trazer outro `h1`, pois o envelope mantém o único título de nível superior. Nenhuma função serializa um artigo completo intermediário. `renderArticleEnvelope` monta o envelope `html-v1` usado na fronteira de integração; ele não repete o título, dek ou corpo fora dos três slots.
 
 O chamador injeta obrigatoriamente o registry `knownTags`; `knownSlugs` também é obrigatório quando o artigo declara prerequisites. `assetExists` pode ser injetado pelo build; sem callback, o compilador exige arquivo regular existente e verifica `realpath` confinado ao `rootPath` para capas e recursos locais. O módulo não cria taxonomia nem tenta deduzir slugs ou arquivos ausentes. `sourcePath` é sempre `content/articles/<slug>.md`; imagens do frontmatter usam `assets/<slug>/<slug>-cover.jpg`. URLs Markdown relativas são resolvidas desde o diretório do `.md`, confinadas à raiz e mapeadas para os URLs do shell. Recursos locais precisam existir. URLs externas são aceitas somente em links HTTP(S), `mailto:` e `tel:`; imagens remotas são recusadas.
 
 ## Frontmatter e estrutura
 
-YAML é interpretado com YAML 1.2 Core. A data ISO é uma string e precisa ser uma data real. O contrato rejeita chaves duplicadas/desconhecidas, tipos de tag personalizados, anchors/aliases, merge keys e limites acima de 128 KiB, 10 mil nós ou 40 níveis. `tags` é obrigatório no Markdown e composto por IDs únicos kebab-case ASCII. `updatedAt`, `level`, `series`/`seriesOrder` e `prerequisites` são opcionais; prerequisites são validados contra os slugs injetados quando presentes. `fromLegacyArticle` não inventa tags.
+YAML é interpretado com YAML 1.2 Core. A data ISO é uma string e precisa ser uma data real. O contrato rejeita chaves duplicadas/desconhecidas, tipos de tag personalizados, anchors/aliases, merge keys e limites acima de 128 KiB, 10 mil nós ou 40 níveis. `tags` é obrigatório no Markdown e composto por IDs únicos kebab-case ASCII. `updatedAt`, `level`, `series`/`seriesOrder` e `prerequisites` são opcionais; prerequisites são validados contra os slugs injetados quando presentes.
 
 Título e dek usam runs de `speechMarkup` que concatenam exatamente ao texto visível. `lang` e `data-tts-say`/`data-tts-mode` do corpo sobrevivem como atributos semânticos; conflitos e valores inválidos falham. A primeira unidade de conteúdo deve ser prosa num único `<p>`, sem imagem antes ou dentro dela. Âncoras legadas são a única forma de IDs explícitos:
 
@@ -37,21 +38,29 @@ O compilador associa `id-estavel` ao heading seguinte, sem criar um parágrafo n
 
 ## Mermaid
 
-O fence continua legível para o preview Markdown do GitHub. Um comentário HTML declarativo imediatamente antes guarda JSON com exatamente `label`, `caption` e `fallback` não vazios:
+O fence continua legível para o preview Markdown do GitHub. Um comentário HTML declarativo imediatamente antes guarda JSON com exatamente `label`; legenda e fallback são nós HTML adjacentes visíveis no preview e preservados no HTML compilado:
 
-```html
-<!-- diagram: {"label":"Fluxo acessível","caption":"A origem chega ao destino.","fallback":"flowchart LR\n  A --> B"} -->
+````md
+<!-- tech-topics:mermaid {"label":"Fluxo acessível"} -->
 ```mermaid
 flowchart LR
   A[Origem] --> B[Destino]
 ```
-```
+<figcaption>A <span lang="pt-BR">origem</span> chega ao destino.</figcaption>
+<details class="mermaid-fallback">
+<summary>Descrição textual</summary>
 
-Metadados órfãos, duplicados, JSON duplicado/inválido ou texto entre comentário e fence falham. A saída cria `figure.mermaid-figure`, `div[data-mermaid][data-mermaid-label]`, `pre.mermaid-source`, `figcaption` e `details.mermaid-fallback`. Para não habilitar opções permissivas da engine no navegador, o código rejeita diretivas Mermaid `%%{...}%%`, comandos `click` no início de linha ou após separador de instrução, HTML executável e esquemas JavaScript. Texto de label que apenas contenha a palavra `click` permanece válido. Diagrama técnico não precisa de HTML inline nem de uma saída SVG.
+A origem envia uma mensagem ao destino.
+</details>
+````
 
-## Tabelas e `srcset`
+Metadados órfãos, duplicados, JSON duplicado/inválido ou texto entre comentário e fence falham. A legenda precisa ser exatamente um `figcaption` e o fallback exatamente um `details.mermaid-fallback` com `summary`; ausência ou marcação insegura falha. O compilador move esses nós raw para dentro de `figure.mermaid-figure`, sem recriá-los ou duplicá-los. O formato legado `diagram:` com `label`, `caption` e `fallback` continua aceito. A saída preserva `div[data-mermaid][data-mermaid-label]` e `pre.mermaid-source`. Para não habilitar opções permissivas da engine no navegador, o código rejeita diretivas Mermaid `%%{...}%%`, comandos `click` no início de linha ou após separador de instrução, HTML executável e esquemas JavaScript. Texto de label que apenas contenha a palavra `click` permanece válido.
 
-Tabelas GFM são envolvidas em `div.article-table-scroll` com `tabindex="0"`, `role="region"` e `aria-label`. Tabelas HTML existentes podem declarar seus próprios wrappers.
+## Tabelas, notas de rodapé e `srcset`
+
+Tabelas GFM são envolvidas em `div.article-table-scroll` com `tabindex="0"`, `role="region"` e `aria-label`. Alinhamentos GFM `left`, `center` e `right` são preservados em células `th`/`td`; outros valores falham. Tabelas HTML existentes podem declarar seus próprios wrappers.
+
+Notas de rodapé GFM preservam as referências, backlinks, descrições acessíveis e classes emitidas por `remark-gfm` por meio de atributos e classes restritos.
 
 O parser local de `srcset` aceita a gramática restrita `URL [descritor]`, com um descritor positivo `x` ou `w` por candidato; não mistura densidade e largura, nem aceita descritores repetidos. Várias candidatas exigem descritores. URL, path, protocolo e existência são validados separadamente para cada candidata. Vírgulas dentro da URL devem ser percent-encoded, evitando ambiguidade com o separador GFM/HTML.
 

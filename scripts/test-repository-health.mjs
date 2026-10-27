@@ -9,7 +9,7 @@ try {
   const unavailable = () => ({ ok: false, output: "not installed" });
   const missing = await diagnoseRepository({ root, nodeVersion: "22.1.0", run: unavailable });
   assert.equal(missing.status, "error");
-  for (const file of [".node-version", "AGENTS.md", "generation/registry.json", "content/articles/index.json", "scripts/validate-site.mjs"]) {
+  for (const file of [".node-version", "AGENTS.md", "generation/registry.json", "scripts/validate-site.mjs"]) {
     await mkdir(path.dirname(path.join(root, file)), { recursive: true });
     await writeFile(path.join(root, file), file === ".node-version" ? "22\n" : "fixture");
   }

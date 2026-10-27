@@ -1,7 +1,25 @@
 const fs = require("node:fs");
 const vm = require("node:vm");
 const assert = require("node:assert/strict");
-const article = JSON.parse(fs.readFileSync("content/articles/four-golden-signals.json", "utf8"));
+async function main() {
+  const markdownPath = "content/articles/four-golden-signals.md";
+  let article;
+  if (fs.existsSync(markdownPath)) {
+    const { compileMarkdownArticle } = await import("./lib/markdown-article.mjs");
+    const taxonomy = JSON.parse(fs.readFileSync("generation/taxonomy/tags.json", "utf8"));
+    const knownSlugs = new Set(fs.readdirSync("content/articles")
+      .filter(file => file.endsWith(".md"))
+      .map(file => file.slice(0, -3)));
+    const compiled = await compileMarkdownArticle({
+      source: fs.readFileSync(markdownPath, "utf8"),
+      sourcePath: markdownPath,
+      rootPath: process.cwd(),
+      knownTags: new Set(Object.keys(taxonomy.tags)),
+      knownSlugs,
+      assetExists: file => fs.existsSync(file),
+    });
+    article = { ...compiled.metadata, bodyHtml: compiled.slots.body };
+  } else throw new Error("Markdown source is missing: " + markdownPath);
 assert.equal(article.slug, "four-golden-signals");
 assert.equal(article.publishedAt, "2026-09-12");
 assert(fs.existsSync(article.image));
@@ -27,3 +45,9 @@ vm.runInNewContext(fs.readFileSync("fgs-simulator.js", "utf8"), { Intl, document
 assert.equal((90 * 100 + 10 * 1500) / 100, 240);
 assert.equal(12 + 20 - 5, 27);
 console.log("PASS: FGS structure, Mermaid diagrams, anchors, simulator values and no-op on other articles.");
+}
+
+main().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

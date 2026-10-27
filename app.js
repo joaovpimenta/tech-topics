@@ -491,9 +491,11 @@ function renderBatch() {
 
 function renderArchive() {
   const query = normalize(searchInput.value.trim());
-  matching = articles.filter(article =>
-    normalize([article.title, article.category, article.excerpt, article.dek].join(" ")).includes(query)
-  );
+  matching = articles.filter(article => {
+    const tags = [...(article.tags || []), ...(article.tagLabels || [])];
+    const metadata = [article.level, article.series, ...(article.prerequisites || [])];
+    return normalize([article.title, article.category, article.excerpt, article.dek, ...tags, ...metadata].join(" ")).includes(query);
+  });
   list.replaceChildren();
   visibleCount = 0;
   count.textContent = query
@@ -509,9 +511,9 @@ async function loadArticles() {
     const response = await fetch("assets/articles-catalog.json");
     if (!response.ok) throw new Error("Catálogo indisponível");
     const catalog = await response.json();
-    if (!Array.isArray(catalog)) throw new Error("Catálogo inválido");
-    const valid = catalog.filter(article => article && typeof article.slug === "string" && typeof article.title === "string" && typeof article.image === "string");
-    if (valid.length !== catalog.length) throw new Error("Catálogo incompleto");
+    const records = articleCatalogEntries(catalog);
+    const valid = records.filter(article => article && typeof article.slug === "string" && typeof article.title === "string" && typeof article.image === "string");
+    if (valid.length !== records.length) throw new Error("Catálogo incompleto");
     articles.splice(0, articles.length, ...valid);
     articles.sort((a, b) => String(b.publishedAt || "").localeCompare(String(a.publishedAt || "")) ||
       (Date.parse(b.addedAt) || 0) - (Date.parse(a.addedAt) || 0) || a.slug.localeCompare(b.slug));
@@ -527,6 +529,28 @@ async function loadArticles() {
     status.hidden = false;
     emptyState.hidden = true;
   } finally { list.setAttribute("aria-busy", "false"); }
+}
+
+function articleCatalogEntries(catalog) {
+  if (!catalog || typeof catalog !== "object" || catalog.version !== 1
+    || catalog.transport !== "html-v1"
+    || !/^[a-f0-9]{40}$/i.test(catalog.sourceSha || "")
+    || !/^[a-f0-9]{64}$/.test(catalog.buildId || "")
+    || !Array.isArray(catalog.articles) || !catalog.articles.length) {
+    throw new Error("Catálogo inválido");
+  }
+  const slugs = new Set();
+  for (const article of catalog.articles) {
+    if (typeof article?.slug !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(article.slug)
+      || slugs.has(article.slug) || article.format !== "html-v1"
+      || article.path !== `content/articles/${article.slug}.html`
+      || Object.hasOwn(article, "bodyHtml") || Object.hasOwn(article, "html")
+      || !Array.isArray(article.tags) || !Array.isArray(article.tagLabels)) {
+      throw new Error("Registro HTML inválido no catálogo");
+    }
+    slugs.add(article.slug);
+  }
+  return catalog.articles;
 }
 
 searchInput.addEventListener("input", renderArchive);

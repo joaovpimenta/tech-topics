@@ -59,26 +59,7 @@ O mesmo princípio vale para blocos de código, fórmulas e diagramas Mermaid: o
 
 Crie um slug único, em letras minúsculas e separado por hífens. O nome do arquivo deve corresponder exatamente ao slug:
 
-`content/articles/<slug>.json`
-
-Use este contrato:
-
-```json
-{
-  "slug": "<slug>",
-  "language": "pt-BR",
-  "title": "<título>",
-  "category": "<categoria>",
-  "date": "<data de publicação legível>",
-  "publishedAt": "YYYY-MM-DD",
-  "read": "<tempo estimado de leitura>",
-  "image": "assets/<slug>/<slug>-cover.jpg",
-  "alt": "<descrição da capa>",
-  "dek": "<subtítulo introdutório>",
-  "excerpt": "<resumo curto para os cards>",
-  "bodyHtml": "<artigo completo em HTML, incluindo visuais, referências e exercícios>"
-}
-```
+Use exclusivamente `content/articles/<slug>.md`, baseado em [generation/templates/article.md](../generation/templates/article.md). Fontes JSON individuais não são aceitas no checkout corrente. O formato JSON legado permanece apenas em revisões Git históricas para comparação e rollback; ele não é um formato de autoria nem de build atual.
 
 ### Regra visual da capa
 
@@ -90,11 +71,11 @@ Use a data real da execução. Não use rótulos permanentes como “hoje”.
 
 ### Primeiro parágrafo introdutório
 
-O campo bodyHtml deve começar com exatamente um elemento <p> que funcione como diálogo-metáfora. Ele deve apresentar uma cena cotidiana e observável em uma conversa natural, com uma pergunta, reação ou contraponto incorporado à própria prosa. A cena deve conectar o cotidiano ao conceito técnico e servir como fonte narrativa para a capa do artigo. Não use aspas, travessão ou identificadores para marcar falas: a conversa deve aparecer naturalmente no texto. A expressão “Sabe quando” é opcional. Preserve nomes técnicos consagrados em inglês quando necessário.
+O corpo Markdown deve começar com um único parágrafo que funcione como diálogo-metáfora. Ele deve apresentar uma cena cotidiana e observável em uma conversa natural, com uma pergunta, reação ou contraponto incorporado à própria prosa. A cena deve conectar o cotidiano ao conceito técnico e servir como fonte narrativa para a capa do artigo. Não use aspas, travessão ou identificadores para marcar falas: a conversa deve aparecer naturalmente no texto. A expressão “Sabe quando” é opcional. Preserve nomes técnicos consagrados em inglês quando necessário.
 
 As classes compartilhadas disponíveis incluem `signal-grid`, `signal-card`, `article-callout`, `code-block` e `article-back`.
 
-Não altere manualmente `content/articles/index.json`. Não insira o novo artigo como conteúdo fixo em `index.html`, `app.js` ou `article.html`.
+Não insira o novo artigo como conteúdo fixo em `index.html`, `app.js` ou `article.html`.
 
 ## Idioma e marcação semântica
 
