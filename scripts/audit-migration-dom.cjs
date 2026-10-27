@@ -14,11 +14,13 @@ const root = path.resolve(options.get("--root") ?? path.resolve(__dirname, "..")
 const dist = path.resolve(root, options.get("--dist") ?? "dist");
 const chaptersDir = path.resolve(options.get("--chapters-dir") ?? "");
 const basePath = options.get("--base-path") ?? "/tech-topics/";
+const sourceSha = options.get("--source-sha");
 const outputPath = options.get("--output") ? path.resolve(options.get("--output")) : null;
 const detail = options.get("--detail") ?? "summary";
 if (!["summary", "full"].includes(detail)) throw new Error("--detail must be summary or full");
 const baselinePath = path.resolve(root, options.get("--baseline") ?? "docs/migrations/baselines/capture-v3/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json");
 if (!options.has("--chapters-dir")) throw new Error("Pass --chapters-dir with the read-only snapshot of existing chapters");
+if (!sourceSha) throw new Error("Pass --source-sha with the full commit SHA used to build dist");
 if (!basePath.startsWith("/") || !basePath.endsWith("/")) throw new Error("--base-path must begin and end with /");
 const digest = value => crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const fileExists = async file => { try { await readFile(file); return true; } catch (error) { if (error.code === "ENOENT") return false; throw error; } };
@@ -27,6 +29,8 @@ const typeFor = file => file.endsWith(".js") ? "text/javascript" : file.endsWith
 async function main() {
   const { nativeDomUnitHash } = await import(pathToFileURL(path.join(__dirname, "lib", "migration-baseline.mjs")));
   const { instrumentSpeechBuildBlocks, spokenRunsSignature } = await import(pathToFileURL(path.join(__dirname, "lib", "migration-dom-signature.mjs")));
+  const { verifyMarkdownSiteArtifact } = await import(pathToFileURL(path.join(__dirname, "lib", "markdown-site-artifact.mjs")));
+  const distIdentity = await verifyMarkdownSiteArtifact(dist, sourceSha);
   let chromium;
   const playwrightPath = process.env.TECH_TOPICS_PLAYWRIGHT || "playwright";
   try { ({ chromium } = require(playwrightPath)); }
@@ -134,9 +138,10 @@ async function main() {
     if (browser) await browser.close();
     await new Promise(resolve => server.close(resolve));
   }
-  const report = { schemaVersion: 3, baselineSourceSha: baseline.sha, sourceRoot: ".", distRoot: path.relative(root, dist).replaceAll("\\", "/"),
+  const report = { schemaVersion: 3, baselineSourceSha: baseline.sha, sourceSha: distIdentity.sourceSha,
+    buildId: distIdentity.buildId, artifactFileCount: distIdentity.fileCount, sourceRoot: ".", distRoot: path.relative(root, dist).replaceAll("\\", "/"),
     baselinePath: path.relative(root, baselinePath).replaceAll("\\", "/"), baselineSha: baseline.sha,
-    distIdentityVerified: false, basePath, articleCount: records.length,
+    distIdentityVerified: true, basePath, articleCount: records.length,
     contracts: { python: "native extractor sentence signatures from the initial baseline", dom: "native player segment and word-node records hashed per unit",
       crossContractComparison: "ordered Python sentence runs are matched to normalized DOM speech language/text runs" },
     chapterIndexMatchingArticles: records.filter(record => record.indexesMatch).length,

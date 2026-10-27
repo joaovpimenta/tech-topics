@@ -15,6 +15,10 @@ on:
         type: string
         required: false
         default: ""
+      expected_build_id:
+        type: string
+        required: false
+        default: ""
       article:
         type: string
         required: false
@@ -77,7 +81,7 @@ jobs:
     # Frozen for all manual, backfill and new-article synthesis.
     # Restricted exception: edited existing articles, on main after Pages,
     # selected from their actual spoken-language diff.
-    if: ${{ inputs.generate_audio == true && false && inputs.refresh_existing == true && github.event_name == 'push' && github.ref == 'refs/heads/main' && inputs.before_sha != '' && inputs.after_sha != '' && inputs.replace_existing == true }}
+    if: ${{ inputs.generate_audio == true && false && inputs.refresh_existing == true && github.event_name == 'push' && github.ref == 'refs/heads/main' && inputs.before_sha != '' && inputs.after_sha != '' && inputs.expected_build_id != '' && inputs.replace_existing == true }}
     name: Select article(s)
     runs-on: ubuntu-latest
     outputs:
@@ -86,9 +90,35 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.after_sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install the compiler toolchain
+        run: npm ci
       - uses: actions/setup-python@v5
         with:
           python-version-file: .python-version
+      - name: Validate the deployed revision and HTML artifact
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ inputs.before_sha }}
+          AFTER_SHA: ${{ inputs.after_sha }}
+          EXPECTED_BUILD_ID: ${{ inputs.expected_build_id }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          test "$AFTER_SHA" = "$GITHUB_SHA"
+          current_main="$(gh api "repos/$GH_REPO/commits/main" --jq '.sha')"
+          test "$current_main" = "$AFTER_SHA"
+          node scripts/validate-site.mjs
+          node scripts/build-site.mjs
+          python tools/tts/article_selection.py \
+            --verify-artifact --after "$AFTER_SHA" --build-id "$EXPECTED_BUILD_ID"
+          python tools/tts/article_selection.py \
+            --before "$BEFORE_SHA" --after "$AFTER_SHA" --spoken-changes >/dev/null
       - name: Select article by name, recent publication or new push
         id: resolve
         shell: bash
@@ -152,6 +182,15 @@ jobs:
           echo "slugs=$slugs" >> "$GITHUB_OUTPUT"
           echo "Eligible for audio work: $slugs" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Share the validated HTML artifact with the audio job
+        uses: actions/upload-artifact@v4
+        with:
+          name: tech-topics-html-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dist/
+          include-hidden-files: true
+          retention-days: 1
+          if-no-files-found: error
+
   audio:
     name: Dora ${{ matrix.slug }} (${{ inputs.mode || 'publish' }})
     needs: select
@@ -172,12 +211,21 @@ jobs:
       ARTICLE_SLUG: ${{ matrix.slug }}
       MODE: ${{ inputs.mode || 'publish' }}
       REPLACE_EXISTING: ${{ inputs.replace_existing || 'false' }}
+      AFTER_SHA: ${{ inputs.after_sha }}
+      EXPECTED_BUILD_ID: ${{ inputs.expected_build_id }}
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       OMP_NUM_THREADS: "4"
       OPENBLAS_NUM_THREADS: "4"
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.after_sha || github.sha }}
+      - name: Download the validated HTML artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tech-topics-html-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dist
       - name: Validate publishing policy
         id: policy
         shell: bash
@@ -188,13 +236,25 @@ jobs:
             echo "A/B compare is manual-only and must never run after a site deploy." >&2
             exit 1
           fi
-          if [ "$MODE" = publish ] && [ "$REPLACE_EXISTING" != true ] && \
-             gh release view "tts-$ARTICLE_SLUG" >/dev/null 2>&1; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "Existing release preserved (choose replace_existing=true to regenerate)."
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+          skip=false
+          if [ "$MODE" = publish ]; then
+            release_exists=false
+            body=""
+            if body="$(gh release view "tts-$ARTICLE_SLUG" --json body --jq '.body' 2>/dev/null)"; then
+              release_exists=true
+            fi
+            if [ "$REPLACE_EXISTING" = true ] && [ -n "$AFTER_SHA" ] && [ -n "$EXPECTED_BUILD_ID" ]; then
+              marker="<!-- TECH_TOPICS_ARTIFACT_V1 $AFTER_SHA $EXPECTED_BUILD_ID -->"
+              if grep -Fq -- "$marker" <<< "$body"; then
+                skip=true
+                echo "Artifact $EXPECTED_BUILD_ID already has a Release for $ARTICLE_SLUG."
+              fi
+            elif [ "$REPLACE_EXISTING" != true ] && [ "$release_exists" = true ]; then
+              skip=true
+              echo "Existing release preserved (choose replace_existing=true to regenerate)."
+            fi
           fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-python@v5
         if: steps.policy.outputs.skip != 'true'
@@ -202,6 +262,21 @@ jobs:
           python-version-file: .python-version
           cache: pip
           cache-dependency-path: .python-version
+
+      - name: Recheck source and artifact before expensive audio work
+        if: steps.policy.outputs.skip != 'true'
+        shell: bash
+        env:
+          AFTER_SHA: ${{ inputs.after_sha }}
+          EXPECTED_BUILD_ID: ${{ inputs.expected_build_id }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          test "$AFTER_SHA" = "$GITHUB_SHA"
+          test "$(gh api "repos/$GH_REPO/commits/main" --jq '.sha')" = "$AFTER_SHA"
+          python tools/tts/article_selection.py \
+            --verify-artifact --after "$AFTER_SHA" --build-id "$EXPECTED_BUILD_ID"
 
       - name: Install lean CPU-only Kokoro and eSpeak
         if: steps.policy.outputs.skip != 'true'
@@ -466,9 +541,12 @@ jobs:
       - name: Attach sentence timestamps to public Release notes
         if: steps.policy.outputs.skip != 'true' && env.MODE == 'publish'
         shell: bash
+        env:
+          AFTER_SHA: ${{ inputs.after_sha }}
+          EXPECTED_BUILD_ID: ${{ inputs.expected_build_id }}
         run: |
           python - <<'PY'
-          import json, os
+          import json, os, sys
           from pathlib import Path
           slug = os.environ["ARTICLE_SLUG"]
           directory = Path(".audio")
@@ -485,16 +563,39 @@ jobs:
           }
           notes += json.dumps(public_chapters, ensure_ascii=False, separators=(",", ":"))
           notes += "\n-->\n"
+          if os.environ.get("AFTER_SHA") and os.environ.get("EXPECTED_BUILD_ID"):
+              sys.path.insert(0, "tools/tts")
+              from article_selection import release_artifact_marker
+              notes += "\n" + release_artifact_marker(
+                  os.environ["AFTER_SHA"], os.environ["EXPECTED_BUILD_ID"]
+              ) + "\n"
           (directory / f"{slug}.release.md").write_text(notes, encoding="utf-8")
           PY
 
       - name: Publish MP3 as article-specific GitHub Release
         if: steps.policy.outputs.skip != 'true' && env.MODE == 'publish'
         shell: bash
+        env:
+          AFTER_SHA: ${{ inputs.after_sha }}
+          EXPECTED_BUILD_ID: ${{ inputs.expected_build_id }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          test "$GITHUB_SHA" = "$AFTER_SHA"
+          test "$(gh api "repos/$GH_REPO/commits/main" --jq '.sha')" = "$AFTER_SHA"
+          python tools/tts/article_selection.py \
+            --verify-artifact --after "$AFTER_SHA" --build-id "$EXPECTED_BUILD_ID"
           tag="tts-$ARTICLE_SLUG"
-          title="$(python -c 'import json,os,pathlib;print(json.loads((pathlib.Path("content/articles") / (os.environ["ARTICLE_SLUG"] + ".json")).read_text(encoding="utf-8"))["title"])')"
+          if [ -n "$AFTER_SHA" ] && [ -n "$EXPECTED_BUILD_ID" ]; then
+            marker="<!-- TECH_TOPICS_ARTIFACT_V1 $AFTER_SHA $EXPECTED_BUILD_ID -->"
+            existing_body="$(gh release view "$tag" --json body --jq '.body' 2>/dev/null || true)"
+            if grep -Fq -- "$marker" <<< "$existing_body"; then
+              echo "Artifact $EXPECTED_BUILD_ID is already published for $ARTICLE_SLUG."
+              exit 0
+            fi
+          fi
+          title="$(python -c 'import os,sys;sys.path.insert(0,"tools/tts");from article_selection import read_article;print(read_article(os.environ["ARTICLE_SLUG"])["title"])')"
           if gh release view "$tag" >/dev/null 2>&1; then
             if [ "$REPLACE_EXISTING" = true ]; then
               gh release upload "$tag" ".audio/$ARTICLE_SLUG.mp3" ".audio/$ARTICLE_SLUG.chapters.json" --clobber

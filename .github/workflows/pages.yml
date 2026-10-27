@@ -3,15 +3,17 @@ name: Build and deploy Tech Topics to GitHub Pages
 on:
   push:
     branches: ["main"]
-    # Changes limited to tooling/docs do not affect the published site.
-    paths-ignore:
-      - "docs/**"
-      - "README.md"
-      - "AGENTS.md"
-      - "CONTEXT.md"
-      - "generation/**"
-      - "tools/tts/**"
-      - ".github/workflows/validate.yml"
+    # Skip editorial instructions and support tooling, but publish runtime taxonomy changes.
+    paths:
+      - "**"
+      - "!docs/**"
+      - "!README.md"
+      - "!AGENTS.md"
+      - "!CONTEXT.md"
+      - "!generation/**"
+      - "generation/taxonomy/tags.json"
+      - "!tools/tts/**"
+      - "!.github/workflows/validate.yml"
   workflow_dispatch:
     inputs:
       generate_audio:
@@ -39,7 +41,10 @@ jobs:
     outputs:
       new_article_slugs: ${{ steps.new_articles.outputs.slugs }}
       changed_speech_slugs: ${{ steps.changed_speech.outputs.slugs }}
+      article_build_id: ${{ steps.artifact_identity.outputs.build_id }}
+      deployed_before_sha: ${{ steps.deployed_before.outputs.sha }}
     permissions:
+      actions: read
       contents: read
     steps:
       - name: Check out Tech Topics
@@ -50,6 +55,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
+          cache: npm
+      - name: Install the compiler toolchain
+        run: npm ci
       - name: Set up Python for lightweight TTS tests
         uses: actions/setup-python@v5
         with:
@@ -58,12 +66,73 @@ jobs:
         run: node scripts/validate-site.mjs
         env:
           TECH_TOPICS_REQUIRE_TTS_TESTS: "1"
-      - name: Detect newly published article JSONs (not page/code edits)
-        id: new_articles
-        if: github.event_name == 'push'
+      - name: Build the production HTML artifact
+        run: node scripts/build-site.mjs
+      - name: Resolve the last successfully deployed Pages revision
+        id: deployed_before
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         shell: bash
         env:
-          BEFORE_SHA: ${{ github.event.before }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GH_REPO/commits/main" --jq '.sha')" = "$EXPECTED_SHA"
+          sha=""
+          while IFS=$'\t' read -r run_id head_sha; do
+            if [[ ! "$run_id" =~ ^[0-9]+$ || ! "$head_sha" =~ ^[0-9a-f]{40}$ ]]; then
+              continue
+            fi
+            jobs="$(gh api "repos/$GH_REPO/actions/runs/$run_id/jobs?per_page=100")"
+            if jq -e '[.jobs[] | select(.name == "Deploy GitHub Pages" and .conclusion == "success")] | length > 0' <<<"$jobs" >/dev/null; then
+              sha="$head_sha"
+              break
+            fi
+          done < <(gh api --paginate "repos/$GH_REPO/actions/workflows/pages.yml/runs?branch=main&per_page=100" --jq '.workflow_runs[] | [.id, .head_sha] | @tsv')
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "No previous successful Pages deployment revision is available." >&2
+            exit 1
+          fi
+          git cat-file -e "$sha^{commit}"
+          if ! git merge-base --is-ancestor "$sha" "$EXPECTED_SHA"; then
+            echo "Last deployed revision is not an ancestor of the current source revision." >&2
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - name: Capture the validated HTML artifact identity
+        id: artifact_identity
+        shell: bash
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          catalog = json.loads(Path("dist/assets/articles-catalog.json").read_text(encoding="utf-8"))
+          if isinstance(catalog, list):
+              build_id = ""
+              print("Legacy JSON artifact has no HTML build identity; downstream effects stay blocked.")
+          else:
+              if catalog.get("transport") != "html-v1" or catalog.get("sourceSha") != os.environ["EXPECTED_SOURCE_SHA"]:
+                  raise SystemExit("Validated HTML artifact does not match the triggering source revision.")
+              build_id = catalog.get("buildId", "")
+              if len(build_id) != 64 or any(char not in "0123456789abcdef" for char in build_id):
+                  raise SystemExit("Validated HTML artifact has an invalid buildId.")
+              subprocess.run([
+                  "python", "tools/tts/article_selection.py", "--verify-artifact",
+                  "--after", os.environ["EXPECTED_SOURCE_SHA"], "--build-id", build_id,
+              ], check=True)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"build_id={build_id}\n")
+          PY
+      - name: Detect newly published article sources (not page/code edits)
+        id: new_articles
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ steps.deployed_before.outputs.sha }}
           AFTER_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
@@ -76,10 +145,10 @@ jobs:
           fi
       - name: Detect edited articles whose spoken narration changed
         id: changed_speech
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         shell: bash
         env:
-          BEFORE_SHA: ${{ github.event.before }}
+          BEFORE_SHA: ${{ steps.deployed_before.outputs.sha }}
           AFTER_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
@@ -110,6 +179,7 @@ jobs:
     if: >-
       inputs.generate_audio == true && false &&
       github.event_name == 'push' &&
+      needs.validate.outputs.article_build_id != '' &&
       needs.validate.outputs.new_article_slugs != '' &&
       needs.validate.outputs.new_article_slugs != '[]'
     needs: [validate, deploy]
@@ -118,14 +188,16 @@ jobs:
     uses: ./.github/workflows/kokoro-audio.yml
     with:
       generate_audio: false
-      before_sha: ${{ github.event.before }}
+      before_sha: ${{ needs.validate.outputs.deployed_before_sha }}
       after_sha: ${{ github.sha }}
+      expected_build_id: ${{ needs.validate.outputs.article_build_id }}
 
   republish-edited-audio:
     name: Rebuild only changed spoken audio after deploy
     if: >-
       inputs.generate_audio == true && false &&
       github.event_name == 'push' &&
+      needs.validate.outputs.article_build_id != '' &&
       needs.validate.outputs.changed_speech_slugs != '' &&
       needs.validate.outputs.changed_speech_slugs != '[]'
     needs: [validate, deploy]
@@ -134,8 +206,9 @@ jobs:
     uses: ./.github/workflows/kokoro-audio.yml
     with:
       generate_audio: false
-      before_sha: ${{ github.event.before }}
+      before_sha: ${{ needs.validate.outputs.deployed_before_sha }}
       after_sha: ${{ github.sha }}
+      expected_build_id: ${{ needs.validate.outputs.article_build_id }}
       mode: publish
       replace_existing: true
       refresh_existing: true
@@ -145,6 +218,7 @@ jobs:
     if: >-
       inputs.advance_topic == true && false &&
       github.event_name == 'push' &&
+      needs.validate.outputs.article_build_id != '' &&
       needs.validate.outputs.new_article_slugs != '' &&
       needs.validate.outputs.new_article_slugs != '[]'
     needs: [validate, deploy]
@@ -154,3 +228,5 @@ jobs:
     uses: ./.github/workflows/select-next-topic.yml
     with:
       advance_topic: false
+      expected_source_sha: ${{ github.sha }}
+      expected_build_id: ${{ needs.validate.outputs.article_build_id }}

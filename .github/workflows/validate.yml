@@ -24,6 +24,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
+          cache: npm
+      - name: Install the compiler toolchain
+        run: npm ci
       - name: Set up Python for lightweight TTS tests
         uses: actions/setup-python@v5
         with:
@@ -40,6 +43,13 @@ jobs:
     steps:
       - name: Check out Tech Topics
         uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install the compiler toolchain
+        run: npm ci
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -48,5 +58,13 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check playwright==1.57.0
           python -m playwright install chromium --with-deps
+      - name: Build the public HTML artifact
+        run: |
+          node scripts/build-articles.mjs
+          node scripts/build-site.mjs
       - name: Verify real Chromium geometry and touch input
         run: python scripts/test-ui-browser.py
+      - name: Open the staged Markdown package in real Chromium
+        run: python scripts/test-markdown-preview-browser.py
+      - name: Open every published article from dist in desktop and mobile Chromium
+        run: python scripts/test-html-site-browser.py

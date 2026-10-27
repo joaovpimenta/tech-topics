@@ -1,5 +1,6 @@
 import { lstat, readFile, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
+import { parseArticleFrontmatter, validateArticleMetadata } from "./markdown-article.mjs";
 
 const ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HARD_LIMITS = Object.freeze({
@@ -253,60 +254,16 @@ function removeMarkdownCodeExamples(markdown) {
   return output;
 }
 
-async function parseMarkdownMetadata(source, file) {
-  const { parseDocument, isAlias } = await import("yaml");
-  const normalized = source.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
-  const match = normalized.match(/^---\n([\s\S]*?)\n---(?:\n|$)([\s\S]*)$/);
-  assert(match, `${file}: YAML frontmatter must start and end with ---`);
-  const doc = parseDocument(match[1], { version: "1.2", schema: "core", strict: true, uniqueKeys: true, merge: false, maxAliasCount: 0, customTags: [], resolveKnownTags: false });
-  assert(!doc.errors.length, `${file}: invalid or unsafe YAML: ${doc.errors.map(error => error.message).join("; ")}`);
-  let unsafe = false;
-  const stack = [doc.contents];
-  while (stack.length) {
-    const node = stack.pop();
-    if (!node || typeof node !== "object") continue;
-    if (isAlias(node) || node.anchor || node.tag) unsafe = true;
-    for (const child of node.items ?? []) { if (child?.key) stack.push(child.key); if (child?.value) stack.push(child.value); else stack.push(child); }
-  }
-  assert(!unsafe, `${file}: YAML aliases, anchors and custom tags are not allowed`);
-  const metadata = doc.toJS({ maxAliasCount: 0 });
-  assert(isPlainObject(metadata), `${file}: frontmatter must be a mapping`);
-  const body = match[2];
-  const placeholderSource = `${match[1]}\n${removeMarkdownCodeExamples(body)}`;
+function parseMarkdownMetadata(source, file) {
+  const { metadata, body, frontmatter } = parseArticleFrontmatter(source, file);
+  const placeholderSource = `${frontmatter}\n${removeMarkdownCodeExamples(body)}`;
   assert(!/\{\{[^}]*\}\}|\b(?:TBD|PLACEHOLDER)\b|\bPREENCHER(?:\s*:|-)|YYYY-MM-DD/.test(placeholderSource), `${file}: unresolved template placeholders are not publishable`);
   return { metadata, body };
 }
 
-function validateSourceMetadata(metadata, file, sourceType, tags) {
-  assert(typeof metadata.slug === "string" && ID_PATTERN.test(metadata.slug), `${file}: slug must be lowercase kebab-case`);
-  assert(path.posix.basename(file, path.posix.extname(file)) === metadata.slug, `${file}: slug must match its filename`);
-  assert(typeof metadata.title === "string" && metadata.title.trim(), `${file}: title is required`);
-  assert(typeof metadata.dek === "string" && metadata.dek.trim(), `${file}: dek is required`);
-  if (sourceType === "markdown") {
-    assert(Array.isArray(metadata.tags) && metadata.tags.length > 0, `${file}: Markdown articles require tags`);
-    assert(new Set(metadata.tags).size === metadata.tags.length, `${file}: duplicate tag IDs are not allowed`);
-    for (const tag of metadata.tags) assert(tags.has(tag), `${file}: unknown tag ID: ${tag}`);
-  } else if (metadata.tags !== undefined) {
-    assert(Array.isArray(metadata.tags) && metadata.tags.length > 0 && new Set(metadata.tags).size === metadata.tags.length, `${file}: tags must be unique IDs when present`);
-    for (const tag of metadata.tags) assert(tags.has(tag), `${file}: unknown tag ID: ${tag}`);
-  }
-  if (metadata.updatedAt !== undefined) {
-    assert(typeof metadata.updatedAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(metadata.updatedAt) && !Number.isNaN(Date.parse(metadata.updatedAt)) && new Date(metadata.updatedAt).toISOString().slice(0, 10) === metadata.updatedAt, `${file}: updatedAt must be a real ISO YYYY-MM-DD date`);
-    if (metadata.publishedAt) assert(metadata.updatedAt >= metadata.publishedAt, `${file}: updatedAt must not precede publishedAt`);
-  }
-  if (metadata.level !== undefined) assert(["introdutorio", "intermediario", "avancado"].includes(metadata.level), `${file}: invalid level`);
-  if ((metadata.series === undefined) !== (metadata.seriesOrder === undefined)) assert(false, `${file}: series and seriesOrder must be provided together`);
-  if (metadata.series !== undefined) assert(typeof metadata.series === "string" && ID_PATTERN.test(metadata.series), `${file}: invalid series ID`);
-  if (metadata.seriesOrder !== undefined) assert(Number.isInteger(metadata.seriesOrder) && metadata.seriesOrder > 0, `${file}: seriesOrder must be a positive integer`);
-  if (metadata.prerequisites !== undefined) {
-    assert(Array.isArray(metadata.prerequisites) && metadata.prerequisites.every(slug => typeof slug === "string" && ID_PATTERN.test(slug)), `${file}: prerequisites must be article slugs`);
-    assert(new Set(metadata.prerequisites).size === metadata.prerequisites.length && !metadata.prerequisites.includes(metadata.slug), `${file}: duplicate or self prerequisite`);
-  }
-}
-
 export async function discoverArticleSources(root, { taxonomy } = {}) {
   const articlesDirectory = path.resolve(root, "content", "articles");
-  const files = (await readdir(articlesDirectory)).filter(file => /\.(?:json|md)$/.test(file) && file !== "index.json").sort();
+  const files = (await readdir(articlesDirectory)).filter(file => /\.(?:json|md)$/.test(file) && !["index.json", "catalog.json"].includes(file)).sort();
   let activeTaxonomy = taxonomy;
   if (!activeTaxonomy) {
     const generationRoot = path.resolve(root, "generation");
@@ -322,8 +279,9 @@ export async function discoverArticleSources(root, { taxonomy } = {}) {
     assert(stats.isFile() && !stats.isSymbolicLink(), `${file}: article source must be a regular file`);
     const sourceType = file.endsWith(".md") ? "markdown" : "json";
     const raw = await readFile(sourcePath, "utf8");
-    const article = sourceType === "markdown" ? (await parseMarkdownMetadata(raw, file)).metadata : JSON.parse(raw);
-    validateSourceMetadata(article, file, sourceType, tagIds);
+    const parsed = sourceType === "markdown" ? parseMarkdownMetadata(raw, file) : { metadata: JSON.parse(raw) };
+    const article = { ...parsed.metadata };
+    delete article.bodyHtml;
     metadataBySlug.set(article.slug, article);
     sources.push({ slug: article.slug, title: article.title, dek: article.dek, excerpt: article.excerpt || "", tags: article.tags ?? [], sourceType, file });
   }
@@ -331,6 +289,15 @@ export async function discoverArticleSources(root, { taxonomy } = {}) {
   for (const source of sources) {
     assert(!bySlug.has(source.slug), `two article sources for slug ${source.slug}: ${bySlug.get(source.slug)} and ${source.file}`);
     bySlug.set(source.slug, source.file);
+  }
+  const knownSlugs = new Set(bySlug.keys());
+  for (const source of sources) {
+    validateArticleMetadata(metadataBySlug.get(source.slug), {
+      sourcePath: `content/articles/${source.file}`,
+      rootPath: root,
+      knownTags: tagIds,
+      knownSlugs,
+    }, { legacy: source.sourceType === "json", checkAssets: false });
   }
   const bySeries = new Map();
   for (const source of sources) {
@@ -340,7 +307,6 @@ export async function discoverArticleSources(root, { taxonomy } = {}) {
       group.push({ slug: source.slug, order: metadata.seriesOrder, file: source.file });
       bySeries.set(metadata.series, group);
     }
-    for (const prerequisite of metadata.prerequisites ?? []) assert(bySlug.has(prerequisite), `${source.file}: unknown prerequisite slug: ${prerequisite}`);
   }
   for (const [series, members] of bySeries) {
     const orders = new Set();

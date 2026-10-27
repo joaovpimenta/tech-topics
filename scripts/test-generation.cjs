@@ -21,8 +21,11 @@ async function expectFailure(args, pattern) {
 (async () => {
   const catalog = await run(process.execPath, [composer, "--list"], { cwd: root });
   const generationReadme = await readFile(path.join(root, "generation", "README.md"), "utf8");
-  assert.match(generationReadme, /use Markdown somente em fixtures e previews da migração/);
-  assert.match(generationReadme, /build público vigente ainda lê JSON e ignora/);
+  const authoring = await readFile(path.join(root, "generation", "editorial", "AUTHORING.md"), "utf8");
+  assert.match(generationReadme, /formato-fonte, template, taxonomia e validação.*contrato autoral/);
+  assert.match(authoring, /O build público compila fontes Markdown e JSON legadas diretamente para HTML/);
+  assert.doesNotMatch(generationReadme, /O build público compila/);
+  assert.doesNotMatch(generationReadme, /build público vigente ainda lê JSON e ignora/);
   assert.match(catalog.stdout, /explain-concept/);
   assert.match(catalog.stdout, /distributed-systems/);
   assert.match(catalog.stdout, /Published topics/);
@@ -43,8 +46,8 @@ async function expectFailure(args, pattern) {
   assert.doesNotMatch(result.stdout, /Lente de domínio: Observabilidade/);
   assert.match(result.stdout, /content\/articles\/<slug>\.md/);
   assert.doesNotMatch(result.stdout, /contrato JSON vigente/);
-  assert.match(result.stdout, /build público vigente ainda lê os JSONs e ignora arquivos/);
-  assert.match(result.stdout, /não publica essas fontes/);
+  assert.match(result.stdout, /O build público compila Markdown e fontes JSON legadas diretamente para HTML/);
+  assert.match(result.stdout, /valida o corpus misto e constrói o pacote/);
   assert.ok(Buffer.byteLength(result.stdout) < 32768);
   // The active authoring module is included in every generated brief:
   // models must receive TTS aliases for meaningful inline code and arrows.
@@ -126,7 +129,11 @@ async function expectFailure(args, pattern) {
   await mkdir(path.join(temporaryRoot, "content", "articles"), { recursive: true });
   const fixtureArticleComposer = path.join(temporaryRoot, "scripts", "compose-article-brief.mjs");
   await writeFile(fixtureArticleComposer, await readFile(composer));
-  await writeFile(path.join(temporaryRoot, "scripts", "lib", "generation-system.mjs"), await readFile(path.join(root, "scripts", "lib", "generation-system.mjs")));
+  const generationSystemSource = await readFile(path.join(root, "scripts", "lib", "generation-system.mjs"), "utf8");
+  const sharedArticleModule = pathToFileURL(path.join(root, "scripts", "lib", "markdown-article.mjs")).href;
+  await writeFile(path.join(temporaryRoot, "scripts", "lib", "generation-system.mjs"), generationSystemSource.replace(
+    'from "./markdown-article.mjs"', `from ${JSON.stringify(sharedArticleModule)}`
+  ));
   const validRegistry = { ...invalidRegistry, tasks: { fixture: { label: "Fixture", file: "tasks/fixture.md" } } };
   await writeFile(path.join(temporaryRoot, "generation", "registry.json"), JSON.stringify(validRegistry));
   await writeFile(path.join(temporaryRoot, "generation", "taxonomy", "tags.json"), JSON.stringify({ version: 1, tags: { teste: { label: "Teste", description: "Tag de teste." } }, optionalMetadata: {} }));
@@ -143,8 +150,14 @@ async function expectFailure(args, pattern) {
   }
 
   const articleMarkdown = (slug, fields = "") => [
-    "---", `slug: ${slug}`, "language: pt-BR", `title: ${slug}`, 'dek: "Resumo de teste"', /^tags:/m.test(fields) ? "" : "tags: [teste]", fields, "---", "Texto completo.", ""
+    "---", `slug: ${slug}`, "language: pt-BR", `title: ${slug}`, 'category: "Sistemas"', 'date: "1 de janeiro de 2026"',
+    'publishedAt: "2026-01-01"', 'read: "5 min"', `image: assets/${slug}/${slug}-cover.jpg`, 'alt: "Descrição de teste"',
+    'dek: "Resumo de teste"', 'excerpt: "Resumo curto de teste"', /^tags:/m.test(fields) ? "" : "tags: [teste]", fields, "---", "Texto completo.", ""
   ].filter(Boolean).join("\n");
+  const legacyArticle = (slug, fields = {}) => ({
+    slug, language: "pt-BR", title: slug, category: "Sistemas", date: "1 de janeiro de 2026", publishedAt: "2026-01-01",
+    read: "5 min", image: `assets/${slug}/${slug}-cover.jpg`, alt: "Descrição de teste", dek: "Resumo de teste", excerpt: "Resumo curto de teste", ...fields
+  });
   const discoveryOptions = { taxonomy };
   const rawArticleTemplate = await readFile(path.join(root, "generation", "templates", "article.md"), "utf8");
   await writeFile(path.join(temporaryRoot, "content", "articles", "draft.md"), rawArticleTemplate);
@@ -188,32 +201,34 @@ async function expectFailure(args, pattern) {
   await writeFile(draftPath, populatedTemplate.replaceAll("base", "draft").replace('publishedAt: "2026-01-01"', 'publishedAt: "YYYY-MM-DD"'));
   await assert.rejects(() => discoverArticleSources(temporaryRoot, discoveryOptions), /unresolved template placeholders/);
   await rm(draftPath);
-  await writeFile(path.join(temporaryRoot, "content", "articles", "next.json"), JSON.stringify({ slug: "next", title: "Next", dek: "Resumo", prerequisites: ["base"] }));
+  await writeFile(path.join(temporaryRoot, "content", "articles", "next.json"), JSON.stringify(legacyArticle("next", { prerequisites: ["base"] })));
+  await writeFile(path.join(temporaryRoot, "content", "articles", "index.json"), JSON.stringify(legacyArticle("index")));
+  await writeFile(path.join(temporaryRoot, "content", "articles", "catalog.json"), JSON.stringify(legacyArticle("catalog")));
   const mixedSources = await discoverArticleSources(temporaryRoot, discoveryOptions);
   assert.deepEqual(mixedSources.map(source => source.slug), ["base", "next"]);
   assert.equal(mixedSources[0].sourceType, "markdown");
   assert.equal(mixedSources[0].title, "Base");
   assert.deepEqual(mixedSources[0].tags, ["teste"]);
-  await writeFile(path.join(temporaryRoot, "content", "articles", "base.json"), JSON.stringify({ slug: "base", title: "Base", dek: "Resumo" }));
+  await writeFile(path.join(temporaryRoot, "content", "articles", "base.json"), JSON.stringify(legacyArticle("base", { title: "Base" })));
   await assert.rejects(() => discoverArticleSources(temporaryRoot, discoveryOptions), /two article sources for slug base/);
   await rm(path.join(temporaryRoot, "content", "articles", "base.json"));
-  await writeFile(path.join(temporaryRoot, "content", "articles", "next.json"), JSON.stringify({ slug: "next", title: "Next", dek: "Resumo", prerequisites: ["missing"] }));
+  await writeFile(path.join(temporaryRoot, "content", "articles", "next.json"), JSON.stringify(legacyArticle("next", { prerequisites: ["missing"] })));
   await assert.rejects(() => discoverArticleSources(temporaryRoot, discoveryOptions), /unknown prerequisite slug/);
-  await writeFile(path.join(temporaryRoot, "content", "articles", "next.json"), JSON.stringify({ slug: "next", title: "Next", dek: "Resumo", prerequisites: ["base"] }));
+  await writeFile(path.join(temporaryRoot, "content", "articles", "next.json"), JSON.stringify(legacyArticle("next", { prerequisites: ["base"] })));
   await writeFile(path.join(temporaryRoot, "content", "articles", "base.md"), articleMarkdown("base", "prerequisites: [next]"));
   await assert.rejects(() => discoverArticleSources(temporaryRoot, discoveryOptions), /prerequisite cycle detected/);
   await writeFile(path.join(temporaryRoot, "content", "articles", "base.md"), articleMarkdown("base", "updatedAt: 2026-02-30"));
-  await assert.rejects(() => discoverArticleSources(temporaryRoot, discoveryOptions), /updatedAt must be a real ISO/);
+  await assert.rejects(() => discoverArticleSources(temporaryRoot, discoveryOptions), /updatedAt must be a valid date/);
   await writeFile(path.join(temporaryRoot, "content", "articles", "base.md"), articleMarkdown("base", "level: beginner"));
-  await assert.rejects(() => discoverArticleSources(temporaryRoot, discoveryOptions), /invalid level/);
+  await assert.rejects(() => discoverArticleSources(temporaryRoot, discoveryOptions), /level must be introdutorio/);
   await writeFile(path.join(temporaryRoot, "content", "articles", "base.md"), articleMarkdown("base", "series: series-a"));
   await assert.rejects(() => discoverArticleSources(temporaryRoot, discoveryOptions), /series and seriesOrder must be provided together/);
   await writeFile(path.join(temporaryRoot, "content", "articles", "base.md"), articleMarkdown("base", "tags: [unknown]"));
   await assert.rejects(() => discoverArticleSources(temporaryRoot, discoveryOptions), /unknown tag ID/);
   await writeFile(path.join(temporaryRoot, "content", "articles", "base.md"), articleMarkdown("base", "series: series-a\nseriesOrder: 2"));
-  await writeFile(path.join(temporaryRoot, "content", "articles", "next.json"), JSON.stringify({ slug: "next", title: "Next", dek: "Resumo", series: "series-a", seriesOrder: 5 }));
+  await writeFile(path.join(temporaryRoot, "content", "articles", "next.json"), JSON.stringify(legacyArticle("next", { series: "series-a", seriesOrder: 5 })));
   assert.deepEqual((await discoverArticleSources(temporaryRoot, discoveryOptions)).map(source => source.slug), ["base", "next"]);
-  await writeFile(path.join(temporaryRoot, "content", "articles", "next.json"), JSON.stringify({ slug: "next", title: "Next", dek: "Resumo", series: "series-a", seriesOrder: 2 }));
+  await writeFile(path.join(temporaryRoot, "content", "articles", "next.json"), JSON.stringify(legacyArticle("next", { series: "series-a", seriesOrder: 2 })));
   await assert.rejects(() => discoverArticleSources(temporaryRoot, discoveryOptions), /unique seriesOrder values/);
   await rm(temporaryRoot, { recursive: true, force: true });
 

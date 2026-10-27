@@ -36,6 +36,22 @@ export function validateIndependentBaseline(baseline) {
   return baseline;
 }
 
+export function validateDomAuditReport(report, { expectedSourceSha, baselineSha, label = "DOM audit" } = {}) {
+  assertCommitSha(expectedSourceSha, `${label}.sourceSha`);
+  if (!report || report.schemaVersion !== 3) throw new Error(`${label} must use DOM audit schemaVersion 3`);
+  if (report.baselineSourceSha !== baselineSha) throw new Error(`${label} must use the independent source baseline ${baselineSha}`);
+  if (report.sourceSha !== expectedSourceSha || report.distIdentityVerified !== true
+    || !/^[a-f0-9]{64}$/.test(report.buildId ?? "")
+    || !Number.isInteger(report.artifactFileCount) || report.artifactFileCount < 1) {
+    throw new Error(`${label} must prove that its HTML artifact matches source SHA ${expectedSourceSha}`);
+  }
+  if (!Array.isArray(report.articles) || report.articleCount !== report.articles.length
+    || new Set(report.articles.map(article => article?.slug)).size !== report.articles.length) {
+    throw new Error(`${label} articleCount must match unique article records`);
+  }
+  return report;
+}
+
 export function discoverArticleSources(entries, ref) {
   const sources = new Map();
   for (const file of entries) {
@@ -52,6 +68,10 @@ export function discoverArticleSources(entries, ref) {
   const inventory = [...sources].map(([slug, [record]]) => ({ slug, ...record })).sort((a, b) => a.slug.localeCompare(b.slug));
   if (!inventory.length) throw new Error(`${ref}: no article sources found`);
   return inventory;
+}
+
+export function publishedArticleSlugs(entries, ref) {
+  return discoverArticleSources(entries, ref).map(({ slug }) => slug);
 }
 
 export function firstAdditionDate(historyOutput, slug) {
@@ -274,7 +294,7 @@ export function compareArticleStates(before, after, { authorizedRemovals = [], d
     if (oldArticle.addedAt !== newArticle.addedAt) {
       blockers.push({ slug, kind: "history", reason: "addedAt changed", before: oldArticle.addedAt, after: newArticle.addedAt });
     }
-    if (oldArticle.order !== undefined && newArticle.order !== undefined && oldArticle.order !== newArticle.order) {
+    if (oldArticle.order !== newArticle.order) {
       blockers.push({ slug, kind: "history", reason: "publication order changed", before: oldArticle.order, after: newArticle.order });
     }
     const oldProjection = projection(oldArticle), newProjection = projection(newArticle);
@@ -325,9 +345,10 @@ export function compareArticleStates(before, after, { authorizedRemovals = [], d
   return { narration, framing, selection, blockers };
 }
 
-export function compareAgainstInitialBaseline(current, baseline) {
+export function compareAgainstInitialBaseline(current, baseline, { authorizedRemovals = [] } = {}) {
   const original = new Map(baseline.articles.map(article => [article.slug, article]));
   const currentSlugs = new Set(current.articles.map(article => article.slug));
+  const allowedRemovals = new Set(authorizedRemovals);
   const changes = current.articles.flatMap(article => {
     const initial = original.get(article.slug);
     if (!initial) return [{ slug: article.slug, kind: "missing-in-initial-baseline" }];
@@ -355,15 +376,16 @@ export function compareAgainstInitialBaseline(current, baseline) {
       addedAt: article.addedAt, order: article.order });
     return diff.changed ? [{ slug: article.slug, firstDivergence: diff.firstDivergence }] : [];
   });
-  const missingFromCurrent = [...original.keys()].filter(slug => !currentSlugs.has(slug)).sort();
+  const missingFromCurrent = [...original.keys()].filter(slug => !currentSlugs.has(slug) && !allowedRemovals.has(slug)).sort();
   return [...changes, ...missingFromCurrent.map(slug => ({ slug, kind: "missing-from-current-baseline" }))];
 }
 
-export function compareDomAgainstInitialBaseline(currentAudit, initialAudit) {
+export function compareDomAgainstInitialBaseline(currentAudit, initialAudit, { authorizedRemovals = [] } = {}) {
   const nativeSignatures = units => (units ?? []).map(({ blockIndex, sentenceIndex, sha256 }) => ({ blockIndex, sentenceIndex, sha256 }));
   const original = new Map((initialAudit.articles ?? []).map(article => [article.slug, article]));
   const currentArticles = currentAudit.articles ?? [];
   const currentSlugs = new Set(currentArticles.map(article => article.slug));
+  const allowedRemovals = new Set(authorizedRemovals);
   const changes = currentArticles.flatMap(article => {
     const initial = original.get(article.slug);
     if (!initial) return [{ slug: article.slug, kind: "missing-in-initial-dom-baseline" }];
@@ -376,7 +398,7 @@ export function compareDomAgainstInitialBaseline(currentAudit, initialAudit) {
     const difference = compareNarration(initialContract, currentContract);
     return difference.changed ? [{ slug: article.slug, firstDivergence: difference.firstDivergence }] : [];
   });
-  const missingFromCurrent = [...original.keys()].filter(slug => !currentSlugs.has(slug)).sort();
+  const missingFromCurrent = [...original.keys()].filter(slug => !currentSlugs.has(slug) && !allowedRemovals.has(slug)).sort();
   return [...changes, ...missingFromCurrent.map(slug => ({ slug, kind: "missing-from-current-dom-baseline" }))];
 }
 

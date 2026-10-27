@@ -158,7 +158,7 @@ async function main() {
     "",
     "## Gate final",
     "",
-    "Use somente as lentes aplicáveis ao tópico, sem criar seções artificiais para completar checklists. Tags devem vir do registro e updatedAt só entra quando houver uma fonte para a alteração. Durante #93–#96, valide Markdown por fixtures do compilador; `node scripts/validate-site.mjs` verifica o site JSON vigente e não publica essas fontes. Não substitua JSON nem trate o Markdown como publicado antes da ativação em #97. Depois de escrever a abertura, gere a capa com `node scripts/compose-cover-brief.mjs`. A validação determinística, não este brief, é a autoridade sobre invariantes estruturais e de segurança.",
+    "Use somente as lentes aplicáveis ao tópico, sem criar seções artificiais para completar checklists. Tags devem vir do registro e updatedAt só entra quando houver uma fonte para a alteração. O build público compila Markdown e fontes JSON legadas diretamente para HTML; use Markdown para artigos novos, não gere JSON intermediário e preserve fontes JSON existentes até sua etapa autorizada de conversão. `node scripts/validate-site.mjs` valida o corpus misto e constrói o pacote `html-v1`. Depois de escrever a abertura, gere a capa com `node scripts/compose-cover-brief.mjs`. A validação determinística, não este brief, é a autoridade sobre invariantes estruturais e de segurança.",
     ""
   );
 

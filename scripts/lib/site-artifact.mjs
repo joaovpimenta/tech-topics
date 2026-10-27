@@ -94,20 +94,22 @@ export async function collectPublicFiles(root) {
   return files;
 }
 
-export async function validatePublicReferences(root, files) {
+export async function validatePublicReferences(root, files, { allowMissing = [] } = {}) {
   const available = new Set(files);
+  const allowedMissing = new Set(allowMissing);
   const failures = [];
   function check(value, source, base) {
     try {
       const target = referencePath(value, source, base);
-      if (target && !available.has(target)) failures.push(`${source}: missing public reference ${value} (${target})`);
+      if (target && !available.has(target) && !allowedMissing.has(target)) failures.push(`${source}: missing public reference ${value} (${target})`);
     } catch (error) { failures.push(error.message); }
   }
   for (const file of files) {
     if (!/\.(?:html|css|js|json|webmanifest)$/.test(file)) continue;
     const text = await readFile(path.join(root, file), "utf8");
     if (file.endsWith(".html")) {
-      for (const reference of [...htmlReferences(text), ...cssReferences(text)]) check(reference, file);
+      const base = file.startsWith("content/articles/") ? "." : undefined;
+      for (const reference of [...htmlReferences(text), ...cssReferences(text)]) check(reference, file, base);
     } else if (file.endsWith(".css")) {
       for (const reference of cssReferences(text)) check(reference, file);
     } else if (file.endsWith(".js")) {
@@ -121,7 +123,7 @@ export async function validatePublicReferences(root, files) {
       const manifest = JSON.parse(text);
       if (manifest.start_url) check(manifest.start_url, file);
       for (const icon of manifest.icons ?? []) check(icon.src, file);
-    } else if (file.startsWith("content/articles/")) {
+    } else if (file.startsWith("content/articles/") && file.endsWith(".json")) {
       const article = JSON.parse(text);
       if (file === "content/articles/index.json") {
         for (const entry of article) check(entry.path, file, ".");

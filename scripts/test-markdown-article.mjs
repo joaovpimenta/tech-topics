@@ -74,6 +74,12 @@ assert.match(footnote.slots.body, /<section data-footnotes="" class="footnotes">
 assert.match(footnote.slots.body, /class="data-footnote-backref"/);
 const externalLink = await compileMarkdownArticle({ source: `${source}\n[Site](https://example.com/pic.jpg)\n`, ...context });
 assert.match(externalLink.slots.body, /href="https:\/\/example\.com\/pic\.jpg"/);
+const shellNavigation = await compileMarkdownArticle({
+  source: `${source}\n\n<a href="index.html#recent-posts">Voltar à lista</a>\n[Outro artigo](article.html?slug=outro#intro)\n`,
+  ...context
+});
+assert.match(shellNavigation.slots.body, /href="index\.html#recent-posts"/);
+assert.match(shellNavigation.slots.body, /href="article\.html\?slug=outro#intro"/);
 const inlineHtmlOpening = await compileMarkdownArticle({
   source: source.replace("Uma conversa começa com uma observação cotidiana e apresenta o conceito sem depender de outro bloco.", "Uma conversa começa com <span lang=\"pt-BR\">uma observação</span> cotidiana e apresenta o conceito sem depender de outro bloco."),
   ...context
@@ -96,6 +102,14 @@ const multilingualUnicodeOpening = await compileMarkdownArticle({
 assert.match(multilingualUnicodeOpening.slots.body, /<span lang="en-US">A conversation<\/span> começa aqui com ação e 🙂\./);
 const componentAfterOpening = await compileMarkdownArticle({ source: `${source}\n<button type="button">Play</button>\n`, ...context });
 assert.match(componentAfterOpening.slots.body, /<button type="button">Play<\/button>/);
+const labelAssociation = await compileMarkdownArticle({ source: `${source}\n<label for="simulator-input">Valor</label>\n`, ...context });
+assert.match(labelAssociation.slots.body, /<label for="simulator-input">Valor<\/label>/);
+const activeRange = await compileMarkdownArticle({
+  source: `${source}\n<input id="range-test" type="range" min="0" max="10" value="5">\n`,
+  ...context
+});
+assert.match(activeRange.slots.body, /<input[^>]*id="range-test"[^>]*type="range"[^>]*>/);
+assert.doesNotMatch(activeRange.slots.body, /<input[^>]*id="range-test"[^>]*disabled/);
 const envelope = renderArticleEnvelope(compiled, { buildId: "build-2026-10-25" });
 assert.match(envelope, /^<article data-article-format="html-v1" data-article-slug="sample" data-build-id="build-2026-10-25"><h1 data-article-slot="heading">/);
 assert.equal((envelope.match(/data-article-slot="heading"/g) ?? []).length, 1);

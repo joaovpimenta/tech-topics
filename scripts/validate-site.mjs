@@ -26,8 +26,10 @@ const checks = [
   ["Run FGS tests", ["scripts/test-fgs.cjs"]],
   ["Run diagram tests", ["scripts/test-diagrams.cjs"]],
   ["Run public artifact tests", ["scripts/test-site-artifact.mjs"]],
+  ["Run deterministic Markdown HTML preview tests", ["scripts/test-markdown-preview.mjs"]],
+  ["Run mixed JSON/Markdown article pipeline tests", ["scripts/test-mixed-article-pipeline.mjs"]],
   ["Run local TTS tests", ["scripts/test-tts.mjs"]],
-  ["Build public site artifact", ["scripts/build-site.mjs"]]
+  ["Build local HTML preview artifact", ["scripts/build-site.mjs", "--preview"]]
 ];
 
 function run(label, args) {

@@ -59,9 +59,13 @@ O mesmo princípio vale para blocos de código, fórmulas e diagramas Mermaid: o
 
 Crie um slug único, em letras minúsculas e separado por hífens. O nome do arquivo deve corresponder exatamente ao slug:
 
+Para artigos novos, use `content/articles/<slug>.md`, baseado em [generation/templates/article.md](../generation/templates/article.md). O JSON abaixo documenta o formato legado, que continua aceito durante a migração; não o use para novas fontes editoriais.
+
+### Formato legado JSON
+
 `content/articles/<slug>.json`
 
-Use este contrato:
+O adaptador legado preserva este contrato até cada artigo ser convertido:
 
 ```json
 {

@@ -5,7 +5,8 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { runInNewContext } from "node:vm";
-import { articleForNarrationExtraction, baselineCoverageBlockers, baselineReplayBlockers, compareArticleStates, compareAgainstInitialBaseline, compareDomAgainstInitialBaseline, discoverArticleSources, firstAdditionDate, isArticleNavigationLink, runGitText, validateIndependentBaseline } from "./lib/migration-compare.mjs";
+import { stringify as stringifyYaml } from "yaml";
+import { articleForNarrationExtraction, baselineCoverageBlockers, baselineReplayBlockers, compareArticleStates, compareAgainstInitialBaseline, compareDomAgainstInitialBaseline, discoverArticleSources, firstAdditionDate, isArticleNavigationLink, publishedArticleSlugs, runGitText, validateDomAuditReport, validateIndependentBaseline } from "./lib/migration-compare.mjs";
 import { instrumentSpeechBuildBlocks, spokenRunsSignature } from "./lib/migration-dom-signature.mjs";
 let compileMarkdownArticle, fromLegacyArticle;
 try { ({ compileMarkdownArticle, fromLegacyArticle } = await import("./lib/markdown-article.mjs")); }
@@ -264,6 +265,54 @@ test("additions, deletions, changed history and unavailable DOM evidence fail cl
   assert.equal(noDom.blockers[0].kind, "dom-chapters");
 });
 
+test("an explicitly authorized removal passes pairwise and independent source/DOM inventory checks", () => {
+  const before = state(article("alpha"), article("gone"));
+  const after = state(article("alpha"));
+  const hash = value => createHash("sha256").update(value).digest("hex");
+  const baselineArticle = source => ({
+    ...source,
+    source: `content/articles/${source.slug}.json`,
+    sourceBlob: sha("b"),
+    editorialSentences: source.editorialSentences.map(sentence => ({
+      ...sentence,
+      textSha256: hash(sentence.text.normalize("NFC").trim()),
+      punctuationSha256: hash((sentence.text.match(/[\p{P}\p{S}]+/gu) ?? []).join("")),
+      runs: sentence.runs.map(run => ({ lang: run.lang, textSha256: hash(run.text.normalize("NFC")) }))
+    })),
+    legacyChunks: source.legacyChunks.map(chunk => ({
+      ...chunk,
+      textSha256: hash(chunk.text),
+      runs: chunk.runs.map(run => ({ lang: run.lang, textSha256: hash(run.text) }))
+    }))
+  });
+  const sourceBaseline = { articles: before.articles.map(baselineArticle) };
+  const domBaseline = { articles: [...audit("alpha").articles, ...audit("gone").articles] };
+  const domBefore = domBaseline;
+  const domAfter = audit("alpha");
+  const authorizedRemovals = ["gone"];
+
+  const pairwise = compareArticleStates(before, after, {
+    authorizedRemovals,
+    domBefore,
+    domAfter
+  });
+  assert.deepEqual(pairwise, { narration: [], framing: [], selection: [], blockers: [] });
+
+  const baselineDrift = {
+    before: compareAgainstInitialBaseline(before, sourceBaseline),
+    after: compareAgainstInitialBaseline(after, sourceBaseline, { authorizedRemovals })
+  };
+  const domBaselineDrift = {
+    before: compareDomAgainstInitialBaseline(domBefore, domBaseline),
+    after: compareDomAgainstInitialBaseline(domAfter, domBaseline, { authorizedRemovals })
+  };
+  assert.deepEqual(baselineDrift, { before: [], after: [] });
+  assert.deepEqual(domBaselineDrift, { before: [], after: [] });
+  assert.deepEqual(baselineCoverageBlockers({ baselineDrift, domBaselineDrift }), []);
+  assert.equal(compareAgainstInitialBaseline(after, sourceBaseline).some(item => item.kind === "missing-from-current-baseline"), true,
+    "a removal remains blocked without the explicit authorization");
+});
+
 test("publication order changes are visible even when article content is unchanged", () => {
   const beforeArticle = { ...article("alpha"), order: 1 };
   const afterArticle = { ...article("alpha"), order: 2 };
@@ -281,6 +330,21 @@ test("baseline rejects absent, zero, unavailable and duplicate records", () => {
     capture: { sourceTools: [{ path: "x", sha256: "x" }], captureTools: [{ path: "y", sha256: "y" }] } }), /source path and Git blob SHA/);
   const valid = { schemaVersion: 3, sha: sha("a"), articles: [sourceArticle, sourceArticle], sourceCount: 2, capture: { sourceTools: [{ path: "x", sha256: "x" }], captureTools: [{ path: "y", sha256: "y" }] } };
   assert.throws(() => validateIndependentBaseline(valid), /duplicate/);
+});
+
+test("DOM audit evidence must bind its records to the verified source artifact", () => {
+  const report = { schemaVersion: 3, baselineSourceSha: sha("a"), sourceSha: sha("b"), buildId: "c".repeat(64),
+    artifactFileCount: 72, distIdentityVerified: true, articleCount: 1, articles: audit("alpha").articles };
+  assert.equal(validateDomAuditReport(report, { expectedSourceSha: sha("b"), baselineSha: sha("a") }), report);
+  assert.throws(() => validateDomAuditReport({ ...report, sourceSha: sha("d") }, {
+    expectedSourceSha: sha("b"), baselineSha: sha("a")
+  }), /prove that its HTML artifact matches/);
+  assert.throws(() => validateDomAuditReport({ ...report, distIdentityVerified: false }, {
+    expectedSourceSha: sha("b"), baselineSha: sha("a")
+  }), /prove that its HTML artifact matches/);
+  assert.throws(() => validateDomAuditReport({ ...report, baselineSourceSha: sha("e") }, {
+    expectedSourceSha: sha("b"), baselineSha: sha("a")
+  }), /independent source baseline/);
 });
 
 test("initial independent baseline drift is exposed even when both current sides match", () => {
@@ -370,6 +434,7 @@ test("real temporary Git commits preserve first addition across mixed sources an
     const secondCommit = commit("convert to Markdown");
     const secondInventory = discoverArticleSources(git("ls-tree", "-r", "--name-only", secondCommit).split(/\r?\n/), secondCommit);
     assert.deepEqual(secondInventory, [{ slug: "alpha", file: "content/articles/alpha.md", extension: "md" }]);
+    assert.deepEqual(publishedArticleSlugs(git("ls-tree", "-r", "--name-only", secondCommit).split(/\r?\n/), secondCommit), ["alpha"]);
     assert.equal(firstAdditionDate(git("log", "--reverse", "--diff-filter=A", secondCommit, "--format=%cI", "--", "content/articles/alpha.json", "content/articles/alpha.md"), "alpha"), firstDate);
     await rm(path.join(repo, "content/articles/alpha.md"));
     await writeFile(path.join(repo, "content/articles/alpha.json"), "{}\n");
@@ -383,5 +448,126 @@ test("real temporary Git commits preserve first addition across mixed sources an
     assert.ok(renameBlock.blockers.some(item => item.kind === "removed"));
     assert.ok(renameBlock.blockers.some(item => item.kind === "added"));
     assert.deepEqual(discoverArticleSources(git("ls-tree", "-r", "--name-only", renamedCommit).split(/\r?\n/), renamedCommit), [{ slug: "beta", file: "content/articles/beta.json", extension: "json" }]);
+  } finally { await rm(repo, { recursive: true, force: true }); }
+});
+
+test("real Git commits preserve the full corpus across an equivalent mixed-source state", async testContext => {
+  if (!compileMarkdownArticle) return testContext.skip("production compiler dependencies are unavailable in this checkout");
+  const root = process.cwd();
+  const repo = await mkdtemp(path.join(root, ".tmp-migration-full-corpus-git-"));
+  const git = (...args) => execFileSync("git", args, { cwd: repo, encoding: "utf8", maxBuffer: 50 * 1024 * 1024 }).trim();
+  const commit = message => { git("add", "-A"); git("commit", "-m", message); return git("rev-parse", "HEAD"); };
+  const rootGit = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 50 * 1024 * 1024 }).toString().trim();
+  const python = process.env.TECH_TOPICS_PYTHON || (process.platform === "win32" ? "python" : "python3");
+  try {
+    git("init", "-q"); git("config", "user.email", "test@example.com"); git("config", "user.name", "Migration Test");
+    const committedPaths = rootGit("ls-tree", "-r", "--name-only", "HEAD").split(/\r?\n/).filter(Boolean);
+    const sourcePaths = committedPaths.filter(file => /^content\/articles\/[a-z0-9]+(?:-[a-z0-9]+)*\.json$/.test(file)
+      && !["content/articles/index.json", "content/articles/catalog.json"].includes(file));
+    assert.equal(sourcePaths.length, 18, "fixture must start with the complete independently captured corpus");
+    const assetPaths = new Set(committedPaths.filter(file => file.startsWith("assets/")));
+    const articleDir = path.join(repo, "content/articles");
+    await mkdir(articleDir, { recursive: true });
+    const markdownSlug = "quoruns-de-leitura-e-escrita";
+    for (const file of sourcePaths) {
+      const destination = path.join(repo, ...file.split("/"));
+      await mkdir(path.dirname(destination), { recursive: true });
+      await writeFile(destination, rootGit("show", `HEAD:${file}`));
+    }
+    const jsonCommit = commit("add complete legacy corpus");
+
+    for (const file of sourcePaths) {
+      const source = JSON.parse(git("show", `${jsonCommit}:${file}`));
+      const { bodyHtml, ...metadata } = source;
+      const slug = path.basename(file, ".json");
+      if (slug !== markdownSlug) continue;
+      const opening = bodyHtml.match(/^\s*<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/i);
+      assert.ok(opening, `${slug}: legacy article must begin with its opening prose paragraph`);
+      const rewriteSourceAsset = value => value.startsWith("assets/") ? `../../${value}` : value;
+      const rewriteSrcset = value => value.split(",").map(candidate => candidate.trim()
+        .replace(/^(\S+)/, (_, url) => rewriteSourceAsset(url))).join(", ");
+      const markdownRemainder = bodyHtml.slice(opening[0].length).trim()
+        .replace(/\b(href|src)=(['"])(.*?)\2/gi, (_match, attribute, quote, value) => `${attribute}=${quote}${rewriteSourceAsset(value)}${quote}`)
+        .replace(/\bsrcset=(['"])(.*?)\1/gi, (_match, quote, value) => `srcset=${quote}${rewriteSrcset(value)}${quote}`);
+      const markdownBody = `${opening[1]}\n\n${markdownRemainder}`;
+      // This synthetic non-narrable tag models classification without making an editorial claim.
+      const markdown = `---\n${stringifyYaml({ ...metadata, tags: ["sistemas-distribuidos"] }, { schema: "core", lineWidth: 0 })}---\n\n${markdownBody}\n`;
+      await rm(path.join(repo, file));
+      await writeFile(path.join(repo, `content/articles/${slug}.md`), markdown);
+    }
+    const markdownCommit = commit("convert one source in the full corpus to Markdown");
+    const mixedInventory = discoverArticleSources(git("ls-tree", "-r", "--name-only", markdownCommit).split(/\r?\n/), markdownCommit);
+    assert.equal(mixedInventory.length, 18);
+    assert.equal(mixedInventory.filter(({ extension }) => extension === "md").length, 1);
+    assert.equal(mixedInventory.find(({ slug }) => slug === markdownSlug)?.extension, "md");
+
+    const taxonomy = JSON.parse(await readFile(path.join(root, "generation/taxonomy/tags.json"), "utf8"));
+    const knownTags = new Set(Object.keys(taxonomy.tags));
+    const lexicon = JSON.parse(await readFile(path.join(root, "content/tts-lexicon.json"), "utf8"));
+    const extractor = path.join(root, "scripts/lib/migration-baseline-extract.py");
+    async function compileCommit(sha) {
+      const entries = git("ls-tree", "-r", "--name-only", sha).split(/\r?\n/).filter(Boolean);
+      const inventory = discoverArticleSources(entries, sha);
+      assert.equal(inventory.length, 18);
+      const tree = new Map(git("ls-tree", "-r", sha).split(/\r?\n/).filter(Boolean).map(line => {
+        const match = line.match(/^\d+ blob ([0-9a-f]+)\t(.+)$/);
+        return match && [match[2], match[1]];
+      }).filter(Boolean));
+      const knownSlugs = new Set(inventory.map(({ slug }) => slug));
+      const compiled = [];
+      for (const source of inventory) {
+        const text = git("show", `${sha}:${source.file}`);
+        const context = { sourcePath: source.file, rootPath: root, knownTags, knownSlugs,
+          assetExists: file => assetPaths.has(file) };
+        const result = source.extension === "json"
+          ? fromLegacyArticle(JSON.parse(text), context)
+          : await compileMarkdownArticle({ source: text, ...context });
+        assert.equal(result.metadata.slug, source.slug);
+        const history = git("log", "--reverse", "--diff-filter=A", "--format=%cI", sha,
+          "--", `content/articles/${source.slug}.json`, `content/articles/${source.slug}.md`);
+        compiled.push({ slug: source.slug, source: source.file, sourceBlob: tree.get(source.file), metadata: result.metadata,
+          bodyHtml: result.slots.body, addedAt: firstAdditionDate(history, source.slug) });
+      }
+      const extracted = JSON.parse(execFileSync(python, ["-X", "utf8", extractor], {
+        cwd: root, input: JSON.stringify({ articles: compiled.map(articleForNarrationExtraction), lexicon }), encoding: "utf8",
+        env: { ...process.env, PYTHONUTF8: "1", TECH_TOPICS_BASELINE_TTS_DIR: path.join(root, "tools/tts") },
+        maxBuffer: 50 * 1024 * 1024
+      }));
+      const articles = compiled.map((article, index) => {
+        const extractedArticle = extracted.articles[index];
+        const assets = [...extractedArticle.assets.filter(asset => !isArticleNavigationLink(asset)),
+          { tag: "article", attribute: "image", value: article.metadata.image }].map(asset => {
+          const normalized = asset.value.split(/[?#]/, 1)[0].replace(/^\.\//, "");
+          return { ...asset, gitBlob: tree.get(normalized) ?? null };
+        });
+        return { ...article, ...extractedArticle, assets };
+      }).sort((a, b) => b.metadata.publishedAt.localeCompare(a.metadata.publishedAt)
+        || (Date.parse(b.addedAt) || 0) - (Date.parse(a.addedAt) || 0) || a.slug.localeCompare(b.slug))
+        .map((article, index) => ({ ...article, order: index + 1 }));
+      return { sha, articles };
+    }
+    const [before, after] = await Promise.all([compileCommit(jsonCommit), compileCommit(markdownCommit)]);
+    assert.deepEqual(after.articles.map(({ slug }) => slug), before.articles.map(({ slug }) => slug), "publication order and inventory must survive the conversion");
+    for (const oldArticle of before.articles) {
+      const newArticle = after.articles.find(article => article.slug === oldArticle.slug);
+      assert.equal(newArticle.addedAt, oldArticle.addedAt, `${oldArticle.slug}: first addition history survives source extension change`);
+    }
+    const auditState = current => ({ articles: current.articles.flatMap(item => {
+      const sentences = item.editorialSentences;
+      const records = audit(item.slug, sentences.map((sentence, index) => `${index}:${sentence.text}`), {
+        frames: sentences.map(({ blockIndex, sentenceIndex }) => [blockIndex, sentenceIndex]),
+        spokenTexts: sentences.map(({ text }) => text), spokenRuns: sentences.map(({ runs }) => runs),
+        chapters: JSON.stringify(sentences.map(({ blockIndex, sentenceIndex }) => [blockIndex, sentenceIndex]))
+      }).articles;
+      return records;
+    }) });
+    const result = compareArticleStates(before, after, { domBefore: auditState(before), domAfter: auditState(after) });
+    const diffSummary = {
+      narration: result.narration.slice(0, 4).map(({ slug, firstDivergence }) => ({ slug, path: firstDivergence.path })),
+      framing: result.framing.slice(0, 4).map(({ slug, contract, firstDivergence }) => ({ slug, contract, path: firstDivergence.path })),
+      blockers: result.blockers.slice(0, 4).map(({ slug, kind, reason, firstDivergence }) => ({ slug, kind, reason, path: firstDivergence?.path }))
+    };
+    assert.deepEqual(result, { narration: [], framing: [], selection: [], blockers: [] },
+      `all 18 articles must have empty events when source format and non-narrable test tags are the only changes: ${JSON.stringify(diffSummary)}`);
   } finally { await rm(repo, { recursive: true, force: true }); }
 });

@@ -10,7 +10,60 @@ from unittest.mock import patch
 import article_selection
 
 
+def write_html_artifact(dist: Path, source_sha: str, records: list[dict], html_templates: dict[str, str]) -> str:
+    (dist / "assets").mkdir(parents=True, exist_ok=True)
+    (dist / "content" / "articles").mkdir(parents=True, exist_ok=True)
+    catalog_base = {"version": 1, "transport": "html-v1", "articles": records}
+    files = {
+        "assets/articles-catalog.json": (
+            json.dumps(catalog_base, ensure_ascii=False, indent=2) + "\n"
+        ).encode("utf-8"),
+        "sw-version.js": b"const PRECACHE_VERSION = \"test\";\n",
+    }
+    empty_build_id = "0" * 64
+    for slug, template in html_templates.items():
+        files[f"content/articles/{slug}.html"] = template.format(buildId=empty_build_id).encode("utf-8")
+    build_id = article_selection._compute_markdown_build_id(files)
+    catalog = {**catalog_base, "sourceSha": source_sha, "buildId": build_id}
+    (dist / "assets" / "articles-catalog.json").write_bytes(
+        (json.dumps(catalog, ensure_ascii=False, indent=2) + "\n").encode("utf-8"))
+    for slug, template in html_templates.items():
+        (dist / "content" / "articles" / f"{slug}.html").write_text(
+            template.format(buildId=build_id), encoding="utf-8")
+    (dist / "sw-version.js").write_bytes(files["sw-version.js"])
+    manifest = {
+        "version": 2, "format": "html-v1", "sourceSha": source_sha,
+        "buildId": build_id, "files": sorted(files),
+    }
+    (dist / ".site-artifact.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return build_id
+
+
 class ArticleSelectionTests(unittest.TestCase):
+    def test_zero_shas_never_become_empty_article_baselines(self):
+        zero = "0" * 40
+        full = "a" * 40
+        with self.assertRaisesRegex(ValueError, "zerad"):
+            article_selection.added_slugs(zero, full)
+        with self.assertRaisesRegex(ValueError, "zerad"):
+            article_selection.added_slugs(full, zero)
+        with self.assertRaisesRegex(ValueError, "zerad"):
+            article_selection.spoken_changes(full, zero)
+
+    def test_release_identity_is_exact_and_idempotent_per_build(self):
+        source_sha = "a" * 40
+        build_id = "b" * 64
+        marker = article_selection.release_artifact_marker(source_sha, build_id)
+        self.assertTrue(article_selection.release_matches_artifact(
+            f"Audio e capítulos publicados.\n{marker}\n", source_sha, build_id))
+        self.assertFalse(article_selection.release_matches_artifact(
+            f"Audio anterior.\n{marker}\n", "c" * 40, build_id))
+        self.assertFalse(article_selection.release_matches_artifact(
+            f"Audio anterior.\n{marker}\n", source_sha, "d" * 64))
+        with self.assertRaises(ValueError):
+            article_selection.release_artifact_marker("latest", build_id)
+
     def test_slug_validation(self):
         with self.assertRaises(ValueError):
             article_selection.read_article("../../secrets")
@@ -30,7 +83,8 @@ class ArticleSelectionTests(unittest.TestCase):
             for article in articles:
                 (directory / (article["slug"] + ".json")).write_text(
                     json.dumps(article), encoding="utf-8")
-            with patch.object(article_selection, "ARTICLE_DIR", directory):
+            with patch.object(article_selection, "ARTICLE_DIR", directory), \
+                    patch.object(article_selection, "DIST_DIR", directory / "dist"):
                 self.assertEqual(article_selection.select_manual("Bulkhead"), ["bulkhead"])
                 self.assertEqual(article_selection.select_manual("four golden signals"),
                                  ["four-golden-signals"])
@@ -51,7 +105,8 @@ class ArticleSelectionTests(unittest.TestCase):
                     "slug": slug, "language": "pt-BR", "title": slug
                 }), encoding="utf-8")
             (directory / "index.json").write_text("[]", encoding="utf-8")
-            with patch.object(article_selection, "ARTICLE_DIR", directory):
+            with patch.object(article_selection, "ARTICLE_DIR", directory), \
+                    patch.object(article_selection, "DIST_DIR", directory / "dist"):
                 self.assertEqual(sorted(a["slug"] for a in article_selection.catalog()),
                                  ["bulkhead", "four-golden-signals", "hedged-requests"])
 
@@ -65,7 +120,8 @@ class ArticleSelectionTests(unittest.TestCase):
                                 "publishedAt": "2026-03-10"}),
                     encoding="utf-8",
                 )
-            with patch.object(article_selection, "ARTICLE_DIR", directory):
+            with patch.object(article_selection, "ARTICLE_DIR", directory), \
+                    patch.object(article_selection, "DIST_DIR", directory / "dist"):
                 with self.assertRaisesRegex(ValueError, "ambíguo"):
                     article_selection.select_manual("Four Golden Signals")
 
@@ -143,12 +199,147 @@ class ArticleSelectionTests(unittest.TestCase):
             git("commit", "-m", "old")
             before = git("rev-parse", "HEAD")
             (directory / "older.json").write_text('{"modified":true}', encoding="utf-8")
-            (directory / "new.json").write_text("{}", encoding="utf-8")
+            (directory / "new.json").write_text(
+                '{"slug":"new","language":"pt-BR"}', encoding="utf-8")
             (directory / "index.json").write_text("[]", encoding="utf-8")
             git("add", ".")
             git("commit", "-m", "new")
             after = git("rev-parse", "HEAD")
             self.assertEqual(article_selection.added_slugs(before, after, root), ["new"])
+
+    def test_compiled_markdown_is_read_from_validated_html_and_source_sha(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            article_dir = root / "content" / "articles"
+            article_dir.mkdir(parents=True)
+            (article_dir / "alpha.md").write_text("---\nslug: alpha\n---\n", encoding="utf-8")
+            dist = root / "dist"
+            source_sha = "a" * 40
+            records = [{"slug": "alpha", "path": "content/articles/alpha.html",
+                        "format": "html-v1", "title": "Alpha", "publishedAt": "2026-10-25",
+                        "tags": [], "tagLabels": []}]
+            envelope = ('<article data-article-format="html-v1" data-article-slug="alpha" '
+                        'data-build-id="{buildId}"><h1 data-article-slot="heading">Alpha</h1>'
+                        '<p data-article-slot="dek">Resumo</p>'
+                        '<section data-article-slot="body"><p>Texto compilado.</p></section></article>')
+            build_id = write_html_artifact(dist, source_sha, records, {"alpha": envelope})
+            rendered = envelope.format(buildId=build_id)
+            with self.assertRaisesRegex(ValueError, "Fonte Markdown sem HTML"):
+                article_selection.read_article("alpha", article_dir, root / "empty-dist")
+            article = article_selection.read_article("alpha", article_dir, dist, source_sha)
+            self.assertEqual(article["html"], rendered)
+            self.assertEqual(article["title"], "Alpha")
+            self.assertEqual(article_selection.validate_artifact_identity(
+                source_sha, build_id, article_dir, dist),
+                {"sourceSha": source_sha, "buildId": build_id, "articles": 1})
+            with self.assertRaisesRegex(ValueError, "buildId"):
+                article_selection.validate_artifact_identity(source_sha, "c" * 64, article_dir, dist)
+            with self.assertRaisesRegex(ValueError, "source SHA"):
+                article_selection.read_article("alpha", article_dir, dist, "c" * 40)
+            (dist / "content" / "articles" / "alpha.html").write_text(
+                rendered.replace("Texto compilado.", "Texto alterado."), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "conteúdo do artefato"):
+                article_selection.validate_artifact_identity(source_sha, build_id, article_dir, dist)
+
+    def test_markdown_addition_requires_html_for_the_same_validated_revision(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            def git(*args):
+                return subprocess.run(["git", *args], cwd=root, check=True,
+                                      capture_output=True, text=True).stdout.strip()
+            git("init")
+            git("config", "user.email", "test@example.com")
+            git("config", "user.name", "Test")
+            article_dir = root / "content" / "articles"
+            article_dir.mkdir(parents=True)
+            (article_dir / "older.json").write_text('{"slug":"older"}', encoding="utf-8")
+            git("add", ".")
+            git("commit", "-m", "initial")
+            before = git("rev-parse", "HEAD")
+            (article_dir / "new.md").write_text("---\nslug: new\n---\n", encoding="utf-8")
+            git("add", ".")
+            git("commit", "-m", "add markdown")
+            after = git("rev-parse", "HEAD")
+            with self.assertRaisesRegex(ValueError, "HTML compilado"):
+                article_selection.added_slugs(before, after, root)
+            dist = root / "dist"
+            (dist / "assets").mkdir(parents=True)
+            (dist / "content" / "articles").mkdir(parents=True)
+            build_id = "d" * 64
+            (dist / "assets" / "articles-catalog.json").write_text(json.dumps({
+                "version": 1, "transport": "html-v1", "sourceSha": after, "buildId": build_id,
+                "articles": [
+                    {"slug": "older", "path": "content/articles/older.html",
+                     "format": "html-v1", "title": "Older"},
+                    {"slug": "new", "path": "content/articles/new.html",
+                     "format": "html-v1", "title": "New", "publishedAt": "2026-10-25"},
+                ],
+            }), encoding="utf-8")
+            (dist / "content" / "articles" / "new.html").write_text(
+                '<article data-article-format="html-v1" data-article-slug="new" '
+                f'data-build-id="{build_id}"><h1 data-article-slot="heading">New</h1>'
+                '<p data-article-slot="dek">Resumo</p>'
+                '<section data-article-slot="body"><p>Texto compilado.</p></section></article>',
+                encoding="utf-8",
+            )
+            self.assertEqual(article_selection.added_slugs(before, after, root), ["new"])
+
+    def test_spoken_changes_compare_json_to_markdown_without_false_refresh(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            def git(*args):
+                return subprocess.run(["git", *args], cwd=root, check=True,
+                                      capture_output=True, text=True).stdout.strip()
+            git("init")
+            git("config", "user.email", "test@example.com")
+            git("config", "user.name", "Test")
+            article_dir = root / "content" / "articles"
+            article_dir.mkdir(parents=True)
+            taxonomy = root / "generation" / "taxonomy"
+            taxonomy.mkdir(parents=True)
+            (taxonomy / "tags.json").write_text(json.dumps({
+                "version": 1,
+                "tags": {"seguranca": {"label": "Segurança", "description": "Proteção."}},
+                "optionalMetadata": {},
+            }), encoding="utf-8")
+            asset_dir = root / "assets" / "alpha"
+            asset_dir.mkdir(parents=True)
+            (asset_dir / "alpha-cover.jpg").write_bytes(b"fixture")
+            spoken = "Uma margem clara permite recuperar o serviço sem sobrecarregar o broker."
+            metadata = {
+                "slug": "alpha", "language": "pt-BR", "title": "Uma fila segura",
+                "category": "Fundamentos", "date": "25 de outubro de 2026",
+                "publishedAt": "2026-10-25", "read": "5 min",
+                "image": "assets/alpha/alpha-cover.jpg", "alt": "Uma capa simples",
+                "dek": "Uma explicação clara.", "excerpt": "Resumo editorial.",
+                "tags": ["seguranca"],
+            }
+            (article_dir / "alpha.json").write_text(json.dumps({
+                **metadata, "bodyHtml": f"<p>{spoken}</p>"
+            }), encoding="utf-8")
+            git("add", ".")
+            git("commit", "-m", "legacy article")
+            before = git("rev-parse", "HEAD")
+
+            def save_markdown(body):
+                fields = "\n".join(f"{key}: {json.dumps(value, ensure_ascii=False)}"
+                                    for key, value in metadata.items() if key != "tags")
+                fields += "\ntags: [seguranca]"
+                (article_dir / "alpha.md").write_text(
+                    f"---\n{fields}\n---\n\n{body}\n", encoding="utf-8")
+                (article_dir / "alpha.json").unlink(missing_ok=True)
+
+            save_markdown(spoken)
+            git("add", "-A")
+            git("commit", "-m", "convert to markdown")
+            converted = git("rev-parse", "HEAD")
+            self.assertEqual(article_selection.spoken_changes(before, converted, root), [])
+
+            save_markdown(spoken.replace("margem clara", "janela de recuperação"))
+            git("add", "-A")
+            git("commit", "-m", "edit spoken copy")
+            edited = git("rev-parse", "HEAD")
+            self.assertEqual(article_selection.spoken_changes(converted, edited, root), ["alpha"])
 
 
 if __name__ == "__main__":

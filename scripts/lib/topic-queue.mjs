@@ -32,6 +32,12 @@ export function parseQueue(comments) {
     const selected = readMarkedJson(comment.body || "", "selected");
     if (selected) {
       if (!selected.slug || !selected.sourceCommentId) throw new Error(`Invalid selection in comment ${comment.id}`);
+      if ((selected.sourceSha === undefined) !== (selected.buildId === undefined)
+        || (selected.sourceSha !== undefined && (typeof selected.sourceSha !== "string"
+          || typeof selected.buildId !== "string" || !/^[a-f0-9]{40}$/i.test(selected.sourceSha)
+          || !/^[a-f0-9]{64}$/.test(selected.buildId)))) {
+        throw new Error(`Invalid deployment identity in selection comment ${comment.id}`);
+      }
       selections.push({ ...selected, commentId: comment.id });
     }
   }
@@ -112,7 +118,9 @@ export function eligibleTopics({ candidates, selections }, published) {
   return [...unique.values()];
 }
 
-export function selectionComment(topic) {
+export function selectionComment(topic, deployment = null) {
   const { slug, title, angle, task, frameworks, sourceCommentId } = topic;
-  return `Próximo artigo: **${title}** (\`${slug}\`).\n\n${markers.selected}\n\`\`\`json\n${JSON.stringify({ slug, title, angle, task, frameworks, sourceCommentId }, null, 2)}\n\`\`\``;
+  const selection = { slug, title, angle, task, frameworks, sourceCommentId };
+  if (deployment) Object.assign(selection, deployment);
+  return `Próximo artigo: **${title}** (\`${slug}\`).\n\n${markers.selected}\n\`\`\`json\n${JSON.stringify(selection, null, 2)}\n\`\`\``;
 }

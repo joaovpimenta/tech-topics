@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseDocument } from "yaml";
 import { compileMarkdownArticle, fromLegacyArticle } from "./lib/markdown-article.mjs";
-import { articleForNarrationExtraction, baselineCoverageBlockers, baselineReplayBlockers, compareAgainstInitialBaseline, compareDomAgainstInitialBaseline, compareArticleStates, assertCommitSha, validateIndependentBaseline, toolFingerprint, discoverArticleSources, firstAdditionDate, isArticleNavigationLink, runGitText } from "./lib/migration-compare.mjs";
+import { articleForNarrationExtraction, baselineCoverageBlockers, baselineReplayBlockers, compareAgainstInitialBaseline, compareDomAgainstInitialBaseline, compareArticleStates, assertCommitSha, validateDomAuditReport, validateIndependentBaseline, toolFingerprint, discoverArticleSources, firstAdditionDate, isArticleNavigationLink, runGitText } from "./lib/migration-compare.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
@@ -15,14 +15,9 @@ assertCommitSha(beforeSha, "--before");
 assertCommitSha(afterSha, "--after");
 if (beforeSha === afterSha) throw new Error("--before and --after must identify different commits");
 const baseline = validateIndependentBaseline(JSON.parse(await readFile(path.resolve(root, baselinePath), "utf8")));
-const domBaseline = JSON.parse(await readFile(path.resolve(root, domBaselinePath), "utf8"));
-if (domBaseline.baselineSourceSha !== baseline.sha || !Array.isArray(domBaseline.articles) || !domBaseline.articles.length) {
-  throw new Error("--dom-baseline must be a non-empty independent audit whose baselineSourceSha matches --baseline.sha");
-}
-if (domBaseline.articleCount !== domBaseline.articles.length ||
-    new Set(domBaseline.articles.map(article => article.slug)).size !== domBaseline.articles.length) {
-  throw new Error("--dom-baseline articleCount must match unique article records");
-}
+const domBaseline = validateDomAuditReport(JSON.parse(await readFile(path.resolve(root, domBaselinePath), "utf8")), {
+  expectedSourceSha: baseline.sha, baselineSha: baseline.sha, label: "--dom-baseline"
+});
 const domBeforePath = value("--dom-before"), domAfterPath = value("--dom-after");
 if (!domBeforePath || !domAfterPath) throw new Error("both --dom-before and --dom-after audit reports are required");
 const domBeforeInput = JSON.parse(await readFile(path.resolve(root, domBeforePath), "utf8"));
@@ -30,16 +25,12 @@ const domAfterInput = JSON.parse(await readFile(path.resolve(root, domAfterPath)
 if (domBeforeInput.commitSha !== beforeSha || domAfterInput.commitSha !== afterSha || !domBeforeInput.report || !domAfterInput.report) {
   throw new Error("DOM inputs must wrap each audit as {commitSha, report} and match the explicitly supplied before/after SHAs");
 }
-const domBefore = domBeforeInput.report;
-const domAfter = domAfterInput.report;
-for (const [side, report] of [["before", domBefore], ["after", domAfter]]) {
-  if (report.schemaVersion !== 3) throw new Error(`--dom-${side} must use DOM audit schemaVersion 3 with spoken language/text run signatures`);
-  if (report.baselineSourceSha !== baseline.sha) throw new Error(`--dom-${side} must use the same initial source baseline`);
-  if (!Array.isArray(report.articles) || report.articleCount !== report.articles.length ||
-      new Set(report.articles.map(article => article.slug)).size !== report.articles.length) {
-    throw new Error(`--dom-${side} articleCount must match unique article records`);
-  }
-}
+const domBefore = validateDomAuditReport(domBeforeInput.report, {
+  expectedSourceSha: beforeSha, baselineSha: baseline.sha, label: "--dom-before"
+});
+const domAfter = validateDomAuditReport(domAfterInput.report, {
+  expectedSourceSha: afterSha, baselineSha: baseline.sha, label: "--dom-after"
+});
 const git = (...args) => runGitText(root, ...args);
 for (const sha of [beforeSha, afterSha, baseline.sha]) git("cat-file", "-e", `${sha}^{commit}`);
 
@@ -146,10 +137,13 @@ const initialToolDrift = currentToolFingerprint.flatMap(tool => {
   const expected = initialTools.get(tool.path);
   return expected && expected !== tool.sha256 ? [{ path: tool.path, initial: expected, current: tool.sha256 }] : [];
 });
-const changes = compareArticleStates(before, after, { authorizedRemovals: value("--allow-remove")?.split(",").filter(Boolean) ?? [], domBefore, domAfter });
+const authorizedRemovals = value("--allow-remove")?.split(",").filter(Boolean) ?? [];
+const changes = compareArticleStates(before, after, { authorizedRemovals, domBefore, domAfter });
 if (initialToolDrift.length) changes.blockers.push({ kind: "baseline-toolchain", reason: "capture or narration tools differ from the independent initial baseline", files: initialToolDrift.map(item => item.path) });
-const baselineDrift = { before: compareAgainstInitialBaseline(before, baseline), after: compareAgainstInitialBaseline(after, baseline) };
-const domBaselineDrift = { before: compareDomAgainstInitialBaseline(domBefore, domBaseline), after: compareDomAgainstInitialBaseline(domAfter, domBaseline) };
+const baselineDrift = { before: compareAgainstInitialBaseline(before, baseline),
+  after: compareAgainstInitialBaseline(after, baseline, { authorizedRemovals }) };
+const domBaselineDrift = { before: compareDomAgainstInitialBaseline(domBefore, domBaseline),
+  after: compareDomAgainstInitialBaseline(domAfter, domBaseline, { authorizedRemovals }) };
 changes.blockers.push(...baselineCoverageBlockers({ baselineDrift, domBaselineDrift }));
 changes.blockers.push(...baselineReplayBlockers({ baseline, before, after, baselineDrift, domBaselineDrift }));
 changes.selection = changes.selection.filter(slug => !changes.blockers.some(blocker => !blocker.slug || blocker.slug === slug));
