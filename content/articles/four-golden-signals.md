@@ -56,21 +56,23 @@ Defina o início e o fim da medição. A duração no servidor não inclui neces
 
 Considere 100 requisições: 90 levam 100 ms e 10 levam 1.500 ms. A média é **(90 × 100 + 10 × 1.500) / 100 = 240 ms**. Pelo método do posto mais próximo, p50 = 100 ms e p95 = p99 = 1.500 ms. A média não está errada: responde a uma pergunta diferente da cauda.
 
-<figure class="mermaid-figure">
-<div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Distribuição de latência: a maioria é rápida, mas uma cauda longa domina a experiência.">
-<pre class="mermaid-source">xychart-beta
-  title &quot;100 requisições por duração&quot;
+<!-- tech-topics:mermaid {"label":"Distribuição de latência: a maioria é rápida, mas uma cauda longa domina a experiência."} -->
+
+```mermaid
+xychart-beta
+  title "100 requisições por duração"
   x-axis [fast, tail]
-  y-axis &quot;requisições&quot; 0 --&gt; 100
-  bar [90, 10]</pre>
-</div>
+  y-axis "requisições" 0 --> 100
+  bar [90, 10]
+```
+
 <figcaption>Dados sintéticos, não telemetria real. As barras representam quantidades, não duração; cada observação pertence a um dos dois grupos.</figcaption>
+
 <details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
-  title &quot;100 requisições por duração&quot;
+  title "100 requisições por duração"
   x-axis [100ms, 1500ms]
-  y-axis &quot;requisições&quot; 0 --&gt; 100
+  y-axis "requisições" 0 --&gt; 100
   bar [90, 10]</pre></details>
-</figure>
 
 Percentis de instâncias não devem ser simplesmente promediados. Para obter o p95 do serviço, agregue uma representação da distribuição. Histogramas permitem essa agregação; quantis pré-calculados por *summaries* não oferecem a mesma operação. Buckets mal posicionados reduzem a precisão. [Histogramas e summaries](https://prometheus.io/docs/practices/histograms/).
 
@@ -116,37 +118,42 @@ Um modelo didático usa chegadas Poisson, tempos de serviço exponenciais indepe
 
 Se μ = 100 operações/s, o serviço médio isolado leva 10 ms. Com λ = 50/s, W = 20 ms; com 90/s, W = 100 ms; com 95/s, W = 200 ms. Aumentar a utilização de 90% para 95% dobra a duração média neste modelo.
 
-<figure class="mermaid-figure">
-<div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="O tempo médio cresce de forma não linear quando a carga se aproxima da capacidade.">
-<pre class="mermaid-source">xychart-beta
-  title &quot;M/M/1 · capacidade 100 por segundo&quot;
+<!-- tech-topics:mermaid {"label":"O tempo médio cresce de forma não linear quando a carga se aproxima da capacidade."} -->
+
+```mermaid
+xychart-beta
+  title "M/M/1 · capacidade 100 por segundo"
   x-axis [load50, load80, load90, load95]
-  y-axis &quot;tempo médio (ms)&quot; 0 --&gt; 220
-  bar [20, 50, 100, 200]</pre>
-</div>
+  y-axis "tempo médio (ms)" 0 --> 220
+  bar [20, 50, 100, 200]
+```
+
 <figcaption>Resultados analíticos de um modelo idealizado, não uma previsão para sua API. Os comprimentos das barras usam a mesma escala linear.</figcaption>
+
 <details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
-  title &quot;M/M/1 · capacidade 100 por segundo&quot;
+  title "M/M/1 · capacidade 100 por segundo"
   x-axis [50, 80, 90, 95]
-  y-axis &quot;tempo médio (ms)&quot; 0 --&gt; 220
+  y-axis "tempo médio (ms)" 0 --&gt; 220
   bar [20, 50, 100, 200]</pre></details>
-</figure>
 
 <section class="fgs-simulator" id="fgs-simulator" aria-labelledby="fgs-sim-title"><h3 id="fgs-sim-title">Experimente: aumente a demanda</h3><p>Capacidade fixa: μ = 100 operações/s. O controle altera λ e recalcula o modelo; não gera carga nem acessa servidores.</p><label for="fgs-arrival">Chegadas por segundo (λ)</label><input id="fgs-arrival" type="range" min="10" max="99" step="1" value="80" /><div class="fgs-sim-results" aria-live="polite" aria-atomic="true"><p>Tráfego: <output id="fgs-traffic" for="fgs-arrival">80 operações/s</output></p><p>Utilização: <output id="fgs-utilization" for="fgs-arrival">80%</output></p><p>Tempo médio total: <output id="fgs-duration" for="fgs-arrival">50 ms</output></p><p>Operações no sistema: <output id="fgs-concurrency" for="fgs-arrival">4</output></p></div><p class="fgs-small">O modelo não calcula erros, percentis, retries ou perdas. Para λ ≥ μ, não há regime estacionário com médias finitas neste modelo. Um sistema real pode rejeitar carga, ter filas finitas, múltiplos workers ou comportamento bem diferente.</p></section>
 
 <h2 id="fgs-instrumentacao">4. Arquitetura: onde observar cada dimensão</h2>
 
-<figure class="mermaid-figure">
-<div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="A experiência do cliente atravessa gateway, API e banco; cada camada precisa de observabilidade.">
-<pre class="mermaid-source">flowchart LR
-  C[Cliente] --&gt; G[Gateway]
-  G --&gt; A[API]
-  A --&gt; D[Banco]
-  G -. métricas .-&gt; M[Coletor]
-  A -. métricas .-&gt; M
-  D -. métricas .-&gt; M</pre>
-</div>
+<!-- tech-topics:mermaid {"label":"A experiência do cliente atravessa gateway, API e banco; cada camada precisa de observabilidade."} -->
+
+```mermaid
+flowchart LR
+  C[Cliente] --> G[Gateway]
+  G --> A[API]
+  A --> D[Banco]
+  G -. métricas .-> M[Coletor]
+  A -. métricas .-> M
+  D -. métricas .-> M
+```
+
 <figcaption>Arquitetura ilustrativa. Não some contagens do gateway e da API como se fossem operações distintas do usuário.</figcaption>
+
 <details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
   C[Cliente] --&gt; G[Gateway]
   G --&gt; A[API]
@@ -154,7 +161,6 @@ Se μ = 100 operações/s, o serviço médio isolado leva 10 ms. Com λ = 50/s, 
   G -. métricas .-&gt; M[Coletor]
   A -. métricas .-&gt; M
   D -. métricas .-&gt; M</pre></details>
-</figure>
 
 1.  **Escolha a jornada e o contrato.** Por exemplo, finalizar um pedido corretamente em até 1 segundo.
 2.  **Delimite a observação.** Cliente, gateway, API, dependências e conclusão assíncrona têm fronteiras diferentes.
