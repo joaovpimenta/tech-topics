@@ -20,6 +20,11 @@
     "addedAt": "2026-10-02T12:16:47-03:00"
   },
   {
+    "slug": "hedged-requests",
+    "path": "content/articles/hedged-requests.json",
+    "addedAt": "2026-10-02T12:15:58-03:00"
+  },
+  {
     "slug": "chaos-engineering-experimentos-de-falha",
     "path": "content/articles/chaos-engineering-experimentos-de-falha.json",
     "addedAt": "2026-10-02T12:05:31-03:00"
@@ -81,7 +86,7 @@
   },
   {
     "slug": "four-golden-signals",
-    "path": "content/articles/four-golden-signals.json",
+    "path": "content/articles/four-golden-signals.md",
     "addedAt": "2026-09-12T00:54:29-03:00"
   }
 ]
