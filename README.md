@@ -54,6 +54,54 @@ The brief is written to stdout and should not be committed. The composer does no
 
 Kokoro ONNX FP32 with voice `pf_dora` is the only backend that generates published MP3 files; the browser's Web Speech API is a separate device playback option. The current Actions workflow has a global literal `false` effect gate, so manual runs, backfills, new-article synthesis and the normally permitted refresh of changed existing narration cannot generate audio. Normal CI uses lightweight simulated TTS checks and does not load the model or prove a real synthesis. Resuming generation requires an explicitly authorized workflow change; a real-generation proof would then require a successful synthesis run and review of its actual audio artifact. See [Kokoro Actions](docs/KOKORO_ACTIONS.md) for the precise controls and constraints.
 
+#### Isolated local TTS preview
+
+You can run one real Kokoro preview locally without calling the Actions workflow or changing a GitHub Release. Start from a clean checkout of the committed revision you want to narrate. The TTS reader requires `dist/` to contain compiled HTML whose source SHA matches `HEAD`; the build below creates that local artifact but does not deploy it. Python 3.11, Node 22, `curl`, and FFmpeg with `libmp3lame` and `ffprobe` are required. The setup downloads about 354 MB of model and voice files and installs the Python packages; no GPU or API key is used. Inference runs locally on CPU with four ONNX threads.
+
+```bash
+npm ci
+node scripts/build-site.mjs
+
+TTS_PREVIEW_DIR=/tmp/tech-topics-tts-preview
+mkdir -p "$TTS_PREVIEW_DIR"
+python3.11 -m venv "$TTS_PREVIEW_DIR/venv"
+"$TTS_PREVIEW_DIR/venv/bin/python" -m pip install \
+  'kokoro-onnx==0.6.1' 'misaki-fork==0.9.6' \
+  'phonemizer-fork==3.3.2' 'espeakng-loader==0.2.4' 'soundfile==0.13.1'
+
+curl --fail --location --retry 3 --silent --show-error \
+  'https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.onnx' \
+  --output "$TTS_PREVIEW_DIR/kokoro-v1.0.onnx"
+curl --fail --location --retry 3 --silent --show-error \
+  'https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin' \
+  --output "$TTS_PREVIEW_DIR/voices-v1.0.bin"
+printf '%s  %s\n' \
+  'beb0d1848dee9a49da392cc3df26958d46cfa35d321edf434f52949153f0df3a' "$TTS_PREVIEW_DIR/kokoro-v1.0.onnx" \
+  'bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d' "$TTS_PREVIEW_DIR/voices-v1.0.bin" \
+  | sha256sum --check
+
+mkdir -p "$TTS_PREVIEW_DIR/output"
+env OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 \
+  "$TTS_PREVIEW_DIR/venv/bin/python" tools/tts/kokoro_release.py prepare \
+  --slug four-golden-signals --max-chars 1200 \
+  --output-dir "$TTS_PREVIEW_DIR/output"
+env OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 \
+  "$TTS_PREVIEW_DIR/venv/bin/python" tools/tts/kokoro_release.py synthesize \
+  --slug four-golden-signals --output-dir "$TTS_PREVIEW_DIR/output" \
+  --model "$TTS_PREVIEW_DIR/kokoro-v1.0.onnx" \
+  --voices "$TTS_PREVIEW_DIR/voices-v1.0.bin"
+ffmpeg -hide_banner -loglevel error -y \
+  -i "$TTS_PREVIEW_DIR/output/four-golden-signals.wav" \
+  -af 'loudnorm=I=-19:TP=-1:LRA=11' -ar 24000 -ac 1 \
+  -c:a libmp3lame -b:a 128k \
+  "$TTS_PREVIEW_DIR/output/four-golden-signals.mp3"
+ffprobe -v error -show_entries format=duration,bit_rate \
+  -show_entries stream=codec_name,sample_rate,channels -of json \
+  "$TTS_PREVIEW_DIR/output/four-golden-signals.mp3"
+```
+
+The WAV, MP3, sentence-level `chapters.json`, segment plan and metrics stay under `/tmp/tech-topics-tts-preview/output`; no command above creates or replaces a Release. `--max-chars 1200` keeps complete text segments, so the sample can exceed 1,200 characters slightly. The generated `.md` file is boilerplate that says the audio came from GitHub Actions; for a local preview, do not publish that note. One verified run on source SHA `4516825` produced 91.64 seconds of audio in 155.50 seconds of synthesis with 15 sentence chapters. The manual Actions path remains blocked by the workflow gate described above.
+
 ## Local preview
 
 ```bash
