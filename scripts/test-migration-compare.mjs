@@ -461,10 +461,14 @@ test("real Git commits preserve the full corpus across an equivalent mixed-sourc
   const python = process.env.TECH_TOPICS_PYTHON || (process.platform === "win32" ? "python" : "python3");
   try {
     git("init", "-q"); git("config", "user.email", "test@example.com"); git("config", "user.name", "Migration Test");
-    const committedPaths = rootGit("ls-tree", "-r", "--name-only", "HEAD").split(/\r?\n/).filter(Boolean);
+    // The fixture represents the independently captured legacy corpus, even
+    // after the current checkout has converted some or all sources to Markdown.
+    const baseline = JSON.parse(await readFile(path.join(root, "docs/migrations/baselines/capture-v3/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json"), "utf8"));
+    const baselineSha = baseline.sha;
+    const committedPaths = rootGit("ls-tree", "-r", "--name-only", baselineSha).split(/\r?\n/).filter(Boolean);
     const sourcePaths = committedPaths.filter(file => /^content\/articles\/[a-z0-9]+(?:-[a-z0-9]+)*\.json$/.test(file)
       && !["content/articles/index.json", "content/articles/catalog.json"].includes(file));
-    assert.equal(sourcePaths.length, 18, "fixture must start with the complete independently captured corpus");
+    assert.equal(sourcePaths.length, baseline.sourceCount, "fixture must start with the complete independently captured corpus");
     const assetPaths = new Set(committedPaths.filter(file => file.startsWith("assets/")));
     const articleDir = path.join(repo, "content/articles");
     await mkdir(articleDir, { recursive: true });
@@ -472,7 +476,7 @@ test("real Git commits preserve the full corpus across an equivalent mixed-sourc
     for (const file of sourcePaths) {
       const destination = path.join(repo, ...file.split("/"));
       await mkdir(path.dirname(destination), { recursive: true });
-      await writeFile(destination, rootGit("show", `HEAD:${file}`));
+      await writeFile(destination, rootGit("show", `${baselineSha}:${file}`));
     }
     const jsonCommit = commit("add complete legacy corpus");
 
