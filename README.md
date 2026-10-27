@@ -24,11 +24,11 @@ Articles are sorted by valid `publishedAt` dates, newest first, both during the 
 2. In **Settings → Pages**, set the source to **GitHub Actions**.
 3. The included workflow deploys automatically on site-relevant pushes to `main` (docs/tooling-only changes are ignored) and can also be started manually from the **Actions** tab.
 
-The site is a static multi-article archive. New articles use `content/articles/<slug>.md` as their editorial source, with YAML frontmatter and Markdown body. Existing `.json` articles remain supported as legacy inputs until a separately authorized conversion. Each article has its own cover image under `assets/`. The Pages workflow runs `node scripts/validate-site.mjs`, which compiles the mixed Markdown/JSON corpus and validates the site before publishing. The homepage uses the generated catalog, and each card opens `article.html?slug=<slug>`.
+The site is a static multi-article archive. Each article is authored in `content/articles/<slug>.md` and has its own cover image under `assets/`. The Pages workflow runs `node scripts/validate-site.mjs`, which compiles Markdown sources into one HTML page per slug and a lightweight metadata catalog before publishing. The homepage loads the catalog and each card opens `article.html?slug=<slug>`.
 
 ## Article contract
 
-Markdown frontmatter supplies the article metadata (`slug`, `language`, `title`, `category`, `date`, `publishedAt`, `read`, `image`, `alt`, `dek`, `excerpt` and canonical `tags`); the Markdown body is the source for the rendered article. The compiler also accepts legacy JSON records with `bodyHtml`. The `image` path must point to a committed local cover generated for that article. Use a unique URL-safe slug and never overwrite an existing article when adding a new topic. Articles are ordered newest first during the build.
+Every article Markdown file must provide `slug`, `language`, `title`, `category`, `date`, `publishedAt` (ISO `YYYY-MM-DD`), `read`, `image`, `alt`, `dek`, `excerpt` and canonical `tags` in its YAML frontmatter. The `image` path must point to a committed local cover generated for that article. Use a unique URL-safe slug and never overwrite an existing article when adding a new topic. Articles are ordered newest first during the build.
 
 Every cover must be a visibly painted editorial watercolor on textured paper, following `docs/VISUAL_STYLE.md`. Use `assets/<slug>/<slug>-cover.jpg` for covers. Use Mermaid when a technical diagram helps explain a relationship; do not create or version SVGs for diagrams. Existing SVG favicon and icon assets remain allowed.
 
@@ -117,7 +117,7 @@ python3 -m http.server 4173
 Then open `http://localhost:4173`.
 
 
-A validação determinística dos artigos roda localmente, na GitHub Action de Pull Requests e no job de validação do Pages em `main`. Ela cobre os contratos Markdown e legado, a estrutura da abertura, segurança do HTML, assets, Mermaid quando presente, tabelas roláveis e regras básicas de responsividade.
+A validação determinística dos artigos roda localmente, na GitHub Action de Pull Requests e no job de validação do Pages em `main`. Ela cobre o frontmatter Markdown, a estrutura da abertura, segurança do HTML compilado, assets, Mermaid quando presente, tabelas roláveis e regras básicas de responsividade.
 
 
 `node scripts/validate-site.mjs` é o comando único usado localmente, na validação de Pull Requests e antes do deploy. Ele evita que os workflows mantenham listas diferentes de verificações.

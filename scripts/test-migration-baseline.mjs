@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { closeSync, openSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import os from "node:os";
@@ -58,17 +59,27 @@ test("UTF-8 extraction preserves Portuguese, aliases, punctuation and language r
   const fixture = { articles: [{ slug: "utf8-fixture", title: "Ação e café.", dek: "Não há perda.",
     bodyHtml: '<p>São Paulo: <span lang="en-US">Bulkhead</span>, não <span data-tts-say="cerca avançada.">alias</span></p>' }], lexicon: {} };
   const python = process.env.TECH_TOPICS_PYTHON || (process.platform === "win32" ? "python" : "python3");
-  const result = spawnSync(python, ["-X", "utf8", path.join(root, "scripts/lib/migration-baseline-extract.py")], {
-    cwd: root, input: JSON.stringify(fixture), encoding: "utf8", env: { ...process.env, PYTHONUTF8: "1", TECH_TOPICS_BASELINE_TTS_DIR: path.join(root, "tools/tts") }
-  });
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.equal(result.stdout.includes("\uFFFD"), false);
-  const extractedFixture = JSON.parse(result.stdout).articles[0];
-  const text = extractedFixture.editorialSentences.map(sentence => sentence.text).join(" ");
-  assert.match(text, /Ação e café\./);
-  assert.match(text, /Não há perda\./);
-  assert.match(text, /São Paulo: Bulkhead, não cerca avançada\./);
-  assert.ok(extractedFixture.editorialSentences.some(sentence => sentence.runs.some(run => run.lang === "en-us" && run.text.includes("Bulkhead"))));
+  const temp = await mkdtemp(path.join(os.tmpdir(), "migration-utf8-extraction-test-"));
+  const inputPath = path.join(temp, "input.json");
+  await writeFile(inputPath, JSON.stringify(fixture), "utf8");
+  const inputFd = openSync(inputPath, "r");
+  try {
+    const result = spawnSync(python, ["-X", "utf8", path.join(root, "scripts/lib/migration-baseline-extract.py")], {
+      cwd: root, stdio: [inputFd, "pipe", "pipe"], encoding: "utf8", maxBuffer: 50 * 1024 * 1024,
+      env: { ...process.env, PYTHONUTF8: "1", TECH_TOPICS_BASELINE_TTS_DIR: path.join(root, "tools/tts") }
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(result.stdout.includes("\uFFFD"), false);
+    const extractedFixture = JSON.parse(result.stdout).articles[0];
+    const text = extractedFixture.editorialSentences.map(sentence => sentence.text).join(" ");
+    assert.match(text, /Ação e café\./);
+    assert.match(text, /Não há perda\./);
+    assert.match(text, /São Paulo: Bulkhead, não cerca avançada\./);
+    assert.ok(extractedFixture.editorialSentences.some(sentence => sentence.runs.some(run => run.lang === "en-us" && run.text.includes("Bulkhead"))));
+  } finally {
+    closeSync(inputFd);
+    await rm(temp, { recursive: true, force: true });
+  }
 });
 
 test("baseline comparison reports additions, removals and changed signature dimensions", () => {
@@ -170,17 +181,26 @@ test("capture CLI reproduces the checked-in baseline and refuses overwrites", as
     const output = path.join(outputRoot, sha, "baseline.json");
     const reproduced = JSON.parse(await readFile(output, "utf8"));
     const checkedIn = JSON.parse(await readFile(baseline, "utf8"));
+    assert.equal(createHash("sha256").update(await readFile(baseline)).digest("hex"),
+      "d67e678549d44fc1d9d1a3e5229f747285052c49778a6b5ad18f1cbd98091c27",
+      "the pinned historical capture remains immutable as the tools evolve");
     assert.equal(reproduced.schemaVersion, 3);
     assert.match(reproduced.capture.contracts.comparison, /cross-contract equivalence is inconclusive/);
     assert.ok(reproduced.articles.every(entry => entry.editorialSentences.every(sentence => !Object.hasOwn(sentence, "semanticTokens"))));
-    const normalizedHash = text => createHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex");
-    for (const tool of checkedIn.capture.captureTools) assert.equal(tool.sha256,
-      normalizedHash(await readFile(path.join(root, tool.path), "utf8")), `${tool.path}: canonical LF hash`);
     assert.equal(typeof reproduced.capture.runtime.node, "string");
     assert.equal(typeof reproduced.capture.runtime.python, "string");
     assert.equal(typeof checkedIn.capture.runtime.node, "string");
     assert.equal(typeof checkedIn.capture.runtime.python, "string");
-    assert.equal(canonical(reproduced), canonical(checkedIn), "canonical baseline differs outside runtime provenance");
+    for (const entry of reproduced.articles) {
+      const pinned = checkedIn.articles.find(article => article.slug === entry.slug);
+      assert.ok(pinned, `${entry.slug}: historical article exists`);
+      for (const signature of ["metadata", "html", "structure", "assets"]) {
+        assert.equal(entry.signatures[signature], pinned.signatures[signature], `${entry.slug}: stable ${signature} signature`);
+      }
+    }
+    assert.ok(reproduced.diff.captureTools.some(change => change.path === "scripts/capture-migration-baseline.mjs" && change.kind === "changed"),
+      "tool evolution is recorded in the successor diff");
+    assert.notEqual(canonical(reproduced), canonical(checkedIn), "the replay records current tool provenance without rewriting the pinned artifact");
     const before = await readFile(output, "utf8");
     const secondRoot = path.join(temp, "reproduced-again");
     const secondCapture = run(secondRoot, "--previous", previousBaseline);
@@ -213,6 +233,54 @@ test("capture CLI reproduces the checked-in baseline and refuses overwrites", as
     assert.notEqual(missing.status, 0);
   } finally { await rm(temp, { recursive: true, force: true }); }
 });
+
+test("capture CLI compiles Markdown sources in a mixed historical tree", async () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const sha = "12366cefa24be1149cf55d1ea8efe30af06abd3a";
+  const previousPath = path.join(root, "docs/migrations/baselines/capture-v3/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json");
+  const temp = await mkdtemp(path.join(os.tmpdir(), "migration-mixed-baseline-test-"));
+  const env = { ...process.env, TECH_TOPICS_PYTHON: process.env.TECH_TOPICS_PYTHON || (process.platform === "win32" ? "python" : "python3") };
+  const run = outputRoot => spawnSync(process.execPath, [path.join(root, "scripts/capture-migration-baseline.mjs"), "--sha", sha, "--output-root", outputRoot,
+    "--previous", previousPath], {
+    cwd: root, env, encoding: "utf8", maxBuffer: 50 * 1024 * 1024
+  });
+  try {
+    const outputRoot = path.join(temp, "first");
+    const first = run(outputRoot);
+    assert.equal(first.status, 0, first.stderr || first.stdout);
+    const output = path.join(outputRoot, sha, "baseline.json");
+    const baseline = JSON.parse(await readFile(output, "utf8"));
+    assert.equal(baseline.sha, sha);
+    assert.equal(baseline.sourceCount, 18);
+    assert.equal(baseline.indexSourceCount, 18);
+    assert.equal(baseline.articles.length, 18);
+    const markdown = baseline.articles.find(entry => entry.slug === "four-golden-signals");
+    assert.equal(markdown.source, "content/articles/four-golden-signals.md");
+    assert.equal(markdown.sourceBlob, "d3b3868332e119f374e5ad681a6c3c5dd7d7ebe4");
+    const original = JSON.parse(await readFile(path.join(root, "docs/migrations/baselines/capture-v3/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json"), "utf8"));
+    assert.equal(baseline.previous.sha, original.sha);
+    assert.equal(baseline.previous.path, "docs/migrations/baselines/capture-v3/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json");
+    assert.ok(baseline.diff.articles.some(change => change.slug === markdown.slug && change.kind === "changed"));
+    assert.ok(baseline.diff.captureTools.some(change => change.path === "scripts/lib/markdown-article.mjs" && change.kind === "added"));
+    const originalFgs = original.articles.find(entry => entry.slug === markdown.slug);
+    assert.equal(markdown.addedAt, originalFgs.addedAt, "converted Markdown source retains its original first-add date");
+    assert.equal(markdown.order, originalFgs.order, "the FGS publication order is preserved after conversion");
+    assert.equal(markdown.html.sha256, markdown.signatures.html);
+    assert.ok(markdown.html.bytes > 0);
+    assert.ok(baseline.capture.captureTools.some(tool => tool.path === "scripts/lib/markdown-article.mjs"));
+    const secondRoot = path.join(temp, "second");
+    const second = run(secondRoot);
+    assert.equal(second.status, 0, second.stderr || second.stdout);
+    assert.equal(await readFile(path.join(secondRoot, sha, "baseline.json"), "utf8"), await readFile(output, "utf8"),
+      "repeated mixed-source captures must be byte-identical");
+
+    const originalPath = path.join(root, "docs/migrations/baselines/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json");
+    const corrected = path.join(root, "docs/migrations/baselines/capture-v3/fca72c31fcb57ffe9741a2390a04c2035639e14a/baseline.json");
+    assert.equal(createHash("sha256").update(await readFile(originalPath)).digest("hex"), "e5acb9163da52bc0b7c37316e95b8c6f075b406124378b2bb2b1cdf708ce6278");
+    assert.equal(createHash("sha256").update(await readFile(corrected)).digest("hex"), "d67e678549d44fc1d9d1a3e5229f747285052c49778a6b5ad18f1cbd98091c27");
+  } finally { await rm(temp, { recursive: true, force: true }); }
+});
+
 test("baseline validation rejects incomplete or duplicated records", () => {
   assert.match(validateBaseline({ sha: "bad", articles: [record, record] }).join("\n"), /full Git commit SHA/);
   assert.match(validateBaseline({ sha: "a".repeat(40), sourceCount: 2, capture: { sourceTools: [], captureTools: [] }, articles: [record, record] }).join("\n"), /unique/);

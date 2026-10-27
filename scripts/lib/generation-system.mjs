@@ -263,7 +263,10 @@ function parseMarkdownMetadata(source, file) {
 
 export async function discoverArticleSources(root, { taxonomy } = {}) {
   const articlesDirectory = path.resolve(root, "content", "articles");
-  const files = (await readdir(articlesDirectory)).filter(file => /\.(?:json|md)$/.test(file) && !["index.json", "catalog.json"].includes(file)).sort();
+  const entries = await readdir(articlesDirectory);
+  const jsonSources = entries.filter(file => file.endsWith(".json"));
+  assert(jsonSources.length === 0, `individual article JSON sources are no longer supported: ${jsonSources.join(", ")}`);
+  const files = entries.filter(file => /^[a-z0-9]+(?:-[a-z0-9]+)*\.md$/.test(file)).sort();
   let activeTaxonomy = taxonomy;
   if (!activeTaxonomy) {
     const generationRoot = path.resolve(root, "generation");
@@ -277,9 +280,9 @@ export async function discoverArticleSources(root, { taxonomy } = {}) {
     const sourcePath = path.join(articlesDirectory, file);
     const stats = await lstat(sourcePath);
     assert(stats.isFile() && !stats.isSymbolicLink(), `${file}: article source must be a regular file`);
-    const sourceType = file.endsWith(".md") ? "markdown" : "json";
+    const sourceType = "markdown";
     const raw = await readFile(sourcePath, "utf8");
-    const parsed = sourceType === "markdown" ? parseMarkdownMetadata(raw, file) : { metadata: JSON.parse(raw) };
+    const parsed = parseMarkdownMetadata(raw, file);
     const article = { ...parsed.metadata };
     delete article.bodyHtml;
     metadataBySlug.set(article.slug, article);
@@ -297,7 +300,7 @@ export async function discoverArticleSources(root, { taxonomy } = {}) {
       rootPath: root,
       knownTags: tagIds,
       knownSlugs,
-    }, { legacy: source.sourceType === "json", checkAssets: false });
+    }, { checkAssets: false });
   }
   const bySeries = new Map();
   for (const source of sources) {

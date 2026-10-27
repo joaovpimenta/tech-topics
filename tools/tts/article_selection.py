@@ -1,4 +1,4 @@
-"""Select mixed-source Tech Topics articles for automatic/manual Kokoro narration."""
+"""Select Markdown-authored Tech Topics articles for automatic/manual Kokoro narration."""
 
 from __future__ import annotations
 
@@ -27,7 +27,9 @@ def local_source_inventory(article_dir: Path = ARTICLE_DIR) -> dict[str, Path]:
     if not article_dir.is_dir():
         raise ValueError(f"Diretório de artigos não encontrado: {article_dir}")
     for path in sorted(article_dir.iterdir()):
-        if path.suffix not in {".json", ".md"} or path.name in {"index.json", "catalog.json"}:
+        if path.suffix == ".json":
+            raise ValueError(f"Arquivos JSON não são permitidos no diretório corrente de artigos: {path.name}")
+        if path.suffix != ".md":
             continue
         slug = path.stem
         if not SLUG.fullmatch(slug):
@@ -193,10 +195,9 @@ def read_article(slug: str, article_dir: Path | None = None,
     if not SLUG.fullmatch(slug):
         raise ValueError(f"Slug inválido: {slug!r}")
     sources = local_source_inventory(article_dir)
-    path = sources.get(slug)
-    if path is None:
+    if slug not in sources:
         raise ValueError(f"Artigo não encontrado: {slug}")
-    records, build_id, source_sha, catalog_exists = _catalog_records(dist_dir)
+    records, build_id, source_sha, _ = _catalog_records(dist_dir)
     current_sha = expected_source_sha
     if current_sha is None and article_dir.resolve() == ARTICLE_DIR.resolve():
         current_sha = _current_sha()
@@ -210,14 +211,7 @@ def read_article(slug: str, article_dir: Path | None = None,
         if envelope is None:
             raise ValueError(f"HTML compilado ausente para o artigo {slug}.")
         return {**record, "slug": slug, "html": envelope}
-    if path.suffix == ".md":
-        raise ValueError(f"Fonte Markdown sem HTML compilado no artefato validado: {slug}")
-    if catalog_exists and any("bodyHtml" in item or "html" in item for item in records):
-        raise ValueError("Catálogo legado contém conteúdo integral de artigo.")
-    article = json.loads(path.read_text(encoding="utf-8"))
-    if article.get("slug") != slug or article.get("language") != "pt-BR":
-        raise ValueError(f"Contrato ou idioma inválido: {slug}")
-    return article
+    raise ValueError(f"Fonte Markdown sem HTML compilado no artefato validado: {slug}")
 
 
 def catalog(article_dir: Path | None = None, dist_dir: Path | None = None) -> list[dict]:

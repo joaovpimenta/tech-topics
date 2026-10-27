@@ -532,7 +532,6 @@ async function loadArticles() {
 }
 
 function articleCatalogEntries(catalog) {
-  if (Array.isArray(catalog)) return catalog;
   if (!catalog || typeof catalog !== "object" || catalog.version !== 1
     || catalog.transport !== "html-v1"
     || !/^[a-f0-9]{40}$/i.test(catalog.sourceSha || "")

@@ -25,6 +25,6 @@ Leia somente o ramo que corresponde à tarefa:
 
 ## Verificação e entrega
 
-Preserve alterações locais anteriores. Rode o comando único após integrar mudanças. Ele gera `content/articles/index.json`, `sw-version.js` e um preview HTML temporário; a CI produz o pacote ignorado `dist/` antes de validar o deploy. Sucesso local não confirma publicação. Verifique os checks do PR e o deploy antes de declarar a mudança publicada. Registre testes pulados e falhas separadamente.
+Preserve alterações locais anteriores. Rode o comando único após integrar mudanças. Ele gera o catálogo leve, `sw-version.js` e um preview HTML temporário; a CI produz o pacote ignorado `dist/` antes de validar o deploy. Sucesso local não confirma publicação. Verifique os checks do PR e o deploy antes de declarar a mudança publicada. Registre testes pulados e falhas separadamente.
 
 As revisões de rigor factual, metáfora, aparência de aquarela e qualidade da voz continuam exigindo julgamento. Automação não equivale a essas revisões.

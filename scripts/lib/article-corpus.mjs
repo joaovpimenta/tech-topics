@@ -1,7 +1,7 @@
 import { lstat, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { discoverArticleSources } from "./generation-system.mjs";
-import { compileMarkdownArticle, fromLegacyArticle } from "./markdown-article.mjs";
+import { compileMarkdownArticle } from "./markdown-article.mjs";
 import { validateArticleCatalog } from "./article-contract.mjs";
 
 async function collectAssets(root) {
@@ -55,9 +55,7 @@ export async function compileArticleCorpus(root) {
     };
     let compiled;
     try {
-      compiled = source.sourceType === "markdown"
-        ? await compileMarkdownArticle({ source: content, ...context })
-        : fromLegacyArticle(JSON.parse(content), context);
+      compiled = await compileMarkdownArticle({ source: content, ...context });
     } catch (error) {
       throw new Error(`${file}: ${error.message}`, { cause: error });
     }

@@ -1,4 +1,4 @@
-import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 // Publication includes runtime resources and downloadable article assets. This
@@ -8,46 +8,11 @@ export const PUBLIC_ROOT_FILES = Object.freeze([
   "speech.js", "audio.js", "content/tts-lexicon.json", "mermaid-theme.js", "fgs-simulator.js", "pwa.js", "manifest.webmanifest",
   "favicon.svg", "favicon.ico", "sw.js", "sw-version.js"
 ]);
-const artifactManifest = ".site-artifact.json";
-const speechLexiconMarker = "/* TECH_TOPICS_SPEECH_LEXICON */";
-
 function safePath(file) {
   if (typeof file !== "string" || !file || file.includes("\\") || file.includes("\0") || path.posix.isAbsolute(file) || /^[a-z]:/i.test(file) || file.split("/").some(part => !part || part === "." || part === "..")) {
     throw new Error(`Unsafe artifact path: ${file}`);
   }
   return file;
-}
-
-function isPublic(file) {
-  return PUBLIC_ROOT_FILES.includes(file) || file.startsWith("assets/") || /^content\/articles\/[^/]+\.json$/.test(file);
-}
-
-async function requireRegular(root, file) {
-  safePath(file);
-  const parts = file.split("/");
-  for (let index = 1; index <= parts.length; index++) {
-    const current = path.join(root, ...parts.slice(0, index));
-    const stat = await lstat(current);
-    if (stat.isSymbolicLink() || (index < parts.length ? !stat.isDirectory() : !stat.isFile())) {
-      throw new Error(`Artifact paths must be regular files and directories: ${file}`);
-    }
-  }
-}
-
-async function walk(root, relative) {
-  const directory = path.join(root, relative);
-  const stat = await lstat(directory);
-  if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error(`Unsafe artifact directory: ${relative}`);
-  const files = [];
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const file = relative ? `${relative}/${entry.name}` : entry.name;
-    safePath(file);
-    if (entry.isSymbolicLink()) throw new Error(`Symbolic links cannot be published: ${file}`);
-    if (entry.isDirectory()) files.push(...await walk(root, file));
-    else if (entry.isFile()) files.push(file);
-    else throw new Error(`Unsupported artifact entry: ${file}`);
-  }
-  return files;
 }
 
 function referencePath(value, source, base = path.posix.dirname(source)) {
@@ -86,14 +51,6 @@ function jsReferences(text) {
   return [...calls, ...imports];
 }
 
-export async function collectPublicFiles(root) {
-  const assets = await walk(root, "assets");
-  const articles = (await walk(root, "content/articles")).filter(file => /^content\/articles\/[^/]+\.json$/.test(file));
-  const files = [...PUBLIC_ROOT_FILES, ...assets, ...articles].sort();
-  for (const file of files) await requireRegular(root, file);
-  return files;
-}
-
 export async function validatePublicReferences(root, files, { allowMissing = [] } = {}) {
   const available = new Set(files);
   const allowedMissing = new Set(allowMissing);
@@ -123,70 +80,7 @@ export async function validatePublicReferences(root, files, { allowMissing = [] 
       const manifest = JSON.parse(text);
       if (manifest.start_url) check(manifest.start_url, file);
       for (const icon of manifest.icons ?? []) check(icon.src, file);
-    } else if (file.startsWith("content/articles/") && file.endsWith(".json")) {
-      const article = JSON.parse(text);
-      if (file === "content/articles/index.json") {
-        for (const entry of article) check(entry.path, file, ".");
-      } else {
-        if (article.image) check(article.image, file, ".");
-        // Article HTML is inserted into article.html, so URLs resolve at the root.
-        for (const reference of [...htmlReferences(article.bodyHtml ?? ""), ...cssReferences(article.bodyHtml ?? "")]) check(reference, file, ".");
-      }
     }
   }
   if (failures.length) throw new Error(failures.join("\n"));
-}
-
-async function inspectDestination(root, destination) {
-  let stat;
-  try { stat = await lstat(destination); } catch (error) { if (error.code === "ENOENT") return; throw error; }
-  if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error("dist must be a regular directory");
-  const existing = await walk(root, "dist");
-  if (!existing.length) return;
-  let manifest;
-  try { manifest = JSON.parse(await readFile(path.join(destination, artifactManifest), "utf8")); }
-  catch { throw new Error("Refusing to replace unmanaged dist directory"); }
-  if (manifest.version !== 1 || !Array.isArray(manifest.files)) throw new Error("Invalid dist artifact manifest");
-  const expected = new Set([artifactManifest, ...manifest.files.map(file => {
-    safePath(file);
-    if (!isPublic(file)) throw new Error(`Non-public path in artifact manifest: ${file}`);
-    return file;
-  })]);
-  if (existing.some(file => !expected.has(file.slice("dist/".length)))) throw new Error("Refusing to replace dist containing unmanaged files");
-}
-
-export async function buildSiteArtifact({ root, destination = "dist" }) {
-  root = await realpath(root);
-  const output = path.resolve(root, destination);
-  // Never accept an arbitrary output tree for recursive replacement.
-  if (output !== path.join(root, "dist")) throw new Error("Site artifact destination must be <root>/dist");
-  const files = await collectPublicFiles(root);
-  await validatePublicReferences(root, files);
-  const speechLexicon = JSON.parse(await readFile(path.join(root, "content/tts-lexicon.json"), "utf8"));
-  if (!speechLexicon || typeof speechLexicon !== "object" || Array.isArray(speechLexicon)) {
-    throw new Error("content/tts-lexicon.json must contain an object");
-  }
-  const html = await readFile(path.join(root, "article.html"), "utf8");
-  if (html.split(speechLexiconMarker).length !== 2) throw new Error("article.html must contain the speech lexicon build marker exactly once");
-  const embeddedLexicon = `window.TechTopicsSpeechLexicon=${JSON.stringify(speechLexicon).replace(/</g, "\\u003c")};`;
-  await inspectDestination(root, output);
-  const staging = await mkdtemp(path.join(root, ".site-build-"));
-  try {
-    for (const file of files) {
-      await requireRegular(root, file);
-      await mkdir(path.dirname(path.join(staging, file)), { recursive: true });
-      if (file === "article.html") {
-        await writeFile(path.join(staging, file), html.replace(speechLexiconMarker, () => embeddedLexicon));
-      } else {
-        await copyFile(path.join(root, file), path.join(staging, file));
-      }
-    }
-    await writeFile(path.join(staging, artifactManifest), `${JSON.stringify({ version: 1, files }, null, 2)}\n`);
-    await validatePublicReferences(staging, files);
-    await inspectDestination(root, output);
-    // This is the fixed, ownership-checked dist tree, never an arbitrary path.
-    await rm(output, { recursive: true, force: true });
-    await rename(staging, output);
-  } finally { await rm(staging, { recursive: true, force: true }); }
-  return { destination: output, files };
 }

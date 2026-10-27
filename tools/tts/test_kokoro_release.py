@@ -1,6 +1,8 @@
 """Offline tests: code-switching without adding an English narrator or model."""
 
 import json
+import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -17,6 +19,37 @@ class FakeG2P:
 
     def __call__(self, text):
         return f"<{self.language}:{text}>", None
+
+
+def write_compiled_markdown_fixture(article_dir, dist_dir, slug, title, dek, body_html):
+    (article_dir / f"{slug}.md").write_text(
+        f"---\nslug: {slug}\n---\n\n{body_html}\n", encoding="utf-8")
+    build_id = "b" * 64
+    source_sha = "a" * 40
+    article = (
+        f'<article data-article-format="html-v1" data-article-slug="{slug}" '
+        f'data-build-id="{build_id}"><h1 data-article-slot="heading">{title}</h1>'
+        f'<p data-article-slot="dek">{dek}</p>'
+        f'<section data-article-slot="body">{body_html}</section></article>')
+    record = {
+        "slug": slug,
+        "path": f"content/articles/{slug}.html",
+        "format": "html-v1",
+        "title": title,
+        "dek": dek,
+    }
+    catalog_path = dist_dir / "assets" / "articles-catalog.json"
+    catalog_path.parent.mkdir(parents=True, exist_ok=True)
+    catalog_path.write_text(json.dumps({
+        "version": 1,
+        "transport": "html-v1",
+        "sourceSha": source_sha,
+        "buildId": build_id,
+        "articles": [record],
+    }), encoding="utf-8")
+    article_path = dist_dir / "content" / "articles" / f"{slug}.html"
+    article_path.parent.mkdir(parents=True, exist_ok=True)
+    article_path.write_text(article, encoding="utf-8")
 
 
 class KokoroReleaseTests(unittest.TestCase):
@@ -146,8 +179,18 @@ class KokoroReleaseTests(unittest.TestCase):
             kokoro_release.article_blocks(invalid, self.lexicon)
 
     def test_transactional_outbox_preserves_code_in_prose(self):
-        article = article_selection.read_article("transactional-outbox")
-        segments = kokoro_release.segments_for_article(article, {})
+        # Exercise the same compiled HTML that the audio pipeline consumes,
+        # regardless of whether this article is still JSON or already Markdown.
+        root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory(prefix="tts-article-preview-") as temporary:
+            preview = Path(temporary) / "site"
+            subprocess.run(
+                [os.environ.get("TECH_TOPICS_NODE", "node"),
+                 str(root / "scripts/build-markdown-preview.mjs"), "--output-dir", str(preview)],
+                cwd=root, check=True, capture_output=True, text=True,
+            )
+            article = article_selection.read_article("transactional-outbox", dist_dir=preview)
+            segments = kokoro_release.segments_for_article(article, {})
         text = " ".join(segment["text"] for segment in segments)
         self.assertIn("Um bloco try catch não fecha essa janela", text)
         self.assertIn("Banco para o broker", text)
@@ -266,15 +309,16 @@ class KokoroReleaseTests(unittest.TestCase):
             root = Path(temp)
             directory = root / "articles"
             directory.mkdir()
-            article = {
-                "slug": "teste", "language": "pt-BR", "title": "Bulkhead",
-                "speechMarkup": {"title": [{"lang": "en-US", "text": "Bulkhead"}]},
-                "dek": "A narração funciona.",
-                "bodyHtml": '<p>O <span lang="en-US">retry budget</span> importa.</p>',
-            }
-            (directory / "teste.json").write_text(json.dumps(article), encoding="utf-8")
+            dist = root / "dist"
+            write_compiled_markdown_fixture(
+                directory, dist, "teste",
+                "Bulkhead",
+                "A narração funciona.",
+                '<p>O <span lang="en-US">retry budget</span> importa.</p>',
+            )
             with (patch.object(article_selection, "ARTICLE_DIR", directory),
-                  patch.object(article_selection, "DIST_DIR", root / "dist")):
+                  patch.object(article_selection, "DIST_DIR", dist),
+                  patch.object(article_selection, "_current_sha", return_value=None)):
                 kokoro_release.prepare("teste", root / "output", max_chars=300)
             segments = json.loads((root / "output/teste.segments.json").read_text(encoding="utf-8"))
             self.assertEqual(
@@ -569,13 +613,15 @@ class KokoroReleaseTests(unittest.TestCase):
             root = Path(temp)
             directory = root / "articles"
             directory.mkdir()
+            dist = root / "dist"
             paragraph = ("Os compartimentos preservam a capacidade, " * 11).strip() + "."
-            article = {"slug": "sample", "language": "pt-BR", "title": "Isolamento",
-                       "dek": "Breve contextualização.", "bodyHtml": f"<p>{paragraph}</p>"}
-            (directory / "sample.json").write_text(
-                json.dumps(article, ensure_ascii=False), encoding="utf-8")
+            write_compiled_markdown_fixture(
+                directory, dist, "sample", "Isolamento", "Breve contextualização.",
+                f"<p>{paragraph}</p>",
+            )
             with (patch.object(article_selection, "ARTICLE_DIR", directory),
-                  patch.object(article_selection, "DIST_DIR", root / "dist")):
+                  patch.object(article_selection, "DIST_DIR", dist),
+                  patch.object(article_selection, "_current_sha", return_value=None)):
                 kokoro_release.prepare("sample", root / "audio")
             segments = json.loads((root / "audio/sample.segments.json").read_text(encoding="utf-8"))
             self.assertEqual([s["block_index"] for s in segments], [0, 1, 2])
