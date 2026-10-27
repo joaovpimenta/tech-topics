@@ -81,7 +81,27 @@ Raft divide a execução em termos numerados monotonamente. Um termo pode ter um
 
 Toda mensagem carrega o termo do emissor. Quem recebe um termo maior atualiza seu `currentTerm` e volta a seguidor. Mensagens com termo menor são obsoletas e rejeitadas. Assim, um líder isolado continua podendo se imaginar líder, mas perde autoridade assim que encontra evidência de um termo mais novo. Termo é um relógio lógico de liderança, não uma duração.
 
-<figure class='mermaid-figure'><div class='mermaid-diagram' data-mermaid='true' data-mermaid-label='Máquina de estados do Raft: seguidor vira candidato após timeout; maioria o torna líder; termo maior devolve candidato ou líder ao estado seguidor.'><pre class='mermaid-source'>stateDiagram-v2&#10;  [*] --> Seguidor&#10;  Seguidor --> Candidato: timeout de eleição&#10;  Candidato --> Líder: votos da maioria&#10;  Candidato --> Candidato: timeout e novo termo&#10;  Candidato --> Seguidor: líder válido ou termo maior&#10;  Líder --> Seguidor: observa termo maior</pre></div><figcaption>Máquina de estados conceitual. O temporizador provoca tentativa de eleição; apenas mensagens e votos com termos válidos estabelecem autoridade.</figcaption><details class='mermaid-fallback'><summary>Ver o código Mermaid</summary><pre class='code-block'>stateDiagram-v2&#10;  [*] --> Seguidor&#10;  Seguidor --> Candidato: timeout de eleição&#10;  Candidato --> Líder: votos da maioria&#10;  Candidato --> Candidato: timeout e novo termo&#10;  Candidato --> Seguidor: líder válido ou termo maior&#10;  Líder --> Seguidor: observa termo maior</pre></details></figure>
+<!-- tech-topics:mermaid {"label":"Máquina de estados do Raft: seguidor vira candidato após timeout; maioria o torna líder; termo maior devolve candidato ou líder ao estado seguidor."} -->
+
+```mermaid
+stateDiagram-v2
+  [*] --> Seguidor
+  Seguidor --> Candidato: timeout de eleição
+  Candidato --> Líder: votos da maioria
+  Candidato --> Candidato: timeout e novo termo
+  Candidato --> Seguidor: líder válido ou termo maior
+  Líder --> Seguidor: observa termo maior
+```
+
+<figcaption>Máquina de estados conceitual. O temporizador provoca tentativa de eleição; apenas mensagens e votos com termos válidos estabelecem autoridade.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">stateDiagram-v2
+  [*] --&gt; Seguidor
+  Seguidor --&gt; Candidato: timeout de eleição
+  Candidato --&gt; Líder: votos da maioria
+  Candidato --&gt; Candidato: timeout e novo termo
+  Candidato --&gt; Seguidor: líder válido ou termo maior
+  Líder --&gt; Seguidor: observa termo maior</pre></details>
 
 <h2 id='raft-eleicao'>5. Eleição: primeiro autoridade, depois replicação</h2>
 
@@ -89,7 +109,47 @@ O líder envia <span lang="en-US">heartbeats</span>, mensagens `AppendEntries` q
 
 Um votante concede no máximo um voto por termo e somente se o <span lang="en-US">log</span> do candidato for pelo menos tão atualizado quanto o seu. A comparação usa primeiro o termo da última entrada; se empatar, usa o índice final. Esse detalhe impede que um candidato com histórico mais longo, mas de termo antigo, desaloje comandos já protegidos por um <span lang="en-US">log</span> mais atual.
 
-<figure class='mermaid-figure'><div class='mermaid-diagram' data-mermaid='true' data-mermaid-label='Em um cluster de cinco nós, B sofre timeout, inicia o termo 8, pede votos e recebe confirmações de A e C; com seu próprio voto forma maioria de três e começa a enviar heartbeats.'><pre class='mermaid-source'>sequenceDiagram&#10;  participant B as Candidato B&#10;  participant A as Servidor A&#10;  participant C as Servidor C&#10;  participant D as Servidor D&#10;  participant E as Servidor E&#10;  B->>B: timeout, termo 8, vota em si&#10;  B->>A: RequestVote termo 8&#10;  B->>C: RequestVote termo 8&#10;  B->>D: RequestVote termo 8&#10;  B->>E: RequestVote termo 8&#10;  A-->>B: voto concedido&#10;  C-->>B: voto concedido&#10;  B->>A: heartbeat como líder&#10;  B->>C: heartbeat como líder&#10;  B->>D: heartbeat como líder&#10;  B->>E: heartbeat como líder</pre></div><figcaption>Sequência ilustrativa. O voto próprio mais A e C forma três de cinco; respostas de D e E não são necessárias para eleger B.</figcaption><details class='mermaid-fallback'><summary>Ver o código Mermaid</summary><pre class='code-block'>sequenceDiagram&#10;  participant B as Candidato B&#10;  participant A as Servidor A&#10;  participant C as Servidor C&#10;  participant D as Servidor D&#10;  participant E as Servidor E&#10;  B->>B: timeout, termo 8, vota em si&#10;  B->>A: RequestVote termo 8&#10;  B->>C: RequestVote termo 8&#10;  B->>D: RequestVote termo 8&#10;  B->>E: RequestVote termo 8&#10;  A-->>B: voto concedido&#10;  C-->>B: voto concedido&#10;  B->>A: heartbeat como líder&#10;  B->>C: heartbeat como líder&#10;  B->>D: heartbeat como líder&#10;  B->>E: heartbeat como líder</pre></details></figure>
+<!-- tech-topics:mermaid {"label":"Em um cluster de cinco nós, B sofre timeout, inicia o termo 8, pede votos e recebe confirmações de A e C; com seu próprio voto forma maioria de três e começa a enviar heartbeats."} -->
+
+```mermaid
+sequenceDiagram
+  participant B as Candidato B
+  participant A as Servidor A
+  participant C as Servidor C
+  participant D as Servidor D
+  participant E as Servidor E
+  B->>B: timeout, termo 8, vota em si
+  B->>A: RequestVote termo 8
+  B->>C: RequestVote termo 8
+  B->>D: RequestVote termo 8
+  B->>E: RequestVote termo 8
+  A-->>B: voto concedido
+  C-->>B: voto concedido
+  B->>A: heartbeat como líder
+  B->>C: heartbeat como líder
+  B->>D: heartbeat como líder
+  B->>E: heartbeat como líder
+```
+
+<figcaption>Sequência ilustrativa. O voto próprio mais A e C forma três de cinco; respostas de D e E não são necessárias para eleger B.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
+  participant B as Candidato B
+  participant A as Servidor A
+  participant C as Servidor C
+  participant D as Servidor D
+  participant E as Servidor E
+  B-&gt;&gt;B: timeout, termo 8, vota em si
+  B-&gt;&gt;A: RequestVote termo 8
+  B-&gt;&gt;C: RequestVote termo 8
+  B-&gt;&gt;D: RequestVote termo 8
+  B-&gt;&gt;E: RequestVote termo 8
+  A--&gt;&gt;B: voto concedido
+  C--&gt;&gt;B: voto concedido
+  B-&gt;&gt;A: heartbeat como líder
+  B-&gt;&gt;C: heartbeat como líder
+  B-&gt;&gt;D: heartbeat como líder
+  B-&gt;&gt;E: heartbeat como líder</pre></details>
 
 Se vários seguidores expiram juntos, os votos podem se dividir. Raft resolve isso com timeouts aleatórios: candidatos esperam durações diferentes antes de iniciar ou reiniciar a disputa. O exemplo didático do paper usa 150 a 300 ms, mas não é uma configuração universal. O intervalo real deve refletir rede, disco, pausas do processo e ambiente.
 
@@ -105,7 +165,51 @@ Depois de eleito, o líder é a única origem de novas entradas. Uma escrita tí
 4.  Ao receber confirmações suficientes, o líder avança `commitIndex`.
 5.  Os servidores aplicam entradas confirmadas, em ordem, à máquina de estados; o líder responde ao cliente.
 
-<figure class='mermaid-figure'><div class='mermaid-diagram' data-mermaid='true' data-mermaid-label='Cliente envia comando ao líder; líder persiste e replica para quatro seguidores; confirmações de dois seguidores completam maioria de três; líder aplica e responde.'><pre class='mermaid-source'>sequenceDiagram&#10;  participant C as Cliente&#10;  participant L as Líder&#10;  participant A as Seguidor A&#10;  participant B as Seguidor B&#10;  participant D as Seguidor D&#10;  participant E as Seguidor E&#10;  C->>L: comando x=7&#10;  L->>L: persiste entrada índice 12&#10;  par replicação paralela&#10;    L->>A: AppendEntries&#10;    L->>B: AppendEntries&#10;    L->>D: AppendEntries&#10;    L->>E: AppendEntries&#10;  end&#10;  A-->>L: persistido até 12&#10;  B-->>L: persistido até 12&#10;  L->>L: maioria, commit 12, aplica&#10;  L-->>C: sucesso</pre></div><figcaption>Fluxo comum calculado para cinco votantes. Líder, A e B formam a maioria; D e E podem alcançar a entrada depois.</figcaption><details class='mermaid-fallback'><summary>Ver o código Mermaid</summary><pre class='code-block'>sequenceDiagram&#10;  participant C as Cliente&#10;  participant L as Líder&#10;  participant A as Seguidor A&#10;  participant B as Seguidor B&#10;  participant D as Seguidor D&#10;  participant E as Seguidor E&#10;  C->>L: comando x=7&#10;  L->>L: persiste entrada índice 12&#10;  par replicação paralela&#10;    L->>A: AppendEntries&#10;    L->>B: AppendEntries&#10;    L->>D: AppendEntries&#10;    L->>E: AppendEntries&#10;  end&#10;  A-->>L: persistido até 12&#10;  B-->>L: persistido até 12&#10;  L->>L: maioria, commit 12, aplica&#10;  L-->>C: sucesso</pre></details></figure>
+<!-- tech-topics:mermaid {"label":"Cliente envia comando ao líder; líder persiste e replica para quatro seguidores; confirmações de dois seguidores completam maioria de três; líder aplica e responde."} -->
+
+```mermaid
+sequenceDiagram
+  participant C as Cliente
+  participant L as Líder
+  participant A as Seguidor A
+  participant B as Seguidor B
+  participant D as Seguidor D
+  participant E as Seguidor E
+  C->>L: comando x=7
+  L->>L: persiste entrada índice 12
+  par replicação paralela
+    L->>A: AppendEntries
+    L->>B: AppendEntries
+    L->>D: AppendEntries
+    L->>E: AppendEntries
+  end
+  A-->>L: persistido até 12
+  B-->>L: persistido até 12
+  L->>L: maioria, commit 12, aplica
+  L-->>C: sucesso
+```
+
+<figcaption>Fluxo comum calculado para cinco votantes. Líder, A e B formam a maioria; D e E podem alcançar a entrada depois.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
+  participant C as Cliente
+  participant L as Líder
+  participant A as Seguidor A
+  participant B as Seguidor B
+  participant D as Seguidor D
+  participant E as Seguidor E
+  C-&gt;&gt;L: comando x=7
+  L-&gt;&gt;L: persiste entrada índice 12
+  par replicação paralela
+    L-&gt;&gt;A: AppendEntries
+    L-&gt;&gt;B: AppendEntries
+    L-&gt;&gt;D: AppendEntries
+    L-&gt;&gt;E: AppendEntries
+  end
+  A--&gt;&gt;L: persistido até 12
+  B--&gt;&gt;L: persistido até 12
+  L-&gt;&gt;L: maioria, commit 12, aplica
+  L--&gt;&gt;C: sucesso</pre></details>
 
 O campo `prevLogIndex` com `prevLogTerm` é a prova de prefixo. O seguidor só aceita novas entradas se possuir a entrada anterior com o mesmo termo. Se rejeita, o líder recua `nextIndex` até encontrar o último ponto comum; então remove o sufixo conflitante do seguidor e copia o sufixo correto. O líder nunca sobrescreve o próprio <span lang="en-US">log</span>.
 
@@ -141,7 +245,43 @@ Essa explicação é uma intuição de prova, não substitui a especificação f
 
 Considere cinco nós separados em grupos de três e dois. O grupo de três pode eleger líder e confirmar novas entradas. O grupo de dois não alcança maioria, mesmo que ainda contenha o antigo líder. Ele pode aceitar conexões por engano se a camada externa não fizer verificação, mas não consegue confirmar segundo Raft.
 
-<figure class='mermaid-figure'><div class='mermaid-diagram' data-mermaid='true' data-mermaid-label='Uma partição divide cinco nós em A B C e D E. A B C possui maioria de três e pode eleger e confirmar; D E possui dois e para.'><pre class='mermaid-source'>flowchart LR&#10;  subgraph M[Partição com maioria]&#10;    A[A]&#10;    B[B]&#10;    C[C]&#10;    A <--> B&#10;    B <--> C&#10;  end&#10;  subgraph m[Partição minoritária]&#10;    D[D]&#10;    E[E]&#10;    D <--> E&#10;  end&#10;  M --> P[Pode eleger e confirmar]&#10;  m --> S[Sem maioria, não avança]</pre></div><figcaption>Cenário ilustrativo com cinco votantes. A partição preserva um único lado capaz de progredir; segurança é mantida pela indisponibilidade do lado minoritário.</figcaption><details class='mermaid-fallback'><summary>Ver o código Mermaid</summary><pre class='code-block'>flowchart LR&#10;  subgraph M[Partição com maioria]&#10;    A[A]&#10;    B[B]&#10;    C[C]&#10;    A <--> B&#10;    B <--> C&#10;  end&#10;  subgraph m[Partição minoritária]&#10;    D[D]&#10;    E[E]&#10;    D <--> E&#10;  end&#10;  M --> P[Pode eleger e confirmar]&#10;  m --> S[Sem maioria, não avança]</pre></details></figure>
+<!-- tech-topics:mermaid {"label":"Uma partição divide cinco nós em A B C e D E. A B C possui maioria de três e pode eleger e confirmar; D E possui dois e para."} -->
+
+```mermaid
+flowchart LR
+  subgraph M[Partição com maioria]
+    A[A]
+    B[B]
+    C[C]
+    A <--> B
+    B <--> C
+  end
+  subgraph m[Partição minoritária]
+    D[D]
+    E[E]
+    D <--> E
+  end
+  M --> P[Pode eleger e confirmar]
+  m --> S[Sem maioria, não avança]
+```
+
+<figcaption>Cenário ilustrativo com cinco votantes. A partição preserva um único lado capaz de progredir; segurança é mantida pela indisponibilidade do lado minoritário.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
+  subgraph M[Partição com maioria]
+    A[A]
+    B[B]
+    C[C]
+    A &lt;--&gt; B
+    B &lt;--&gt; C
+  end
+  subgraph m[Partição minoritária]
+    D[D]
+    E[E]
+    D &lt;--&gt; E
+  end
+  M --&gt; P[Pode eleger e confirmar]
+  m --&gt; S[Sem maioria, não avança]</pre></details>
 
 Quando a rede volta, o antigo líder observa termo maior, rebaixa-se e repara seu <span lang="en-US">log</span>. Entradas não confirmadas do lado minoritário podem ser sobrescritas. Isso é correto: foram tentativas, não decisões. O cliente que recebeu timeout não sabe se sua operação foi confirmada antes da falha; deve consultar o resultado ou repetir com identidade estável.
 

@@ -73,7 +73,27 @@ Para latência, +90 ms no p99 pode ser aceitável; para taxa de erro, +2 pontos 
 3.  **Canário:** atinja uma pequena fração de instâncias ou requisições.
 4.  **Escopo maior:** amplie apenas depois de evidência positiva e revisão explícita do risco.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Progressão do raio de impacto de um experimento de caos, de ambiente controlado para canário de produção."><pre class="mermaid-source">flowchart LR&#10;  A[Ambiente representativo] --&gt; B[Produção com tráfego sintético]&#10;  B --&gt; C[Canário pequeno]&#10;  C --&gt; D[Escopo ampliado]&#10;  A -. falha de salvaguarda .-&gt; X[Interromper e corrigir]&#10;  B -. stop condition .-&gt; X&#10;  C -. impacto acima do limite .-&gt; X</pre></div><figcaption>Progressão ilustrativa. O aumento de escopo depende de evidência e risco; não existe porcentagem universal que torne um experimento seguro.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR&#10;  A[Ambiente representativo] --&gt; B[Produção com tráfego sintético]&#10;  B --&gt; C[Canário pequeno]&#10;  C --&gt; D[Escopo ampliado]&#10;  A -. falha de salvaguarda .-&gt; X[Interromper e corrigir]&#10;  B -. stop condition .-&gt; X&#10;  C -. impacto acima do limite .-&gt; X</pre></details></figure>
+<!-- tech-topics:mermaid {"label":"Progressão do raio de impacto de um experimento de caos, de ambiente controlado para canário de produção."} -->
+
+```mermaid
+flowchart LR
+  A[Ambiente representativo] --> B[Produção com tráfego sintético]
+  B --> C[Canário pequeno]
+  C --> D[Escopo ampliado]
+  A -. falha de salvaguarda .-> X[Interromper e corrigir]
+  B -. stop condition .-> X
+  C -. impacto acima do limite .-> X
+```
+
+<figcaption>Progressão ilustrativa. O aumento de escopo depende de evidência e risco; não existe porcentagem universal que torne um experimento seguro.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
+  A[Ambiente representativo] --&gt; B[Produção com tráfego sintético]
+  B --&gt; C[Canário pequeno]
+  C --&gt; D[Escopo ampliado]
+  A -. falha de salvaguarda .-&gt; X[Interromper e corrigir]
+  B -. stop condition .-&gt; X
+  C -. impacto acima do limite .-&gt; X</pre></details>
 
 <h2>5. <span lang="en-US">Stop conditions</span> transformam cautela em mecanismo</h2>
 
@@ -147,7 +167,35 @@ Um <span lang="en-US">game day</span> exercita sistema e organização juntos: e
 
 Se a hipótese foi sustentada, significa que, sob aquela carga, topologia, configuração e perturbação, os sinais permaneceram dentro dos limites. Isso aumenta confiança, mas não elimina incerteza. Mudanças de versão, tráfego, caches, dependências e autoscaling podem invalidar a evidência.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Ciclo de chaos engineering do estado estável até aprendizado e repetição."><pre class="mermaid-source">flowchart LR&#10;  S[Estado estável] --&gt; H[Hipótese]&#10;  H --&gt; G[Guardrails e blast radius]&#10;  G --&gt; I[Injetar falha]&#10;  I --&gt; O[Observar]&#10;  O --&gt; V{Dentro dos limites?}&#10;  V -- sim --&gt; L[Registrar evidência]&#10;  V -- não --&gt; P[Parar, recuperar e corrigir]&#10;  L --&gt; R[Repetir como regressão]&#10;  P --&gt; R&#10;  R --&gt; S</pre></div><figcaption>O experimento termina em evidência ou correção, não em uma declaração permanente de que o sistema é resiliente.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR&#10;  S[Estado estável] --&gt; H[Hipótese]&#10;  H --&gt; G[Guardrails e blast radius]&#10;  G --&gt; I[Injetar falha]&#10;  I --&gt; O[Observar]&#10;  O --&gt; V{Dentro dos limites?}&#10;  V -- sim --&gt; L[Registrar evidência]&#10;  V -- não --&gt; P[Parar, recuperar e corrigir]&#10;  L --&gt; R[Repetir como regressão]&#10;  P --&gt; R&#10;  R --&gt; S</pre></details></figure>
+<!-- tech-topics:mermaid {"label":"Ciclo de chaos engineering do estado estável até aprendizado e repetição."} -->
+
+```mermaid
+flowchart LR
+  S[Estado estável] --> H[Hipótese]
+  H --> G[Guardrails e blast radius]
+  G --> I[Injetar falha]
+  I --> O[Observar]
+  O --> V{Dentro dos limites?}
+  V -- sim --> L[Registrar evidência]
+  V -- não --> P[Parar, recuperar e corrigir]
+  L --> R[Repetir como regressão]
+  P --> R
+  R --> S
+```
+
+<figcaption>O experimento termina em evidência ou correção, não em uma declaração permanente de que o sistema é resiliente.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
+  S[Estado estável] --&gt; H[Hipótese]
+  H --&gt; G[Guardrails e blast radius]
+  G --&gt; I[Injetar falha]
+  I --&gt; O[Observar]
+  O --&gt; V{Dentro dos limites?}
+  V -- sim --&gt; L[Registrar evidência]
+  V -- não --&gt; P[Parar, recuperar e corrigir]
+  L --&gt; R[Repetir como regressão]
+  P --&gt; R
+  R --&gt; S</pre></details>
 
 <h2>Resumo mental</h2>
 

@@ -40,7 +40,25 @@ Imagine um guarda-volumes que distribui as bolsas entre três atendentes usando 
 <h2 id='hc-anel'>3. O espaço fixo e o anel</h2>
 <p>Escolha um espaço fixo, por exemplo inteiros sem sinal de 64 bits. O maior valor volta ao zero, portanto podemos desenhá-lo como círculo. Servidores recebem tokens nesse espaço; chaves também são convertidas em tokens pela mesma função de hash.</p>
 <ol><li>Calcule <code>t = H(chave)</code>.</li><li>Localize o primeiro token de servidor maior ou igual a <code>t</code>.</li><li>Se chegou ao fim, volte ao primeiro token do anel.</li><li>O servidor dono daquele token atende a chave.</li></ol>
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Busca no anel de hashing consistente: a chave 146 encontra o primeiro token, D em 168."><pre class="mermaid-source">flowchart LR&#10;  K[Chave · token 146] --&gt; H{Sentido horário}&#10;  H --&gt; A[Nó A · token 32]&#10;  H --&gt; D[Nó D · token 168]&#10;  D --&gt; R[Primeiro token encontrado]</pre></div><figcaption>Exemplo didático com espaço 0–255. A chave cai em 146; o primeiro token no sentido horário é D, em 168. Os números foram escolhidos para explicar a busca e não são saída de um cluster real.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR&#10;  K[Chave · token 146] --&gt; H{Sentido horário}&#10;  H --&gt; A[Nó A · token 32]&#10;  H --&gt; D[Nó D · token 168]&#10;  D --&gt; R[Primeiro token encontrado]</pre></details></figure>
+
+<!-- tech-topics:mermaid {"label":"Busca no anel de hashing consistente: a chave 146 encontra o primeiro token, D em 168."} -->
+
+```mermaid
+flowchart LR
+  K[Chave · token 146] --> H{Sentido horário}
+  H --> A[Nó A · token 32]
+  H --> D[Nó D · token 168]
+  D --> R[Primeiro token encontrado]
+```
+
+<figcaption>Exemplo didático com espaço 0–255. A chave cai em 146; o primeiro token no sentido horário é D, em 168. Os números foram escolhidos para explicar a busca e não são saída de um cluster real.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
+  K[Chave · token 146] --&gt; H{Sentido horário}
+  H --&gt; A[Nó A · token 32]
+  H --&gt; D[Nó D · token 168]
+  D --&gt; R[Primeiro token encontrado]</pre></details>
+
 <p>Com tokens ordenados em memória, a busca é binária: <code>O(log T)</code>, onde <code>T</code> é a quantidade total de tokens. O mapa de tokens custa <code>O(T)</code>. Cada participante precisa usar a mesma função, serialização da chave, conjunto de membros e ordenação; uma diferença em qualquer item produz donos diferentes.</p>
 <h3>Quem possui qual intervalo?</h3>
 <p>Na convenção do exemplo, um token possui o intervalo desde o token anterior, exclusivo, até ele próprio, inclusivo: <code>(anterior, token]</code>. O <a href='https://cassandra.apache.org/doc/latest/cassandra/architecture/dynamo.html#consistent-hashing-using-a-token-ring'>Apache Cassandra</a> documenta a mesma ideia de caminhar pelo anel e associa faixas de tokens a nós físicos.</p>
@@ -50,7 +68,25 @@ Imagine um guarda-volumes que distribui as bolsas entre três atendentes usando 
 <p>Com <code>N</code> nós de mesma capacidade e distribuição ideal, adicionar o nó <code>N+1</code> atribui a ele aproximadamente:</p>
 <div class='code-block'><pre><code>fração_movida ≈ 1 / (N + 1)</code></pre></div>
 <p>De três para quatro, o limite útil é 25%. Remover um entre <code>N</code> nós move aproximadamente a participação que ele possuía, perto de <code>1/N</code>. Essas são expectativas sob hashes uniformes e particionamento equilibrado, não garantias para poucos tokens ou poucas chaves.</p>
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Comparação calculada de chaves remapeadas ao adicionar um nó."><pre class="mermaid-source">xychart-beta&#10;  title &quot;Adicionar um nó: quanto precisa mudar?&quot;&#10;  x-axis [Modulo, Anel]&#10;  y-axis &quot;chaves remapeadas (%)&quot; 0 --&gt; 100&#10;  bar [74.31, 26.14]</pre></div><figcaption>Simulação própria e reproduzível: 20.000 chaves, SHA-256, mudança de 3 para 4 nós e 256 tokens virtuais por nó. O módulo moveu 14.862 chaves (74,31%); o anel, 5.228 (26,14%). São dados calculados, não benchmark.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta&#10;  title &quot;Adicionar um nó: quanto precisa mudar?&quot;&#10;  x-axis [Modulo, Anel]&#10;  y-axis &quot;chaves remapeadas (%)&quot; 0 --&gt; 100&#10;  bar [74.31, 26.14]</pre></details></figure>
+
+<!-- tech-topics:mermaid {"label":"Comparação calculada de chaves remapeadas ao adicionar um nó."} -->
+
+```mermaid
+xychart-beta
+  title "Adicionar um nó: quanto precisa mudar?"
+  x-axis [Modulo, Anel]
+  y-axis "chaves remapeadas (%)" 0 --> 100
+  bar [74.31, 26.14]
+```
+
+<figcaption>Simulação própria e reproduzível: 20.000 chaves, SHA-256, mudança de 3 para 4 nós e 256 tokens virtuais por nó. O módulo moveu 14.862 chaves (74,31%); o anel, 5.228 (26,14%). São dados calculados, não benchmark.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
+  title "Adicionar um nó: quanto precisa mudar?"
+  x-axis [Modulo, Anel]
+  y-axis "chaves remapeadas (%)" 0 --&gt; 100
+  bar [74.31, 26.14]</pre></details>
+
 <p>A diferença entre 26,14% e os 25% ideais vem da amostra e dos intervalos pseudoaleatórios do anel. <span lang="en-US">Hashing</span> consistente minimiza o conjunto perturbado; não promete divisão perfeitamente igual em toda execução.</p>
 <h2>5. O algoritmo básico ainda desequilibra</h2>
 <p>Se cada servidor recebe um único ponto aleatório, os arcos podem ter tamanhos muito diferentes. Uma máquina pode possuir metade do círculo e outra, um intervalo minúsculo. O artigo do Dynamo aponta dois problemas do desenho básico: distribuição não uniforme e desconhecimento de capacidades diferentes.</p>
@@ -66,7 +102,27 @@ Imagine um guarda-volumes que distribui as bolsas entre três atendentes usando 
 <div class='article-callout'><strong>Não confunda:</strong> <span lang="en-US">hashing</span> consistente não oferece linearizabilidade, consenso, detecção de falhas, reparo nem resolução de conflitos. Ele é uma função de posicionamento diante de um conjunto mutável de destinos.</div>
 <h2 id='hc-hotspots'>8. Distribuir chaves não distribui necessariamente trabalho</h2>
 <p>Hash uniforme equilibra a <em>quantidade</em> de chaves quando elas têm peso semelhante. Tráfego real costuma ser enviesado: um vídeo viral, uma celebridade ou uma configuração global pode receber milhões de leituras enquanto outras chaves ficam frias. Um único item continua pertencendo a uma faixa.</p>
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="As chaves estão equilibradas, mas uma hot key concentra o tráfego no nó B."><pre class="mermaid-source">xychart-beta&#10;  title &quot;Chaves e tráfego por nó&quot;&#10;  x-axis [A, B, C, D]&#10;  y-axis &quot;participação (%)&quot; 0 --&gt; 80&#10;  bar [25, 25, 25, 25]&#10;  line [10, 70, 10, 10]</pre></div><figcaption>Cenário ilustrativo, não medição: armazenamento está perfeitamente dividido, porém uma <span lang='en-US'>hot key</span> faz B receber 70% das requisições. Cor e hachura distinguem participação de chaves e de tráfego.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta&#10;  title &quot;Chaves e tráfego por nó&quot;&#10;  x-axis [A, B, C, D]&#10;  y-axis &quot;participação (%)&quot; 0 --&gt; 80&#10;  bar [25, 25, 25, 25]&#10;  line [10, 70, 10, 10]</pre></details></figure>
+
+<!-- tech-topics:mermaid {"label":"As chaves estão equilibradas, mas uma hot key concentra o tráfego no nó B."} -->
+
+```mermaid
+xychart-beta
+  title "Chaves e tráfego por nó"
+  x-axis [A, B, C, D]
+  y-axis "participação (%)" 0 --> 80
+  bar [25, 25, 25, 25]
+  line [10, 70, 10, 10]
+```
+
+<figcaption>Cenário ilustrativo, não medição: armazenamento está perfeitamente dividido, porém uma <span lang="en-US">hot key</span> faz B receber 70% das requisições. Cor e hachura distinguem participação de chaves e de tráfego.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
+  title "Chaves e tráfego por nó"
+  x-axis [A, B, C, D]
+  y-axis "participação (%)" 0 --&gt; 80
+  bar [25, 25, 25, 25]
+  line [10, 70, 10, 10]</pre></details>
+
 <p>Mitigações possíveis incluem cache em mais de uma camada, replicação de leitura adaptativa, divisão de uma chave agregadora, combinação com <span lang='en-US'>power of two choices</span> ou isolamento do item popular. Cada opção muda o contrato: replicar exige coerência; adicionar sal dificulta leitura agregada; escolher dois nós reduz afinidade estrita.</p>
 <p>Objetos também têm tamanhos diferentes. Dez chaves de 10 GiB pesam mais que milhões de metadados pequenos. Se o posicionamento usa só identidade, bytes, IOPS e CPU podem divergir. Pesos de nós tratam capacidade relativa; não tratam automaticamente peso variável das chaves.</p>
 <h2>9. A chave escolhida define afinidade e risco</h2>

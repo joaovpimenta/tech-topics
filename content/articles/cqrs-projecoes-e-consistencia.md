@@ -50,13 +50,71 @@ Isso permite adotar CQRS em degraus:
 
 Os benefícios mudam em cada degrau. No primeiro, o ganho principal é clareza do modelo. No último, aparecem escala independente e persistência especializada, mas também atraso de propagação, duplicação de dados, mais modos de falha e migrações coordenadas. A documentação da [AWS](https://docs.aws.amazon.com/prescriptive-guidance/latest/modernization-data-persistence/cqrs-pattern.html) recomenda o padrão quando leitura e escrita têm requisitos diferentes de <span lang="en-US">throughput</span>, latência ou consistência; isso é uma condição a medir, não um benefício automático.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Comandos atualizam a fonte de verdade e mudanças confirmadas alimentam uma projeção consultada pela API de leitura."><pre class="mermaid-source">flowchart LR&#10;  C[Cliente] -- comando --&gt; A[API de comando]&#10;  A -- valida e confirma --&gt; W[Fonte de verdade]&#10;  W -- mudança confirmada --&gt; P[Projetor]&#10;  P -- atualiza --&gt; R[Modelo de leitura]&#10;  C -- consulta --&gt; Q[API de consulta]&#10;  Q -- lê --&gt; R</pre></div><figcaption>Arquitetura conceitual de CQRS com projeção separada. As setas não prescrevem <span lang="en-US">broker</span> nem banco específico; a sincronização pode ser local ou assíncrona.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR&#10;  C[Cliente] -- comando --&gt; A[API de comando]&#10;  A -- valida e confirma --&gt; W[Fonte de verdade]&#10;  W -- mudança confirmada --&gt; P[Projetor]&#10;  P -- atualiza --&gt; R[Modelo de leitura]&#10;  C -- consulta --&gt; Q[API de consulta]&#10;  Q -- lê --&gt; R</pre></details></figure>
+<!-- tech-topics:mermaid {"label":"Comandos atualizam a fonte de verdade e mudanças confirmadas alimentam uma projeção consultada pela API de leitura."} -->
+
+```mermaid
+flowchart LR
+  C[Cliente] -- comando --> A[API de comando]
+  A -- valida e confirma --> W[Fonte de verdade]
+  W -- mudança confirmada --> P[Projetor]
+  P -- atualiza --> R[Modelo de leitura]
+  C -- consulta --> Q[API de consulta]
+  Q -- lê --> R
+```
+
+<figcaption>Arquitetura conceitual de CQRS com projeção separada. As setas não prescrevem <span lang="en-US">broker</span> nem banco específico; a sincronização pode ser local ou assíncrona.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
+  C[Cliente] -- comando --&gt; A[API de comando]
+  A -- valida e confirma --&gt; W[Fonte de verdade]
+  W -- mudança confirmada --&gt; P[Projetor]
+  P -- atualiza --&gt; R[Modelo de leitura]
+  C -- consulta --&gt; Q[API de consulta]
+  Q -- lê --&gt; R</pre></details>
 
 <h2>3. Uma execução normal ainda contém dois tempos</h2>
 
 Considere o pedido `B-42`. A versão 7 contém a inscrição antiga. A cliente envia o comando com `expectedVersion = 7`; o lado de escrita revalida o prazo de alteração, confirma a nova inscrição e produz a versão 8. Só depois a projeção de acompanhamento recebe a mudança e atualiza sua linha para a versão 8.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="A confirmação da versão oito antecede a atualização da projeção, criando uma janela de leitura obsoleta."><pre class="mermaid-source">sequenceDiagram&#10;  participant U as Cliente&#10;  participant C as Comando&#10;  participant W as Escrita&#10;  participant P as Projetor&#10;  participant R as Leitura&#10;  U-&gt;&gt;C: alterar B-42 com versao 7&#10;  C-&gt;&gt;W: validar e confirmar versao 8&#10;  W--&gt;&gt;C: versao 8 confirmada&#10;  C--&gt;&gt;U: aceite com versao 8&#10;  U-&gt;&gt;R: consultar B-42&#10;  R--&gt;&gt;U: versao 7 ainda visivel&#10;  W-&gt;&gt;P: mudanca da versao 8&#10;  P-&gt;&gt;R: atualizar projecao&#10;  U-&gt;&gt;R: consultar com minimo 8&#10;  R--&gt;&gt;U: versao 8</pre></div><figcaption>Sequência ilustrativa. O comando já terminou corretamente quando a primeira consulta retorna a versão anterior; isso é atraso de projeção, não rollback da escrita.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram&#10;  participant U as Cliente&#10;  participant C as Comando&#10;  participant W as Escrita&#10;  participant P as Projetor&#10;  participant R as Leitura&#10;  U-&gt;&gt;C: alterar B-42 com versao 7&#10;  C-&gt;&gt;W: validar e confirmar versao 8&#10;  W--&gt;&gt;C: versao 8 confirmada&#10;  C--&gt;&gt;U: aceite com versao 8&#10;  U-&gt;&gt;R: consultar B-42&#10;  R--&gt;&gt;U: versao 7 ainda visivel&#10;  W-&gt;&gt;P: mudanca da versao 8&#10;  P-&gt;&gt;R: atualizar projecao&#10;  U-&gt;&gt;R: consultar com minimo 8&#10;  R--&gt;&gt;U: versao 8</pre></details></figure>
+<!-- tech-topics:mermaid {"label":"A confirmação da versão oito antecede a atualização da projeção, criando uma janela de leitura obsoleta."} -->
+
+```mermaid
+sequenceDiagram
+  participant U as Cliente
+  participant C as Comando
+  participant W as Escrita
+  participant P as Projetor
+  participant R as Leitura
+  U->>C: alterar B-42 com versao 7
+  C->>W: validar e confirmar versao 8
+  W-->>C: versao 8 confirmada
+  C-->>U: aceite com versao 8
+  U->>R: consultar B-42
+  R-->>U: versao 7 ainda visivel
+  W->>P: mudanca da versao 8
+  P->>R: atualizar projecao
+  U->>R: consultar com minimo 8
+  R-->>U: versao 8
+```
+
+<figcaption>Sequência ilustrativa. O comando já terminou corretamente quando a primeira consulta retorna a versão anterior; isso é atraso de projeção, não rollback da escrita.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
+  participant U as Cliente
+  participant C as Comando
+  participant W as Escrita
+  participant P as Projetor
+  participant R as Leitura
+  U-&gt;&gt;C: alterar B-42 com versao 7
+  C-&gt;&gt;W: validar e confirmar versao 8
+  W--&gt;&gt;C: versao 8 confirmada
+  C--&gt;&gt;U: aceite com versao 8
+  U-&gt;&gt;R: consultar B-42
+  R--&gt;&gt;U: versao 7 ainda visivel
+  W-&gt;&gt;P: mudanca da versao 8
+  P-&gt;&gt;R: atualizar projecao
+  U-&gt;&gt;R: consultar com minimo 8
+  R--&gt;&gt;U: versao 8</pre></details>
 
 A versão visível torna o contrato testável. Sem ela, a interface só percebe que algum campo parece antigo. Com ela, o cliente sabe que o comando confirmou a versão 8 e pode distinguir uma projeção atrasada de uma perda de escrita.
 
@@ -94,7 +152,29 @@ Se o projetor atualizar o <span lang="en-US">read store</span> e cair antes de c
 
 Uma estratégia por agregado mantém `last_applied_version`. Eventos com versão igual ou menor são duplicados ou antigos; uma versão maior que a próxima esperada indica lacuna. Essa regra só funciona se a versão pertencer a uma sequência bem definida e se o evento trouxer semântica suficiente. Aplicar diretamente a versão 10 depois da 8 pode ser seguro para um evento que carrega o estado completo, mas incorreto para um delta “somar 5”.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="O projetor compara a versão recebida, ignora duplicatas, aplica a próxima versão e isola lacunas ou eventos inválidos."><pre class="mermaid-source">flowchart TD&#10;  E[Evento recebido] --&gt; V{Comparar versao}&#10;  V -- antiga ou igual --&gt; I[Ignorar com metrica]&#10;  V -- proxima --&gt; T[Atualizar visao e checkpoint]&#10;  V -- existe lacuna --&gt; L[Parar particao e reconciliar]&#10;  T -- sucesso --&gt; A[Confirmar entrega]&#10;  T -- falha --&gt; N[Nova tentativa]&#10;  L -- corrigido --&gt; N</pre></div><figcaption>Política ilustrativa para eventos ordenados por agregado. O tratamento correto de lacunas depende do contrato do evento e da fonte disponível para reconciliação.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart TD&#10;  E[Evento recebido] --&gt; V{Comparar versao}&#10;  V -- antiga ou igual --&gt; I[Ignorar com metrica]&#10;  V -- proxima --&gt; T[Atualizar visao e checkpoint]&#10;  V -- existe lacuna --&gt; L[Parar particao e reconciliar]&#10;  T -- sucesso --&gt; A[Confirmar entrega]&#10;  T -- falha --&gt; N[Nova tentativa]&#10;  L -- corrigido --&gt; N</pre></details></figure>
+<!-- tech-topics:mermaid {"label":"O projetor compara a versão recebida, ignora duplicatas, aplica a próxima versão e isola lacunas ou eventos inválidos."} -->
+
+```mermaid
+flowchart TD
+  E[Evento recebido] --> V{Comparar versao}
+  V -- antiga ou igual --> I[Ignorar com metrica]
+  V -- proxima --> T[Atualizar visao e checkpoint]
+  V -- existe lacuna --> L[Parar particao e reconciliar]
+  T -- sucesso --> A[Confirmar entrega]
+  T -- falha --> N[Nova tentativa]
+  L -- corrigido --> N
+```
+
+<figcaption>Política ilustrativa para eventos ordenados por agregado. O tratamento correto de lacunas depende do contrato do evento e da fonte disponível para reconciliação.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart TD
+  E[Evento recebido] --&gt; V{Comparar versao}
+  V -- antiga ou igual --&gt; I[Ignorar com metrica]
+  V -- proxima --&gt; T[Atualizar visao e checkpoint]
+  V -- existe lacuna --&gt; L[Parar particao e reconciliar]
+  T -- sucesso --&gt; A[Confirmar entrega]
+  T -- falha --&gt; N[Nova tentativa]
+  L -- corrigido --&gt; N</pre></details>
 
 Um evento inválido não deve desaparecer em um log. Quarentena, alerta e ferramenta de reprocessamento são parte do sistema. Se a ordem por agregado importa, deixar a versão seguinte ultrapassar a mensagem problemática pode corromper a visão; parar todo o tópico, por outro lado, permite que um único agregado bloqueie os demais. Particionamento e isolamento do erro são decisões conjuntas.
 
@@ -134,7 +214,37 @@ Se uma pessoa pede remoção de um dado, apagar apenas na escrita deixa cópias 
 
 Uma mudança de schema pode exigir uma projeção `orders_v2`. Truncar a visão ativa e preenchê-la novamente expõe resultados incompletos durante horas. Um caminho mais seguro é construir uma versão paralela, alcançar o fluxo atual, comparar invariantes e só então trocar o alias ou roteamento.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Uma projeção nova é preenchida, alcança o fluxo vivo, é validada e substitui atomicamente a versão anterior."><pre class="mermaid-source">stateDiagram-v2&#10;  [*] --&gt; CriarV2&#10;  CriarV2 --&gt; Backfill&#10;  Backfill --&gt; AlcancarFluxo&#10;  AlcancarFluxo --&gt; Validar&#10;  Validar --&gt; Corrigir: divergencia&#10;  Corrigir --&gt; Backfill&#10;  Validar --&gt; TrocarLeitura: aprovado&#10;  TrocarLeitura --&gt; Observar&#10;  Observar --&gt; VoltarV1: problema&#10;  Observar --&gt; RemoverV1: estavel&#10;  RemoverV1 --&gt; [*]</pre></div><figcaption>Fluxo operacional recomendado para rebuild, com publicação versionada e possibilidade de rollback. Os nomes são estados conceituais, não comandos de uma ferramenta.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">stateDiagram-v2&#10;  [*] --&gt; CriarV2&#10;  CriarV2 --&gt; Backfill&#10;  Backfill --&gt; AlcancarFluxo&#10;  AlcancarFluxo --&gt; Validar&#10;  Validar --&gt; Corrigir: divergencia&#10;  Corrigir --&gt; Backfill&#10;  Validar --&gt; TrocarLeitura: aprovado&#10;  TrocarLeitura --&gt; Observar&#10;  Observar --&gt; VoltarV1: problema&#10;  Observar --&gt; RemoverV1: estavel&#10;  RemoverV1 --&gt; [*]</pre></details></figure>
+<!-- tech-topics:mermaid {"label":"Uma projeção nova é preenchida, alcança o fluxo vivo, é validada e substitui atomicamente a versão anterior."} -->
+
+```mermaid
+stateDiagram-v2
+  [*] --> CriarV2
+  CriarV2 --> Backfill
+  Backfill --> AlcancarFluxo
+  AlcancarFluxo --> Validar
+  Validar --> Corrigir: divergencia
+  Corrigir --> Backfill
+  Validar --> TrocarLeitura: aprovado
+  TrocarLeitura --> Observar
+  Observar --> VoltarV1: problema
+  Observar --> RemoverV1: estavel
+  RemoverV1 --> [*]
+```
+
+<figcaption>Fluxo operacional recomendado para rebuild, com publicação versionada e possibilidade de rollback. Os nomes são estados conceituais, não comandos de uma ferramenta.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">stateDiagram-v2
+  [*] --&gt; CriarV2
+  CriarV2 --&gt; Backfill
+  Backfill --&gt; AlcancarFluxo
+  AlcancarFluxo --&gt; Validar
+  Validar --&gt; Corrigir: divergencia
+  Corrigir --&gt; Backfill
+  Validar --&gt; TrocarLeitura: aprovado
+  TrocarLeitura --&gt; Observar
+  Observar --&gt; VoltarV1: problema
+  Observar --&gt; RemoverV1: estavel
+  RemoverV1 --&gt; [*]</pre></details>
 
 O <span lang="en-US">backfill</span> deve registrar a posição do snapshot; o consumo incremental parte depois dela. Durante o <span lang="en-US">dual run</span>, compare contagens, somas e amostras por chave, considerando diferenças esperadas de atraso. A troca deve ser atômica do ponto de vista do leitor. Mantenha a versão anterior pelo tempo necessário para rollback e somente depois remova dados e código.
 
