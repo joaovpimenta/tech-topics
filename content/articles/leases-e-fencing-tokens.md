@@ -60,7 +60,27 @@ Essa é a armadilha que separa um mutex local de uma coordenação distribuída.
 
 Considere uma <span lang="en-US">lease</span> de 20 segundos. O <span lang="en-US">worker</span> A recebe a geração 41 no instante zero e pausa aos 8 segundos. Sem renovações, o coordenador declara a posse expirada aos 20. B adquire a geração 42 aos 22 e grava aos 26. A volta aos 32 e ainda carrega código, memória e uma intenção de escrita produzida antes da pausa.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Worker A pausa, perde a lease, B recebe token 42 e a escrita antiga de A é rejeitada."><pre class="mermaid-source">sequenceDiagram
+<!-- tech-topics:mermaid {"label":"Worker A pausa, perde a lease, B recebe token 42 e a escrita antiga de A é rejeitada."} -->
+
+```mermaid
+sequenceDiagram
+  participant A as Worker A
+  participant C as Coordenação
+  participant B as Worker B
+  participant R as Recurso
+  A->>C: recebe token 41
+  Note over A: pausa por 24 s
+  C-->>A: lease expira
+  B->>C: adquire a lease
+  C-->>B: recebe token 42
+  B->>R: grava com token 42
+  A->>R: retorna e grava com token 41
+  R-->>A: rejeita token obsoleto
+```
+
+<figcaption>Sequência temporal ilustrativa, com tempos escolhidos para o exemplo. O coordenador pode expirar A corretamente e, mesmo assim, o recurso receber depois uma operação antiga.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
   participant A as Worker A
   participant C as Coordenação
   participant B as Worker B
@@ -72,19 +92,7 @@ Considere uma <span lang="en-US">lease</span> de 20 segundos. O <span lang="en-U
   C--&gt;&gt;B: recebe token 42
   B-&gt;&gt;R: grava com token 42
   A-&gt;&gt;R: retorna e grava com token 41
-  R--&gt;&gt;A: rejeita token obsoleto</pre></div><figcaption>Sequência temporal ilustrativa, com tempos escolhidos para o exemplo. O coordenador pode expirar A corretamente e, mesmo assim, o recurso receber depois uma operação antiga.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
-  participant A as Worker A
-  participant C as Coordenação
-  participant B as Worker B
-  participant R as Recurso
-  A-&gt;&gt;C: recebe token 41
-  Note over A: pausa por 24 s
-  C--&gt;&gt;A: lease expira
-  B-&gt;&gt;C: adquire a lease
-  C--&gt;&gt;B: recebe token 42
-  B-&gt;&gt;R: grava com token 42
-  A-&gt;&gt;R: retorna e grava com token 41
-  R--&gt;&gt;A: rejeita token obsoleto</pre></details></figure>
+  R--&gt;&gt;A: rejeita token obsoleto</pre></details>
 
 Há duas histórias simultâneas. Para o **coordenador**, apenas B é o dono depois de 22 segundos. Para A, o mundo ficou congelado durante a pausa; quando volta, a próxima instrução pode ser justamente a escrita. A pausa pode vir de garbage collection, suspensão da máquina virtual, falta de CPU, page fault, depuração, hibernação ou um processo parado por sinal. Também basta que a requisição saia de A no prazo e permaneça atrasada na rede.
 
@@ -147,19 +155,27 @@ Ao adquirir a posse, cada novo dono recebe um token estritamente crescente: 41, 
 
 Se B já gravou com 42, a tentativa posterior de A com 41 é rejeitada. O relógio de A não participa dessa decisão. O recurso também não precisa perguntar se A está vivo; basta comparar uma ordem. Igualdade é permitida no modelo acima para várias operações legítimas na mesma geração. Se repetir uma operação causar efeito duplicado, acrescente uma identidade de operação ou uma sequência dentro da geração.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Workers recebem tokens crescentes e o recurso protegido aceita apenas o maior token."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"Workers recebem tokens crescentes e o recurso protegido aceita apenas o maior token."} -->
+
+```mermaid
+flowchart LR
+  A[Worker A] --> C[Coordenação]
+  B[Worker B] --> C
+  C -->|token 41| R[Recurso protegido]
+  C -->|token 42| R
+  R -->|aceita maior token| B
+  R -->|rejeita menor token| A
+```
+
+<figcaption>Arquitetura conceitual. O estado de coordenação deve atribuir gerações com uma ordem confiável; o recurso deve participar do protocolo. Um token ignorado pelo destino é apenas metadado.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
   A[Worker A] --&gt; C[Coordenação]
   B[Worker B] --&gt; C
   C --&gt;|token 41| R[Recurso protegido]
   C --&gt;|token 42| R
   R --&gt;|aceita maior token| B
-  R --&gt;|rejeita menor token| A</pre></div><figcaption>Arquitetura conceitual. O estado de coordenação deve atribuir gerações com uma ordem confiável; o recurso deve participar do protocolo. Um token ignorado pelo destino é apenas metadado.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  A[Worker A] --&gt; C[Coordenação]
-  B[Worker B] --&gt; C
-  C --&gt;|token 41| R[Recurso protegido]
-  C --&gt;|token 42| R
-  R --&gt;|aceita maior token| B
-  R --&gt;|rejeita menor token| A</pre></details></figure>
+  R --&gt;|rejeita menor token| A</pre></details>
 
 <h3>O invariante útil</h3>
 
@@ -226,15 +242,23 @@ Defina `L` como duração da <span lang="en-US">lease</span> no coordenador e `r
 
 Com 10.000 <span lang="en-US">leases</span> e renovação a cada 10 segundos, o coordenador recebe em média 1.000 renovações/s, desconsiderando rajadas e retries. A cada 5 segundos, 2.000/s. Distribua renovações no tempo com jitter controlado para não criar um pico periódico; ainda preserve margem antes do vencimento.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Renovações por segundo para dez mil leases em diferentes intervalos."><pre class="mermaid-source">xychart-beta
+<!-- tech-topics:mermaid {"label":"Renovações por segundo para dez mil leases em diferentes intervalos."} -->
+
+```mermaid
+xychart-beta
   title "10.000 leases · renovações por intervalo"
   x-axis [five, ten, twenty, sixty]
-  y-axis "renovações por segundo" 0 --&gt; 2200
-  bar [2000, 1000, 500, 167]</pre></div><figcaption>Dados calculados por <code>R = N/r</code>, não medições. Eixo horizontal: intervalo de renovação em segundos. Eixo vertical: renovações por segundo para 10.000 <span lang="en-US">leases</span>.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
+  y-axis "renovações por segundo" 0 --> 2200
+  bar [2000, 1000, 500, 167]
+```
+
+<figcaption>Dados calculados por <code>R = N/r</code>, não medições. Eixo horizontal: intervalo de renovação em segundos. Eixo vertical: renovações por segundo para 10.000 <span lang="en-US">leases</span>.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
   title "10.000 leases · renovações por intervalo"
   x-axis [5s, 10s, 20s, 60s]
   y-axis "renovações por segundo" 0 --&gt; 2200
-  bar [2000, 1000, 500, 167]</pre></details></figure>
+  bar [2000, 1000, 500, 167]</pre></details>
 
 Um orçamento local aproximado pode ser escrito como `B = L − e − m`, onde `e` é o tempo decorrido observado desde a confirmação e `m` é uma margem para comunicação e incerteza. Se `B ≤ 0`, o cliente não deve iniciar novo efeito. Isso é uma defesa operacional, não prova de segurança: o processo ainda pode pausar depois do cálculo. A barreira definitiva continua no recurso.
 

@@ -74,21 +74,29 @@ A interpretação moderna combina transações locais, eventos de domínio e cap
 
 Uma **transação local** confirma ou desfaz conjuntamente alterações dentro do limite suportado pelo banco. A tabela de pedidos e a outbox precisam participar da mesma transação efetiva: duas conexões com commits independentes não oferecem essa propriedade.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Pedido e evento são gravados na mesma transação local antes da entrega assíncrona."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"Pedido e evento são gravados na mesma transação local antes da entrega assíncrona."} -->
+
+```mermaid
+flowchart LR
+  S[Serviço de pedidos] --> T[Transação local]
+  T --> O[Pedido]
+  T --> X[Outbox]
+  X --> R[Relay]
+  R --> B[Broker]
+  B --> C[Consumidor]
+  C --> E[Efeito]
+```
+
+<figcaption>Arquitetura conceitual. A borda tracejada delimita a transação local; as etapas de entrega ficam fora dela. O fluxo do <span lang="en-US">broker</span> para o consumidor representa outra fronteira de falha.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
   S[Serviço de pedidos] --&gt; T[Transação local]
   T --&gt; O[Pedido]
   T --&gt; X[Outbox]
   X --&gt; R[Relay]
   R --&gt; B[Broker]
   B --&gt; C[Consumidor]
-  C --&gt; E[Efeito]</pre></div><figcaption>Arquitetura conceitual. A borda tracejada delimita a transação local; as etapas de entrega ficam fora dela. O fluxo do <span lang="en-US">broker</span> para o consumidor representa outra fronteira de falha.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  S[Serviço de pedidos] --&gt; T[Transação local]
-  T --&gt; O[Pedido]
-  T --&gt; X[Outbox]
-  X --&gt; R[Relay]
-  R --&gt; B[Broker]
-  B --&gt; C[Consumidor]
-  C --&gt; E[Efeito]</pre></details></figure>
+  C --&gt; E[Efeito]</pre></details>
 
 Para uma operação que gera um evento, denote por **C** a confirmação da transação, por **B** a mudança de negócio e por **O** o registro na outbox. A propriedade desejada é: <code data-tts-say="se a transação confirma, a mudança de negócio e o registro da outbox confirmam juntos">C ⇒ (B ∧ O)</code>; no rollback dessa operação, nem B nem O se tornam alterações confirmadas. Isso pressupõe que o código grave os dois corretamente e que as garantias de durabilidade do banco estejam configuradas para o risco aceito.
 
@@ -178,7 +186,26 @@ A escolha depende da carga e da capacidade operacional da equipe. CDC sobre tabe
 
 <h2>6. A falha inevitável entre publicar e registrar</h2>
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="O relay cai depois do aceite do broker e republica o mesmo evento; a inbox deduplica."><pre class="mermaid-source">sequenceDiagram
+<!-- tech-topics:mermaid {"label":"O relay cai depois do aceite do broker e republica o mesmo evento; a inbox deduplica."} -->
+
+```mermaid
+sequenceDiagram
+  participant O as Outbox
+  participant R as Relay
+  participant B as Broker
+  participant C as Consumidor
+  O->>R: evento E-42 pendente
+  R->>B: publica E-42
+  B-->>R: aceite
+  Note over R: queda antes de marcar enviado
+  R->>B: republica E-42
+  B->>C: entrega duplicada
+  C-->>C: inbox ignora repetição
+```
+
+<figcaption>Sequência ilustrativa de falha, sem medição real. O aceite do <span lang="en-US">broker</span> não confirma a atualização da outbox nem o efeito no consumidor.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
   participant O as Outbox
   participant R as Relay
   participant B as Broker
@@ -189,18 +216,7 @@ A escolha depende da carga e da capacidade operacional da equipe. CDC sobre tabe
   Note over R: queda antes de marcar enviado
   R-&gt;&gt;B: republica E-42
   B-&gt;&gt;C: entrega duplicada
-  C--&gt;&gt;C: inbox ignora repetição</pre></div><figcaption>Sequência ilustrativa de falha, sem medição real. O aceite do <span lang="en-US">broker</span> não confirma a atualização da outbox nem o efeito no consumidor.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">sequenceDiagram
-  participant O as Outbox
-  participant R as Relay
-  participant B as Broker
-  participant C as Consumidor
-  O-&gt;&gt;R: evento E-42 pendente
-  R-&gt;&gt;B: publica E-42
-  B--&gt;&gt;R: aceite
-  Note over R: queda antes de marcar enviado
-  R-&gt;&gt;B: republica E-42
-  B-&gt;&gt;C: entrega duplicada
-  C--&gt;&gt;C: inbox ignora repetição</pre></details></figure>
+  C--&gt;&gt;C: inbox ignora repetição</pre></details>
 
 O <span lang="en-US">relay</span> não consegue tornar atômicos o aceite remoto e sua marca local usando apenas a transação do banco. Se marcar antes, pode perder o envio. Se marcar depois, pode repetir. A outbox normalmente escolhe a segunda opção: **entrega ao menos uma vez**, sob as condições de recuperação já descritas.
 
@@ -232,21 +248,29 @@ A retenção da <span lang="en-US">inbox</span> precisa cobrir o horizonte de re
 
 Em muitos domínios, importa que <code data-tts-say="pedido criado versão um">PedidoCriado(v1)</code> anteceda <code data-tts-say="pedido cancelado versão dois">PedidoCancelado(v2)</code> para o mesmo pedido. Não é necessário ordenar todos os pedidos do mundo. O [Debezium usa o identificador do agregado como chave](<https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html>), importante para encaminhar sua sequência às partições Kafka.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Eventos do mesmo pedido mantêm sequência própria, sem ordenar pedidos diferentes globalmente."><pre class="mermaid-source">flowchart TB
+<!-- tech-topics:mermaid {"label":"Eventos do mesmo pedido mantêm sequência própria, sem ordenar pedidos diferentes globalmente."} -->
+
+```mermaid
+flowchart TB
+  subgraph A[Pedido A]
+    A1[A · v1] --> A2[A · v2]
+  end
+  subgraph B[Pedido B]
+    B1[B · v1] --> B2[B · v2]
+  end
+  A2 -.-> B1
+```
+
+<figcaption>Esquema de duas partições, ilustrativo. A separação pressupõe roteamento estável; na prática, pedidos diferentes também podem compartilhar uma partição.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart TB
   subgraph A[Pedido A]
     A1[A · v1] --&gt; A2[A · v2]
   end
   subgraph B[Pedido B]
     B1[B · v1] --&gt; B2[B · v2]
   end
-  A2 -.-&gt; B1</pre></div><figcaption>Esquema de duas partições, ilustrativo. A separação pressupõe roteamento estável; na prática, pedidos diferentes também podem compartilhar uma partição.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart TB
-  subgraph A[Pedido A]
-    A1[A · v1] --&gt; A2[A · v2]
-  end
-  subgraph B[Pedido B]
-    B1[B · v1] --&gt; B2[B · v2]
-  end
-  A2 -. sem ordem global .- B1</pre></details></figure>
+  A2 -. sem ordem global .- B1</pre></details>
 
 A chave não conserta uma ordem já invertida no <span lang="en-US">relay</span>. Dois workers podem reservar v1 e v2 e publicar v2 primeiro. Um timestamp ou ID crescente também não prova ordem de <span lang="en-US">commit</span> entre transações concorrentes.
 
@@ -258,15 +282,23 @@ Uma outbox absorve uma indisponibilidade do <span lang="en-US">broker</span> enq
 
 Se o <span lang="en-US">broker</span> ficar indisponível por T segundos, com fila inicialmente vazia, `Q = λT`. Para λ = 200 eventos/s e T = 60 s, acumulam-se **12.000 eventos**. Após recuperar uma saída de 500 eventos/s, ainda entram 200/s: a drenagem líquida é 300/s, e `T_drenagem = 12.000/(500 − 200) = 40 s`.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Backlog cresce durante a falha e drena depois da recuperação do broker."><pre class="mermaid-source">xychart-beta
+<!-- tech-topics:mermaid {"label":"Backlog cresce durante a falha e drena depois da recuperação do broker."} -->
+
+```mermaid
+xychart-beta
   title "Fila durante falha e recuperação"
   x-axis [zero, thirty, sixty, seventy, eighty, ninety, hundred]
-  y-axis "eventos pendentes" 0 --&gt; 12000
-  line [0, 6000, 12000, 9000, 6000, 3000, 0]</pre></div><figcaption>Dados calculados pelo modelo descrito no texto. Eixo horizontal: segundos desde a falha; eixo vertical: milhares de eventos pendentes. Linha contínua: <span lang="en-US">broker</span> indisponível. Linha tracejada: recuperação com saída de 500 eventos/s.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
+  y-axis "eventos pendentes" 0 --> 12000
+  line [0, 6000, 12000, 9000, 6000, 3000, 0]
+```
+
+<figcaption>Dados calculados pelo modelo descrito no texto. Eixo horizontal: segundos desde a falha; eixo vertical: milhares de eventos pendentes. Linha contínua: <span lang="en-US">broker</span> indisponível. Linha tracejada: recuperação com saída de 500 eventos/s.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
   title "Fila durante falha e recuperação"
   x-axis [0s, 30s, 60s, 70s, 80s, 90s, 100s]
   y-axis "eventos pendentes" 0 --&gt; 12000
-  line [0, 6000, 12000, 9000, 6000, 3000, 0]</pre></details></figure>
+  line [0, 6000, 12000, 9000, 6000, 3000, 0]</pre></details>
 
 Se μ = λ, a fila acumulada permanece; se μ < λ, continua crescendo. Dimensionar só para a taxa normal não permite recuperar o atraso. Se cada registro ocupar em média 2 KiB, 12.000 registros representam aproximadamente 23,4 MiB de dados, antes de índices, WAL, réplicas e overhead. O tamanho por evento é uma hipótese ilustrativa.
 

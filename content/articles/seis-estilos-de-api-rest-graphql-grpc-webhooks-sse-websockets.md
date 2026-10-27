@@ -40,17 +40,25 @@ A primeira pergunta é **quem inicia a conexão ou a requisição?** Em REST, Gr
 
 A segunda pergunta é **quem está na outra ponta e que tipo de interação é necessário?** Um navegador, um app móvel, outro serviço sob seu controle e uma plataforma terceirizada não impõem as mesmas restrições de CORS, proxies, contratos, autenticação, evolução e reconexão. O consumidor pode precisar de uma resposta pontual, de muitos campos relacionados, de streaming unidirecional ou de troca simultânea de mensagens.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="REST, GraphQL e gRPC começam com pedido do cliente; SSE e WebSockets mantêm uma conexão aberta pelo cliente; webhook é entregue em uma nova requisição pelo provedor externo."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"REST, GraphQL e gRPC começam com pedido do cliente; SSE e WebSockets mantêm uma conexão aberta pelo cliente; webhook é entregue em uma nova requisição pelo provedor externo."} -->
+
+```mermaid
+flowchart LR
+  C[Cliente] -->|Pede resposta| A[API REST ou GraphQL]
+  C -->|Chama método| R[Serviço gRPC]
+  C -->|Abre stream| S[SSE: servidor envia eventos]
+  C <-->|Abre sessão e troca mensagens| W[WebSocket]
+  P[Provedor externo] -->|Entrega evento HTTP| H[Seu webhook]
+```
+
+<figcaption>O sentido das setas indica como uma interação começa e como os dados fluem. No SSE o cliente abre o fluxo; no webhook o provedor efetivamente inicia a entrega.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
   C[Cliente] --&gt;|Pede resposta| A[API REST ou GraphQL]
   C --&gt;|Chama método| R[Serviço gRPC]
   C --&gt;|Abre stream| S[SSE: servidor envia eventos]
   C &lt;--&gt;|Abre sessão e troca mensagens| W[WebSocket]
-  P[Provedor externo] --&gt;|Entrega evento HTTP| H[Seu webhook]</pre></div><figcaption>O sentido das setas indica como uma interação começa e como os dados fluem. No SSE o cliente abre o fluxo; no webhook o provedor efetivamente inicia a entrega.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  C[Cliente] --&gt;|Pede resposta| A[API REST ou GraphQL]
-  C --&gt;|Chama método| R[Serviço gRPC]
-  C --&gt;|Abre stream| S[SSE: servidor envia eventos]
-  C &lt;--&gt;|Abre sessão e troca mensagens| W[WebSocket]
-  P[Provedor externo] --&gt;|Entrega evento HTTP| H[Seu webhook]</pre></details></figure>
+  P[Provedor externo] --&gt;|Entrega evento HTTP| H[Seu webhook]</pre></details>
 
 O levantamento [State of the API 2025, da Postman](<https://www.postman.com/state-of-api/2025/>) coletou respostas de mais de 5.700 profissionais. No conjunto pesquisado, REST aparece em 93%, webhooks em 50%, WebSockets em 35%, GraphQL em 33%, gRPC em 14% e SSE em 12%. **São proporções de uso autorrelatado, não uma classificação de desempenho nem fatias exclusivas de mercado:** uma mesma equipe pode empregar vários estilos.
 

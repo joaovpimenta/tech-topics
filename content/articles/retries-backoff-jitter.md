@@ -107,13 +107,21 @@ Defina `aᵢ` como o máximo de tentativas — chamada inicial incluída — na 
 
 Se navegador, frontend e backend permitem quatro tentativas cada, uma ação pode chegar ao banco como `4³ = 64` tentativas. Esse exemplo é usado pelo capítulo [<span lang="en-US">Addressing Cascading Failures</span>, do Google SRE](<https://sre.google/sre-book/addressing-cascading-failures/>), para mostrar por que cada camada não deveria repetir de forma independente.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Uma ação pode se multiplicar em quatro tentativas no frontend, dezesseis no backend e sessenta e quatro no banco."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"Uma ação pode se multiplicar em quatro tentativas no frontend, dezesseis no backend e sessenta e quatro no banco."} -->
+
+```mermaid
+flowchart LR
+  A[Ação · 1] --> F[Frontend · 4]
+  F --> B[Backend · 16]
+  B --> D[Banco · 64]
+```
+
+<figcaption>Amplificação máxima calculada com quatro tentativas em três camadas: 1 → 4 → 16 → 64. O desenho mostra contagem, não volume medido.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
   A[Ação · 1] --&gt; F[Frontend · 4]
   F --&gt; B[Backend · 16]
-  B --&gt; D[Banco · 64]</pre></div><figcaption>Amplificação máxima calculada com quatro tentativas em três camadas: 1 → 4 → 16 → 64. O desenho mostra contagem, não volume medido.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  A[Ação · 1] --&gt; F[Frontend · 4]
-  F --&gt; B[Backend · 16]
-  B --&gt; D[Banco · 64]</pre></details></figure>
+  B --&gt; D[Banco · 64]</pre></details>
 
 Uma política melhor escolhe **um ponto responsável**, normalmente a camada imediatamente acima de quem rejeita ou falha. Camadas superiores mantêm o <span lang="en-US">deadline</span> e a intenção de negócio; a camada responsável entende o transporte e os sinais do servidor. Duplicar a política nos dois lugares combina os custos sem combinar o conhecimento.
 
@@ -192,17 +200,25 @@ E[esperaᵢ] = bᵢ / 2</code></pre>
 
 Marc Brooker mostrou em <a lang="en-US" href="https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/"><span lang="en-US">Exponential Backoff</span> and <span lang="en-US">Jitter</span></a> que <span lang="en-US">backoff</span> exponencial sem <span lang="en-US">jitter</span> ainda produz grupos de chamadas; no modelo publicado, *full <span lang="en-US">jitter</span>* reduziu o trabalho total em mais da metade para cem contendores. O resultado pertence àquela simulação. A conclusão geral é que espalhar tentativas reduz picos sincronizados, não que exista uma porcentagem garantida para qualquer sistema.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Comparação entre ondas sincronizadas de retry e uma distribuição com full jitter."><pre class="mermaid-source">xychart-beta
+<!-- tech-topics:mermaid {"label":"Comparação entre ondas sincronizadas de retry e uma distribuição com full jitter."} -->
+
+```mermaid
+xychart-beta
   title "Mil clientes voltam juntos ou espalhados"
   x-axis [t0, t05, t1, t15, t2, t25, t3, t4, t5, t6, t7]
-  y-axis "tentativas" 0 --&gt; 1200
+  y-axis "tentativas" 0 --> 1200
   bar [1000, 0, 0, 1000, 0, 0, 1000, 0, 0, 0, 0]
-  line [593, 702, 297, 321, 284, 179, 108, 141, 111, 112, 84]</pre></div><figcaption>Simulação própria, determinística pela semente 20260915: 1.000 clientes e três <span lang="en-US">retries</span>, com limites acumulados de 1, 2 e 4 segundos. Sem <span lang="en-US">jitter</span>, o pico é 1.000; com full <span lang="en-US">jitter</span>, 702 tentativas por 500 ms. São dados calculados, não medição real.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
+  line [593, 702, 297, 321, 284, 179, 108, 141, 111, 112, 84]
+```
+
+<figcaption>Simulação própria, determinística pela semente 20260915: 1.000 clientes e três <span lang="en-US">retries</span>, com limites acumulados de 1, 2 e 4 segundos. Sem <span lang="en-US">jitter</span>, o pico é 1.000; com full <span lang="en-US">jitter</span>, 702 tentativas por 500 ms. São dados calculados, não medição real.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
   title "Mil clientes voltam juntos ou espalhados"
   x-axis [0, 05, 1, 15, 2, 25, 3, 4, 5, 6, 7]
   y-axis "tentativas" 0 --&gt; 1200
   bar [1000, 0, 0, 1000, 0, 0, 1000, 0, 0, 0, 0]
-  line [593, 702, 297, 321, 284, 179, 108, 141, 111, 112, 84]</pre></details></figure>
+  line [593, 702, 297, 321, 284, 179, 108, 141, 111, 112, 84]</pre></details>
 
 Há outras famílias. *Equal <span lang="en-US">jitter</span>* preserva metade do atraso e sorteia a outra metade; *decorrelated <span lang="en-US">jitter</span>* calcula o próximo limite a partir do atraso anterior. Elas mudam cauda, ocupação e convergência. Não escolha pela sonoridade: simule com sua concorrência, <span lang="en-US">deadline</span> e distribuição de recuperação. A recomendação estável é evitar um relógio determinístico compartilhado por uma multidão.
 
@@ -269,7 +285,24 @@ Uma implementação comum mantém tokens: sucessos ou chamadas normais repõem o
 
 ## 8. Uma decisão em cinco portas
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Decisão de retry: falha transitória, segurança, deadline, orçamento, backoff e jitter."><pre class="mermaid-source">flowchart TD
+<!-- tech-topics:mermaid {"label":"Decisão de retry: falha transitória, segurança, deadline, orçamento, backoff e jitter."} -->
+
+```mermaid
+flowchart TD
+  F[Falha] --> T{É transitória?}
+  T -->|não| X[Falha controlada]
+  T -->|sim| I{Repetição é segura?}
+  I -->|não| X
+  I -->|sim| D{Há deadline e budget?}
+  D -->|não| X
+  D -->|sim| H[Respeitar Retry-After]
+  H --> B[Backoff + jitter]
+  B --> R[Nova tentativa]
+```
+
+<figcaption>A tentativa só avança quando quatro condições se mantêm: classificação retryable, segurança do efeito, tempo restante e orçamento de carga. Qualquer resposta negativa encerra ou degrada a operação.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart TD
   F[Falha] --&gt; T{É transitória?}
   T --&gt;|não| X[Falha controlada]
   T --&gt;|sim| I{Repetição é segura?}
@@ -278,16 +311,7 @@ Uma implementação comum mantém tokens: sucessos ou chamadas normais repõem o
   D --&gt;|não| X
   D --&gt;|sim| H[Respeitar Retry-After]
   H --&gt; B[Backoff + jitter]
-  B --&gt; R[Nova tentativa]</pre></div><figcaption>A tentativa só avança quando quatro condições se mantêm: classificação retryable, segurança do efeito, tempo restante e orçamento de carga. Qualquer resposta negativa encerra ou degrada a operação.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart TD
-  F[Falha] --&gt; T{É transitória?}
-  T --&gt;|não| X[Falha controlada]
-  T --&gt;|sim| I{Repetição é segura?}
-  I --&gt;|não| X
-  I --&gt;|sim| D{Há deadline e budget?}
-  D --&gt;|não| X
-  D --&gt;|sim| H[Respeitar Retry-After]
-  H --&gt; B[Backoff + jitter]
-  B --&gt; R[Nova tentativa]</pre></details></figure>
+  B --&gt; R[Nova tentativa]</pre></details>
 
 Essa ordem evita um erro frequente: calcular um <span lang="en-US">backoff</span> elegante antes de perguntar se a chamada deveria ser repetida. Um algoritmo conceitual é:
 

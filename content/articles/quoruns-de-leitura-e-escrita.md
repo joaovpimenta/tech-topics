@@ -88,11 +88,19 @@ Logo, a condição clássica para forçar pelo menos uma réplica em comum é:
 
 Com `N=5`, `W=3` e `R=3`, a soma é 6 e a interseção mínima é 1. Não importa quais três réplicas confirmaram a escrita nem quais três responderam à leitura: ao menos uma aparece nos dois grupos.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Quórum de escrita W igual a A, B e C cruza o quórum de leitura R em C."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"Quórum de escrita W igual a A, B e C cruza o quórum de leitura R em C."} -->
+
+```mermaid
+flowchart LR
+  W[Escrita W = 3<br/>A · B · C] --> I[Interseção<br/>C]
+  I --> R[Leitura R = 3<br/>C · D · E]
+```
+
+<figcaption>Exemplo calculado. A cor ajuda a distinguir os conjuntos, mas os rótulos mostram a participação: C é a interseção e contém <code>v2</code>.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
   W[Escrita W = 3&lt;br/&gt;A · B · C] --&gt; I[Interseção&lt;br/&gt;C]
-  I --&gt; R[Leitura R = 3&lt;br/&gt;C · D · E]</pre></div><figcaption>Exemplo calculado. A cor ajuda a distinguir os conjuntos, mas os rótulos mostram a participação: C é a interseção e contém <code>v2</code>.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  W[Escrita W = 3&lt;br/&gt;A · B · C] --&gt; I[Interseção&lt;br/&gt;C]
-  I --&gt; R[Leitura R = 3&lt;br/&gt;C · D · E]</pre></details></figure>
+  I --&gt; R[Leitura R = 3&lt;br/&gt;C · D · E]</pre></details>
 
 A prova por contagem cabe em uma frase: dois subconjuntos de tamanhos R e W ocupariam `R+W` posições; como o universo só tem N posições, todo excedente precisa ser compartilhado. Se `R+W=N`, ainda podem ser disjuntos: com N=5, uma escrita em A, B e C e uma leitura em D e E não se cruzam.
 
@@ -119,7 +127,23 @@ Mas a interseção é apenas uma propriedade de conjuntos. Ela não diz quem ven
 5. Uma leitura R=1 que consulta E pode devolver `v1`.
 6. Uma leitura R=3 sobre C, D e E inclui ao menos uma réplica do quórum de escrita. Se a reconciliação reconhece `v2` como sucessora, devolve `v2`.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Uma leitura fraca pode retornar v1, enquanto uma leitura que inclui C encontra v2."><pre class="mermaid-source">flowchart LR
+<!-- tech-topics:mermaid {"label":"Uma leitura fraca pode retornar v1, enquanto uma leitura que inclui C encontra v2."} -->
+
+```mermaid
+flowchart LR
+  W[Escrita v2] --> A[A]
+  W --> B[B]
+  W --> C[C]
+  E[E] --> F[Leitura fraca<br/>retorna v1]
+  C --> S[Leitura R = 3<br/>C · D · E]
+  D[D] --> S
+  E --> S
+  S --> V[escolhe v2]
+```
+
+<figcaption>Sequência ilustrativa, não medição. O diagrama explicita a condição frequentemente omitida: a leitura precisa comparar versões e selecionar a vencedora.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
   W[Escrita v2] --&gt; A[A]
   W --&gt; B[B]
   W --&gt; C[C]
@@ -127,15 +151,7 @@ Mas a interseção é apenas uma propriedade de conjuntos. Ela não diz quem ven
   C --&gt; S[Leitura R = 3&lt;br/&gt;C · D · E]
   D[D] --&gt; S
   E --&gt; S
-  S --&gt; V[escolhe v2]</pre></div><figcaption>Sequência ilustrativa, não medição. O diagrama explicita a condição frequentemente omitida: a leitura precisa comparar versões e selecionar a vencedora.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  W[Escrita v2] --&gt; A[A]
-  W --&gt; B[B]
-  W --&gt; C[C]
-  E[E] --&gt; F[Leitura fraca&lt;br/&gt;retorna v1]
-  C --&gt; S[Leitura R = 3&lt;br/&gt;C · D · E]
-  D[D] --&gt; S
-  E --&gt; S
-  S --&gt; V[escolhe v2]</pre></details></figure>
+  S --&gt; V[escolhe v2]</pre></details>
 
 <h3>Uma réplica em comum é suficiente?</h3>
 
@@ -180,15 +196,23 @@ Quanto maior q, mais réplicas precisam estar alcançáveis. Sob uma hipótese s
 
 Com N=5 e p=95%, exigir uma resposta dá aproximadamente 99,99997%; exigir três, 99,88419%; exigir todas, 77,37809%. Esses números são cálculos do modelo, não SLOs observados.
 
-<figure class="mermaid-figure"><div class="mermaid-diagram" data-mermaid="true" data-mermaid-label="Disponibilidade calculada por tamanho do quórum em cinco réplicas com disponibilidade individual de 95%."><pre class="mermaid-source">xychart-beta
+<!-- tech-topics:mermaid {"label":"Disponibilidade calculada por tamanho do quórum em cinco réplicas com disponibilidade individual de 95%."} -->
+
+```mermaid
+xychart-beta
+  title "Disponibilidade por tamanho do quórum"
+  x-axis [1, 2, 3, 4, 5]
+  y-axis "sucesso (%)" 0 --> 100
+  line [100, 100, 99.8, 97.7, 77.4]
+```
+
+<figcaption>Eixo horizontal: tamanho q do quórum em réplicas. Eixo vertical: probabilidade de sucesso em porcentagem. Valores calculados com falhas independentes; racks, zonas, energia, rede e software criam correlação em sistemas reais.</figcaption>
+
+<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
   title "Disponibilidade por tamanho do quórum"
   x-axis [1, 2, 3, 4, 5]
   y-axis "sucesso (%)" 0 --&gt; 100
-  line [100, 100, 99.8, 97.7, 77.4]</pre></div><figcaption>Eixo horizontal: tamanho q do quórum em réplicas. Eixo vertical: probabilidade de sucesso em porcentagem. Valores calculados com falhas independentes; racks, zonas, energia, rede e software criam correlação em sistemas reais.</figcaption><details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">xychart-beta
-  title "Disponibilidade por tamanho do quórum"
-  x-axis [1, 2, 3, 4, 5]
-  y-axis "sucesso (%)" 0 --&gt; 100
-  line [100, 100, 99.8, 97.7, 77.4]</pre></details></figure>
+  line [100, 100, 99.8, 97.7, 77.4]</pre></details>
 
 A independência é uma hipótese forte. Cinco processos no mesmo host não oferecem cinco domínios de falha. Réplicas em zonas diferentes podem compartilhar rede, controle ou configuração. Para capacidade real, meça disponibilidade conjunta e modele falhas correlacionadas.
 
