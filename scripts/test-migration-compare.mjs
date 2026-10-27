@@ -8,6 +8,7 @@ import { runInNewContext } from "node:vm";
 import { stringify as stringifyYaml } from "yaml";
 import { articleForNarrationExtraction, baselineCoverageBlockers, baselineReplayBlockers, compareArticleStates, compareAgainstInitialBaseline, compareDomAgainstInitialBaseline, discoverArticleSources, firstAdditionDate, isArticleNavigationLink, publishedArticleSlugs, runGitText, validateDomAuditReport, validateIndependentBaseline } from "./lib/migration-compare.mjs";
 import { instrumentSpeechBuildBlocks, spokenRunsSignature } from "./lib/migration-dom-signature.mjs";
+import { migrationDomCatalogArticles } from "./lib/migration-dom-catalog.mjs";
 let compileMarkdownArticle, fromLegacyArticle;
 try { ({ compileMarkdownArticle, fromLegacyArticle } = await import("./lib/markdown-article.mjs")); }
 catch (error) { if (error.code !== "ERR_MODULE_NOT_FOUND") throw error; }
@@ -56,6 +57,13 @@ test("internal reader-page links are not mistaken for article assets", () => {
   assert.equal(isArticleNavigationLink({ tag: "a", attribute: "href", value: "../index.html#latest" }), true);
   assert.equal(isArticleNavigationLink({ tag: "a", attribute: "href", value: "downloads/guide.pdf" }), false);
   assert.equal(isArticleNavigationLink({ tag: "img", attribute: "src", value: "article.html" }), false);
+});
+
+test("migration DOM audit accepts legacy and html-v1 article catalogs", () => {
+  const articles = [{ slug: "alpha" }];
+  assert.deepEqual(migrationDomCatalogArticles(articles), articles);
+  assert.deepEqual(migrationDomCatalogArticles({ version: 1, transport: "html-v1", articles }), articles);
+  assert.throws(() => migrationDomCatalogArticles({ articles: null }), /article catalog has no articles array/);
 });
 
 test("non-narratable metadata and equivalent JSON-to-Markdown renderings yield empty event arrays", () => {
