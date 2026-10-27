@@ -69,6 +69,27 @@ const legacyMermaid = source.replace(/<!-- tech-topics:mermaid \{"label":"Fluxo 
 const legacyMermaidCompiled = await compileMarkdownArticle({ source: legacyMermaid, ...context });
 assert.match(legacyMermaidCompiled.slots.body, /<figcaption>Legenda antiga\.<\/figcaption>/);
 assert.match(legacyMermaidCompiled.slots.body, /fallback antigo/);
+function findNode(node, predicate) {
+  if (predicate(node)) return node;
+  for (const child of node.childNodes ?? []) {
+    const found = findNode(child, predicate);
+    if (found) return found;
+  }
+  return null;
+}
+function nodeText(node) {
+  if (node.nodeName === "#text") return node.value;
+  return (node.childNodes ?? []).map(nodeText).join("");
+}
+for (const trailingNewlines of [0, 1, 2]) {
+  const originalDiagram = `flowchart LR\n  A --> B${"\n".repeat(trailingNewlines)}`;
+  const canonicalMermaid = source.replace(/<!-- tech-topics:mermaid \{"label":"Fluxo de compilação"\} -->[\s\S]*?<\/details>/, `<!-- tech-topics:mermaid {"label":"LF ${trailingNewlines}"} -->\n\n\`\`\`mermaid\n${originalDiagram}\n\`\`\`\n\n<figcaption>Legenda de teste.</figcaption>\n\n<details class="mermaid-fallback"><summary>Alternativa</summary>Texto do fallback.</details>`);
+  const exactCompiled = await compileMarkdownArticle({ source: canonicalMermaid, ...context });
+  const root = parseFragment(exactCompiled.slots.body);
+  const pre = findNode(root, node => node.tagName === "pre" && node.attrs?.some(attr => attr.name === "class" && attr.value === "mermaid-source"));
+  assert.ok(pre, `Mermaid source pre exists for ${trailingNewlines} terminal LF`);
+  assert.equal(nodeText(pre), originalDiagram, `canonical Mermaid source preserves exactly ${trailingNewlines} terminal LF`);
+}
 const secondMermaidSource = `${source}\n\n<!-- tech-topics:mermaid {"label":"Segundo fluxo"} -->\n\n\`\`\`mermaid\nflowchart LR\n  C --> D\n\`\`\`\n\n<figcaption>Segunda legenda.</figcaption>\n\n<details class="mermaid-fallback"><summary>Alternativa</summary>Texto alternativo distinto.</details>\n`;
 const secondMermaidCompiled = await compileMarkdownArticle({ source: secondMermaidSource, ...context });
 assert.equal((secondMermaidCompiled.slots.body.match(/<figure class="mermaid-figure">/g) ?? []).length, 2);

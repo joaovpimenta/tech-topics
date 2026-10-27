@@ -420,8 +420,8 @@ function transformMdast(tree, metadata, context, location) {
       const decodedDiagram = decodePercentForInspection(node.value);
       if (/%%\s*\{|(?:^|[;\n])\s*click\s+[^\s;]+(?:\s|$)|<\s*\/?\s*(?:script|iframe|foreignObject)\b|javascript\s*:/im.test(decodedDiagram)) fail(location, "Mermaid init directives, click interactions and executable HTML/URLs are forbidden");
       const { label, caption, fallback, canonical } = pendingDiagram;
-      node.data = { ...(node.data ?? {}), mermaidData: { label, caption, fallback, canonical } };
-      (context.mermaidDiagrams ??= []).push({ label, caption, fallback, canonical });
+      node.data = { ...(node.data ?? {}), mermaidData: { label, caption, fallback, canonical, source: canonical ? node.value : undefined } };
+      (context.mermaidDiagrams ??= []).push({ label, caption, fallback, canonical, source: canonical ? node.value : undefined });
       pendingDiagram = null;
       continue;
     }
@@ -456,9 +456,9 @@ function renderMermaidFences(options = {}) {
         const pre = parent.children[index];
         const code = pre.type === "element" && pre.tagName === "pre" ? pre.children?.find(child => child.type === "element" && child.tagName === "code" && (child.properties?.className ?? []).includes("language-mermaid")) : null;
         if (code) {
-          const source = code.children?.map(child => child.value ?? "").join("") ?? "";
           const data = options.mermaidDiagrams?.[diagramIndex++];
           if (!data) throw new Error("Mermaid fence lost its declarative metadata during conversion");
+          const source = data.canonical ? data.source : code.children?.map(child => child.value ?? "").join("") ?? "";
           const figureChildren = [
             { type: "element", tagName: "div", properties: { className: ["mermaid-diagram"], dataMermaid: "true", dataMermaidLabel: data.label }, children: [{ type: "element", tagName: "pre", properties: { className: ["mermaid-source"] }, children: [{ type: "text", value: source }] }] },
           ];
