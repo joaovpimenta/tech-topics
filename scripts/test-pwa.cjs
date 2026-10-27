@@ -457,6 +457,19 @@ async function testOrdering() {
     { slug: "newest", publishedAt: "2026-09-12", title: "Mais novo no mesmo dia", image: "assets/newest.jpg", excerpt: "Conceito", dek: "Descrição curta", opening: "Imagine um sistema distribuído em que dois serviços precisam concordar. A analogia inicial deve aparecer por inteiro na prévia.", category: "Arquitetura", addedAt: "2026-09-12T12:00:00Z" },
     { slug: "middle", publishedAt: "2026-09-11", title: "Intermediário", image: "assets/middle.jpg", excerpt: "Detalhes", category: "Arquitetura" }
   ];
+  const catalog = {
+    version: 1,
+    transport: "html-v1",
+    sourceSha: "a".repeat(40),
+    buildId: "b".repeat(64),
+    articles: records.map(article => ({
+      ...article,
+      format: "html-v1",
+      path: `content/articles/${article.slug}.html`,
+      tags: [],
+      tagLabels: []
+    }))
+  };
   const stored = new Map();
   const calls = [];
   const window = {
@@ -468,7 +481,7 @@ async function testOrdering() {
     localStorage: { getItem: key => stored.get(key) || null, setItem: (key, value) => stored.set(key, value) },
     fetch: async path => {
       calls.push(path);
-      if (path === "assets/articles-catalog.json") return { ok: true, json: async () => records };
+      if (path === "assets/articles-catalog.json") return { ok: true, json: async () => catalog };
       return { ok: false, json: async () => ({}) };
     }
   });
