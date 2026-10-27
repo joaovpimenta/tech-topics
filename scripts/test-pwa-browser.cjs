@@ -256,26 +256,29 @@ async function main() {
       "playback in the other tab continues through activation");
     assert.equal(pageAArticle.url(), peerUrlBeforeUpdate,
       "the other tab remains at its original URL without an automatic navigation");
-    const peerAfterControllerChange = await pageAArticle.evaluate(async () => {
+    const peerAfterUpdate = await pageAArticle.evaluate(async () => {
       const article = await (await fetch("content/articles/known.json")).json();
       return {
         shell: document.body.dataset.shellVersion,
         boots: window.__articleBoots,
         controllerChanges: window.__controllerChanges - window.__controllerChangesAtReady,
+        sameController: navigator.serviceWorker.controller === window.__controllerAtReady,
         audioPaused: window.__updatePeerAudio.paused,
         audioTime: window.__updatePeerAudio.currentTime,
         articleBody: article.body
       };
     });
-    assert.equal(peerAfterControllerChange.shell, "A", "the already-loaded peer retains its original shell");
-    assert.equal(peerAfterControllerChange.boots, 1, "the peer document is not booted again");
-    assert.ok(peerAfterControllerChange.controllerChanges >= 1,
-      "skipWaiting updates the peer's controller without reloading its page");
-    assert.equal(peerAfterControllerChange.audioPaused, false, "the peer's actual media element keeps playing");
-    assert.ok(peerAfterControllerChange.audioTime > playbackStart + 0.5,
-      "the peer media clock continues advancing through activation and a new-worker request");
-    assert.equal(peerAfterControllerChange.articleBody, "Artigo conhecido B",
-      "a representative request through the new controller remains a valid article response");
+    assert.equal(peerAfterUpdate.shell, "A", "the already-loaded peer retains its original shell");
+    assert.equal(peerAfterUpdate.boots, 1, "the peer document is not booted again");
+    assert.equal(peerAfterUpdate.controllerChanges, 0,
+      "updating another tab does not claim the already-open peer");
+    assert.equal(peerAfterUpdate.sameController, true,
+      "the peer remains controlled by its original worker until it navigates");
+    assert.equal(peerAfterUpdate.audioPaused, false, "the peer's actual media element keeps playing");
+    assert.ok(peerAfterUpdate.audioTime > playbackStart + 0.5,
+      "the peer media clock continues advancing through activation");
+    assert.equal(peerAfterUpdate.articleBody, "Artigo conhecido A",
+      "the peer continues using the content served by its original worker and cache");
 
     await pageAArticle.close();
     const stillWaiting = await pageAHome.evaluate(async () => {
