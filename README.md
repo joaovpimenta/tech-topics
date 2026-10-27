@@ -58,8 +58,9 @@ Kokoro ONNX FP32 with voice `pf_dora` is the only backend that generates publish
 
 ```bash
 node scripts/validate-site.mjs
-node scripts/build-markdown-preview.mjs --output-dir /tmp/tech-topics-preview
-cd /tmp/tech-topics-preview
+mkdir -p /tmp/tech-topics-preview
+node scripts/build-markdown-preview.mjs --output-dir /tmp/tech-topics-preview/site
+cd /tmp/tech-topics-preview/site
 python3 -m http.server 4173
 ```
 
