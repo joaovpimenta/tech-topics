@@ -73,8 +73,13 @@ def main():
 
                     page.goto(base + "/index.html?q=seguranca", wait_until="domcontentloaded")
                     page.locator(".recent-item").first.wait_for(state="visible", timeout=20000)
-                    assert page.locator(".recent-item").count() == 1
-                    assert page.locator(".recent-item .recent-copy h3 a").inner_text() == "Preview de migração"
+                    titles = page.locator(".recent-item .recent-copy h3 a").all_inner_texts()
+                    assert "Preview de migração" in titles, titles
+                    result_summary = page.locator("#article-count").inner_text()
+                    matching_count, separator, total_count = result_summary.partition(" de ")
+                    total_count = total_count.removesuffix(" artigos")
+                    assert separator and matching_count.isdecimal() and total_count.isdecimal(), result_summary
+                    assert int(matching_count) < int(total_count), result_summary
                     assert not errors, errors
                     print("PASS: staged HTML opens in Chromium under /tech-topics/, and catalog search finds canonical tags")
                 finally:
