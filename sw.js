@@ -93,8 +93,8 @@ self.addEventListener("activate", event => {
       // without requiring an extra navigation.
       await self.clients.claim();
     }
-    // Updates activate naturally after all clients of the previous worker close.
-    // Never take control of or reload those clients from a waiting worker.
+    // Without an explicit user update, the waiting worker activates after old clients close.
+    // The explicit path uses skipWaiting, but updates never claim already-open clients.
   })());
 });
 
