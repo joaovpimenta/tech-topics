@@ -36,6 +36,22 @@
     catch (_) { return []; }
   }
 
+  // Chapter v2 block_index counts narratable block owners. readingNodes can
+  // also contain visible but silent elements (for example a table cell whose
+  // only child is ignored inline code), so derive the index space from the
+  // actual player blocks rather than that broader list.
+  function narratableBlockNodes(units) {
+    const nodes = [];
+    const seen = new Set();
+    for (const unit of units || []) {
+      if (unit?.node && !seen.has(unit.node)) {
+        seen.add(unit.node);
+        nodes.push(unit.node);
+      }
+    }
+    return nodes;
+  }
+
   async function lookupAudio(slug, fetchImpl = root.fetch) {
     if (!SLUG.test(slug)) throw new Error("Slug de áudio inválida.");
     const response = await fetchImpl(API_ROOT + encodeURIComponent(slug), {
@@ -318,9 +334,11 @@
       const sentenceMode = chapters.every(chapter => chapter.sentenceIndex !== null);
       if (sentenceMode) {
         const units = devicePlayer?.blocks || [];
+        const narratableNodes = narratableBlockNodes(units);
         // Never highlight a wrong sentence if spoken and visible boundaries drift.
         if (units.length !== chapters.length || !chapters.every((chapter, index) =>
-          units[index]?.node === elements[chapter.blockIndex] &&
+          Number.isSafeInteger(chapter.blockIndex) &&
+          narratableNodes[chapter.blockIndex] === units[index]?.node &&
           units[index]?.sentenceIndex === chapter.sentenceIndex)) return;
         chapterNodes = units.map(unit => unit.node);
         chapterWords = units.map(unit => unit.words || []);
