@@ -11,7 +11,12 @@
     "alt": "Aquarela editorial de um balcão de encomendas: um atendente entrega um pacote a um cliente enquanto outro mensageiro sai com uma encomenda. Círculos e seta pretos tracejados destacam a retirada e a entrega.",
     "excerpt": "Compare REST, GraphQL, gRPC, webhooks, SSE e WebSockets por direção do fluxo, cliente, cache, garantias, falhas e custo operacional.",
     "dek": "Como escolher entre consulta sob demanda, contratos tipados, notificações de eventos e conexões persistentes sem reescrever sua integração.",
-    "opening": "No balcão de uma pequena central de encomendas, um cliente pergunta se deve buscar cada pacote ou esperar que a entrega chegue à sua porta; a atendente lhe entrega uma caixa e aponta para o mensageiro que sai com outra. Então ele pergunta como poderia dar novas instruções ao mensageiro sem voltar ao balcão, e ela explica que, nesse caso, os dois precisariam manter um canal aberto. Em APIs, a diferença entre pedir dados, receber avisos e trocar mensagens continuamente ajuda a escolher entre REST, GraphQL, gRPC, webhooks, SSE e WebSockets — antes que uma decisão inadequada obrigue a refazer a camada de integração."
+    "opening": "No balcão de uma pequena central de encomendas, um cliente pergunta se deve buscar cada pacote ou esperar que a entrega chegue à sua porta; a atendente lhe entrega uma caixa e aponta para o mensageiro que sai com outra. Então ele pergunta como poderia dar novas instruções ao mensageiro sem voltar ao balcão, e ela explica que, nesse caso, os dois precisariam manter um canal aberto. Em APIs, a diferença entre pedir dados, receber avisos e trocar mensagens continuamente ajuda a escolher entre REST, GraphQL, gRPC, webhooks, SSE e WebSockets — antes que uma decisão inadequada obrigue a refazer a camada de integração.",
+    "tags": [
+      "arquitetura",
+      "redes",
+      "web"
+    ]
   },
   {
     "slug": "bulkhead",
@@ -25,7 +30,12 @@
     "alt": "Aquarela de um corredor seco de balsa: a sala de máquinas alagada é vista através de uma janela selada de vidro reforçado, enquanto um tripulante aperta a roda de uma porta estanque totalmente fechada e uma passageira observa.",
     "excerpt": "Um guia técnico sobre Bulkhead: fronteiras de isolamento, orçamentos de capacidade, células, pools dedicados, observabilidade, trade-offs e adoção incremental.",
     "dek": "Como dividir concorrência, conexões, filas e instâncias preserva funções saudáveis quando uma parte do sistema degrada.",
-    "opening": "No corredor de manutenção de uma balsa, uma passageira vê, através de uma janela de vidro reforçado, água invadindo uma sala de máquinas e pergunta por que o tripulante está apertando a roda de uma porta pesada já fechada em vez de tentar entrar; ele termina de vedar a porta e explica que a ideia é perder aquele compartimento para manter o restante do navio seco. Ela observa o corredor ainda seguro e entende a troca: sacrificar uma parte para preservar o conjunto. Em software, Bulkhead aplica a mesma lógica ao separar recursos e capacidade em compartimentos independentes, para que lentidão, exaustão ou falha em um deles não consuma tudo o que os outros precisam para continuar funcionando."
+    "opening": "No corredor de manutenção de uma balsa, uma passageira vê, através de uma janela de vidro reforçado, água invadindo uma sala de máquinas e pergunta por que o tripulante está apertando a roda de uma porta pesada já fechada em vez de tentar entrar; ele termina de vedar a porta e explica que a ideia é perder aquele compartimento para manter o restante do navio seco. Ela observa o corredor ainda seguro e entende a troca: sacrificar uma parte para preservar o conjunto. Em software, Bulkhead aplica a mesma lógica ao separar recursos e capacidade em compartimentos independentes, para que lentidão, exaustão ou falha em um deles não consuma tudo o que os outros precisam para continuar funcionando.",
+    "tags": [
+      "arquitetura",
+      "confiabilidade",
+      "resiliencia"
+    ]
   },
   {
     "slug": "rate-limiting-token-bucket-leaky-bucket",
@@ -39,7 +49,12 @@
     "alt": "Aquarela editorial de uma entrada de teatro com duas pessoas diante de catracas, uma bandeja de fichas e marcações pretas tracejadas destacando os controles de passagem.",
     "excerpt": "Um guia técnico para dimensionar taxa e rajada, comparar Token Bucket e Leaky Bucket e aplicar limites corretos em APIs distribuídas.",
     "dek": "Como escolher entre crédito acumulável e vazão suavizada, dimensionar rajadas e aplicar limites coerentes em APIs distribuídas.",
-    "opening": "Na entrada de um pequeno teatro, duas pessoas chegam juntas e uma pergunta por que ambas podem atravessar agora, mas quem vier logo depois talvez precise esperar; o atendente aponta para uma bandeja de fichas acumuladas durante os minutos de calmaria e explica que cada passagem consome uma ficha, reposta aos poucos. Ao lado, outra catraca abre em intervalos regulares para manter o corredor num ritmo constante, mesmo quando alguém chega com pressa. Em sistemas, rate limiting pode seguir essas duas intuições: Token Bucket acumula crédito para absorver rajadas controladas, enquanto Leaky Bucket modela uma saída drenada a uma taxa previsível e transforma excesso em espera ou rejeição."
+    "opening": "Na entrada de um pequeno teatro, duas pessoas chegam juntas e uma pergunta por que ambas podem atravessar agora, mas quem vier logo depois talvez precise esperar; o atendente aponta para uma bandeja de fichas acumuladas durante os minutos de calmaria e explica que cada passagem consome uma ficha, reposta aos poucos. Ao lado, outra catraca abre em intervalos regulares para manter o corredor num ritmo constante, mesmo quando alguém chega com pressa. Em sistemas, rate limiting pode seguir essas duas intuições: Token Bucket acumula crédito para absorver rajadas controladas, enquanto Leaky Bucket modela uma saída drenada a uma taxa previsível e transforma excesso em espera ou rejeição.",
+    "tags": [
+      "desempenho",
+      "resiliencia",
+      "sistemas-distribuidos"
+    ]
   },
   {
     "slug": "mtls-entre-servicos-identidade-alem-do-canal-cifrado",
@@ -53,7 +68,12 @@
     "alt": "Aquarela de uma técnica e um responsável em lados opostos de uma única porta blindada fechada, conferindo os crachás com foto um do outro através do visor de vidro reforçado; duas elipses pretas tracejadas destacam as credenciais.",
     "excerpt": "Um guia do handshake ao workload identity: X.509, SAN, trust anchors, SPIFFE, rotação, proxies, autorização e falhas comuns de mTLS entre serviços.",
     "dek": "Criptografia protege bytes em trânsito; mTLS só vira identidade de serviço quando certificados, nomes, confiança, rotação e autorização formam um contrato coerente.",
-    "opening": "No corredor entre dois laboratórios, uma técnica para diante de uma porta blindada fechada, mostra seu crachá pelo visor de vidro reforçado e pergunta se a barreira física já basta para confiar em quem está do outro lado; o responsável apresenta o próprio crachá, e cada um confere a foto e a identificação do outro antes de liberar a passagem. Ela percebe que a porta protege a conversa, mas a confiança exige uma checagem nos dois sentidos: ela precisa saber quem a recebe, e ele precisa saber quem está entrando. Entre serviços, mutual TLS faz essa segunda parte: além de cifrar o canal, cada ponta apresenta uma identidade criptográfica que a outra precisa validar antes de confiar na conexão."
+    "opening": "No corredor entre dois laboratórios, uma técnica para diante de uma porta blindada fechada, mostra seu crachá pelo visor de vidro reforçado e pergunta se a barreira física já basta para confiar em quem está do outro lado; o responsável apresenta o próprio crachá, e cada um confere a foto e a identificação do outro antes de liberar a passagem. Ela percebe que a porta protege a conversa, mas a confiança exige uma checagem nos dois sentidos: ela precisa saber quem a recebe, e ele precisa saber quem está entrando. Entre serviços, mutual TLS faz essa segunda parte: além de cifrar o canal, cada ponta apresenta uma identidade criptográfica que a outra precisa validar antes de confiar na conexão.",
+    "tags": [
+      "redes",
+      "seguranca",
+      "sistemas-distribuidos"
+    ]
   },
   {
     "slug": "hedged-requests",
@@ -67,7 +87,12 @@
     "alt": "Biblioteca moderna em aquarela: uma pessoa espera no balcão enquanto um bibliotecário retorna com um livro e outro ainda procura por uma segunda cópia, com um relógio e marcações editoriais pretas destacando a corrida.",
     "excerpt": "Entenda como Hedged Requests reduzem p99 ao duplicar apenas a cauda, como calcular o custo, escolher o delay e impedir que a redundância vire sobrecarga.",
     "dek": "Aprenda quando vale iniciar uma segunda cópia antes de a primeira falhar, como escolher o atraso, limitar carga extra e medir se a queda de tail latency compensa o trabalho duplicado.",
-    "opening": "Você pede um livro raro no balcão da biblioteca e vê a atendente desaparecer entre as estantes. Vai esperar só por ela? O colega do outro balcão olha o relógio e responde que, se já passou o tempo normal de busca, pode procurar outra cópia em paralelo; quando um deles voltar primeiro, o outro recebe o sinal para parar. Em sistemas distribuídos, Hedged Requests fazem a mesma aposta: trocam uma pequena quantidade de trabalho duplicado por menor tail latency, desde que o atraso para disparar a cópia, o cancelamento e o orçamento de capacidade façam parte do mecanismo."
+    "opening": "Você pede um livro raro no balcão da biblioteca e vê a atendente desaparecer entre as estantes. Vai esperar só por ela? O colega do outro balcão olha o relógio e responde que, se já passou o tempo normal de busca, pode procurar outra cópia em paralelo; quando um deles voltar primeiro, o outro recebe o sinal para parar. Em sistemas distribuídos, Hedged Requests fazem a mesma aposta: trocam uma pequena quantidade de trabalho duplicado por menor tail latency, desde que o atraso para disparar a cópia, o cancelamento e o orçamento de capacidade façam parte do mecanismo.",
+    "tags": [
+      "desempenho",
+      "resiliencia",
+      "sistemas-distribuidos"
+    ]
   },
   {
     "slug": "chaos-engineering-experimentos-de-falha",
@@ -81,7 +106,13 @@
     "alt": "Aquarela de um corredor de prédio com uma saída bloqueada por uma barreira temporária, enquanto pessoas seguem calmamente por uma rota alternativa sob observação.",
     "excerpt": "Um guia prático para desenhar experimentos de chaos engineering com hipótese, estado estável, blast radius, guardrails, observabilidade e recuperação.",
     "dek": "Hipótese, estado estável, blast radius e stop conditions: como injetar falhas reais com escopo, métricas e mecanismos de parada.",
-    "opening": "Num prédio comercial, alguém aponta para a saída de emergência e pergunta se ela realmente daria conta caso o corredor principal ficasse indisponível; a resposta vem rápida: o plano está aprovado e o alarme passa nos testes. Mas isso prova que as pessoas encontrariam a rota alternativa, que a porta abriria e que a equipe saberia interromper o exercício se algo saísse do controle? Um treinamento pequeno bloqueia apenas um acesso, mantém observadores nas rotas e define um limite para parar a simulação. Essa cena resume chaos engineering: introduzir uma perturbação controlada, medir o comportamento que importa ao usuário e aprender onde a resiliência presumida não corresponde à resiliência real."
+    "opening": "Num prédio comercial, alguém aponta para a saída de emergência e pergunta se ela realmente daria conta caso o corredor principal ficasse indisponível; a resposta vem rápida: o plano está aprovado e o alarme passa nos testes. Mas isso prova que as pessoas encontrariam a rota alternativa, que a porta abriria e que a equipe saberia interromper o exercício se algo saísse do controle? Um treinamento pequeno bloqueia apenas um acesso, mantém observadores nas rotas e define um limite para parar a simulação. Essa cena resume chaos engineering: introduzir uma perturbação controlada, medir o comportamento que importa ao usuário e aprender onde a resiliência presumida não corresponde à resiliência real.",
+    "tags": [
+      "confiabilidade",
+      "resiliencia",
+      "sre",
+      "sistemas-distribuidos"
+    ]
   },
   {
     "slug": "cqrs-projecoes-e-consistencia",
@@ -95,7 +126,13 @@
     "alt": "Aquarela de uma cliente e uma atendente junto ao caderno de pedidos, enquanto outro funcionário atualiza cartões em um painel de retiradas.",
     "excerpt": "Um guia rigoroso sobre CQRS: comandos, consultas, projeções, consistência eventual, read-your-writes, rebuilds e adoção incremental.",
     "dek": "Modelos separados só valem o custo quando o contrato explica projeções, atraso de leitura, reconstrução e falhas de sincronização.",
-    "opening": "Na confeitaria, uma cliente muda a inscrição do bolo no balcão e aponta para o painel de retiradas: por que ainda aparece a frase antiga? A atendente fecha o caderno de pedidos e explica que a cozinha já recebeu a correção; o painel público é atualizado por outra pessoa e pode levar alguns instantes. Então qual informação vale agora? A confirmação do balcão decide o pedido, enquanto o painel é uma cópia preparada para consulta. Essa separação física antecipa o CQRS: comandos protegem mudanças na fonte de verdade, consultas leem projeções convenientes, e a arquitetura precisa tornar visível o intervalo entre as duas."
+    "opening": "Na confeitaria, uma cliente muda a inscrição do bolo no balcão e aponta para o painel de retiradas: por que ainda aparece a frase antiga? A atendente fecha o caderno de pedidos e explica que a cozinha já recebeu a correção; o painel público é atualizado por outra pessoa e pode levar alguns instantes. Então qual informação vale agora? A confirmação do balcão decide o pedido, enquanto o painel é uma cópia preparada para consulta. Essa separação física antecipa o CQRS: comandos protegem mudanças na fonte de verdade, consultas leem projeções convenientes, e a arquitetura precisa tornar visível o intervalo entre as duas.",
+    "tags": [
+      "arquitetura",
+      "bancos-de-dados",
+      "dados-distribuidos",
+      "sistemas-distribuidos"
+    ]
   },
   {
     "slug": "consenso-raft",
@@ -109,7 +146,11 @@
     "alt": "Aquarela de cinco arquivistas comparando livros; três cópias coincidem e apontam para o carimbo sobre o registro mestre.",
     "excerpt": "Um mergulho no Raft: maioria, eleição, replicação de log, segurança, disponibilidade e as sutilezas que quebram implementações.",
     "dek": "Eleição de líder, replicação, commit e termos: as regras que preservam um único histórico mesmo quando nós falham e a rede se divide.",
-    "opening": "Na sala de arquivos, cinco arquivistas comparam suas cópias antes de carimbar o livro mestre; uma delas pergunta se já podem registrar a nova página, e três apontam para a mesma linha. Mas as outras duas ainda discordam, alguém reage; esperamos todas? Não, responde quem segura o carimbo, três cópias coincidentes bastam para que qualquer outra maioria futura encontre ao menos uma delas. Essa combinação de autoridade temporária, maioria sobreposta e histórico ordenado é a intuição do Raft: fazer um cluster concordar sobre um log sem exigir que todos estejam disponíveis ao mesmo tempo."
+    "opening": "Na sala de arquivos, cinco arquivistas comparam suas cópias antes de carimbar o livro mestre; uma delas pergunta se já podem registrar a nova página, e três apontam para a mesma linha. Mas as outras duas ainda discordam, alguém reage; esperamos todas? Não, responde quem segura o carimbo, três cópias coincidentes bastam para que qualquer outra maioria futura encontre ao menos uma delas. Essa combinação de autoridade temporária, maioria sobreposta e histórico ordenado é a intuição do Raft: fazer um cluster concordar sobre um log sem exigir que todos estejam disponíveis ao mesmo tempo.",
+    "tags": [
+      "dados-distribuidos",
+      "sistemas-distribuidos"
+    ]
   },
   {
     "slug": "relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global",
@@ -123,7 +164,12 @@
     "alt": "Aquarela de dois restauradores que trocam uma peça etiquetada entre salas com relógios de parede discordantes.",
     "excerpt": "Um guia técnico sobre happened-before, relógios de Lamport, vetores, version vectors, HLC e os limites de cada modelo.",
     "dek": "Como ordenar eventos, detectar concorrência e rastrear versões quando mensagens carregam causalidade melhor que relógios de parede.",
-    "opening": "Em uma oficina de restauração, Ana termina uma peça e a passa a Bruno com uma ficha carimbada; ao notar que os relógios das duas salas marcam horas diferentes, ele pergunta qual marca deveria provar que o trabalho dela veio antes do dele. Ana aponta para a ficha que viajou com a peça: não precisamos concordar sobre que horas são, responde, apenas carregar adiante a evidência do que já aconteceu. Essa é a intuição dos relógios lógicos: ordenar efeitos por relações observáveis, não pela ilusão de um relógio global perfeito."
+    "opening": "Em uma oficina de restauração, Ana termina uma peça e a passa a Bruno com uma ficha carimbada; ao notar que os relógios das duas salas marcam horas diferentes, ele pergunta qual marca deveria provar que o trabalho dela veio antes do dele. Ana aponta para a ficha que viajou com a peça: não precisamos concordar sobre que horas são, responde, apenas carregar adiante a evidência do que já aconteceu. Essa é a intuição dos relógios lógicos: ordenar efeitos por relações observáveis, não pela ilusão de um relógio global perfeito.",
+    "tags": [
+      "sistemas-distribuidos",
+      "dados-distribuidos",
+      "algoritmos"
+    ]
   },
   {
     "slug": "rastreamento-distribuido-contexto-spans-e-amostragem",
@@ -137,7 +183,12 @@
     "alt": "Aquarela de uma passageira e uma atendente acompanhando uma mala etiquetada por sucessivas esteiras de aeroporto.",
     "excerpt": "Um guia técnico sobre trace context, spans, filas, links, head e tail sampling e a operação confiável do pipeline de telemetria.",
     "dek": "Como preservar causalidade entre serviços, modelar spans síncronos e assíncronos e escolher uma amostragem que não esconda o incidente.",
-    "opening": "No balcão de bagagens, uma passageira observa a mala desaparecer pela esteira e pergunta como alguém saberá que é a mesma depois de atravessar salas, máquinas e equipes diferentes; a atendente toca na etiqueta presa à alça e explica que cada entrega registra aquele identificador e o próximo responsável. A passageira então aponta o risco: se uma estação arrancar a etiqueta e criar outra, o histórico se parte. Em um sistema distribuído, o trace context é essa identidade que cruza fronteiras, e cada span registra uma etapa do percurso."
+    "opening": "No balcão de bagagens, uma passageira observa a mala desaparecer pela esteira e pergunta como alguém saberá que é a mesma depois de atravessar salas, máquinas e equipes diferentes; a atendente toca na etiqueta presa à alça e explica que cada entrega registra aquele identificador e o próximo responsável. A passageira então aponta o risco: se uma estação arrancar a etiqueta e criar outra, o histórico se parte. Em um sistema distribuído, o trace context é essa identidade que cruza fronteiras, e cada span registra uma etapa do percurso.",
+    "tags": [
+      "observabilidade",
+      "sistemas-distribuidos",
+      "sre"
+    ]
   },
   {
     "slug": "load-shedding-controle-de-sobrecarga",
@@ -151,7 +202,13 @@
     "alt": "Aquarela de uma balsa na linha segura de carga enquanto um marinheiro fecha a rampa diante de uma passageira com mala no cais.",
     "excerpt": "Um guia técnico sobre load shedding: quando rejeitar, quais sinais usar, como evitar colapso por filas e retries e como testar a política.",
     "dek": "Como controle de admissão, filas limitadas, deadlines e prioridade preservam trabalho útil quando a demanda ultrapassa a capacidade.",
-    "opening": "Na doca, uma passageira aponta para um canto vazio da balsa e pergunta por que a rampa já está subindo; o marinheiro responde que o limite não é o último palmo de convés, mas o peso que ainda permite atravessar com segurança. Ela protesta que deixar uma mala para trás parece desperdício, e ele mostra a linha d’água: aceitar tudo faria todos perderem a viagem. Em sistemas, load shedding é esse fechamento deliberado da rampa — recusar parte do trabalho antes que fila, latência e consumo de recursos transformem excesso de demanda em colapso."
+    "opening": "Na doca, uma passageira aponta para um canto vazio da balsa e pergunta por que a rampa já está subindo; o marinheiro responde que o limite não é o último palmo de convés, mas o peso que ainda permite atravessar com segurança. Ela protesta que deixar uma mala para trás parece desperdício, e ele mostra a linha d’água: aceitar tudo faria todos perderem a viagem. Em sistemas, load shedding é esse fechamento deliberado da rampa — recusar parte do trabalho antes que fila, latência e consumo de recursos transformem excesso de demanda em colapso.",
+    "tags": [
+      "resiliencia",
+      "desempenho",
+      "sre",
+      "confiabilidade"
+    ]
   },
   {
     "slug": "github-governance-as-code",
@@ -165,7 +222,12 @@
     "alt": "Cena editorial em aquarela com uma mesa central distribuindo pastas padronizadas para estações de trabalho, representando governança central aplicada a vários repositórios.",
     "excerpt": "Um guia para governança como código no GitHub: taxonomia, Issue Forms, reusable workflows, reconciler, Projects, dependências, retrofit histórico e enforcement progressivo.",
     "dek": "Como transformar Issues, Projects, templates e Actions em um sistema de gestão multi-repositório que converge para padrões sem depender de manutenção manual.",
-    "opening": "Imagine uma rede de restaurantes com várias unidades, cada uma usando um cardápio, um sistema de pedidos e regras diferentes. Mesmo que todas pertençam à mesma empresa, fica difícil comparar resultados e manter uma operação coerente. No GitHub, Projects, Issues, templates, labels e Actions cumprem esse papel: são os mecanismos que organizam o trabalho. Tratar essa estrutura como código é como manter um manual operacional versionado, capaz de orientar todas as unidades e corrigir automaticamente quando alguma começa a se afastar do padrão."
+    "opening": "Imagine uma rede de restaurantes com várias unidades, cada uma usando um cardápio, um sistema de pedidos e regras diferentes. Mesmo que todas pertençam à mesma empresa, fica difícil comparar resultados e manter uma operação coerente. No GitHub, Projects, Issues, templates, labels e Actions cumprem esse papel: são os mecanismos que organizam o trabalho. Tratar essa estrutura como código é como manter um manual operacional versionado, capaz de orientar todas as unidades e corrigir automaticamente quando alguma começa a se afastar do padrão.",
+    "tags": [
+      "engenharia-de-software",
+      "seguranca",
+      "arquitetura"
+    ]
   },
   {
     "slug": "hashing-consistente",
@@ -179,7 +241,13 @@
     "alt": "Carrossel circular de encomendas com um novo balcão recebendo somente o pequeno trecho vizinho, destacado por círculos e uma seta preta tracejada.",
     "excerpt": "Aprenda como o hashing consistente distribui chaves, por que nós virtuais importam e quais problemas de balanceamento, composição do cluster e concentração de carga continuam existindo.",
     "dek": "Do módulo que embaralha quase tudo ao anel com nós virtuais: entenda posicionamento, remapeamento mínimo, pontos quentes e alternativas modernas.",
-    "opening": "Imagine um guarda-volumes que distribui as bolsas entre três atendentes usando uma regra fixa. Um quarto atendente chega e, de repente, quase todas as bolsas precisam mudar de lugar. É isso que acontece quando usamos apenas hash(chave) mod N: ao adicionar ou remover um servidor, o valor de N muda e quase todas as chaves são redistribuídas. O hashing consistente organiza os destinos em um espaço circular, permitindo que uma mudança no conjunto de servidores mova apenas uma parte próxima à capacidade adicionada ou removida, em vez de fazer o sistema embaralhar tudo."
+    "opening": "Imagine um guarda-volumes que distribui as bolsas entre três atendentes usando uma regra fixa. Um quarto atendente chega e, de repente, quase todas as bolsas precisam mudar de lugar. É isso que acontece quando usamos apenas hash(chave) mod N: ao adicionar ou remover um servidor, o valor de N muda e quase todas as chaves são redistribuídas. O hashing consistente organiza os destinos em um espaço circular, permitindo que uma mudança no conjunto de servidores mova apenas uma parte próxima à capacidade adicionada ou removida, em vez de fazer o sistema embaralhar tudo.",
+    "tags": [
+      "algoritmos",
+      "dados-distribuidos",
+      "desempenho",
+      "sistemas-distribuidos"
+    ]
   },
   {
     "slug": "retries-backoff-jitter",
@@ -193,7 +261,12 @@
     "alt": "Ondas de esferas metálicas chegam a um núcleo mecânico e se dispersam em intervalos irregulares, representando tentativas sincronizadas que passam a usar jitter.",
     "excerpt": "Entenda quando repetir chamadas, como evitar retry storms e como calcular backoff, jitter, amplificação de carga, deadlines e orçamentos de repetição.",
     "dek": "Repetir uma chamada pode superar uma falha transitória — ou multiplicar a sobrecarga. Aprenda a combinar backoff exponencial, jitter, deadlines, idempotência e retry budgets.",
-    "opening": "Você chama o garçom, ele não escuta, você chama de novo e, em poucos segundos, todas as mesas fazem a mesma coisa porque a cozinha está demorando. Como recuperar o atendimento sem criar uma fila ainda maior? Repetir um pedido pode resolver uma falha momentânea, mas também pode sobrecarregar ainda mais o restaurante. Em sistemas distribuídos, retries são novas requisições que consomem conexões, CPU e capacidade da dependência. Backoff cria espaço entre as tentativas, jitter evita que todos repitam ao mesmo tempo e um orçamento de retries impede que a tentativa de recuperação se transforme em uma nova tempestade."
+    "opening": "Você chama o garçom, ele não escuta, você chama de novo e, em poucos segundos, todas as mesas fazem a mesma coisa porque a cozinha está demorando. Como recuperar o atendimento sem criar uma fila ainda maior? Repetir um pedido pode resolver uma falha momentânea, mas também pode sobrecarregar ainda mais o restaurante. Em sistemas distribuídos, retries são novas requisições que consomem conexões, CPU e capacidade da dependência. Backoff cria espaço entre as tentativas, jitter evita que todos repitam ao mesmo tempo e um orçamento de retries impede que a tentativa de recuperação se transforme em uma nova tempestade.",
+    "tags": [
+      "confiabilidade",
+      "resiliencia",
+      "sistemas-distribuidos"
+    ]
   },
   {
     "slug": "quoruns-de-leitura-e-escrita",
@@ -207,7 +280,12 @@
     "alt": "Torres que representam réplicas conectadas por dois circuitos dourados parcialmente sobrepostos em torno de um núcleo de dados.",
     "excerpt": "Entenda N, R e W, calcule interseções e disponibilidade, diferencie quórum estrito de sloppy quorum e veja por que maioria sozinha não garante consistência forte.",
     "dek": "Da interseção de conjuntos à disponibilidade real: um guia rigoroso para escolher réplicas, entender leituras obsoletas e não confundir maioria com linearizabilidade.",
-    "opening": "Cinco pessoas mantêm cópias do mesmo caderno de pedidos. Quantas precisam confirmar uma alteração e quantas devem ser consultadas antes de responder ao cliente? Esse é o problema dos quóruns de leitura e escrita. N representa o número de cópias, W quantas precisam confirmar uma escrita e R quantas devem ser consultadas em uma leitura. A escolha desses números determina se as operações terão maior disponibilidade, menor latência ou mais chances de encontrar a versão mais recente; por isso, uma maioria nem sempre significa consistência forte."
+    "opening": "Cinco pessoas mantêm cópias do mesmo caderno de pedidos. Quantas precisam confirmar uma alteração e quantas devem ser consultadas antes de responder ao cliente? Esse é o problema dos quóruns de leitura e escrita. N representa o número de cópias, W quantas precisam confirmar uma escrita e R quantas devem ser consultadas em uma leitura. A escolha desses números determina se as operações terão maior disponibilidade, menor latência ou mais chances de encontrar a versão mais recente; por isso, uma maioria nem sempre significa consistência forte.",
+    "tags": [
+      "bancos-de-dados",
+      "dados-distribuidos",
+      "sistemas-distribuidos"
+    ]
   },
   {
     "slug": "leases-e-fencing-tokens",
@@ -221,7 +299,11 @@
     "alt": "Dois autômatos com fichas de gerações diferentes diante de um mecanismo que permite apenas a autoridade mais recente.",
     "excerpt": "Leases dão prazo à posse; fencing tokens impedem que clientes e mensagens obsoletos ainda alterem o recurso depois desse prazo.",
     "dek": "Uma lease expira, outro worker assume e o primeiro desperta sem saber que perdeu a posse. Entenda por que timeout não basta e como tokens monotônicos protegem o recurso.",
-    "opening": "Imagine uma oficina em que um mecânico recebe autorização temporária para trabalhar em uma máquina. Se ele demora demais, a autorização expira e o encarregado entrega o serviço a outro mecânico, mas o primeiro continua trabalhando sem perceber que perdeu a posse. Como impedir que esse trabalho antigo ainda altere a máquina? É aí que entra o fencing token: cada nova autorização recebe um número maior, e a própria máquina aceita apenas operações da geração mais recente. Assim, mesmo que o mecânico antigo tente fazer uma alteração depois, a ordem antiga é rejeitada."
+    "opening": "Imagine uma oficina em que um mecânico recebe autorização temporária para trabalhar em uma máquina. Se ele demora demais, a autorização expira e o encarregado entrega o serviço a outro mecânico, mas o primeiro continua trabalhando sem perceber que perdeu a posse. Como impedir que esse trabalho antigo ainda altere a máquina? É aí que entra o fencing token: cada nova autorização recebe um número maior, e a própria máquina aceita apenas operações da geração mais recente. Assim, mesmo que o mecânico antigo tente fazer uma alteração depois, a ordem antiga é rejeitada.",
+    "tags": [
+      "confiabilidade",
+      "sistemas-distribuidos"
+    ]
   },
   {
     "slug": "transactional-outbox",
@@ -235,7 +317,12 @@
     "alt": "Bloco verde com duas bandejas protegidas, uma de registros e outra de envelopes; um trilho leva envelopes a bandejas receptoras.",
     "excerpt": "Um guia sobre escrita dupla, transação local, relay por polling ou CDC, inbox, ordenação e recuperação de backlog, com diagramas e experimento em Python.",
     "dek": "Como eliminar a janela da escrita dupla, lidar com duplicatas e preservar eventos durante falhas — sem confundir atomicidade local com entrega exatamente uma vez.",
-    "opening": "Pense num garçom que anota o pedido no caderno, mas também precisa avisar a cozinha. Se uma dessas ações falha, como garantir que a informação não desapareça? Esse é o risco da escrita dupla: o sistema salva a mudança em um banco, mas falha antes de publicar o evento que deveria avisar outro serviço. O padrão Transactional Outbox resolve isso registrando, na mesma transação local, tanto o pedido quanto a mensagem que precisa ser entregue. Depois, um processo separado leva essa mensagem até o broker, permitindo recuperar tentativas após falhas sem fingir que a entrega será exatamente uma vez."
+    "opening": "Pense num garçom que anota o pedido no caderno, mas também precisa avisar a cozinha. Se uma dessas ações falha, como garantir que a informação não desapareça? Esse é o risco da escrita dupla: o sistema salva a mudança em um banco, mas falha antes de publicar o evento que deveria avisar outro serviço. O padrão Transactional Outbox resolve isso registrando, na mesma transação local, tanto o pedido quanto a mensagem que precisa ser entregue. Depois, um processo separado leva essa mensagem até o broker, permitindo recuperar tentativas após falhas sem fingir que a entrega será exatamente uma vez.",
+    "tags": [
+      "bancos-de-dados",
+      "mensageria",
+      "sistemas-distribuidos"
+    ]
   },
   {
     "slug": "four-golden-signals",
