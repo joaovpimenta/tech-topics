@@ -89,6 +89,63 @@ def test_responsive_archive(browser, base):
         page.close()
 
 
+def test_live_search_suggestions(browser, base):
+    page = browser.new_page(viewport={'width': 1280, 'height': 900}, reduced_motion='reduce')
+    page.route("**/api.github.com/**", lambda route: route.abort())
+    catalog_requests = []
+    page.on('request', lambda request: catalog_requests.append(request.url)
+            if 'articles-catalog.json' in request.url else None)
+    try:
+        page.goto(base + '/index.html', wait_until='domcontentloaded')
+        page.locator('.recent-item').first.wait_for(state='visible', timeout=20000)
+        search = page.locator('#search-input')
+        panel = page.locator('#search-suggestions')
+
+        search.fill('tran')
+        panel.wait_for(state='visible')
+        assert panel.locator('.search-suggestion-link').count() >= 1
+        assert panel.locator('.search-suggestion-link').first.get_attribute('href').endswith('/transactional-outbox/')
+        assert ' de ' in page.locator('#article-count').inner_text(), 'archive must still filter while typing'
+        assert 'index.html?q=tran' in panel.locator('.search-suggestions-more').get_attribute('href')
+        search.fill('transactional')
+        assert len(catalog_requests) == 1, 'suggestions must reuse the already loaded catalog'
+
+        for width in (320, 390, 600, 720, 900, 1440):
+            page.set_viewport_size({'width': width, 'height': 900})
+            bounds = panel.bounding_box()
+            assert bounds and bounds['x'] >= -1 and bounds['x'] + bounds['width'] <= width + 1, (width, bounds)
+            assert page.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1'), width
+
+        search.fill('zzzz-unmatched-query')
+        assert panel.locator('.search-suggestions-heading').inner_text() == 'Nenhum artigo encontrado'
+        assert panel.locator('.search-suggestion-link').count() == 0
+        search.fill('tran')
+        search.press('Escape')
+        assert panel.is_hidden(), 'Escape closes suggestions'
+        search.fill('tran')
+        search.press('ArrowDown')
+        assert page.evaluate("document.activeElement.classList.contains('search-suggestion-link')")
+        page.keyboard.press('Escape')
+        assert panel.is_hidden(), 'Escape from a suggestion closes the panel'
+        assert page.evaluate("document.activeElement.id") == 'search-input'
+        search.fill('tran')
+        search.press('ArrowDown')
+        page.keyboard.press('Enter')
+        page.wait_for_url('**/transactional-outbox/')
+        page.locator('#article-actions').wait_for(state='visible', timeout=20000)
+
+        article_search = page.locator('#article-search-input')
+        article_search.fill('bulkhead')
+        panel.wait_for(state='visible')
+        assert panel.locator('.search-suggestion-link').first.get_attribute('href').endswith('/bulkhead/')
+        article_search.fill('')
+        assert panel.is_hidden(), 'clearing the search hides the panel'
+
+        print('PASS: live article suggestions on home and article, keyboard navigation, URLs and mobile geometry')
+    finally:
+        page.close()
+
+
 def test_archive_extremes(browser, base):
     page = browser.new_page(viewport={'width': 1280, 'height': 900})
     page.add_init_script("""(() => {
@@ -477,6 +534,7 @@ if __name__ == "__main__":
             try:
                 base = f"http://127.0.0.1:{server.server_port}"
                 test_responsive_archive(browser, base)
+                test_live_search_suggestions(browser, base)
                 test_archive_extremes(browser, base)
                 test_responsive_article_header(browser, base)
                 test_diagrams_fit_viewport(browser, base)
