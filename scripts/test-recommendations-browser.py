@@ -64,21 +64,25 @@ try:
             page.wait_for_url('**/article.html?slug=*')
             page.locator('#recommendations').wait_for(state='visible')
             assert selected[0] not in slugs()
-            touch = browser.new_page(viewport={'width': 390, 'height': 800}, has_touch=True, is_mobile=True)
+            touch = browser.new_page(viewport={'width': 390, 'height': 800}, has_touch=True, is_mobile=True, reduced_motion='reduce')
             touch.add_init_script("""Object.defineProperty(navigator, 'share', {configurable: true,
                 value: async data => { window.__shared = data; }});""")
             touch.goto(f'http://127.0.0.1:{server.server_port}/article.html?slug=transactional-outbox')
             touch.locator('#recommendations').wait_for(state='visible', timeout=20000)
             card = touch.locator('#recommendations-list .recent-item').first
-            card.scroll_into_view_if_needed()
+            touch.evaluate('document.fonts.ready')
+            card.locator('.recent-image').evaluate("image => image.scrollIntoView({block: 'center', behavior: 'instant'})")
+            card.locator('img').evaluate('(image) => image.decode().catch(() => {})')
             cdp = touch.context.new_cdp_session(touch)
             def hold_and_release(action):
-                box = card.locator('.recent-image').bounding_box()
-                x, y = round(box['x'] + 50), round(box['y'] + 50)
+                image = card.locator('.recent-image')
+                image.evaluate("image => image.scrollIntoView({block: 'center', behavior: 'instant'})")
+                box = image.bounding_box()
+                x, y = round(box['x'] + box['width'] / 2), round(box['y'] + box['height'] / 2)
+                assert card.evaluate('(card, point) => card.contains(document.elementFromPoint(point.x, point.y))', {'x': x, 'y': y}), ('touch target occluded', box)
                 cdp.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [{'x': x, 'y': y}]})
-                touch.wait_for_timeout(620)
                 popup = touch.locator('#article-quick-actions')
-                assert popup.is_visible(), 'long press did not open recommendations preview'
+                popup.wait_for(state='visible', timeout=3000)
                 target = popup.locator('[data-quick-action="' + action + '"]').bounding_box()
                 tx, ty = round(target['x'] + target['width'] / 2), round(target['y'] + target['height'] / 2)
                 for step in range(1, 11):
