@@ -409,8 +409,9 @@ class ReadingNode extends EventTarget {
 async function playerFixture({ readyState = 4, playbackTimeoutMs = 30, sourceSwitchTimeoutMs = 3000, playPlan = null, buffered, seekable, deviceAvailable = true, fetchAudio, autoDiscover = true } = {}) {
   const ids = ["listen-recording", "inline-recording-anchor", "inline-recording-timeline", "inline-recording",
     "inline-recording-seek", "inline-recording-elapsed", "inline-recording-duration", "inline-recording-rate",
-    "inline-recording-previous", "inline-recording-next", "recording-player", "recording-title",
-    "recording-subtitle", "recording-cover", "recording-ring", "recording-play", "recording-previous",
+    "inline-recording-source", "inline-recording-previous", "inline-recording-next",
+    "recording-player", "recording-title", "recording-subtitle", "recording-source",
+    "recording-source-menu", "recording-cover", "recording-ring", "recording-play", "recording-previous",
     "recording-skip", "recording-follow", "recording-close", "recording-seek", "recording-elapsed",
     "recording-duration", "recording-rate", "recording-status", "listen-article"];
   const nodes = Object.fromEntries(ids.map(id => ["#" + id, new Element()]));
@@ -464,8 +465,59 @@ async function playerFixture({ readyState = 4, playbackTimeoutMs = 30, sourceSwi
   });
   const discovery = controller.discover();
   if (autoDiscover) await discovery;
-  return { audio, controller, devicePlayer, starts, nodes, paragraph, discovery };
+  return { audio, controller, devicePlayer, starts, nodes, paragraph, discovery, menu };
 }
+
+test("active-source indicator tracks MP3, device voice, fallback and close", async () => {
+  const fixture = await playerFixture();
+  const { nodes, controller, audio, menu } = fixture;
+  const inline = nodes["#inline-recording-source"];
+  const dock = nodes["#recording-source"];
+  const current = nodes["#recording-source-menu"];
+  assert.equal(inline.hidden, true, "no active source before playback");
+  assert.equal(dock.hidden, true);
+
+  await controller.play();
+  assert.equal(controller.snapshot().mode, "recorded");
+  assert.equal(inline.hidden, false);
+  assert.equal(inline.textContent, "MP3");
+  assert.equal(dock.textContent, "MP3");
+  assert.equal(current.textContent, "Fonte atual: MP3 do Kokoro");
+  assert.match(inline.title, /MP3 do Kokoro/);
+
+  nodes["#recording-play"].click();
+  assert.equal(audio.paused, true);
+  assert.equal(dock.textContent, "MP3", "pausing does not change source");
+
+  nodes["#listen-article"].click();
+  assert.equal(controller.snapshot().mode, "device");
+  assert.equal(inline.textContent, "Dispositivo");
+  assert.equal(dock.textContent, "Dispositivo");
+  assert.equal(current.textContent, "Fonte atual: voz do dispositivo");
+  assert.match(dock.title, /voz do dispositivo/);
+
+  await controller.play();
+  assert.equal(controller.snapshot().mode, "recorded");
+  assert.equal(current.textContent, "Fonte atual: MP3 do Kokoro");
+
+  audio.currentTime = 45;
+  audio.dispatchEvent(new Event("timeupdate"));
+  audio.dispatchEvent(new Event("error"));
+  assert.equal(controller.snapshot().mode, "device", "MP3 errors can switch source automatically");
+  assert.equal(current.textContent, "Fonte atual: voz do dispositivo");
+
+  nodes["#recording-close"].click();
+  assert.equal(inline.hidden, true);
+  assert.equal(dock.hidden, true);
+  assert.equal(current.textContent, "Fonte atual: não iniciada");
+
+  const deviceOnly = await playerFixture({ fetchAudio: async () => null });
+  await deviceOnly.controller.play();
+  assert.equal(deviceOnly.controller.snapshot().mode, "device");
+  assert.equal(deviceOnly.menu.hidden, false, "source details remain accessible without a published MP3");
+  assert.equal(deviceOnly.nodes["#recording-source-menu"].textContent, "Fonte atual: voz do dispositivo");
+  assert.equal(deviceOnly.nodes["#recording-source"].textContent, "Dispositivo");
+});
 
 test("discovered MP3 with readyState zero uses device speech after the gesture", async () => {
   const fixture = await playerFixture({ readyState: 0 });
