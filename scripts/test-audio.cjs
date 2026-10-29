@@ -507,11 +507,22 @@ test("active-source indicator tracks MP3, device voice, fallback and close", asy
   assert.equal(controller.snapshot().mode, "recorded");
   assert.equal(current.textContent, "Fonte atual: MP3 do Kokoro");
 
-  audio.currentTime = 45;
-  audio.dispatchEvent(new Event("timeupdate"));
-  audio.dispatchEvent(new Event("error"));
-  assert.equal(controller.snapshot().mode, "device", "MP3 errors can switch source automatically");
-  assert.equal(current.textContent, "Fonte atual: voz do dispositivo");
+  // The source-switch path can be in an unconfirmed seek state. Verify the
+  // active-recording fallback independently, after a confirmed MP3 start.
+  const fallback = await playerFixture({ fetchAudio: async () => ({
+    url: "https://example.org/bulkhead.mp3",
+    chapters: [
+      { start: 0, block_index: 0, sentence_index: 0 },
+      { start: 30, block_index: 1, sentence_index: 0 },
+      { start: 80, block_index: 2, sentence_index: 0 }
+    ]
+  }) });
+  await fallback.controller.play();
+  fallback.audio.currentTime = 45;
+  fallback.audio.dispatchEvent(new Event("timeupdate"));
+  fallback.audio.dispatchEvent(new Event("error"));
+  assert.equal(fallback.controller.snapshot().mode, "device", "MP3 errors can switch source automatically");
+  assert.equal(fallback.nodes["#recording-source-menu"].textContent, "Fonte atual: voz do dispositivo");
 
   nodes["#recording-close"].click();
   assert.equal(inline.hidden, true);
