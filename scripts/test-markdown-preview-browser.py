@@ -77,7 +77,9 @@ def main():
                     assert page.locator("#article-heading").inner_text() == "Preview de migração"
                     assert page.locator("#article-dek").inner_text() == "Catálogo leve e corpo HTML compilado."
                     assert "metadados no catálogo" in page.locator("#article-body").inner_text()
-                    link = page.locator("#article-body a").get_attribute("href")
+                    assert page.locator('#article-body nav[aria-label="Neste artigo"] a[href="#fontes"]').count() == 1
+                    assert page.locator("#fontes").count() == 1
+                    link = page.locator('#article-body a[href*="manual.pdf"]').get_attribute("href")
                     assert link.startswith("../assets/preview/manual.pdf?")
                     assert page.locator("#article-body a").evaluate("a => new URL(a.href).pathname") == "/tech-topics/assets/preview/manual.pdf"
                     page.goto(base + "/article.html?slug=preview#fontes", wait_until="domcontentloaded")
