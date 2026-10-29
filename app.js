@@ -55,6 +55,7 @@ async function loadArticles() {
     articles.splice(0, articles.length, ...valid);
     articles.sort((a, b) => String(b.publishedAt || "").localeCompare(String(a.publishedAt || "")) ||
       (Date.parse(b.addedAt) || 0) - (Date.parse(a.addedAt) || 0) || a.slug.localeCompare(b.slug));
+    window.TechTopicsSearch?.setArticles(articles);
     renderArchive();
     if (!articles.length) {
       count.textContent = "0 artigos";
