@@ -143,6 +143,8 @@ async function testWorker() {
   assert.match(await (await request("/tech-topics/article.html?slug=uncached#part", true)).text(), /^fresh:/);
   assert.equal(entries.has(articleShellUrl), true, "a shell network miss is saved under its canonical pathname");
   assert.equal(entries.has(queryShellUrl), false, "a shell response never enters a query-specific cache key");
+  assert.match(await (await request("/tech-topics/bulkhead/?reading=1", true)).text(), /^fresh:/);
+  assert.equal(entries.has("https://example.com/tech-topics/bulkhead/"), true, "clean route uses a query-independent cache key");
   const uncached = await request("/tech-topics/content/articles/cached-on-first-visit.html");
   assert.match(await uncached.text(), /^fresh:/, "a cache miss uses the network and joins this worker's version cache");
   const retired = await request("/tech-topics/content/articles/retired.html");
@@ -160,6 +162,8 @@ async function testWorker() {
   assert.match(await (await request("/tech-topics/content/articles/cached-on-first-visit.html")).text(), /^fresh:/);
   assert.match(await (await request("/tech-topics/content/articles/retired.html?build=candidate")).text(), /article data-article-format/,
     "a cached candidate document remains available to a prepared client offline");
+  assert.match(await (await request("/tech-topics/bulkhead/index.html", true)).text(), /^fresh:/, "visited clean route works offline");
+  assert.equal((await request("/tech-topics/four-golden-signals/", true)).status, 503, "an unvisited route does not return a different article offline");
   assert.equal((await request("/tech-topics/article.html?slug=four-golden-signals", true)).status, 200);
   assert.equal((await request("/tech-topics/", true)).status, 200);
   assert.equal((await request("/tech-topics/missing.json")).status, 503);
@@ -573,8 +577,8 @@ async function testOrdering() {
   await new Promise(setImmediate);
   const urls = () => nodes.get("#recent-list").children.map(card => card.children[0].href);
   assert.deepEqual(urls(), [
-    "article.html?slug=newest", "article.html?slug=new",
-    "article.html?slug=middle", "article.html?slug=old"
+    "newest/", "new/",
+    "middle/", "old/"
   ]);
   assert(!calls.some(path => /content\/articles\/(?!catalog\.json)/.test(path)), "home must not fetch full articles");
 
@@ -590,7 +594,7 @@ async function testOrdering() {
   const search = nodes.get("#search-input");
   search.value = "Antigo";
   search.listeners.input();
-  assert.deepEqual(urls(), ["article.html?slug=old"]);
+  assert.deepEqual(urls(), ["old/"]);
   search.value = "";
   search.listeners.input();
 
@@ -702,14 +706,14 @@ async function testOrdering() {
   // Sliding onto Read navigates only when released on the button.
   startTouch(3);
   endTouch(touch(3, 120, 215), popup.children[3].children[0]);
-  assert.deepEqual(navigated, ["article.html?slug=newest"]);
+  assert.deepEqual(navigated, ["newest/"]);
 
   // Share uses the exact article URL and returns to the closed state.
   startTouch(4);
   endTouch(touch(4, 215, 215), popup.children[3].children[2]);
   await new Promise(setImmediate);
   assert.equal(shared.length, 1);
-  assert.equal(shared[0].url, "https://example.com/tech-topics/article.html?slug=newest");
+  assert.equal(shared[0].url, "https://example.com/tech-topics/newest/");
 
   // Near the top of the viewport, actions move to the first row and the
   // instruction asks users to drag down instead of reaching offscreen.

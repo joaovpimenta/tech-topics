@@ -15,6 +15,12 @@ try { ({ compileMarkdownArticle, fromLegacyArticle } = await import("./lib/markd
 catch (error) { if (error.code !== "ERR_MODULE_NOT_FOUND") throw error; }
 
 const sha = letter => letter.repeat(40);
+test("source inventory handles historical and nested layouts without treating assets as articles", () => {
+  const inventory = discoverArticleSources(["content/articles/alpha.md", "articles/beta/article.md", "articles/beta/cover.jpg"], "test");
+  assert.deepEqual(inventory, [{ slug: "alpha", file: "content/articles/alpha.md", extension: "md" },
+    { slug: "beta", file: "articles/beta/article.md", extension: "md" }]);
+  assert.throws(() => discoverArticleSources(["content/articles/alpha.md", "articles/alpha/article.md"], "test"), /duplicate sources/);
+});
 const sentence = (text, blockIndex = 0, sentenceIndex = 0) => ({ text, blockIndex, sentenceIndex, tag: "p", section: false,
   pauseKind: "paragraph", pauseAfterSeconds: 0.38, runs: [{ text, lang: "pt-BR" }] });
 function article(slug, text = "Texto.", changes = {}) {

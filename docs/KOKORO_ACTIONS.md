@@ -356,3 +356,7 @@ leitura. Os workflows de seleção e Kokoro deixaram de constar em
 `paths-ignore` de Pages para que mudanças na política sejam propagadas; as
 condições globais seguem sendo a barreira efetiva. O gate de deploy real fica
 pendente até a integração autorizada e uma execução Pages posterior.
+
+## Inventário do piloto v2
+
+Os leitores aceitam fontes planas e `articles/<slug>/article.md` durante o [piloto #143](specs/article-v2-pilot.md). Rename, capa, links ou sumário não equivalem a mudança de fala. O gate global de síntese continua desligado, e capítulos/MP3 existentes são consultados apenas em leitura para a auditoria.

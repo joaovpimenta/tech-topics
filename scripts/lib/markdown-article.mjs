@@ -14,11 +14,11 @@ import { parseFragment } from "parse5";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const RESERVED_IDS = new Set(["article-root", "article-heading", "article-dek", "article-body", "article-category", "article-meta", "article-actions", "article-image", "article-recording", "article-description", "article-search-input", "article-count", "article-quick-actions", "inline-recording", "github-stars", "favorite-article", "share-article", "share-status", "__proto__", "prototype", "constructor", "window", "document", "location", "name", "forms", "all", "body", "head", "currentScript"].map(id => id.normalize("NFKC").toLocaleLowerCase("en-US")));
+const RESERVED_IDS = new Set(["article-root", "article-heading", "article-dek", "article-body", "article-category", "article-meta", "article-actions", "article-image", "article-recording", "article-description", "article-search-input", "article-count", "article-quick-actions", "inline-recording", "github-stars", "favorite-article", "share-article", "share-status", "recommendations", "__proto__", "prototype", "constructor", "window", "document", "location", "name", "forms", "all", "body", "head", "currentScript"].map(id => id.normalize("NFKC").toLocaleLowerCase("en-US")));
 // The shell owns complete ID namespaces because future controls can be added
 // without a compiler release. Current exact IDs are checked against article.html
 // and the fixed selectors in article.js, audio.js and speech.js by the suite.
-const RESERVED_ID_PREFIXES = ["article-", "recording-", "speech-", "tts-", "header-", "listen-", "inline-recording-"];
+const RESERVED_ID_PREFIXES = ["article-", "recommendations-", "recording-", "speech-", "tts-", "header-", "listen-", "inline-recording-"];
 const TAGS = new Set([
   "a", "abbr", "article", "b", "blockquote", "br", "button", "caption", "code", "col", "colgroup", "dd", "del", "details", "div", "dl", "dt", "em", "figcaption", "figure", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "img", "input", "kbd", "label", "li", "mark", "nav", "ol", "output", "p", "pre", "s", "section", "small", "span", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"
 ]);
@@ -90,6 +90,28 @@ export function parseArticleFrontmatter(source, location = "<markdown>") {
   return parseFrontmatter(source, location);
 }
 
+// Parse the visible v2 preamble once for both inventory and compilation.
+export function parseV2Article(source, sourcePath) {
+  const match = sourcePath.replace(/\\/g, "/").match(/^articles\/([a-z0-9]+(?:-[a-z0-9]+)*)\/article\.md$/);
+  if (!match) fail(sourcePath, "v2 sourcePath must be articles/<slug>/article.md");
+  const parsed = parseFrontmatter(source, sourcePath);
+  if (parsed.metadata.formatVersion !== 2) fail(sourcePath, "formatVersion must be 2");
+  for (const field of ["slug", "title", "dek", "image", "alt"]) if (field in parsed.metadata) fail(sourcePath, `${field} must be derived from the v2 preamble`);
+  const tree = unified().use(remarkParse).use(remarkGfm).parse(parsed.body);
+  const [heading, quote, cover] = tree.children;
+  if (heading?.type !== "heading" || heading.depth !== 1 || !textContent(heading).trim()) fail(sourcePath, "v2 preamble must begin with a single H1");
+  if (quote?.type !== "blockquote" || quote.children.length !== 1 || quote.children[0].type !== "paragraph" || !textContent(quote).trim()) fail(sourcePath, "v2 H1 must be followed by a dek blockquote");
+  for (const node of [heading, quote]) walk(node, child => {
+    if (["html", "image", "imageReference"].includes(child.type)) fail(sourcePath, "v2 title and dek must contain visible text only");
+  });
+  const image = cover?.type === "paragraph" && cover.children.length === 1 ? cover.children[0] : null;
+  if (image?.type !== "image" || image.url !== "./cover.jpg" || !image.alt?.trim()) fail(sourcePath, "v2 dek must be followed by ![alt](./cover.jpg)");
+  const metadata = { ...parsed.metadata, slug: match[1], title: textContent(heading).trim(), dek: textContent(quote).trim(), image: `assets/${match[1]}/${match[1]}-cover.jpg`, alt: image.alt };
+  delete metadata.formatVersion;
+  tree.children.splice(0, 3);
+  return { metadata, tree, body: parsed.body };
+}
+
 function validateMetadata(metadata, location, context, legacy = false, { checkAssets = true } = {}) {
   const errors = [];
   for (const key of Object.keys(metadata)) if (!ALLOWED_METADATA.has(key)) errors.push(`unknown metadata field: ${key}`);
@@ -129,7 +151,7 @@ export function validateArticleMetadata(metadata, context = {}, { legacy = false
   const extension = path.posix.extname(normalizedPath);
   if (extension === ".json" && !legacy) fail(location, "JSON article sources are only supported for historical migration reads");
   if (extension === ".md" || extension === ".json") {
-    const filenameSlug = path.posix.basename(normalizedPath, extension);
+    const filenameSlug = normalizedPath.match(/^articles\/([^/]+)\/article\.md$/)?.[1] ?? path.posix.basename(normalizedPath, extension);
     if (metadata.slug !== filenameSlug) fail(location, extension === ".md"
       ? "metadata slug must match Markdown filename"
       : "metadata slug must match JSON filename");
@@ -164,7 +186,17 @@ function resolveLocal(raw, { sourcePath, rootPath, context, where, isImage = fal
   if (raw.startsWith("//")) fail(where, "protocol-relative URLs are not permitted");
   const decodedPath = decoded(raw.split(/[?#]/, 1)[0], where).replace(/\\/g, "/");
   if (/^[a-z][a-z0-9+.-]*:/i.test(decodedPath) || decodedPath.startsWith("/")) fail(where, "absolute or encoded URL paths are not permitted");
-  if (!isImage && ["article.html", "index.html"].includes(decodedPath)) return raw;
+  if (!isImage && ["article.html", "index.html"].includes(decodedPath)) {
+    if (decodedPath === "article.html" && raw.includes("?")) {
+      const url = new URL(raw, "https://example.invalid/");
+      const slug = url.searchParams.get("slug");
+      if (slug) {
+        if (!SLUG.test(slug) || context.knownSlugs && !context.knownSlugs.has(slug)) fail(where, `unknown article target: ${slug}`);
+        if (context.crossLinks) context.crossLinks.push({ slug, fragment: url.hash ? decoded(url.hash.slice(1), where) : "" });
+      }
+    }
+    return raw;
+  }
   const sourceDir = path.posix.dirname(sourcePath.replace(/\\/g, "/"));
   const normalized = path.posix.normalize(path.posix.join(sourceDir, decodedPath));
   const absoluteRoot = path.resolve(rootPath);
@@ -172,9 +204,11 @@ function resolveLocal(raw, { sourcePath, rootPath, context, where, isImage = fal
   const relative = path.relative(absoluteRoot, absolute);
   if (relative.startsWith("..") || path.isAbsolute(relative)) fail(where, "path escapes repository root");
   const repoRelative = relative.replace(/\\/g, "/");
-  if (repoRelative.startsWith("content/articles/") && repoRelative.endsWith(".md")) {
-    const slug = path.posix.basename(repoRelative, ".md");
+  const v2Target = repoRelative.match(/^articles\/([a-z0-9]+(?:-[a-z0-9]+)*)\/article\.md$/);
+  if (v2Target || (repoRelative.startsWith("content/articles/") && repoRelative.endsWith(".md"))) {
+    const slug = v2Target?.[1] ?? path.posix.basename(repoRelative, ".md");
     if (isImage) fail(where, "article source files cannot be used as images");
+    if (context.sourcePaths && context.sourcePaths.get(slug) !== repoRelative) fail(where, `article source path does not exist: ${repoRelative}`);
     if (context.knownSlugs && !context.knownSlugs.has(slug)) fail(where, `unknown article target: ${slug}`);
     const suffix = raw.match(/[?#].*$/)?.[0] ?? "";
     if (suffix.includes("?") && !/^[?](?:[a-zA-Z0-9_~-]+=[^#&]*&?)*#?.*$/.test(suffix)) fail(where, "invalid query string on article link");
@@ -182,7 +216,16 @@ function resolveLocal(raw, { sourcePath, rootPath, context, where, isImage = fal
     const queryIndex = raw.indexOf("?");
     const query = queryIndex >= 0 ? raw.slice(queryIndex, hashIndex >= 0 ? hashIndex : undefined) : "";
     const hash = hashIndex >= 0 ? raw.slice(hashIndex) : "";
-    return `article.html?slug=${encodeURIComponent(slug)}${query ? `&${query.slice(1)}` : ""}${hash}`;
+    if (context.v2 && query) fail(where, "v2 article links cannot contain a query string");
+    if (context.crossLinks) context.crossLinks.push({ slug, fragment: hash ? decoded(hash.slice(1), where) : "" });
+    return context.v2 ? `${slug}/${hash}` : `article.html?slug=${encodeURIComponent(slug)}${query ? `&${query.slice(1)}` : ""}${hash}`;
+  }
+  const localAsset = repoRelative.match(/^articles\/([a-z0-9]+(?:-[a-z0-9]+)*)\/(cover\.jpg|figures\/.+)$/);
+  if (localAsset) {
+    if (!assetExistsSafely(repoRelative, context, where)) fail(where, `asset does not exist: ${repoRelative}`);
+    const publicPath = localAsset[2] === "cover.jpg" ? `assets/${localAsset[1]}/${localAsset[1]}-cover.jpg` : `assets/${localAsset[1]}/${localAsset[2]}`;
+    (context.mappedAssets ??= new Set()).add(publicPath);
+    return publicPath.split("/").map(encodeURIComponent).join("/") + (raw.match(/[?#].*$/)?.[0] ?? "");
   }
   if (!repoRelative.startsWith("assets/")) fail(where, "local links and images must resolve beneath assets/ or content/articles/");
   const exists = assetExistsSafely(repoRelative, { ...context, rootPath }, where);
@@ -312,6 +355,7 @@ function preflight(tree, context, location) {
     if (tag === "a" && attrs.target && attrs.target !== "_blank") fail(location, "unsupported link target");
     if (attrs.target === "_blank") attrs.rel = ["noopener", "noreferrer"];
   });
+  if (context.headingAnchor) ids.add(idKey(context.headingAnchor));
   for (const fragment of fragments) if (!ids.has(idKey(fragment))) fail(location, `link fragment does not match a compiled ID: #${fragment}`);
 }
 
@@ -325,8 +369,13 @@ function treeSnapshot(tree) {
 }
 
 function textContent(node) {
-  if (node.type === "text") return node.value;
+  if (node.type === "text" || node.type === "inlineCode") return node.value;
+  if (node.type === "image") return node.alt ?? "";
   return (node.children ?? []).map(textContent).join("");
+}
+
+function githubSlug(text) {
+  return text.toLowerCase().replace(/[^\p{Letter}\p{Mark}\p{Number}_\- ]/gu, "").replace(/ /g, "-");
 }
 
 function slugify(text) {
@@ -369,6 +418,10 @@ function decodePercentForInspection(value) {
 function transformMdast(tree, metadata, context, location) {
   let pendingDiagram = null;
   const ids = new Set();
+  if (context.headingAnchor) {
+    if (isReservedId(context.headingAnchor)) fail(location, `heading ID is reserved: ${context.headingAnchor}`);
+    ids.add(idKey(context.headingAnchor));
+  }
   const explicitIds = new Set();
   let pendingAnchor = null;
   for (const child of tree.children) {
@@ -382,19 +435,19 @@ function transformMdast(tree, metadata, context, location) {
       if (isReservedId(key) || ids.has(key)) fail(location, `duplicate, reserved or unsafe anchor ID: ${id}`);
       ids.add(key); explicitIds.add(key);
       pendingAnchor = id;
-      child.type = "text";
-      child.value = "";
-      child.data = undefined;
+      if (!context.v2) { child.type = "text"; child.value = ""; child.data = undefined; }
       continue;
     }
     if (child.type === "text" && child.value === "") continue;
     if (pendingAnchor && child.type !== "heading") fail(location, `explicit anchor ${pendingAnchor} must immediately precede a heading`);
     if (child.type === "heading" && pendingAnchor) {
-      child.data = { ...(child.data ?? {}), hProperties: { ...(child.data?.hProperties ?? {}), id: pendingAnchor } };
+      if (!context.v2) child.data = { ...(child.data ?? {}), hProperties: { ...(child.data?.hProperties ?? {}), id: pendingAnchor } };
       pendingAnchor = null;
     }
   }
   if (pendingAnchor) fail(location, `explicit anchor ${pendingAnchor} has no following heading`);
+  const slugCounts = new Map();
+  if (context.v2) slugCounts.set(githubSlug(metadata.title), 1);
   for (let i = 0; i < tree.children.length; i++) {
     const node = tree.children[i];
     if (node.type === "html" && /^\s*<!--\s*(?:diagram:|tech-topics:mermaid)/i.test(node.value)) {
@@ -417,19 +470,30 @@ function transformMdast(tree, metadata, context, location) {
       continue;
     }
     if (node.type === "code" && node.lang?.toLowerCase() === "mermaid") {
+      if (!pendingDiagram && context.v2) {
+        const previous = tree.children[i - 1];
+        if (previous?.type !== "paragraph" || !textContent(previous).trim()) fail(location, "Mermaid requires preceding textual context");
+        pendingDiagram = { label: textContent(previous).trim(), caption: "", fallback: node.value, native: true };
+      }
       if (!pendingDiagram) fail(location, "Mermaid fence requires an adjacent diagram metadata comment");
       const decodedDiagram = decodePercentForInspection(node.value);
       if (/%%\s*\{|(?:^|[;\n])\s*click\s+[^\s;]+(?:\s|$)|<\s*\/?\s*(?:script|iframe|foreignObject)\b|javascript\s*:/im.test(decodedDiagram)) fail(location, "Mermaid init directives, click interactions and executable HTML/URLs are forbidden");
-      const { label, caption, fallback, canonical } = pendingDiagram;
-      node.data = { ...(node.data ?? {}), mermaidData: { label, caption, fallback, canonical, source: canonical ? node.value : undefined } };
-      (context.mermaidDiagrams ??= []).push({ label, caption, fallback, canonical, source: canonical ? node.value : undefined });
+      const { label, caption, fallback, canonical, native } = pendingDiagram;
+      node.data = { ...(node.data ?? {}), mermaidData: { label, caption, fallback, canonical, native, source: canonical ? node.value : undefined } };
+      (context.mermaidDiagrams ??= []).push({ label, caption, fallback, canonical, native, source: canonical ? node.value : undefined });
       pendingDiagram = null;
       continue;
     }
     if (pendingDiagram && node.type !== "html" && node.type !== "text" && node.type !== "code") fail(location, "diagram metadata must immediately precede a Mermaid fence");
     if (node.type === "heading") {
       if (node.depth === 1) fail(location, "article body headings start at level 2; the envelope owns the only h1");
-      const id = node.data?.hProperties?.id ?? slugify(textContent(node));
+      const base = context.v2 ? githubSlug(textContent(node)) : slugify(textContent(node));
+      let count = slugCounts.get(base) ?? 0;
+      let generated = count ? `${base}-${count}` : base;
+      while (context.v2 && slugCounts.has(generated)) generated = `${base}-${++count}`;
+      slugCounts.set(base, count + 1);
+      if (generated !== base) slugCounts.set(generated, 1);
+      const id = node.data?.hProperties?.id ?? (context.v2 ? generated : base);
       const key = idKey(id);
       if (!id || (ids.has(key) && !explicitIds.has(key)) || isReservedId(key)) fail(location, `heading ID collision or reserved ID: ${id}`);
       explicitIds.delete(key);
@@ -483,8 +547,8 @@ function renderMermaidFences(options = {}) {
             figureChildren.push({ type: "raw", value: captionRaw }, { type: "raw", value: fallbackRaw });
             parent.children.splice(index + 1, next - index);
           } else {
+            if (!data.native) figureChildren.push({ type: "element", tagName: "figcaption", properties: {}, children: [{ type: "text", value: data.caption }] });
             figureChildren.push(
-              { type: "element", tagName: "figcaption", properties: {}, children: [{ type: "text", value: data.caption }] },
               { type: "element", tagName: "details", properties: { className: ["mermaid-fallback"] }, children: [{ type: "element", tagName: "summary", properties: {}, children: [{ type: "text", value: "Ver o código Mermaid" }] }, { type: "element", tagName: "pre", properties: { className: ["code-block"] }, children: [{ type: "text", value: data.fallback }] }] }
             );
           }
@@ -493,6 +557,18 @@ function renderMermaidFences(options = {}) {
       }
     };
     visitChildren(tree);
+  };
+}
+
+function v2Navigation(options) {
+  return tree => {
+    if (!options.toc) return;
+    const index = tree.children.findIndex(node => node.tagName === "h2" && textContent(node).trim() === "Neste artigo");
+    let next = index + 1;
+    while (tree.children[next]?.type === "text" && !tree.children[next].value.trim()) next++;
+    if (index < 0 || !["ul", "ol"].includes(tree.children[next]?.tagName)) throw new Error("invalid v2 table of contents");
+    const children = tree.children.slice(index, next + 1);
+    tree.children.splice(index, next - index + 1, { type: "element", tagName: "nav", properties: { ariaLabel: "Neste artigo" }, children });
   };
 }
 
@@ -566,7 +642,8 @@ function validateRenderedHtml(html, location, context = {}) {
           safeProtocol(attr.value, location);
           if (/^(?:https?:|mailto:|tel:|#)/i.test(attr.value)) continue;
           const target = decoded(attr.value.split(/[?#]/, 1)[0], location).replace(/\\/g, "/");
-          if (attr.name === "href" && ["article.html", "index.html"].includes(target)) continue;
+          if (attr.name === "href" && (["article.html", "index.html"].includes(target) || context.v2 && /^[a-z0-9]+(?:-[a-z0-9]+)*\/$/.test(target))) continue;
+          if (context.mappedAssets?.has(target)) continue;
           if (!target.startsWith("assets/") || target.split("/").includes("..")) fail(location, `rendered local URL is outside assets/: ${attr.value}`);
           const exists = assetExistsSafely(target, context, location);
           if (!exists) fail(location, `rendered asset does not exist: ${target}`);
@@ -681,18 +758,55 @@ function firstProseNode(tree, location) {
 export async function compileMarkdownArticle({ source, sourcePath, rootPath = ROOT, knownTags, knownSlugs, assetExists, ...context } = {}) {
   if (typeof source !== "string") throw new TypeError("source must be a string");
   const location = sourcePath ?? "<markdown>";
-  const parsed = parseFrontmatter(source, location);
+  const v2 = /^articles\/[a-z0-9]+(?:-[a-z0-9]+)*\/article\.md$/.test(location.replace(/\\/g, "/"));
+  const parsed = v2 ? parseV2Article(source, location) : parseFrontmatter(source, location);
   const metadata = parsed.metadata;
   if (!Array.isArray(knownTags) && !(knownTags instanceof Set)) fail(location, "knownTags registry must be injected for Markdown compilation");
   if (knownSlugs !== undefined && !Array.isArray(knownSlugs) && !(knownSlugs instanceof Set)) fail(location, "knownSlugs registry must be an array or Set");
-  const compilerContext = { ...context, sourcePath: location, rootPath, knownTags: knownTags && new Set(knownTags), knownSlugs: knownSlugs && new Set(knownSlugs), assetExists };
-  if (!/^content\/articles\/[a-z0-9]+(?:-[a-z0-9]+)*\.md$/.test(location.replace(/\\/g, "/"))) fail(location, "sourcePath must be content/articles/<slug>.md");
-  validateArticleMetadata(metadata, compilerContext);
+  const compilerContext = { ...context, sourcePath: location, rootPath, knownTags: knownTags && new Set(knownTags), knownSlugs: knownSlugs && new Set(knownSlugs), assetExists, v2, mappedAssets: new Set(), crossLinks: context.crossLinks };
+  if (!v2 && !/^content\/articles\/[a-z0-9]+(?:-[a-z0-9]+)*\.md$/.test(location.replace(/\\/g, "/"))) fail(location, "sourcePath must be content/articles/<slug>.md");
+  if (v2) {
+    compilerContext.headingAnchor = githubSlug(metadata.title);
+    if (!compilerContext.headingAnchor) fail(location, "v2 title must produce a non-empty GitHub anchor");
+  }
+  if (v2 && !assetExistsSafely(`articles/${metadata.slug}/cover.jpg`, compilerContext, location)) fail(location, "v2 cover asset does not exist");
+  validateArticleMetadata(metadata, compilerContext, { checkAssets: !v2 });
   const processor = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]);
-  const tree = processor.parse(parsed.body);
+  const tree = v2 ? parsed.tree : processor.parse(parsed.body);
   firstProseNode(tree, location);
+  if (v2) {
+    const tocIndices = tree.children.flatMap((node, i) => node.type === "heading" && node.depth === 2 && textContent(node).trim() === "Neste artigo" ? [i] : []);
+    if (tocIndices.length !== 1 || tocIndices[0] < 1 || tree.children[tocIndices[0] + 1]?.type !== "list") fail(location, "v2 requires one Markdown Neste artigo list after the opening paragraph");
+    compilerContext.toc = true;
+  }
   transformMdast(tree, metadata, compilerContext, location);
-  const hast = await unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]).use(remarkRehype, { allowDangerousHtml: true }).use(renderMermaidFences, compilerContext).use(wrapGfmTables).use(rehypeRaw).use(compactTableWhitespace).run(tree);
+  if (v2) {
+    const tocIndex = tree.children.findIndex(node => node.type === "heading" && node.depth === 2 && textContent(node).trim() === "Neste artigo");
+    const links = [];
+    walk(tree.children[tocIndex + 1], node => { if (node.type === "link") links.push(node.url); });
+    if (!links.length || links.some(url => !url.startsWith("#"))) fail(location, "table of contents must contain local section links");
+    const targets = new Map();
+    let pending = null;
+    for (let i = tocIndex + 2; i < tree.children.length; i++) {
+      const node = tree.children[i];
+      const anchor = node.type === "html" ? node.value.match(/^\s*<a\s+name\s*=\s*["']([^"']+)["']\s*><\/a>\s*$/i) : node.type === "paragraph" ? node.children?.map(child => child.value ?? "").join("").match(/^\s*<a\s+name\s*=\s*["']([^"']+)["']\s*><\/a>\s*$/i) : null;
+      if (anchor) pending = anchor[1];
+      if (node.type === "heading") {
+        targets.set(node.data.hProperties.id, i);
+        if (pending) targets.set(pending, i);
+        pending = null;
+      }
+    }
+    let previous = -1;
+    const seen = new Set();
+    for (const link of links) {
+      const target = decoded(link.slice(1), location);
+      const index = targets.get(target);
+      if (index === undefined || index <= previous || seen.has(index)) fail(location, `table of contents target is missing, duplicated or out of order: ${link}`);
+      previous = index; seen.add(index);
+    }
+  }
+  const hast = await unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]).use(remarkRehype, { allowDangerousHtml: true }).use(renderMermaidFences, compilerContext).use(wrapGfmTables).use(rehypeRaw).use(compactTableWhitespace).use(v2Navigation, compilerContext).run(tree);
   preflight(hast, compilerContext, location);
   const expectedTree = JSON.stringify(treeSnapshot(hast));
   const sanitized = await unified().use(rehypeSanitize, sanitizeSchema()).run(hast);
@@ -713,7 +827,7 @@ export async function compileMarkdownArticle({ source, sourcePath, rootPath = RO
   const dek = metadata.dek;
   const titleHtml = renderTextSlot(title, metadata.speechMarkup?.title, location);
   const dekHtml = renderTextSlot(dek, metadata.speechMarkup?.dek, location);
-  return { metadata: structuredClone(metadata), slots: { heading: titleHtml, dek: dekHtml, body: html } };
+  return { metadata: structuredClone(metadata), slots: { heading: titleHtml, dek: dekHtml, body: html }, ...(v2 ? { headingAnchor: compilerContext.headingAnchor } : {}) };
 }
 
 function escapeHtml(value) {

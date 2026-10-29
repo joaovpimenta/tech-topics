@@ -37,10 +37,17 @@ def main():
         built = subprocess.run(
             [node, str(ROOT / "scripts" / "build-markdown-browser-fixture.mjs"),
              "--destination", str(destination)],
-            cwd=ROOT, check=True, capture_output=True, text=True, encoding="utf-8",
+            cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
         )
+        if built.returncode:
+            raise RuntimeError(
+                f"Markdown browser fixture build failed (exit {built.returncode}).\n"
+                f"stdout:\n{built.stdout or '(empty)'}\n"
+                f"stderr:\n{built.stderr or '(empty)'}"
+            )
         identity = json.loads(built.stdout.strip().splitlines()[-1])
         assert identity["buildId"] and Path(identity["destination"]).is_dir()
+        assert (destination / "assets" / "preview" / "preview-cover.jpg").is_file()
 
         handler = functools.partial(BasePathHandler, directory=str(destination))
         server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
@@ -62,14 +69,23 @@ def main():
                     page.route("**/*", lambda route: route.continue_()
                                if route.request.url.startswith(origin + "/") else route.abort())
 
-                    page.goto(base + "/article.html?slug=preview", wait_until="domcontentloaded")
+                    page.goto(base + "/preview/#fontes", wait_until="domcontentloaded")
+                    assert page.title() == "Preview de migração — Tech Topics"
+                    assert page.locator('link[rel="canonical"]').get_attribute("href") == "../preview/"
+                    assert page.evaluate("location.hash") == "#fontes"
                     page.locator("#article-actions").wait_for(state="visible", timeout=20000)
                     assert page.locator("#article-heading").inner_text() == "Preview de migração"
                     assert page.locator("#article-dek").inner_text() == "Catálogo leve e corpo HTML compilado."
                     assert "metadados no catálogo" in page.locator("#article-body").inner_text()
-                    link = page.locator("#article-body a").get_attribute("href")
-                    assert link.startswith("assets/preview/manual.pdf?")
-                    assert urlsplit(base + "/article.html").path.rsplit("/", 1)[0] + "/" + link.split("?", 1)[0] == "/tech-topics/assets/preview/manual.pdf"
+                    assert page.locator('#article-body nav[aria-label="Neste artigo"] a[href="#fontes"]').count() == 1
+                    assert page.locator("#fontes").count() == 1
+                    link = page.locator('#article-body a[href*="manual.pdf"]').get_attribute("href")
+                    assert link.startswith("../assets/preview/manual.pdf?")
+                    assert page.locator('#article-body a[href*="manual.pdf"]').evaluate("a => new URL(a.href).pathname") == "/tech-topics/assets/preview/manual.pdf"
+                    page.goto(base + "/article.html?slug=preview#fontes", wait_until="domcontentloaded")
+                    page.locator("#article-actions").wait_for(state="visible", timeout=20000)
+                    assert page.locator("#article-heading").inner_text() == "Preview de migração"
+                    assert page.evaluate("location.hash") == "#fontes"
 
                     page.goto(base + "/index.html?q=seguranca", wait_until="domcontentloaded")
                     page.locator(".recent-item").first.wait_for(state="visible", timeout=20000)

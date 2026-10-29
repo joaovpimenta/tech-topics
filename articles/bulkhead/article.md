@@ -1,32 +1,51 @@
 ---
-'slug': 'bulkhead'
-'language': 'pt-BR'
-'title': 'Bulkhead: isolar recursos para conter falhas em cascata'
-'category': 'Resiliência'
-'date': '2 de outubro de 2026'
-'publishedAt': '2026-10-02'
-'read': '26 min de leitura'
-'image': 'assets/bulkhead/bulkhead-cover.jpg'
-'alt': 'Aquarela de um corredor seco de balsa: a sala de máquinas alagada é vista através de uma janela selada de vidro reforçado, enquanto um tripulante aperta a roda de uma porta estanque totalmente fechada e uma passageira observa.'
-'dek': 'Como dividir concorrência, conexões, filas e instâncias preserva funções saudáveis quando uma parte do sistema degrada.'
-'speechMarkup':
-  'title':
-    - 'text': 'Bulkhead'
-      'lang': 'en-US'
-    - 'text': ': isolar recursos para conter falhas em cascata'
-      'lang': 'pt-BR'
-'excerpt': 'Um guia técnico sobre Bulkhead: fronteiras de isolamento, orçamentos de capacidade, células, pools dedicados, observabilidade, trade-offs e adoção incremental.'
-'tags':
-  - 'arquitetura'
-  - 'confiabilidade'
-  - 'resiliencia'
+language: pt-BR
+category: Resiliência
+date: 2 de outubro de 2026
+publishedAt: 2026-10-02
+read: 26 min de leitura
+speechMarkup:
+  title:
+    - text: Bulkhead
+      lang: en-US
+    - text: ": isolar recursos para conter falhas em cascata"
+      lang: pt-BR
+excerpt: "Um guia técnico sobre Bulkhead: fronteiras de isolamento, orçamentos
+  de capacidade, células, pools dedicados, observabilidade, trade-offs e adoção
+  incremental."
+tags:
+  - arquitetura
+  - confiabilidade
+  - resiliencia
+formatVersion: 2
 ---
+
+# Bulkhead: isolar recursos para conter falhas em cascata
+
+> Como dividir concorrência, conexões, filas e instâncias preserva funções saudáveis quando uma parte do sistema degrada.
+
+![Aquarela de um corredor seco de balsa: a sala de máquinas alagada é vista através de uma janela selada de vidro reforçado, enquanto um tripulante aperta a roda de uma porta estanque totalmente fechada e uma passageira observa.](./cover.jpg)
 
 No corredor de manutenção de uma balsa, uma passageira vê, através de uma janela de vidro reforçado, água invadindo uma sala de máquinas e pergunta por que o tripulante está apertando a roda de uma porta pesada já fechada em vez de tentar entrar; ele termina de vedar a porta e explica que a ideia é perder aquele compartimento para manter o restante do navio seco. Ela observa o corredor ainda seguro e entende a troca: sacrificar uma parte para preservar o conjunto. Em software, <span lang="en-US">Bulkhead</span> aplica a mesma lógica ao separar recursos e capacidade em compartimentos independentes, para que lentidão, exaustão ou falha em um deles não consuma tudo o que os outros precisam para continuar funcionando.
 
 <div class="article-callout"><p><strong>Ideia central:</strong> um <span lang="en-US">bulkhead</span> não impede a falha original. Ele limita o raio de impacto ao decidir antecipadamente quais recursos uma classe de trabalho, dependência, cliente ou célula pode consumir.</p></div>
 
-<nav aria-label="Neste artigo"><strong>Neste guia</strong><ul><li><a href="#bh-problema">Quando recursos compartilhados viram propagadores de falha</a></li><li><a href="#bh-origem">Origem e definição do padrão</a></li><li><a href="#bh-mecanismo">Como o isolamento funciona</a></li><li><a href="#bh-matematica">Orçamento de capacidade e matemática útil</a></li><li><a href="#bh-formas">Semáforos, pools, filas, processos e células</a></li><li><a href="#bh-combinacoes">Relação com timeout, circuit breaker e load shedding</a></li><li><a href="#bh-operacao">Observabilidade e operação</a></li><li><a href="#bh-adocao">Adoção incremental</a></li><li><a href="#bh-fontes">Fontes</a></li></ul></nav>
+## Neste artigo
+
+- [1. Quando recursos compartilhados viram propagadores de falha](#bh-problema)
+- [2. De compartimentos estanques a fronteiras de falha](#bh-origem)
+- [3. O mecanismo: reservar capacidade e impedir transbordamento](#bh-mecanismo)
+- [4. Orçamento de capacidade: quanto reservar em cada compartimento?](#bh-matematica)
+- [5. Formas de implementação e o que cada uma realmente isola](#bh-formas)
+- [6. Bulkhead não substitui timeout, circuit breaker, backpressure nem load shedding](#bh-combinacoes)
+- [7. Operação: um bulkhead invisível é difícil de dimensionar](#bh-operacao)
+- [8. Onde o padrão falha ou vira custo sem benefício](#8-onde-o-padrão-falha-ou-vira-custo-sem-benefício)
+- [9. Uma sequência incremental de adoção](#bh-adocao)
+- [10. Como decidir se Bulkhead vale a pena](#10-como-decidir-se-bulkhead-vale-a-pena)
+- [11. Resumo mental](#11-resumo-mental)
+- [12. Perguntas de revisão](#12-perguntas-de-revisão)
+- [13. Exercícios](#13-exercícios)
+- [14. Fontes e leituras recomendadas](#bh-fontes)
 
 <a name="bh-problema"></a>
 
@@ -40,7 +59,9 @@ O [Azure Architecture Center](<https://learn.microsoft.com/en-us/azure/architect
 
 O ponto sutil é que a causa inicial pode ser externa. Uma API de terceiros pode congelar, um banco pode aumentar a latência, um cliente pode gerar carga anormal ou um lote pode executar uma consulta cara. O <span lang="en-US">bulkhead</span> atua no efeito local: ele evita que uma classe de trabalho transforme lentidão ou falha parcial em exaustão global.
 
-<h3>Falha funcional e falha de capacidade são coisas diferentes</h3>
+
+### Falha funcional e falha de capacidade são coisas diferentes
+
 
 Se uma dependência retorna erro rapidamente, o chamador perde aquela função, mas pode liberar seus recursos quase de imediato. Uma dependência que responde em 30 segundos pode ser mais perigosa: cada chamada ocupa memória, sockets, conexões, workers ou permissões de concorrência por muito tempo. A fila cresce, os tempos limite disparam e clientes podem repetir requisições.
 
@@ -66,8 +87,6 @@ O padrão começa por classificar trabalho em grupos que merecem destinos de fal
 
 Depois, cada grupo recebe uma fronteira de capacidade. O princípio é simples: quando o compartimento A chega ao limite, ele deve esperar, rejeitar, degradar ou falhar **dentro de A**. Não pode pegar silenciosamente toda a capacidade reservada para B e C.
 
-<!-- tech-topics:mermaid {"label":"Fluxo de uma API que classifica requisições em três pools isolados. O pool de relatórios pode saturar sem ocupar os pools de pagamentos e catálogo."} -->
-
 ```mermaid
 flowchart LR
   R[Requisições] --> C{Classificar}
@@ -83,26 +102,22 @@ flowchart LR
 
 <figcaption>Fluxo conceitual. A saturação em relatórios termina na própria fronteira; pagamentos e catálogo mantêm seus orçamentos de concorrência. A separação só funciona se não houver outro recurso crítico compartilhado fora do desenho.</figcaption>
 
-<details class="mermaid-fallback"><summary>Ver o código Mermaid</summary><pre class="code-block">flowchart LR
-  R[Requisições] --&gt; C{Classificar}
-  C --&gt; P[Pool pagamentos]
-  C --&gt; K[Pool catálogo]
-  C --&gt; B[Pool relatórios]
-  P --&gt; DP[Dependência pagamentos]
-  K --&gt; DK[Dependência catálogo]
-  B --&gt; DR[Dependência relatórios lenta]
-  DR --&gt; S[Saturação local]
-  S --&gt; X[Espera limitada ou rejeição]</pre></details>
 
-<h3>Execução normal</h3>
+
+### Execução normal
+
 
 Com todos os destinos saudáveis, cada partição consome apenas a capacidade de que precisa. Se pagamentos usam 8 de 20 permissões, catálogo 18 de 35 e relatórios 10 de 25, há folga dentro de cada fronteira. A desvantagem aparece aqui: 12 permissões ociosas em pagamentos não são automaticamente emprestadas a relatórios.
 
-<h3>Execução durante falha</h3>
+
+### Execução durante falha
+
 
 Se relatórios ficam dez vezes mais lentos, suas 25 permissões são ocupadas e novas tarefas atingem a política local: uma fila curta, um erro de saturação ou um caminho degradado. O sistema perde parte da função de relatórios, mas continua com 20 permissões reservadas para pagamentos e 35 para catálogo. Esse comportamento parcial é a consequência desejada do padrão.
 
-<h3>Fronteiras precisam ser completas o suficiente</h3>
+
+### Fronteiras precisam ser completas o suficiente
+
 
 Separar workers e manter um único pool de 40 conexões de banco pode criar uma falsa sensação de isolamento. Se relatórios consomem as 40 conexões, os três pools de workers continuam distintos no diagrama e igualmente bloqueados na prática. A fronteira precisa cobrir os recursos que realmente propagam a falha.
 
@@ -114,7 +129,9 @@ CPU, memória, descritores de arquivo, filas de execução, conexões, limites d
 
 Não existe um número universal. A divisão nasce de carga observada, tempos de serviço, criticidade e custo de ficar sem capacidade. Ainda assim, três relações simples ajudam a raciocinar.
 
-<h3>4.1 A soma dos orçamentos</h3>
+
+### 4.1 A soma dos orçamentos
+
 
 Se um processo pode sustentar aproximadamente `C` operações concorrentes, uma configuração rígida pode reservar:
 
@@ -122,7 +139,9 @@ Se um processo pode sustentar aproximadamente `C` operações concorrentes, uma 
 
 em que cada `B` é o limite de concorrência de uma partição e `H` é uma margem de segurança ou capacidade deliberadamente não comprometida. Essa equação é um orçamento, não uma lei física: o verdadeiro limite pode variar com CPU, memória, latência das dependências e distribuição de custos por requisição.
 
-<h3>4.2 Concorrência necessária cresce com taxa e duração</h3>
+
+### 4.2 Concorrência necessária cresce com taxa e duração
+
 
 Pela Lei de Little, em regime estável, a concorrência média pode ser aproximada por `L = λ × W`, em que `λ` é a taxa de conclusões e `W` é o tempo médio dentro da fronteira. Se pagamentos processam 120 requisições por segundo em 80 ms, a concorrência média é aproximadamente:
 
@@ -130,7 +149,9 @@ Pela Lei de Little, em regime estável, a concorrência média pode ser aproxima
 
 Reservar exatamente 10 seria frágil porque a média esconde picos e caudas. Testes de carga e distribuições de latência precisam definir margem. O cálculo serve para detectar ordens de grandeza absurdas, não para produzir o número final sozinho.
 
-<h3>4.3 Um exemplo com três classes</h3>
+
+### 4.3 Um exemplo com três classes
+
 
 Considere um serviço com 80 slots sustentáveis. Em operação saudável:
 
@@ -144,7 +165,9 @@ Uma configuração ilustrativa poderia reservar 20 para pagamentos, 35 para cat�
 
 <div class="article-callout"><p><strong>Trade-off estrutural:</strong> isolamento troca eficiência média por previsibilidade durante degradação. Quanto mais rígida a partição, menor a chance de uma classe roubar capacidade das outras — e maior a chance de existir capacidade ociosa em um compartimento enquanto outro rejeita trabalho.</p></div>
 
-<h3>Reserva rígida, reserva mínima e empréstimo controlado</h3>
+
+### Reserva rígida, reserva mínima e empréstimo controlado
+
 
 Nem todo <span lang="en-US">bulkhead</span> precisa ser completamente rígido. Alguns sistemas usam capacidade mínima garantida por classe e permitem empréstimo de excedente quando existe folga. Isso melhora utilização, mas torna a contenção mais complexa: o empréstimo precisa ser revogável e não pode deixar a classe crítica sem seu piso quando a carga muda.
 
@@ -154,31 +177,43 @@ Antes de criar um algoritmo sofisticado, valide se pools fixos resolvem o proble
 
 ## 5. Formas de implementação e o que cada uma realmente isola
 
-<h3>Semáforo: limitar concorrência sem trocar de executor</h3>
+
+### Semáforo: limitar concorrência sem trocar de executor
+
 
 Um semáforo mantém no máximo `N` chamadas simultâneas para uma dependência. É uma forma leve de proteger concorrência e combina bem com modelos assíncronos. A biblioteca [Resilience4j](<https://resilience4j.readme.io/v1.0.0/docs/bulkhead>) documenta um `SemaphoreBulkhead` e um `FixedThreadPoolBulkhead` como duas implementações distintas.
 
 O semáforo não cria CPU, memória ou conexões separadas. Se todas as classes continuam usando o mesmo executor saturado ou o mesmo pool de banco, o isolamento cobre apenas o número de execuções simultâneas naquela entrada.
 
-<h3>Pool de threads ou workers dedicado</h3>
+
+### Pool de threads ou workers dedicado
+
 
 Uma fila limitada e um conjunto dedicado de workers criam uma fronteira mais explícita. Trabalho lento em A ocupa workers de A. B continua tendo seu executor. Essa abordagem ajuda quando operações são bloqueantes, mas aumenta custo de threads, filas, dimensionamento e mudança de contexto.
 
 Fila ilimitada destrói boa parte do benefício. Se a partição tem 20 workers, porém aceita 100 mil itens pendentes, a falha foi convertida de exaustão de workers em backlog, memória e latência. O limite de fila faz parte do contrato do <span lang="en-US">bulkhead</span>.
 
-<h3>Pool de conexões por dependência</h3>
+
+### Pool de conexões por dependência
+
 
 Separar conexões costuma ser uma fronteira importante para bancos, caches e APIs. Se a integração A tem 15 conexões e B tem 10, uma explosão de A não consegue ocupar as dez de B. Ainda assim, ambos podem compartilhar o mesmo banco ou proxy abaixo dos pools; nesse nível, a falha pode voltar a se encontrar.
 
-<h3>Fila assíncrona por classe</h3>
+
+### Fila assíncrona por classe
+
 
 Trabalho em segundo plano pode ser particionado por filas e consumidores dedicados: notificações críticas em uma fila, geração de relatórios em outra, por exemplo. A fronteira torna backlog e capacidade visíveis por classe. Isso também permite políticas diferentes de retry, prioridade e retenção.
 
-<h3>Processos, contêineres e limites de recursos</h3>
+
+### Processos, contêineres e limites de recursos
+
 
 Quando o risco inclui vazamento de memória, CPU ou falha de processo, uma partição interna pode ser insuficiente. Processos ou contêineres separados adicionam fronteiras de ciclo de vida e podem receber limites próprios. O Azure cita processos, containers e grupos separados de instâncias como níveis possíveis de isolamento no padrão.
 
-<h3>Células: bulkhead em escala de arquitetura</h3>
+
+### Células: bulkhead em escala de arquitetura
+
 
 Uma arquitetura celular replica um conjunto completo de componentes e roteia subconjuntos do tráfego para células independentes. A AWS recomenda escolher uma chave de partição alinhada ao domínio do serviço, minimizar interações entre células, evitar estado compartilhado e manter o roteador simples. A ideia é que uma implantação ruim, poison pill ou saturação fique restrita a uma célula.
 
@@ -196,7 +231,9 @@ Considere uma API de frete que chama três transportadoras. Um <span lang="en-US
 
 Retries merecem atenção especial. Se cada partição tem limite 20, mas toda rejeição gera três novas tentativas imediatas fora da mesma política, o sistema pode deslocar pressão para outra camada e ampliar o incidente. Retry precisa respeitar tempo limite, orçamento e a mesma fronteira de capacidade.
 
-<h3>Bulkhead e load shedding são parceiros naturais</h3>
+
+### Bulkhead e load shedding são parceiros naturais
+
 
 Quando um compartimento chega ao limite, alguma coisa precisa acontecer com a próxima chegada. Em sistemas síncronos, frequentemente a resposta correta é rejeitar cedo. Em sistemas assíncronos, pode ser usar fila limitada e aplicar backpressure. O <span lang="en-US">bulkhead</span> define *onde* a capacidade acaba; a política de admissão define *o que fazer* quando ela acaba.
 
@@ -206,7 +243,9 @@ Quando um compartimento chega ao limite, alguma coisa precisa acontecer com a pr
 
 Particionar capacidade sem medir saturação cria dois riscos simétricos: acreditar que existe proteção quando uma fronteira vive em 100% de uso, ou desperdiçar recursos durante meses porque o limite foi superdimensionado.
 
-<h3>Métricas por partição</h3>
+
+### Métricas por partição
+
 
 - **uso atual e limite:** concorrência ativa, workers ocupados, conexões em uso;
 - **saturação:** fração do tempo próxima ou no limite;
@@ -219,39 +258,57 @@ Particionar capacidade sem medir saturação cria dois riscos simétricos: acred
 
 O alerta mais útil nem sempre é o limite absoluto. Uma partição que passa de 20% para 95% em cinco minutos pode exigir atenção antes de começar a rejeitar. Da mesma forma, rejeições podem ser comportamento esperado sob sobrecarga; o problema é quando atingem tráfego crítico ou permanecem altas fora de cenários previstos.
 
-<h3>Logs e tracing precisam carregar a identidade da partição</h3>
+
+### Logs e tracing precisam carregar a identidade da partição
+
 
 Inclua no contexto operacional a classe, dependência ou célula responsável. Em tracing distribuído, registre qual <span lang="en-US">bulkhead</span> foi adquirido, quanto tempo a chamada esperou e se houve rejeição. Sem isso, todos os erros parecem vir do mesmo serviço e a fronteira arquitetural desaparece na observabilidade.
 
-<h3>Teste o comportamento degradado, não apenas o caminho feliz</h3>
+
+### Teste o comportamento degradado, não apenas o caminho feliz
+
 
 Um teste relevante deixa uma dependência lenta, não apenas indisponível. Verifique se a partição satura, se novas chamadas falham no tempo esperado, se as outras classes mantêm throughput e latência aceitáveis e se filas permanecem limitadas.
 
 Para células, teste falhas de implantação e tráfego anormal por partição. A AWS alerta contra atualizar todas as células ao mesmo tempo: se o mesmo defeito entra simultaneamente em todas, a arquitetura perde o benefício de limitar o raio de impacto.
 
-<h2>8. Onde o padrão falha ou vira custo sem benefício</h2>
 
-<h3>Partição por organograma, não por risco</h3>
+## 8. Onde o padrão falha ou vira custo sem benefício
+
+
+
+### Partição por organograma, não por risco
+
 
 Criar um pool por microserviço só porque existem microserviços pode não isolar o recurso que realmente causa a falha. Uma fronteira útil começa pelo modo de falha: quem pode bloquear quem, e por qual recurso?
 
-<h3>Granularidade fina demais</h3>
+
+### Granularidade fina demais
+
 
 Um pool por endpoint, cliente e dependência pode gerar centenas de limites difíceis de operar. A capacidade se fragmenta, configuração fica instável e incidentes viram um quebra-cabeça de orçamentos. Agrupe trabalhos com perfil de custo e criticidade semelhantes quando o risco permitir.
 
-<h3>Granularidade grossa demais</h3>
+
+### Granularidade grossa demais
+
 
 No extremo oposto, colocar tudo em um único compartimento mantém simplicidade e também mantém o domínio de falha global. Se uma classe conhecida como lenta ou imprevisível divide recursos críticos com caminhos de alta prioridade, o isolamento provavelmente está ausente justamente onde é necessário.
 
-<h3>Compartilhamento escondido</h3>
+
+### Compartilhamento escondido
+
 
 Dois containers com CPU separada podem compartilhar o mesmo banco sem quota, a mesma fila, o mesmo cache ou um roteador central frágil. O diagrama de deployment mostra dois blocos; o domínio de falha real continua único.
 
-<h3>Limite sem política de excesso</h3>
+
+### Limite sem política de excesso
+
 
 Quando o pool está cheio, enfileirar indefinidamente apenas muda o lugar da exaustão. Defina espera máxima, capacidade de fila, rejeição e semântica de retry.
 
-<h3>Isolamento como desculpa para ignorar capacidade total</h3>
+
+### Isolamento como desculpa para ignorar capacidade total
+
 
 Bulkheads limitam propagação; não criam capacidade. Se todos os compartimentos estão saturados pela demanda legítima, o sistema ainda precisa de escala, otimização, cache, mudanças de produto ou limitação de carga.
 
@@ -268,7 +325,9 @@ Bulkheads limitam propagação; não criam capacidade. Se todos os compartimento
 7. **Ajuste limites com dados.** Use carga real, testes e margens explícitas; não deixe valores iniciais virarem constantes sagradas.
 8. **Expanda o domínio de isolamento somente se necessário.** Passe de concorrência para conexões, processos ou células quando a falha atravessar a camada atual.
 
-<h3>Exemplo de política conceitual</h3>
+
+### Exemplo de política conceitual
+
 
 O pseudocódigo abaixo mostra uma decisão simples. A fronteira de relatórios oferece no máximo 25 permissões e não espera indefinidamente. A implementação real deve tratar cancelamento, métricas e propagação do prazo restante.
 
@@ -276,7 +335,9 @@ O pseudocódigo abaixo mostra uma decisão simples. A fronteira de relatórios o
 
 O comportamento importante não é a sintaxe. É que o caminho não pega uma permissão de pagamentos quando as 25 de relatórios estão ocupadas.
 
-<h2>10. Como decidir se Bulkhead vale a pena</h2>
+
+## 10. Como decidir se Bulkhead vale a pena
+
 
 O padrão costuma ser apropriado quando existe pelo menos uma destas condições:
 
@@ -291,7 +352,9 @@ Ele pode ser prematuro quando a aplicação é pequena, a capacidade é abundant
 
 A decisão correta não é maximizar a quantidade de compartimentos. É escolher fronteiras que representem diferenças reais de criticidade e comportamento sob falha.
 
-<h2>11. Resumo mental</h2>
+
+## 11. Resumo mental
+
 
 - **Bulkhead contém, não cura.** A falha continua existindo, mas perde alcance.
 - **A unidade de isolamento é um recurso escasso.** Concorrência, threads, conexões, filas, processos ou células.
@@ -301,7 +364,9 @@ A decisão correta não é maximizar a quantidade de compartimentos. É escolher
 - **Observabilidade é parte do desenho.** Meça saturação, fila, rejeição, latência e recurso comum abaixo da fronteira.
 - **Combine padrões.** Timeout limita duração, circuit breaker reduz chamadas ruins, load shedding controla admissão e bulkhead limita quanto uma classe pode consumir.
 
-<h2>12. Perguntas de revisão</h2>
+
+## 12. Perguntas de revisão
+
 
 1. Por que uma dependência lenta pode ser mais perigosa para a capacidade local do que uma dependência que falha rapidamente?
 2. Qual a diferença entre isolar concorrência com um semáforo e isolar CPU ou memória com processos separados?
@@ -310,7 +375,9 @@ A decisão correta não é maximizar a quantidade de compartimentos. É escolher
 5. Que recurso compartilhado poderia invalidar uma separação perfeita de pools de threads?
 6. Quando uma arquitetura celular oferece um domínio de falha diferente de um simples pool local?
 
-<h2>13. Exercícios</h2>
+
+## 13. Exercícios
+
 
 1. **Orçamento de concorrência.** Escolha três rotas de uma API real ou hipotética. Estime taxa e duração média de cada uma, calcule `L = λ × W` e proponha limites com margem. Depois descreva qual tráfego seria rejeitado primeiro.
 2. **Caça ao compartilhamento escondido.** Pegue um diagrama de arquitetura e marque em uma lista tudo que duas funções aparentemente isoladas ainda compartilham: banco, cache, pool de conexões, cluster, fila, quota, DNS, roteador ou processo.

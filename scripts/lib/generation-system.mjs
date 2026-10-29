@@ -1,8 +1,13 @@
 import { lstat, readFile, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
-import { parseArticleFrontmatter, validateArticleMetadata } from "./markdown-article.mjs";
+import { parseArticleFrontmatter, parseV2Article, validateArticleMetadata } from "./markdown-article.mjs";
 
 const ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+// Directory names are reserved for source, build, and published resources;
+// index and article are existing root pages and must not become article routes.
+const RESERVED_ARTICLE_SLUGS = new Set([
+  "articles", "assets", "content", "dist", "docs", "generation", "scripts", "tools", "index", "article"
+]);
 const HARD_LIMITS = Object.freeze({
   maxFrameworks: 5,
   maxModuleBytes: 16 * 1024,
@@ -267,6 +272,17 @@ export async function discoverArticleSources(root, { taxonomy } = {}) {
   const jsonSources = entries.filter(file => file.endsWith(".json"));
   assert(jsonSources.length === 0, `individual article JSON sources are no longer supported: ${jsonSources.join(", ")}`);
   const files = entries.filter(file => /^[a-z0-9]+(?:-[a-z0-9]+)*\.md$/.test(file)).sort();
+  const v2Files = [];
+  const v2Root = path.resolve(root, "articles");
+  try {
+    const rootStats = await lstat(v2Root);
+    assert(rootStats.isDirectory() && !rootStats.isSymbolicLink(), "articles must be a regular directory");
+    for (const entry of await readdir(v2Root, { withFileTypes: true })) {
+      assert(entry.isDirectory() && !entry.isSymbolicLink() && ID_PATTERN.test(entry.name), `invalid article directory: ${entry.name}`);
+      v2Files.push(`articles/${entry.name}/article.md`);
+    }
+  } catch (error) { if (error.code !== "ENOENT") throw error; }
+  files.push(...v2Files.sort());
   let activeTaxonomy = taxonomy;
   if (!activeTaxonomy) {
     const generationRoot = path.resolve(root, "generation");
@@ -277,13 +293,16 @@ export async function discoverArticleSources(root, { taxonomy } = {}) {
   const sources = [];
   const metadataBySlug = new Map();
   for (const file of files) {
-    const sourcePath = path.join(articlesDirectory, file);
+    const v2 = file.startsWith("articles/");
+    const sourcePath = v2 ? path.join(root, file) : path.join(articlesDirectory, file);
     const stats = await lstat(sourcePath);
     assert(stats.isFile() && !stats.isSymbolicLink(), `${file}: article source must be a regular file`);
     const sourceType = "markdown";
     const raw = await readFile(sourcePath, "utf8");
-    const parsed = parseMarkdownMetadata(raw, file);
+    const checked = parseMarkdownMetadata(raw, file);
+    const parsed = v2 ? parseV2Article(raw, file) : checked;
     const article = { ...parsed.metadata };
+    assert(!RESERVED_ARTICLE_SLUGS.has(article.slug), `${file}: reserved article slug: ${article.slug}`);
     delete article.bodyHtml;
     metadataBySlug.set(article.slug, article);
     sources.push({ slug: article.slug, title: article.title, dek: article.dek, excerpt: article.excerpt || "", tags: article.tags ?? [], sourceType, file });
@@ -296,7 +315,7 @@ export async function discoverArticleSources(root, { taxonomy } = {}) {
   const knownSlugs = new Set(bySlug.keys());
   for (const source of sources) {
     validateArticleMetadata(metadataBySlug.get(source.slug), {
-      sourcePath: `content/articles/${source.file}`,
+      sourcePath: source.file.startsWith("articles/") ? source.file : `content/articles/${source.file}`,
       rootPath: root,
       knownTags: tagIds,
       knownSlugs,

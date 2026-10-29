@@ -14,7 +14,6 @@ async function walk(dir) {
 
 async function main() {
   const root = path.resolve(__dirname, "..");
-  const articlesDir = path.join(root, "content", "articles");
   const assetsDir = path.join(root, "assets");
   const failures = [];
 
@@ -23,21 +22,16 @@ async function main() {
       failures.push("technical SVG remains: " + path.relative(root, file));
     }
   }
+  try {
+    for (const file of await walk(path.join(root, "articles"))) {
+      if (file.endsWith(".svg")) failures.push("technical SVG remains: " + path.relative(root, file));
+    }
+  } catch (error) { if (error.code !== "ENOENT") throw error; }
 
-  const [{ compileMarkdownArticle }] = await Promise.all([import("./lib/markdown-article.mjs")]);
-  const taxonomy = JSON.parse(await readFile(path.join(root, "generation", "taxonomy", "tags.json"), "utf8"));
-  const articleFiles = (await readdir(articlesDir)).filter(file => file.endsWith(".md"));
-  const knownSlugs = new Set(articleFiles.map(file => file.slice(0, -3)));
+  const { compileArticleCorpus } = await import("./lib/article-corpus.mjs");
+  const corpus = await compileArticleCorpus(root);
   let total = 0;
-  for (const file of articleFiles) {
-    const sourcePath = path.join(articlesDir, file);
-    const compiled = await compileMarkdownArticle({
-      source: await readFile(sourcePath, "utf8"),
-      sourcePath: path.relative(root, sourcePath),
-      rootPath: root,
-      knownTags: new Set(Object.keys(taxonomy.tags)),
-      knownSlugs,
-    });
+  for (const { file, compiled } of corpus) {
     const bodyHtml = compiled.slots.body;
     const diagrams = (bodyHtml.match(/data-mermaid\s*=\s*["']true["']/gi) || []).length;
     const sources = (bodyHtml.match(/class\s*=\s*["'][^"']*\bmermaid-source\b[^"']*["']/gi) || []).length;

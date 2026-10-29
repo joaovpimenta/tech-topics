@@ -55,10 +55,11 @@ export function validateDomAuditReport(report, { expectedSourceSha, baselineSha,
 export function discoverArticleSources(entries, ref) {
   const sources = new Map();
   for (const file of entries) {
-    if (!file.startsWith("content/articles/")) continue;
-    const match = file.match(/^content\/articles\/([a-z0-9]+(?:-[a-z0-9]+)*)\.(json|md)$/);
+    const match = file.match(/^(?:content\/articles\/([a-z0-9]+(?:-[a-z0-9]+)*)\.(json|md)|articles\/([a-z0-9]+(?:-[a-z0-9]+)*)\/article\.(md))$/);
     if (!match || ["index", "catalog"].includes(match[1])) continue;
-    const [, slug, extension] = match;
+    const [, flatSlug, flatExtension, nestedSlug, nestedExtension] = match;
+    const slug = flatSlug ?? nestedSlug;
+    const extension = flatExtension ?? nestedExtension;
     if (!sources.has(slug)) sources.set(slug, []);
     sources.get(slug).push({ file, extension });
   }

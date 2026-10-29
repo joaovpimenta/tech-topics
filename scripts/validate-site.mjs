@@ -6,6 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const checks = [
   ["Check repository diagnostics", ["scripts/test-repository-health.mjs"]],
   ["Run article contract tests", ["scripts/test-article-contract.mjs"]],
+  ["Run article v2 contract tests", ["scripts/test-markdown-v2.mjs"]],
   ["Run migration baseline contract tests", ["scripts/test-migration-baseline.mjs"]],
   ["Run migration comparison tests", ["scripts/test-migration-compare.mjs"]],
   ["Run migration effect workflow tests", ["scripts/test-migration-effects.mjs"]],

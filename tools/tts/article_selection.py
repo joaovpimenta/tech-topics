@@ -26,12 +26,26 @@ def local_source_inventory(article_dir: Path = ARTICLE_DIR) -> dict[str, Path]:
     sources: dict[str, Path] = {}
     if not article_dir.is_dir():
         raise ValueError(f"Diretório de artigos não encontrado: {article_dir}")
-    for path in sorted(article_dir.iterdir()):
+    paths = list(sorted(article_dir.iterdir()))
+    nested_dir = article_dir.parent.parent / "articles" if article_dir.parent.name == "content" else None
+    if nested_dir and nested_dir.exists():
+        if nested_dir.is_symlink() or not nested_dir.is_dir():
+            raise ValueError(f"Diretório de artigos inválido: {nested_dir}")
+        paths.extend(sorted(nested_dir.iterdir()))
+    for path in paths:
         if path.suffix == ".json":
             raise ValueError(f"Arquivos JSON não são permitidos no diretório corrente de artigos: {path.name}")
-        if path.suffix != ".md":
+        if path.is_symlink():
+            raise ValueError(f"Fonte de artigo não pode ser link simbólico: {path.name}")
+        if path.is_dir():
+            slug = path.name
+            path = path / "article.md"
+            if not path.exists() and not path.is_symlink():
+                continue
+        elif path.suffix == ".md":
+            slug = path.stem
+        else:
             continue
-        slug = path.stem
         if not SLUG.fullmatch(slug):
             raise ValueError(f"Nome de fonte de artigo inválido: {path.name}")
         if path.is_symlink() or not path.is_file():
@@ -158,7 +172,8 @@ def _artifact_build_id(dist_dir: Path, catalog: dict) -> str:
         raise ValueError("Manifesto HTML e arquivos presentes no artefato divergem.")
     if "sw-version.js" not in declared:
         raise ValueError("Artefato HTML não contém o manifesto de cache da PWA.")
-    if any(re.fullmatch(r"content/articles/[^/]+\.(?:json|md)", file) for file in actual):
+    if any(re.fullmatch(r"(?:content/articles/[^/]+\.(?:json|md)|articles/[^/]+/article\.md)", file)
+           for file in actual):
         raise ValueError("Pacote HTML não pode conter fontes individuais de artigos.")
 
     base_catalog = {
@@ -337,8 +352,10 @@ def _git_sources(repository: Path, sha: str) -> dict[str, tuple[str, str, str]]:
         slug, path, blob, extension = (record.get("slug"), record.get("file"),
                                        record.get("blob"), record.get("extension"))
         if (not isinstance(slug, str) or not SLUG.fullmatch(slug)
-                or path != f"content/articles/{slug}.{extension}"
+                or path not in {f"content/articles/{slug}.{extension}",
+                                f"articles/{slug}/article.md"}
                 or extension not in {"json", "md"}
+                or (path.endswith("/article.md") and extension != "md")
                 or not isinstance(blob, str) or not re.fullmatch(r"[a-f0-9]{40}", blob)):
             raise ValueError(f"Registro de fonte inválido em {sha}: {record!r}")
         if slug in sources:
@@ -388,23 +405,44 @@ def added_slugs(before: str, after: str, repository: Path = ROOT) -> list[str]:
     return added
 
 
-def spoken_changes(before: str, after: str, repository: Path = ROOT) -> list[str]:
-    """Modified existing JSON/Markdown sources whose spoken output changed."""
+def narration_signatures(article: dict, lexicon: dict) -> tuple[str, str]:
+    from kokoro_release import segments_for_article
+    from segmentation import plan_segments
+    blocks = segments_for_article(article, lexicon, sentence_aware=True)
+    # An unlimited fake budget keeps logical sentences intact without a model.
+    units = plan_segments(blocks, lambda _runs: (1, 1))
+    speech = [{"runs": unit["runs"], "pause": unit["pause_after_seconds"]} for unit in units]
+    mapping = [{"block_index": unit["block_index"], "sentence_index": unit["sentence_index"]}
+               for unit in units]
+    def digest(value: list) -> str:
+        return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True,
+                                          separators=(",", ":")).encode("utf-8")).hexdigest()
+    return digest(speech), digest(mapping)
+
+
+def narration_impact(before: str, after: str, repository: Path = ROOT) -> dict:
+    """Compare speech and editorial chapter frames without synthesizing audio.
+
+    Mapping is a diagnostic, not proof of compatibility with a published
+    chapter file or the browser DOM; those require independent validation.
+    """
     if (not SHA.fullmatch(before) or not SHA.fullmatch(after)
             or before == "0" * 40 or after == "0" * 40):
         raise ValueError("SHAs ausentes ou zerados para revisão de artigos existentes.")
     old_sources = _git_sources(repository, before)
     new_sources = _git_sources(repository, after)
     changed = sorted(slug for slug in set(old_sources) & set(new_sources)
-                     if old_sources[slug][1] != new_sources[slug][1])
-    if not changed:
-        return []
+                     if old_sources[slug][:2] != new_sources[slug][:2])
+    report = {"version": 1, "before": before, "after": after,
+              "scope": "existing-article-source-changes",
+              "chapterCompatibility": "unverified", "articles": []}
     for path in ("content/tts-lexicon.json", "tools/tts/narration_text.py",
                  "tools/tts/segmentation.py", "tools/tts/kokoro_release.py"):
         if _blob_at(repository, before, path) != _blob_at(repository, after, path):
             raise ValueError(f"Extrator ou léxico mudou entre os SHAs; comparação bloqueada: {path}")
+    if not changed:
+        return report
     from narration_text import load_lexicon
-    from kokoro_release import segments_for_article
     lexicon = load_lexicon()
     old_markdown = [slug for slug in changed if old_sources[slug][2] == "md"]
     new_markdown = [slug for slug in changed if new_sources[slug][2] == "md"]
@@ -433,20 +471,29 @@ def spoken_changes(before: str, after: str, repository: Path = ROOT) -> list[str
             raise ValueError(f"HTML compilado ausente para {sha}:{slug}")
         return {"slug": slug, "html": source}
 
-    selected = []
+    impacts = []
     for slug in changed:
         old = at(before, slug, old_sources[slug], old_html, False)
         new = at(after, slug, new_sources[slug], new_html, True)
 
-        def signature(article: dict) -> list[tuple]:
-            units = segments_for_article(article, lexicon)
-            return [(unit["text"],
-                     tuple((run["text"], run["lang"]) for run in unit["runs"]),
-                     unit["pause_after_seconds"]) for unit in units]
+        old_speech, old_mapping = narration_signatures(old, lexicon)
+        new_speech, new_mapping = narration_signatures(new, lexicon)
+        if old_speech != new_speech or old_mapping != new_mapping:
+            impacts.append({"slug": slug,
+                            "speechChanged": old_speech != new_speech,
+                            "mappingChanged": old_mapping != new_mapping,
+                            "speech": {"before": old_speech, "after": new_speech},
+                            "mapping": {"before": old_mapping, "after": new_mapping},
+                            "reasons": (["speech"] if old_speech != new_speech else []) +
+                                       (["chapter-mapping"] if old_mapping != new_mapping else []),
+                            "chapterCompatibility": "unverified"})
+    report["articles"] = impacts
+    return report
 
-        if signature(old) != signature(new):
-            selected.append(slug)
-    return selected
+
+def spoken_changes(before: str, after: str, repository: Path = ROOT) -> list[str]:
+    return [item["slug"] for item in narration_impact(before, after, repository)["articles"]
+            if item["speechChanged"]]
 
 
 def main() -> None:
@@ -461,7 +508,13 @@ def main() -> None:
     parser.add_argument("--build-id", help="Identidade SHA-256 esperada do pacote HTML")
     parser.add_argument("--spoken-changes", action="store_true",
                         help="Somente conteúdo de fala editado")
+    parser.add_argument("--narration-impact", action="store_true",
+                        help="Manifesto diagnóstico de fala e mapeamento, sem síntese")
+    parser.add_argument("--check-compatible", action="store_true",
+                        help="Falhar se o manifesto detectar mudança de fala ou mapeamento")
     args = parser.parse_args()
+    if args.check_compatible and not args.narration_impact:
+        parser.error("--check-compatible exige --narration-impact")
     if args.verify_artifact:
         if not args.after or not args.build_id:
             parser.error("--verify-artifact exige --after e --build-id")
@@ -469,11 +522,20 @@ def main() -> None:
         return
     if args.build_id:
         parser.error("--build-id só pode ser usado com --verify-artifact")
-    if args.spoken_changes and not args.before:
+    if args.spoken_changes and args.narration_impact:
+        parser.error("--spoken-changes e --narration-impact são exclusivos")
+    if (args.spoken_changes or args.narration_impact) and not args.before:
         parser.error("--spoken-changes exige --before e --after")
     if args.before:
         if not args.after:
             parser.error("--after é obrigatório com --before")
+        if args.narration_impact:
+            report = narration_impact(args.before, args.after)
+            print(json.dumps(report, ensure_ascii=False))
+            if args.check_compatible and any(item["speechChanged"] or item["mappingChanged"]
+                                             for item in report["articles"]):
+                raise SystemExit(1)
+            return
         result = (spoken_changes(args.before, args.after)
                   if args.spoken_changes else added_slugs(args.before, args.after))
         for slug in result:

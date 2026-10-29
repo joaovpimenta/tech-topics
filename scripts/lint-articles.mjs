@@ -102,9 +102,10 @@ function scanBody(file, bodyHtml) {
       if (attributeName.startsWith("on")) fail(file, "<" + name + "> uses inline attribute " + attributeName);
     }
 
-    if (attrs.id) {
-      if (ids.has(attrs.id)) fail(file, "duplicate id: " + attrs.id);
-      ids.add(attrs.id);
+    const anchorId = attrs.id || (name === "a" && attrs.name);
+    if (anchorId) {
+      if (ids.has(anchorId)) fail(file, "duplicate id: " + anchorId);
+      ids.add(anchorId);
     }
 
     if (classes.includes("article-table-scroll") || classes.includes("fgs-table-scroll")) {
@@ -165,7 +166,10 @@ function scanBody(file, bodyHtml) {
   }
 
   for (const reference of fragmentRefs) {
-    if (!ids.has(reference)) fail(file, "fragment link points to missing id: " + reference);
+    let decodedReference;
+    try { decodedReference = decodeURIComponent(reference); }
+    catch { fail(file, "fragment link has malformed percent encoding: " + reference); continue; }
+    if (!ids.has(decodedReference)) fail(file, "fragment link points to missing id: " + reference);
   }
   if (diagrams !== diagramSources || diagrams !== diagramFallbacks || diagrams !== mermaidFigures) {
     fail(file, "Mermaid diagrams, sources, fallbacks and figures must have matching counts");
@@ -197,8 +201,8 @@ for (const { file, article } of articles) {
 
   if (typeof article.slug === "string" && typeof article.image === "string") {
     const expectedImage = `assets/${article.slug}/${article.slug}-cover.jpg`;
-    const imagePath = path.resolve(root, article.image);
-    if (article.image === expectedImage && imagePath.startsWith(assetsDir + path.sep)) {
+    const imagePath = file.startsWith("articles/") ? path.resolve(root, "articles", article.slug, "cover.jpg") : path.resolve(root, article.image);
+    if (article.image === expectedImage) {
       try {
         await access(imagePath);
       } catch {
@@ -210,7 +214,9 @@ for (const { file, article } of articles) {
   const localRefs = typeof article.bodyHtml === "string" ? scanBody(file, article.bodyHtml) : new Set();
   for (const reference of localRefs) {
     try {
-      await access(path.join(root, reference));
+      const mapped = file.startsWith("articles/") && reference.startsWith(`assets/${article.slug}/figures/`)
+        ? `articles/${article.slug}/${reference.slice(`assets/${article.slug}/`.length)}` : reference;
+      await access(path.join(root, mapped));
     } catch {
       fail(file, "local asset does not exist: " + reference);
     }

@@ -133,3 +133,7 @@ Os checks de PR executam a validação em Ubuntu, usando a versão declarada em 
 A proteção da `main` exige o check estável `Content and application lint`. Esse check agrega a matriz do PR e só passa quando todas as plataformas passam; não renomeie sem atualizar a proteção correspondente.
 
 O lint automatiza regras estruturais e de segurança. Rigor factual, qualidade da metáfora, correspondência entre abertura e capa e aparência de aquarela continuam sendo critérios editoriais que precisam de revisão humana ou visual.
+
+## Rotas e piloto de autoria v2
+
+A #143 permite corpus misto durante o [piloto Bulkhead](specs/article-v2-pilot.md). O pacote gera `<slug>/index.html`, mantém o transporte `content/articles/<slug>.html` e copia a capa v2 para a URL pública anterior em `assets/`. Visite também a rota limpa e o link legado com hash, sob raiz e `/tech-topics/`; `python scripts/test-pilot-routes-browser.py` cobre esses caminhos. A política offline preserva o conteúdo previamente visitado, sem pré-carregar o acervo inteiro.

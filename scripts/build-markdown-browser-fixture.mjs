@@ -18,38 +18,49 @@ for (const file of PUBLIC_ROOT_FILES) {
 }
 await cp(path.join(root, "assets"), path.join(sourceRoot, "assets"), { recursive: true });
 await cp(path.join(root, "content", "articles"), path.join(sourceRoot, "content", "articles"), { recursive: true });
+await cp(path.join(root, "articles"), path.join(sourceRoot, "articles"), { recursive: true });
 await copyFile(path.join(root, "content", "tts-lexicon.json"),
   path.join(sourceRoot, "content", "tts-lexicon.json"));
 await copyFile(path.join(root, "generation", "taxonomy", "tags.json"),
   path.join(sourceRoot, "generation", "taxonomy", "tags.json"));
 
 await mkdir(path.join(sourceRoot, "assets", "preview"), { recursive: true });
-await copyFile(path.join(root, "assets", "bulkhead", "bulkhead-cover.jpg"),
-  path.join(sourceRoot, "assets", "preview", "preview-cover.jpg"));
+await mkdir(path.join(sourceRoot, "articles", "preview"), { recursive: true });
+await copyFile(path.join(root, "articles", "bulkhead", "cover.jpg"),
+  path.join(sourceRoot, "articles", "preview", "cover.jpg"));
 await writeFile(path.join(sourceRoot, "assets", "preview", "manual.pdf"), "%PDF-1.4\n% fixture\n");
 const opening = "O pacote mantém os metadados no catálogo e carrega o corpo pelo HTML compilado.";
-await writeFile(path.join(sourceRoot, "content", "articles", "preview.md"), `---
-slug: preview
+await writeFile(path.join(sourceRoot, "articles", "preview", "article.md"), `---
 language: pt-BR
-title: "Preview de migração"
 category: Fundamentos
 date: "26 de outubro de 2026"
 publishedAt: "2026-10-26"
 read: "3 min"
-image: assets/preview/preview-cover.jpg
-alt: Capa de preview
 excerpt: Fixture para conferir o pacote HTML no navegador.
-dek: Catálogo leve e corpo HTML compilado.
 tags: [seguranca]
+formatVersion: 2
 ---
+
+# Preview de migração
+
+> Catálogo leve e corpo HTML compilado.
+
+![Capa de preview](./cover.jpg)
 
 ${opening}
 
-[Baixar manual](../../assets/preview/manual.pdf?versao=1#guia)
+## Neste artigo
+
+- [Contrato](#contrato)
+- [Fontes](#fontes)
 
 ## Contrato
 
 A URL pública continua relativa ao shell do site.
+
+## Fontes
+
+[Baixar manual](../../assets/preview/manual.pdf?versao=1#guia)
 `, "utf8");
 
 const result = await buildMarkdownPreview({

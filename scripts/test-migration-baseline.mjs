@@ -281,6 +281,56 @@ test("capture CLI compiles Markdown sources in a mixed historical tree", async (
   } finally { await rm(temp, { recursive: true, force: true }); }
 });
 
+test("capture CLI derives the index count from a Markdown-only revision without a legacy index", async () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const sha = "fe86752b9d23a9cb4d9137cc20cb6ffb7883a959";
+  const temp = await mkdtemp(path.join(os.tmpdir(), "migration-markdown-baseline-test-"));
+  try {
+    const result = spawnSync(process.execPath, [path.join(root, "scripts/capture-migration-baseline.mjs"),
+      "--sha", sha, "--output-root", temp], { cwd: root, encoding: "utf8", maxBuffer: 50 * 1024 * 1024 });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const baseline = JSON.parse(await readFile(path.join(temp, sha, "baseline.json"), "utf8"));
+    assert.equal(baseline.sourceCount, 18);
+    assert.equal(baseline.indexSourceCount, 18);
+    assert.ok(baseline.articles.every(article => article.source.endsWith(".md")));
+  } finally { await rm(temp, { recursive: true, force: true }); }
+});
+
+test("capture CLI resolves v2 cover and figure public paths to source blobs", async () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const temp = await mkdtemp(path.join(os.tmpdir(), "migration-v2-assets-test-"));
+  const repository = path.join(temp, "repository");
+  const runGit = (cwd, ...args) => {
+    const result = spawnSync("git", args, { cwd, encoding: "utf8", maxBuffer: 50 * 1024 * 1024 });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    return result.stdout.trim();
+  };
+  try {
+    runGit(temp, "clone", "--shared", root, repository);
+    runGit(repository, "config", "user.email", "test@example.com");
+    runGit(repository, "config", "user.name", "Test");
+    const articlePath = path.join(repository, "articles/bulkhead/article.md");
+    await mkdir(path.join(repository, "articles/bulkhead/figures"), { recursive: true });
+    await writeFile(path.join(repository, "articles/bulkhead/figures/example.jpg"), "test figure bytes");
+    await writeFile(articlePath, `${await readFile(articlePath, "utf8")}\n![Figura de teste](./figures/example.jpg)\n`);
+    runGit(repository, "add", "articles/bulkhead");
+    runGit(repository, "commit", "-m", "Fixture v2 figure");
+    const sha = runGit(repository, "rev-parse", "HEAD");
+    const outputRoot = path.join(temp, "capture");
+    const result = spawnSync(process.execPath, [path.join(root, "scripts/capture-migration-baseline.mjs"),
+      "--repository", repository, "--sha", sha, "--output-root", outputRoot],
+    { cwd: root, encoding: "utf8", maxBuffer: 50 * 1024 * 1024 });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const baseline = JSON.parse(await readFile(path.join(outputRoot, sha, "baseline.json"), "utf8"));
+    const assets = baseline.articles.find(article => article.slug === "bulkhead").assets;
+    const cover = assets.find(asset => asset.attribute === "image");
+    const figure = assets.find(asset => asset.value === "assets/bulkhead/figures/example.jpg");
+    assert.equal(cover.gitBlob, runGit(repository, "rev-parse", `${sha}:articles/bulkhead/cover.jpg`));
+    assert.ok(figure, "fixture figure must be captured from compiled HTML");
+    assert.equal(figure.gitBlob, runGit(repository, "rev-parse", `${sha}:articles/bulkhead/figures/example.jpg`));
+  } finally { await rm(temp, { recursive: true, force: true }); }
+});
+
 test("baseline validation rejects incomplete or duplicated records", () => {
   assert.match(validateBaseline({ sha: "bad", articles: [record, record] }).join("\n"), /full Git commit SHA/);
   assert.match(validateBaseline({ sha: "a".repeat(40), sourceCount: 2, capture: { sourceTools: [], captureTools: [] }, articles: [record, record] }).join("\n"), /unique/);

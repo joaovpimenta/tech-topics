@@ -18,3 +18,7 @@ Escreva em português brasileiro para uma pessoa desenvolvedora que parte do zer
 Entregue um arquivo `content/articles/<slug>.md` baseado em `generation/templates/article.md`, com tags canônicas de `generation/taxonomy/tags.json`. O build público aceita somente fontes Markdown e compila cada artigo diretamente para HTML. Fontes JSON individuais são rejeitadas; o comparador de migração pode ler JSON apenas em revisões históricas.
 
 O compilador compartilhado valida metadados, catálogo e estrutura Markdown. `node scripts/validate-site.mjs` valida o corpus Markdown e constrói um preview `html-v1` temporário e descartável; `node scripts/build-site.mjs` monta o pacote de produção em `dist/`. Não declare publicação concluída sem verificar o deploy e a experiência no navegador. Não tente contornar os gates em prosa.
+
+## Transição v2
+
+Apenas o piloto Bulkhead usa `articles/bulkhead/article.md` e `cover.jpg` co-localizada nesta etapa. O contrato v2 e a aprovação necessária antes de converter os demais estão em [docs/specs/article-v2-pilot.md](../../docs/specs/article-v2-pilot.md). O template acima continua vigente para v1 até a etapa F7 da #143.

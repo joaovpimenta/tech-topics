@@ -59,7 +59,7 @@ O mesmo princípio vale para blocos de código, fórmulas e diagramas Mermaid: o
 
 Crie um slug único, em letras minúsculas e separado por hífens. O nome do arquivo deve corresponder exatamente ao slug:
 
-Use exclusivamente `content/articles/<slug>.md`, baseado em [generation/templates/article.md](../generation/templates/article.md). Fontes JSON individuais não são aceitas no checkout corrente. O formato JSON legado permanece apenas em revisões Git históricas para comparação e rollback; ele não é um formato de autoria nem de build atual.
+O formato v1 usa `content/articles/<slug>.md`, baseado em [generation/templates/article.md](../generation/templates/article.md). Fontes JSON individuais não são aceitas no checkout corrente. O formato JSON legado permanece apenas em revisões Git históricas para comparação e rollback; ele não é um formato de autoria nem de build atual.
 
 ### Regra visual da capa
 
@@ -104,3 +104,5 @@ Para siglas e exceções de pronúncia, siga a precedência e as marcações opc
 - Tabelas largas, blocos de código, fórmulas e diagramas devem rolar dentro do próprio componente; a página e o corpo do artigo não podem ganhar scroll horizontal.
 - Não dependa apenas de cor para transmitir significado.
 - Quando um visual contiver informação essencial, forneça também uma explicação textual equivalente.
+
+Durante o [piloto #143](specs/article-v2-pilot.md), Bulkhead usa `articles/bulkhead/article.md` e capa local; os demais continuam em v1 até o aceite do piloto. O compilador extrai título, dek e capa uma única vez do preâmbulo v2.

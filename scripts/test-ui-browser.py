@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import functools
 import os
+import re
 import shutil
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -63,7 +64,7 @@ def test_responsive_archive(browser, base):
         assert favorite.get_attribute('aria-pressed') == 'true'
         favorite.click()
         page.locator('.recent-item .card-actions button').nth(1).click()
-        assert page.evaluate('window.__shared && window.__shared.url.includes("article.html?slug=")')
+        assert page.evaluate('window.__shared && new URL(window.__shared.url).pathname.endsWith("/")')
         load_more = page.locator('#load-more')
         if load_more.is_visible():
             before = page.locator('.recent-item').count()
@@ -440,7 +441,7 @@ def test_touch_buttons_do_not_keep_hover(browser, base):
 
         title_link = page.locator(".recent-item .recent-copy h3 a").first
         title_link.tap()
-        page.wait_for_url("**/article.html?slug=*")
+        page.wait_for_url(re.compile(r"/[^/]+/$"))
         article_favorite = page.locator("#favorite-article")
         article_favorite.wait_for(state="visible", timeout=20000)
         article_share = page.locator("#share-article")

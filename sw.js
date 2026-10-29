@@ -106,7 +106,11 @@ self.addEventListener("fetch", event => {
   const shellPath = event.request.mode !== "navigate" ? null
     : url.pathname === BASE_URL.pathname || url.pathname === homePath ? "index.html"
       : url.pathname === articlePath ? "article.html" : null;
-  const cacheKey = shellPath ? new URL(shellPath, BASE_URL).href : event.request;
+  const relativePath = url.pathname.slice(BASE_URL.pathname.length);
+  const cleanRoute = event.request.mode === "navigate" && /^[a-z0-9]+(?:-[a-z0-9]+)*\/(?:index\.html)?$/.test(relativePath)
+    ? relativePath.replace(/index\.html$/, "") : null;
+  const cacheKey = shellPath ? new URL(shellPath, BASE_URL).href
+    : cleanRoute ? new URL(cleanRoute, BASE_URL).href : event.request;
   const response = (async () => {
     let cache;
     let saved;

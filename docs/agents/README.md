@@ -15,7 +15,7 @@ Leia somente o ramo que corresponde à tarefa:
 
 ## Mapa de mudanças
 
-- `content/articles/` e `assets/<slug>/`: conteúdo e recursos específicos. A validação constrói o manifesto; não o edite manualmente.
+- `content/articles/` e `assets/<slug>/`: fontes e recursos v1; o piloto [#143](../specs/article-v2-pilot.md) usa `articles/bulkhead/`. A validação constrói o manifesto; não o edite manualmente.
 - `generation/`: contratos compactos de escrita e registry allowlisted.
 - `scripts/lib/`: regras compartilhadas de contratos, geração, fila e empacotamento. Teste pela interface usada pelos comandos.
 - `scripts/`: entrypoints e suites determinísticas; `validate-site.mjs` coordena os gates usados localmente e na CI.

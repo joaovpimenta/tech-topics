@@ -304,3 +304,7 @@ O áudio revisado de Bulkhead confirmou a qualidade perceptiva da
 segmentação atual; os marcadores editoriais não alteram o áudio acústico.
 As Releases antigas continuam preservadas até que uma regeneração
 seja solicitada explicitamente.
+
+## Piloto de fontes autocontidas
+
+A mudança de diretório da #143 preserva a semântica narrável e a identidade dos capítulos; confira a evidência do [piloto](specs/article-v2-pilot.md) e o [ADR 0007](adr/0007-self-contained-articles-and-clean-routes.md). O manifesto `--narration-impact` diferencia fala e mapeamento; `--check-compatible` bloqueia divergências para análise, sem gerar áudio. Nenhuma equivalência de fontes autoriza substituir MP3 ou capítulos.

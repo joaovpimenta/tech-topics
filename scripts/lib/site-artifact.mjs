@@ -23,8 +23,8 @@ function referencePath(value, source, base = path.posix.dirname(source)) {
   if (pathname.startsWith("/") || pathname.includes("\\") || pathname.includes("\0")) throw new Error(`Repository-relative URL required in ${source}: ${value}`);
   const resolved = path.posix.normalize(path.posix.join(base, pathname));
   if (resolved === ".") return "index.html";
-  safePath(resolved);
-  return resolved.endsWith("/") ? `${resolved}index.html` : resolved;
+  const target = resolved.endsWith("/") ? `${resolved}index.html` : resolved;
+  return safePath(target);
 }
 
 function htmlReferences(text) {
