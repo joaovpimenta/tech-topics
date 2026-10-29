@@ -10,7 +10,7 @@ import tempfile
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from playwright.sync_api import sync_playwright
 
@@ -65,12 +65,17 @@ def main():
                 browser = playwright.chromium.launch(**options)
                 try:
                     page = browser.new_page(viewport={"width": 390, "height": 844})
+                    article_requests = []
+                    page.on("request", lambda request: article_requests.append(request.url)
+                            if "articles-catalog.json" in request.url or "content/articles/preview.html" in request.url
+                            else None)
                     page.on("pageerror", lambda error: errors.append(str(error)))
                     page.route("**/*", lambda route: route.continue_()
                                if route.request.url.startswith(origin + "/") else route.abort())
 
                     page.goto(base + "/preview/#fontes", wait_until="domcontentloaded")
                     assert page.title() == "Preview de migração — Tech Topics"
+                    assert page.evaluate("window.TechTopicsPublicationSha") == "a" * 40
                     assert page.locator('link[rel="canonical"]').get_attribute("href") == "../preview/"
                     assert page.evaluate("location.hash") == "#fontes"
                     page.locator("#article-actions").wait_for(state="visible", timeout=20000)
@@ -97,7 +102,11 @@ def main():
                     assert separator and matching_count.isdecimal() and total_count.isdecimal(), result_summary
                     assert int(matching_count) < int(total_count), result_summary
                     assert not errors, errors
-                    print("PASS: staged HTML opens in Chromium under /tech-topics/, and catalog search finds canonical tags")
+                    for resource in ("assets/articles-catalog.json", "content/articles/preview.html"):
+                        assert any(urlsplit(url).path.endswith("/" + resource)
+                                   and parse_qs(urlsplit(url).query).get("revision") == ["a" * 40]
+                                   for url in article_requests), (resource, article_requests)
+                    print("PASS: staged HTML, revisioned catalog and transport load under /tech-topics/")
                 finally:
                     browser.close()
         finally:
