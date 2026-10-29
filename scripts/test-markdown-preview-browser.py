@@ -81,7 +81,7 @@ def main():
                     assert page.locator("#fontes").count() == 1
                     link = page.locator('#article-body a[href*="manual.pdf"]').get_attribute("href")
                     assert link.startswith("../assets/preview/manual.pdf?")
-                    assert page.locator("#article-body a").evaluate("a => new URL(a.href).pathname") == "/tech-topics/assets/preview/manual.pdf"
+                    assert page.locator('#article-body a[href*="manual.pdf"]').evaluate("a => new URL(a.href).pathname") == "/tech-topics/assets/preview/manual.pdf"
                     page.goto(base + "/article.html?slug=preview#fontes", wait_until="domcontentloaded")
                     page.locator("#article-actions").wait_for(state="visible", timeout=20000)
                     assert page.locator("#article-heading").inner_text() == "Preview de migração"
