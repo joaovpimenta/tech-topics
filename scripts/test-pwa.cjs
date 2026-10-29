@@ -120,9 +120,10 @@ async function testWorker() {
   await sendUpdateMessage();
   assert.equal(updateResponse.ok, true, "the explicit update command acknowledges skipWaiting");
   assert.equal(skipWaitingCalls, 2, "skipWaiting runs only for explicit update messages");
-  async function request(path, navigate = false) {
+  async function request(path, navigate = false, cacheMode) {
     let response;
-    handlers.fetch({ request: { url: `https://example.com${path}`, method: "GET", mode: navigate ? "navigate" : "cors" },
+    handlers.fetch({ request: { url: `https://example.com${path}`, method: "GET", mode: navigate ? "navigate" : "cors",
+      ...(cacheMode ? { cache: cacheMode } : {}) },
       respondWith(value) { response = value; }, waitUntil() {} });
     return response;
   }
@@ -153,6 +154,17 @@ async function testWorker() {
     "404 responses never become stale cached articles");
   const candidateArticle = await request("/tech-topics/content/articles/retired.html?build=candidate");
   assert.equal(candidateArticle.status, 200, "a candidate HTML transport can be fetched and cached by its version");
+  // A new clean-route shell may reach an older active worker. Explicit
+  // snapshot reads must ignore stale cache entries, but remain usable offline.
+  const snapshotUrls = [
+    "/tech-topics/assets/articles-catalog.json?revision=" + "a".repeat(40),
+    "/tech-topics/content/articles/bulkhead.html?revision=" + "a".repeat(40),
+  ];
+  for (const url of snapshotUrls) {
+    entries.set("https://example.com" + url, new Response("stale snapshot"));
+    const current = await request(url, false, "no-store");
+    assert.match(await current.text(), /^fresh:/, "no-store must bypass an old cached article snapshot");
+  }
   cacheAccessFails = true;
   assert.match(await (await request("/tech-topics/assets/cache-unavailable.js")).text(), /^fresh:/,
     "Cache Storage failures do not block an online response");
