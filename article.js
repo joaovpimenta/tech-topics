@@ -1,5 +1,6 @@
 const params = new URLSearchParams(window.location.search);
-const requestedSlug = params.get("slug");
+const siteBase = window.TechTopicsSiteBase || "./";
+const requestedSlug = document.body?.dataset?.articleSlug || params.get("slug");
 const markArticlePerf = name => { try { performance.mark(`tt:${name}`); } catch (_) {} };
 markArticlePerf("article-script-start");
 
@@ -269,7 +270,7 @@ function setupShareControls(article) {
   shareData = {
     title: `${article.title} — Tech Topics`,
     text: article.dek || article.excerpt || article.title,
-    url: window.location.href
+    url: new URL(siteBase + encodeURIComponent(article.slug) + "/" + window.location.hash, window.location.href).href
   };
   shareButton.hidden = false;
   shareButton.setAttribute("aria-label", `Compartilhar artigo: ${article.title}`);
@@ -306,7 +307,13 @@ async function showArticle(article, htmlSlots) {
   document.title = `${article.title} — Tech Topics`;
   document.querySelector("#article-description").content = article.excerpt;
   document.querySelector("#article-category").textContent = article.category;
-  document.querySelector("#article-heading").innerHTML = htmlSlots.heading;
+  const heading = document.querySelector("#article-heading");
+  heading.innerHTML = htmlSlots.heading;
+  if (typeof article.headingAnchor === "string" && article.headingAnchor && !document.getElementById(article.headingAnchor)) {
+    const anchor = document.createElement("span");
+    anchor.id = article.headingAnchor;
+    heading.before(anchor);
+  }
   document.querySelector("#article-dek").innerHTML = htmlSlots.dek;
   const publishedAt = new Date(`${article.publishedAt}T00:00:00Z`);
   const date = Number.isNaN(publishedAt.getTime()) ? (article.date || "") : new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeZone: "UTC" }).format(publishedAt);
@@ -314,11 +321,35 @@ async function showArticle(article, htmlSlots) {
   if (/\d/.test(article.read || "")) details.push(article.read);
   document.querySelector("#article-meta").textContent = details.filter(Boolean).join(" · ");
   const image = document.querySelector("#article-image");
-  const cover = coverFor(article);
+  const originalCover = coverFor(article);
+  const cover = { ...originalCover, src: siteBase + originalCover.src };
   image.src = cover.src;
   image.alt = cover.alt;
   document.querySelector(".article-hero").hidden = false;
   document.querySelector("#article-body").innerHTML = htmlSlots.body;
+  // Compiled article references are relative to the site root, while fragments
+  // remain local to the current document.
+  for (const node of document.querySelectorAll("#article-body [href], #article-body [src], #article-body [srcset], #article-body [data-fallback-src]")) {
+    const srcset = node.getAttribute("srcset");
+    if (srcset) node.setAttribute("srcset", srcset.split(",").map(candidate => {
+      const match = candidate.match(/^(\s*)(\S+)([\s\S]*)$/);
+      return match && !/^(?:#|\/|[a-z][a-z0-9+.-]*:)/i.test(match[2])
+        ? match[1] + siteBase + match[2] + match[3] : candidate;
+    }).join(","));
+    for (const name of ["href", "src", "data-fallback-src"]) {
+      const value = node.getAttribute(name);
+      if (value && !/^(?:#|\/|[a-z][a-z0-9+.-]*:)/i.test(value)) node.setAttribute(name, siteBase + value);
+    }
+  }
+  // Initial deep links arrive before the asynchronously loaded body exists.
+  // Find both generated IDs and the named anchors retained by older articles.
+  if (window.location.hash) {
+    try {
+      const fragment = decodeURIComponent(window.location.hash.slice(1));
+      const target = document.getElementById(fragment) || document.getElementsByName(fragment)[0];
+      if (target) requestAnimationFrame(() => target.scrollIntoView());
+    } catch (_) { /* An invalid fragment must not block article rendering. */ }
+  }
   markArticlePerf("article-body-ready");
   void renderMermaidDiagrams();
   let lexicon = window.TechTopicsSpeechLexicon || {};
@@ -403,7 +434,7 @@ function articleHtmlSlots(source, slug, transport) {
 async function loadCatalogHtml(slug, catalogArticle = null) {
   let article = catalogArticle;
   if (!article) {
-    const catalogResponse = await fetch("assets/articles-catalog.json", { cache: "no-store" });
+    const catalogResponse = await fetch(siteBase + "assets/articles-catalog.json", { cache: "no-store" });
     if (!catalogResponse.ok) throw new Error("Catálogo indisponível");
     article = articleCatalogEntries(await catalogResponse.json()).find(item => item?.slug === slug);
   }
@@ -425,7 +456,7 @@ async function loadCatalogHtml(slug, catalogArticle = null) {
     throw new Error("Metadados HTML inválidos");
   }
 
-  const htmlResponse = await fetch(transport.path, { cache: "no-store" });
+  const htmlResponse = await fetch(siteBase + transport.path, { cache: "no-store" });
   if (!htmlResponse.ok) throw new Error("Artigo HTML indisponível");
   const slots = articleHtmlSlots(await htmlResponse.text(), slug, transport);
   return { article, slots };
@@ -457,7 +488,7 @@ function articleCatalogEntries(catalog) {
 }
 
 async function loadHtmlFromCatalog(requestedArticleSlug) {
-  const catalogResponse = await fetch("assets/articles-catalog.json", { cache: "no-store" });
+  const catalogResponse = await fetch(siteBase + "assets/articles-catalog.json", { cache: "no-store" });
   if (!catalogResponse.ok) throw new Error("Catálogo indisponível");
   const catalog = articleCatalogEntries(await catalogResponse.json());
   const article = requestedArticleSlug
@@ -487,7 +518,7 @@ async function loadArticle() {
     document.querySelector("#article-heading").textContent = "Artigo indisponível";
     document.querySelector(".article-hero").hidden = true;
     document.querySelector("#article-actions").hidden = true;
-    document.querySelector("#article-body").innerHTML = "<p>Não foi possível carregar este artigo. Volte ao arquivo e tente novamente.</p><p><a class=\"article-back\" href=\"index.html#recent-posts\">← Todos os artigos</a></p>";
+    document.querySelector("#article-body").innerHTML = "<p>Não foi possível carregar este artigo. Volte ao arquivo e tente novamente.</p><p><a class=\"article-back\" href=\"" + siteBase + "index.html#recent-posts\">← Todos os artigos</a></p>";
   }
 }
 

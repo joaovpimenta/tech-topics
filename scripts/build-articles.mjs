@@ -20,13 +20,13 @@ const articles = await compileArticleCorpus(root);
 const records = [];
 
 for (const { file, article } of articles) {
-  const imagePath = path.join(root, article.image);
+  const imagePath = file.startsWith("articles/") ? path.join(root, "articles", article.slug, "cover.jpg") : path.join(root, article.image);
   await access(imagePath);
   let addedAt = "";
   try {
     // Preserve publication ordering across the historical JSON→Markdown rename.
     const history = await run("git", ["log", "--reverse", "--diff-filter=A", "--format=%cI", "--",
-      `content/articles/${article.slug}.json`, `content/articles/${article.slug}.md`], { cwd: root });
+      `content/articles/${article.slug}.json`, `content/articles/${article.slug}.md`, `articles/${article.slug}/article.md`], { cwd: root });
     addedAt = history.stdout.trim().split(/\r?\n/).find(Boolean) || "";
   } catch (error) { /* Local copies without Git still sort by publication date. */ }
   const record = {

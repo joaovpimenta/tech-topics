@@ -84,8 +84,9 @@ function validateArticleRecord(file, article) {
     if (!SLUG_PATTERN.test(article.slug)) fail("slug must be lowercase kebab-case");
     const normalizedFile = file.replace(/\\/g, "/");
     const sourceName = normalizedFile.slice(normalizedFile.lastIndexOf("/") + 1);
-    const sourceSlug = sourceName.replace(/\.md$/i, "");
-    if (sourceSlug === sourceName || article.slug !== sourceSlug) fail("slug must match the source filename");
+    const v2Slug = normalizedFile.match(/^articles\/([a-z0-9]+(?:-[a-z0-9]+)*)\/article\.md$/)?.[1];
+    const sourceSlug = v2Slug ?? sourceName.replace(/\.md$/i, "");
+    if ((!v2Slug && sourceSlug === sourceName) || article.slug !== sourceSlug) fail("slug must match the source filename");
   }
   if (typeof article.language === "string" && article.language !== "pt-BR") {
     fail("language must be pt-BR");

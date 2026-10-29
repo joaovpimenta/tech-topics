@@ -24,7 +24,8 @@
     return chosen.concat(sample(other, 3 - chosen.length));
   }
   function createCards({ quickActions, shareStatus, lazyImages = false }) {
-    const articleUrl = article => "article.html?slug=" + encodeURIComponent(article.slug);
+    const siteBase = root.TechTopicsSiteBase || "";
+    const articleUrl = article => siteBase + encodeURIComponent(article.slug) + "/";
     const FAVORITES_KEY = "tech-topics:favorites:v1";
 function readFavorites(fallback = []) {
   try {
@@ -219,7 +220,7 @@ function openQuickActions(article, favoriteButton, x, y, mode = "gesture", sourc
   syncFavorites();
   closeQuickActions();
   const cover = element("img", "quick-cover");
-  cover.src = article.image;
+  cover.src = siteBase + article.image;
   cover.alt = article.alt || article.title;
   cover.loading = "lazy";
   cover.decoding = "async";
@@ -421,7 +422,7 @@ function articleCard(article, index) {
   imageLink.href = articleUrl(article);
   imageLink.setAttribute("aria-label", "Ler " + article.title);
   const image = element("img");
-  image.src = article.image;
+  image.src = siteBase + article.image;
   image.alt = article.alt || article.title;
   image.loading = lazyImages || index >= 2 ? "lazy" : "eager";
   image.decoding = "async";

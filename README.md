@@ -24,7 +24,7 @@ Articles are sorted by valid `publishedAt` dates, newest first, both during the 
 2. In **Settings → Pages**, set the source to **GitHub Actions**.
 3. The included workflow deploys automatically on site-relevant pushes to `main` (docs/tooling-only changes are ignored) and can also be started manually from the **Actions** tab.
 
-The site is a static multi-article archive. Each article is authored in `content/articles/<slug>.md` and has its own cover image under `assets/`. The Pages workflow runs `node scripts/validate-site.mjs`, which compiles Markdown sources into one HTML page per slug and a lightweight metadata catalog before publishing. The homepage loads the catalog and each card opens `article.html?slug=<slug>`.
+The site is a static multi-article archive. Each article is authored in `content/articles/<slug>.md` and has its own cover image under `assets/`. The Pages workflow runs `node scripts/validate-site.mjs`, which compiles Markdown sources into one HTML page per slug and a lightweight metadata catalog before publishing. The homepage loads the catalog and each card opens `<slug>/`; `article.html?slug=<slug>` remains compatible.
 
 ## Article contract
 
@@ -121,3 +121,28 @@ A validação determinística dos artigos roda localmente, na GitHub Action de P
 
 
 `node scripts/validate-site.mjs` é o comando único usado localmente, na validação de Pull Requests e antes do deploy. Ele evita que os workflows mantenham listas diferentes de verificações.
+
+## Article v2 pilot
+
+[Issue #143](https://github.com/joaovpimenta/tech-topics/issues/143) introduces self-contained sources. Bulkhead is the pilot in `articles/bulkhead/article.md`, with `cover.jpg` beside it; the other 17 articles retain their current flat sources until maintainer approval. See [the pilot review](docs/specs/article-v2-pilot.md) and [ADR 0007](docs/adr/0007-self-contained-articles-and-clean-routes.md).
+
+## Biblioteca de artigos
+
+- [Chaos engineering: testar a resiliência sem criar um incidente](content/articles/chaos-engineering-experimentos-de-falha.md)
+- [Raft: como um cluster concorda sobre um log](content/articles/consenso-raft.md)
+- [CQRS: separar comandos e consultas sem esconder a consistência](content/articles/cqrs-projecoes-e-consistencia.md)
+- [Four Golden Signals: da experiência do usuário ao diagnóstico](content/articles/four-golden-signals.md)
+- [GitHub como sistema de gestão: Projects, Issues e governança como código](content/articles/github-governance-as-code.md)
+- [Hashing consistente: como redistribuir chaves sem mover o mundo](content/articles/hashing-consistente.md)
+- [Hedged Requests: trocar requisições extras por menor tail latency](content/articles/hedged-requests.md)
+- [Leases e fencing tokens: quando o antigo dono ainda está vivo](content/articles/leases-e-fencing-tokens.md)
+- [Load shedding: recusar cedo para continuar servindo](content/articles/load-shedding-controle-de-sobrecarga.md)
+- [mTLS entre serviços: identidade além do canal cifrado](content/articles/mtls-entre-servicos-identidade-alem-do-canal-cifrado.md)
+- [Quóruns de leitura e escrita: o que N, R e W realmente garantem](content/articles/quoruns-de-leitura-e-escrita.md)
+- [Rastreamento distribuído: contexto, spans e amostragem](content/articles/rastreamento-distribuido-contexto-spans-e-amostragem.md)
+- [Rate Limiting: Token Bucket, Leaky Bucket e limites sob rajadas](content/articles/rate-limiting-token-bucket-leaky-bucket.md)
+- [Relógios lógicos: Lamport, vetores e causalidade sem relógio global](content/articles/relogios-logicos-lamport-vetores-e-causalidade-sem-relogio-global.md)
+- [Retries sem tempestade: backoff, jitter e orçamentos de repetição](content/articles/retries-backoff-jitter.md)
+- [Seis estilos de API: REST, GraphQL, gRPC, Webhooks, SSE e WebSockets](content/articles/seis-estilos-de-api-rest-graphql-grpc-webhooks-sse-websockets.md)
+- [Transactional Outbox: do commit local à entrega confiável](content/articles/transactional-outbox.md)
+- [Bulkhead: isolar recursos para conter falhas em cascata](articles/bulkhead/article.md)

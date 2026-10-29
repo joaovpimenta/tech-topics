@@ -23,7 +23,7 @@
 
   if (!("serviceWorker" in navigator)) return;
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js", { scope: "./", updateViaCache: "none" })
+    navigator.serviceWorker.register((window.TechTopicsSiteBase || "./") + "sw.js", { scope: window.TechTopicsSiteBase || "./", updateViaCache: "none" })
       .then(registration => {
         let notice;
         let updateWorker;

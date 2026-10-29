@@ -64,6 +64,12 @@ jobs:
         run: |
           node scripts/build-articles.mjs
           node scripts/build-site.mjs
+      - name: Compare base and candidate browser narration
+        if: github.event_name == 'pull_request'
+        env:
+          BEFORE_SHA: ${{ github.event.pull_request.base.sha }}
+          AFTER_SHA: ${{ github.sha }}
+        run: python scripts/audit-publication-parity.py --before "$BEFORE_SHA" --after "$AFTER_SHA"
       - name: Verify real Chromium geometry and touch input
         run: python scripts/test-ui-browser.py
         env:
@@ -81,3 +87,14 @@ jobs:
         run: python scripts/test-html-site-browser.py
       - name: Verify article recommendations
         run: python scripts/test-recommendations-browser.py
+      - name: Verify mixed-corpus routes and legacy fragments
+        run: python scripts/test-pilot-routes-browser.py
+        env:
+          TECH_TOPICS_UI_SCREENSHOTS: test-results/pilot143
+      - name: Save pilot review screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: article-v2-pilot-screenshots
+          path: test-results/pilot143/
+          if-no-files-found: ignore

@@ -145,7 +145,10 @@ assert.doesNotMatch(pages.match(/  deploy:[\s\S]*?(?=\n  publish-audio:)/)?.[0] 
 assert.match(pages, /article_build_id:\s*\$\{\{\s*steps\.artifact_identity\.outputs\.build_id\s*\}\}/);
 assert.match(pages, /--verify-artifact/);
 assert.match(pages, /deployed_before_sha:/);
-assert.equal((pages.match(/if: github\.event_name == 'push' \|\| github\.event_name == 'workflow_dispatch'/g) ?? []).length, 3);
+assert.equal((pages.match(/if: github\.event_name == 'push' \|\| github\.event_name == 'workflow_dispatch'/g) ?? []).length, 5);
+assert.match(pages, /name: Resolve the last successfully deployed Pages revision[\s\S]*?name: Block unreviewed narration and chapter mapping changes[\s\S]*?BEFORE_SHA: \$\{\{ steps\.deployed_before\.outputs\.sha \}\}[\s\S]*?AFTER_SHA: \$\{\{ github\.sha \}\}[\s\S]*?--narration-impact --check-compatible[\s\S]*?name: Upload validated site artifact[\s\S]*?name: Deploy GitHub Pages/);
+assert.match(pages, /name: Compare deployed and candidate browser narration[\s\S]*?BEFORE_SHA: \$\{\{ steps\.deployed_before\.outputs\.sha \}\}[\s\S]*?AFTER_SHA: \$\{\{ github\.sha \}\}[\s\S]*?audit-publication-parity\.py --before "\$BEFORE_SHA" --after "\$AFTER_SHA"[\s\S]*?name: Upload validated site artifact/);
+assert.match(validate, /name: Compare base and candidate browser narration[\s\S]*?BEFORE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}[\s\S]*?audit-publication-parity\.py/);
 assert.match(pages, /gh api --paginate/);
 assert.match(pages, /actions\/runs\/\$run_id\/jobs\?per_page=100/);
 assert.match(pages, /\.name == "Deploy GitHub Pages" and \.conclusion == "success"/);

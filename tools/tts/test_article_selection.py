@@ -1,7 +1,9 @@
 """Selection tests for automatic and manual Kokoro Jobs (stdlib only)."""
 
 import json
+import io
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -105,6 +107,87 @@ class ArticleSelectionTests(unittest.TestCase):
                 article_selection.local_source_inventory(directory)
             with self.assertRaisesRegex(ValueError, "Arquivos JSON não são permitidos"):
                 article_selection.read_article("reintroduced", directory, directory / "dist")
+
+    def test_mixed_inventory_and_duplicate_source_are_detected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            flat = root / "content" / "articles"
+            flat.mkdir(parents=True)
+            (flat / "alpha.md").write_text("alpha", encoding="utf-8")
+            nested = root / "articles" / "beta"
+            nested.mkdir(parents=True)
+            (nested / "article.md").write_text("beta", encoding="utf-8")
+            inventory = article_selection.local_source_inventory(flat)
+            self.assertEqual(inventory, {"alpha": flat / "alpha.md", "beta": nested / "article.md"})
+            duplicate = root / "articles" / "alpha"
+            duplicate.mkdir()
+            (duplicate / "article.md").write_text("alpha", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Duas fontes"):
+                article_selection.local_source_inventory(flat)
+
+    def test_speech_and_mapping_signatures_ignore_links_and_detect_spoken_edits(self):
+        base = {"slug": "alpha", "title": "Título", "dek": "Resumo.",
+                "bodyHtml": '<p>Leia <a href="old">outra página</a>.</p>'}
+        linked = {**base, "bodyHtml": '<p>Leia <a href="new">outra página</a>.</p>'}
+        edited = {**base, "bodyHtml": '<p>Leia <a href="new">um artigo</a>.</p>'}
+        with_toc = {**base, "bodyHtml": '<nav aria-label="Neste artigo"><h2>Neste artigo</h2><ul><li><a href="#topico">Tópico</a></li></ul></nav>' + base["bodyHtml"]}
+        original = article_selection.narration_signatures(base, {})
+        self.assertEqual(original, article_selection.narration_signatures(linked, {}))
+        self.assertEqual(original, article_selection.narration_signatures(with_toc, {}))
+        changed = article_selection.narration_signatures(edited, {})
+        self.assertNotEqual(original[0], changed[0])
+        self.assertEqual(original[1], changed[1])
+
+    def test_mapping_only_impact_is_reported_without_selecting_synthesis(self):
+        old, new = "a" * 40, "b" * 40
+        source = {"alpha": ("content/articles/alpha.json", "c" * 40, "json")}
+        changed = {"alpha": ("content/articles/alpha.json", "d" * 40, "json")}
+        article = json.dumps({"slug": "alpha", "language": "pt-BR"})
+        with patch.object(article_selection, "_git_sources", side_effect=[source, changed]), \
+             patch.object(article_selection, "_blob_at", return_value="stable"), \
+             patch.object(article_selection, "_current_sha", return_value=None), \
+             patch("narration_text.load_lexicon", return_value={}), \
+             patch.object(article_selection.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, article)), \
+             patch.object(article_selection, "narration_signatures", side_effect=[("speech", "old"), ("speech", "new")]):
+            report = article_selection.narration_impact(old, new)
+        item = report["articles"][0]
+        self.assertFalse(item["speechChanged"])
+        self.assertTrue(item["mappingChanged"])
+        self.assertEqual(item["reasons"], ["chapter-mapping"])
+        self.assertEqual(item["chapterCompatibility"], "unverified")
+
+    def test_pipeline_drift_blocks_even_when_sources_are_unchanged(self):
+        source = {"alpha": ("content/articles/alpha.md", "c" * 40, "md")}
+        with patch.object(article_selection, "_git_sources", return_value=source), \
+             patch.object(article_selection, "_blob_at", side_effect=["old", "new"]):
+            with self.assertRaisesRegex(ValueError, "Extrator ou léxico mudou"):
+                article_selection.narration_impact("a" * 40, "b" * 40)
+
+    def test_compatibility_gate_emits_manifest_and_rejects_each_kind_of_drift(self):
+        arguments = ["article_selection.py", "--before", "a" * 40, "--after", "b" * 40,
+                     "--narration-impact", "--check-compatible"]
+        for speech, mapping in [(False, False), (True, False), (False, True), (True, True)]:
+            with self.subTest(speech=speech, mapping=mapping):
+                report = {"articles": ([{"slug": "alpha", "speechChanged": speech,
+                                         "mappingChanged": mapping}] if speech or mapping else [])}
+                output = io.StringIO()
+                with patch.object(sys, "argv", arguments), patch("sys.stdout", output), \
+                     patch.object(article_selection, "narration_impact", return_value=report):
+                    if speech or mapping:
+                        with self.assertRaises(SystemExit) as exit_status:
+                            article_selection.main()
+                        self.assertEqual(exit_status.exception.code, 1)
+                    else:
+                        article_selection.main()
+                self.assertEqual(json.loads(output.getvalue()), report)
+
+    def test_compatibility_gate_requires_manifest_mode(self):
+        with patch.object(sys, "argv", ["article_selection.py", "--before", "a" * 40,
+                                        "--after", "b" * 40, "--check-compatible"]), \
+             patch("sys.stderr", new_callable=io.StringIO):
+            with self.assertRaises(SystemExit) as exit_status:
+                article_selection.main()
+            self.assertEqual(exit_status.exception.code, 2)
 
     def test_ambiguous_titles_rejected(self):
         with tempfile.TemporaryDirectory() as temp:

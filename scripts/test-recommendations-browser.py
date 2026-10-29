@@ -5,7 +5,7 @@ import shutil
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
 from playwright.sync_api import sync_playwright
 
@@ -28,7 +28,7 @@ try:
             page.locator('#recommendations').wait_for(state='visible', timeout=20000)
             cards = page.locator('#recommendations-list .recent-item')
             def slugs():
-                return [parse_qs(urlparse(href).query)['slug'][0] for href in cards.locator('.recent-image').evaluate_all('(els) => els.map(e => e.href)')]
+                return [urlparse(href).path.strip('/').split('/')[-1] for href in cards.locator('.recent-image').evaluate_all('(els) => els.map(e => e.href)')]
             selected = slugs()
             assert len(selected) == len(set(selected)) == 3 and 'transactional-outbox' not in selected, selected
             for width in (320, 600, 900, 1280):
@@ -61,7 +61,7 @@ try:
             assert stored == [selected[0]], ('article overwrote recommendation favorite', stored)
             cards.first.locator('.favorite-button').click()
             cards.first.locator('.recent-image').click()
-            page.wait_for_url('**/article.html?slug=*')
+            page.wait_for_url(f'**/{selected[0]}/')
             page.locator('#recommendations').wait_for(state='visible')
             assert selected[0] not in slugs()
             touch = browser.new_page(viewport={'width': 390, 'height': 800}, has_touch=True, is_mobile=True, reduced_motion='reduce')
@@ -96,7 +96,7 @@ try:
             touch.wait_for_timeout(400)
             hold_and_release('share')
             touch.wait_for_function('window.__shared && window.__shared.url')
-            assert parse_qs(urlparse(touch.evaluate('window.__shared.url')).query)['slug'][0] != 'transactional-outbox'
+            assert urlparse(touch.evaluate('window.__shared.url')).path.strip('/').split('/')[-1] != 'transactional-outbox'
             touch.close()
             unavailable_storage = browser.new_page()
             unavailable_storage.add_init_script("""Storage.prototype.getItem = () => { throw new Error('storage unavailable'); };

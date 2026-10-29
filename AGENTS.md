@@ -4,7 +4,7 @@ Este repositório mantém o site Tech Topics e seus artigos.
 
 Para manutenção, workflows, fila ou ferramentas locais, comece com `node scripts/doctor.mjs --json` e consulte somente o ramo pertinente em [docs/agents/README.md](docs/agents/README.md). O vocabulário editorial está em [CONTEXT.md](CONTEXT.md).
 
-Ao criar um artigo, não carregue toda a documentação no contexto por padrão. Use `node scripts/compose-article-brief.mjs --list` para ver as tasks, os frameworks e o catálogo compacto dos temas publicados. Leia artigos completos somente quando o catálogo indicar possível sobreposição. Depois de escolher um tema inédito, componha o brief mínimo com uma task e de um a três frameworks do registry. Esse brief é o contrato ativo de escrita e inclui apenas as lentes selecionadas. O compositor apenas monta instruções; não invoca LLM nem escreve o artigo. Não há provedor, seleção de modelo ou orquestração automática de escrita no repositório. Escreva artigos em `content/articles/<slug>.md`, a única fonte editorial corrente. JSON de artigo só pode ser consultado em comparações do histórico Git ou para inspecionar artefatos de rollback; não mantenha nem crie fontes JSON no checkout atual.
+Ao criar um artigo, não carregue toda a documentação no contexto por padrão. Use `node scripts/compose-article-brief.mjs --list` para ver as tasks, os frameworks e o catálogo compacto dos temas publicados. Leia artigos completos somente quando o catálogo indicar possível sobreposição. Depois de escolher um tema inédito, componha o brief mínimo com uma task e de um a três frameworks do registry. Esse brief é o contrato ativo de escrita e inclui apenas as lentes selecionadas. O compositor apenas monta instruções; não invoca LLM nem escreve o artigo. Não há provedor, seleção de modelo ou orquestração automática de escrita no repositório. Use a fonte Markdown do estágio indicado abaixo. JSON de artigo só pode ser consultado em comparações do histórico Git ou para inspecionar artefatos de rollback; não mantenha nem crie fontes JSON no checkout atual.
 
 Consulte os documentos detalhados somente na etapa em que forem necessários:
 
@@ -16,10 +16,14 @@ Consulte os documentos detalhados somente na etapa em que forem necessários:
 
 `generation/` contém instruções compactas para o modelo externo que fará a escrita; `docs/` explica as políticas; scripts de lint e testes garantem invariantes objetivas. Não copie a mesma regra entre camadas. Quando uma regra objetiva mudar, altere primeiro sua validação e depois a documentação humana correspondente.
 
+## Piloto de autoria v2
+
+Na #143, Bulkhead usa `articles/bulkhead/article.md` e `cover.jpg` co-localizada; as demais 17 fontes continuam em `content/articles/`. Para alterar essa estrutura, executar a migração ou avaliar seus gates, leia [o piloto](docs/specs/article-v2-pilot.md). Migre os demais somente após o aceite explícito do piloto pelo mantenedor.
+
 ## Princípios
 
 - Escreva os artigos em português brasileiro.
-- Use somente `content/articles/<slug>.md` como fonte editorial corrente. JSON de artigo só pode ser lido em comparação de revisões Git históricas ou para inspecionar artefatos de rollback; nunca crie nem restaure fontes JSON no checkout atual.
+- Mantenha uma única fonte Markdown por slug, nos diretórios definidos para o estágio atual da migração. JSON de artigo só pode ser lido em comparação de revisões Git históricas ou para inspecionar artefatos de rollback; nunca crie nem restaure fontes JSON no checkout atual.
 - Não substitua, remova nem edite artigos existentes durante a criação de um novo artigo, salvo instrução explícita.
 - Evite temas já cobertos, inclusive equivalentes semânticos, sinônimos e variações superficiais.
 - Preserve compatibilidade com GitHub Pages, o layout editorial e a identidade visual existentes.

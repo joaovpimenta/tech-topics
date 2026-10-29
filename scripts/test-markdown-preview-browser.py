@@ -62,14 +62,21 @@ def main():
                     page.route("**/*", lambda route: route.continue_()
                                if route.request.url.startswith(origin + "/") else route.abort())
 
-                    page.goto(base + "/article.html?slug=preview", wait_until="domcontentloaded")
+                    page.goto(base + "/preview/#fontes", wait_until="domcontentloaded")
+                    assert page.title() == "Preview de migração — Tech Topics"
+                    assert page.locator('link[rel="canonical"]').get_attribute("href") == "../preview/"
+                    assert page.evaluate("location.hash") == "#fontes"
                     page.locator("#article-actions").wait_for(state="visible", timeout=20000)
                     assert page.locator("#article-heading").inner_text() == "Preview de migração"
                     assert page.locator("#article-dek").inner_text() == "Catálogo leve e corpo HTML compilado."
                     assert "metadados no catálogo" in page.locator("#article-body").inner_text()
                     link = page.locator("#article-body a").get_attribute("href")
-                    assert link.startswith("assets/preview/manual.pdf?")
-                    assert urlsplit(base + "/article.html").path.rsplit("/", 1)[0] + "/" + link.split("?", 1)[0] == "/tech-topics/assets/preview/manual.pdf"
+                    assert link.startswith("../assets/preview/manual.pdf?")
+                    assert page.locator("#article-body a").evaluate("a => new URL(a.href).pathname") == "/tech-topics/assets/preview/manual.pdf"
+                    page.goto(base + "/article.html?slug=preview#fontes", wait_until="domcontentloaded")
+                    page.locator("#article-actions").wait_for(state="visible", timeout=20000)
+                    assert page.locator("#article-heading").inner_text() == "Preview de migração"
+                    assert page.evaluate("location.hash") == "#fontes"
 
                     page.goto(base + "/index.html?q=seguranca", wait_until="domcontentloaded")
                     page.locator(".recent-item").first.wait_for(state="visible", timeout=20000)

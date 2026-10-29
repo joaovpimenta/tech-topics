@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
-DIST = ROOT / "dist"
+DIST = Path(os.environ.get("TECH_TOPICS_UI_ROOT", ROOT / "dist"))
 SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
@@ -59,6 +59,8 @@ def read_artifact():
 
     files = set(manifest.get("files", []))
     assert html_paths <= files
+    assert {f"{record['slug']}/index.html" for record in records} <= files
+    assert not any(file.startswith("articles/") for file in files)
     assert "content/articles/index.json" not in files
     assert not any(re.fullmatch(r"content/articles/[^/]+\.(?:json|md)", file) for file in files)
     assert not (DIST / "content" / "articles" / "index.json").exists()
@@ -114,7 +116,9 @@ def main():
                         for record in records:
                             errors.clear()
                             slug = record["slug"]
-                            page.goto(f"{origin}/tech-topics/article.html?slug={slug}", wait_until="domcontentloaded")
+                            page.goto(f"{origin}/tech-topics/{slug}/", wait_until="domcontentloaded")
+                            assert page.title() == f"{record['title']} — Tech Topics"
+                            assert page.locator('link[rel="canonical"]').get_attribute("href") == f"../{slug}/"
                             page.locator("#article-actions").wait_for(state="visible", timeout=20000)
                             assert page.locator("#article-heading").inner_text() == record["title"], slug
                             body = " ".join(page.locator("#article-body").inner_text().split())
@@ -133,7 +137,7 @@ def main():
                             broken_fragments = page.locator("#article-body a[href^='#']").evaluate_all("""
                               anchors => anchors.filter(anchor => {
                                 const id = decodeURIComponent(anchor.getAttribute("href").slice(1));
-                                return !document.getElementById(id);
+                                return !document.getElementById(id) && !document.getElementsByName(id).length;
                               }).map(anchor => anchor.getAttribute("href"))
                             """)
                             assert not broken_fragments, f"unresolved article fragments for {slug}: {broken_fragments}"
@@ -180,7 +184,7 @@ def main():
                                     f"fragment navigation did not preserve {target_hash} for {slug}"
                             assert not errors, f"{label} page errors for {slug}: {errors}"
                             index_status = page.evaluate(
-                                "async () => (await fetch('content/articles/index.json', {cache: 'no-store'})).status"
+                                "async () => (await fetch('../content/articles/index.json', {cache: 'no-store'})).status"
                             )
                             assert index_status == 404, f"legacy article index remains public for {slug}"
                         print(f"PASS: {len(records)} html-v1 articles open from dist/ in {label} Chromium.")

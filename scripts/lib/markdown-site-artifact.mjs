@@ -4,9 +4,10 @@ import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, r
 import os from "node:os";
 import path from "node:path";
 import { PUBLIC_ROOT_FILES, validatePublicReferences } from "./site-artifact.mjs";
-import { discoverArticleSources as discoverMigrationSources, assertCommitSha } from "./migration-compare.mjs";
+import { assertCommitSha } from "./migration-compare.mjs";
 import { discoverArticleSources as discoverEditorialSources } from "./generation-system.mjs";
-import { compileMarkdownArticle, renderArticleEnvelope } from "./markdown-article.mjs";
+import { renderArticleEnvelope } from "./markdown-article.mjs";
+import { compileArticleCorpus } from "./article-corpus.mjs";
 import { extractOpeningParagraph } from "./catalog-opening.mjs";
 
 const speechLexiconMarker = "/* TECH_TOPICS_SPEECH_LEXICON */";
@@ -43,8 +44,7 @@ async function sourceInventory(root, taxonomy) {
   const directory = await regularDirectory(root, "content/articles");
   const editorialSources = await discoverEditorialSources(root, { taxonomy });
   if (!editorialSources.length) throw new Error("No article sources found for the HTML preview");
-  const entries = editorialSources.map(source => `content/articles/${source.file}`);
-  return discoverMigrationSources(entries, "working tree");
+  return editorialSources.map(source => ({ ...source, file: source.file.startsWith("articles/") ? source.file : `content/articles/${source.file}` }));
 }
 
 function gitText(root, ...args) {
@@ -78,19 +78,23 @@ function assertSamePaths(label, expected, actual, sourceSha) {
 }
 
 async function assertEditorialInputsMatchCommit(root, sourceSha, inventory) {
-  const committedPaths = gitPaths(root, sourceSha, "content/articles");
+  const committedPaths = [...gitPaths(root, sourceSha, "content/articles"), ...gitPaths(root, sourceSha, "articles")];
   const committedSources = committedPaths.filter(file => {
     const match = file.match(/^content\/articles\/([a-z0-9]+(?:-[a-z0-9]+)*)\.md$/);
-    return match && !["index", "catalog"].includes(match[1]);
+    return (match && !["index", "catalog"].includes(match[1])) || /^articles\/[a-z0-9]+(?:-[a-z0-9]+)*\/article\.md$/.test(file);
   });
   const currentJsonSources = committedPaths.filter(file => /^content\/articles\/[^/]+\.json$/.test(file));
   if (currentJsonSources.length) throw new Error(`Individual JSON article sources are not allowed in the current checkout: ${currentJsonSources.join(", ")}`);
   assertSamePaths("Article source inventory", committedSources, inventory.map(source => source.file), sourceSha);
 
   const slugs = new Set(inventory.map(source => source.slug));
-  const committedAssets = gitPaths(root, sourceSha, "assets")
-    .filter(file => [...slugs].some(slug => file.startsWith(`assets/${slug}/`)));
-  const workingAssets = (await Promise.all([...slugs].map(slug => walkRegularFiles(root, `assets/${slug}`)))).flat();
+  const committedAssets = [...gitPaths(root, sourceSha, "assets"), ...gitPaths(root, sourceSha, "articles")]
+    .filter(file => [...slugs].some(slug => file.startsWith(`assets/${slug}/`) || (file.startsWith(`articles/${slug}/`) && file !== `articles/${slug}/article.md`)));
+  const workingAssets = [];
+  for (const source of inventory) {
+    const directory = source.file.startsWith("articles/") ? `articles/${source.slug}` : `assets/${source.slug}`;
+    workingAssets.push(...(await walkRegularFiles(root, directory)).filter(file => file !== source.file));
+  }
   assertSamePaths("Article asset inventory", committedAssets, workingAssets, sourceSha);
 
   const inputFiles = new Set([
@@ -126,7 +130,7 @@ function addedAtFor(root, sourceSha, slug, previousRecords, { requireCompleteHis
   let history = "";
   try {
     history = gitText(root, "log", "--reverse", "--diff-filter=A", "--format=%cI", sourceSha,
-      "--", `content/articles/${slug}.json`, `content/articles/${slug}.md`);
+      "--", `content/articles/${slug}.json`, `content/articles/${slug}.md`, `articles/${slug}/article.md`);
   } catch (error) {
     if (requireCompleteHistory) {
       throw new Error(`${slug}: could not resolve first-add Git history for the production catalog`, { cause: error });
@@ -161,6 +165,7 @@ function catalogRecord(compiled, addedAt) {
     tags,
     tagLabels: tags.map(tag => metadata.tagLabels?.[tag] ?? tag),
   };
+  if (compiled.headingAnchor) record.headingAnchor = compiled.headingAnchor;
   for (const field of ["updatedAt", "level", "series", "seriesOrder", "prerequisites"]) {
     if (Object.hasOwn(metadata, field)) record[field] = metadata[field];
   }
@@ -202,7 +207,7 @@ function isManagedArtifactFile(file, version) {
   // Version 1 outputs are recognized only so a new build can safely replace
   // them; this does not enable JSON sources in the current checkout.
   if (version === 1) return /^content\/articles\/[^/]+\.json$/.test(file);
-  return /^content\/articles\/[^/]+\.html$/.test(file);
+  return /^content\/articles\/[^/]+\.html$/.test(file) || /^[a-z0-9]+(?:-[a-z0-9]+)*\/index\.html$/.test(file);
 }
 
 async function listOutputFiles(root, relative = "") {
@@ -345,9 +350,19 @@ async function buildFiles(root, sourceSha, { production = false } = {}) {
   }
   const inventory = await sourceInventory(root, taxonomy);
   if (production) await assertEditorialInputsMatchCommit(root, sourceSha, inventory);
-  const knownSlugs = new Set(inventory.map(({ slug }) => slug));
-  const knownTags = new Set(Object.keys(taxonomy.tags));
   const assets = new Set(await walkRegularFiles(root, "assets"));
+  const v2Assets = new Map();
+  for (const source of inventory.filter(source => source.file.startsWith("articles/"))) {
+    for (const file of await walkRegularFiles(root, `articles/${source.slug}`)) {
+      if (file === source.file) continue;
+      const localPath = file.slice(`articles/${source.slug}/`.length);
+      if (localPath !== "cover.jpg" && !localPath.startsWith("figures/")) throw new Error(`Unsupported article asset: ${file}`);
+      const publicPath = localPath === "cover.jpg" ? `assets/${source.slug}/${source.slug}-cover.jpg` : `assets/${source.slug}/${localPath}`;
+      if (assets.has(publicPath)) throw new Error(`Duplicate public article asset: ${publicPath}`);
+      assets.add(publicPath);
+      v2Assets.set(publicPath, file);
+    }
+  }
   const previousRecords = await loadPreviousCatalog(root);
   const files = new Map();
   const compiledArticles = new Map();
@@ -377,24 +392,17 @@ async function buildFiles(root, sourceSha, { production = false } = {}) {
     if (file !== "assets/articles-catalog.json") files.set(file, await readFile(path.join(root, file)));
   }
 
-  const contextBase = {
-    rootPath: root,
-    knownTags,
-    knownSlugs,
-    assetExists: file => assets.has(file),
-  };
+  for (const [publicPath, sourcePath] of v2Assets) files.set(publicPath, await readFile(path.join(root, sourcePath)));
+
   const records = [];
-  for (const source of inventory) {
-    const text = await readFile(path.join(root, source.file), "utf8");
-    const context = { ...contextBase, sourcePath: source.file };
-    const compiled = await compileMarkdownArticle({ source: text, ...context });
-    if (compiled.metadata.slug !== source.slug) throw new Error(`${source.file}: metadata slug does not match filename`);
+  for (const { file, compiled } of await compileArticleCorpus(root)) {
     compiled.metadata.tagLabels = Object.fromEntries((compiled.metadata.tags ?? []).map(tag => [
       tag,
       taxonomy.tags[tag]?.label ?? tag,
     ]));
-    compiledArticles.set(source.slug, compiled);
-    records.push(catalogRecord(compiled, addedAtFor(root, sourceSha, source.slug, previousRecords, {
+    const slug = compiled.metadata.slug;
+    compiledArticles.set(slug, compiled);
+    records.push(catalogRecord(compiled, addedAtFor(root, sourceSha, slug, previousRecords, {
       requireCompleteHistory: production,
     })));
   }
@@ -407,6 +415,21 @@ async function buildFiles(root, sourceSha, { production = false } = {}) {
   files.set("assets/articles-catalog.json", catalogBytes);
   for (const [slug, compiled] of compiledArticles) {
     files.set(`content/articles/${slug}.html`, Buffer.from(renderArticleEnvelope(compiled, { buildId: emptyBuildId })));
+  }
+  const articleShell = files.get("article.html").toString("utf8");
+  const escapeHtml = value => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  for (const record of records) {
+    let shell = articleShell.replace('<body class="article-page">', `<body class="article-page" data-article-slug="${record.slug}">`)
+      .replace('<title>Tech Topics</title>', `<title>${escapeHtml(record.title)} — Tech Topics</title>\n    <link rel="canonical" href="../${record.slug}/" />`)
+      .replace('content="Artigo do arquivo Tech Topics."', `content="${escapeHtml(record.excerpt)}"`)
+      .replace(/(\b(?:href|src|action)="|\bdata-fallback-src=")((?!#|\/|[a-z][a-z0-9+.-]*:)[^"]+)/gi, '$1../$2');
+    if (record.headingAnchor && record.headingAnchor !== "article-heading") {
+      shell = shell.replace('<h1 id="article-heading">', `<span id="${escapeHtml(record.headingAnchor)}"></span><h1 id="article-heading">`);
+    }
+    // The canonical URL is already relative to this route, not to the site root.
+    shell = shell.replace(`href="../../${record.slug}/"`, `href="../${record.slug}/"`);
+    shell = shell.replace('</head>', '<script>window.TechTopicsSiteBase="../";</script>\n  </head>');
+    files.set(`${record.slug}/index.html`, Buffer.from(shell));
   }
   const buildId = computeMarkdownBuildId(files);
 

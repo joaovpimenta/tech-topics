@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseDocument } from "yaml";
+import { parseFragment } from "parse5";
 import { compileMarkdownArticle } from "./lib/markdown-article.mjs";
 import { discoverArticleSources, firstAdditionDate } from "./lib/migration-compare.mjs";
 import { articleSignatures, compareBaselines, compareCaptureTools, validateBaseline } from "./lib/migration-baseline.mjs";
@@ -26,12 +27,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const value = flag => { const i = args.indexOf(flag); return i < 0 ? undefined : args[i + 1]; };
 const sha = value("--sha") ?? "fca72c31fcb57ffe9741a2390a04c2035639e14a";
+const repository = path.resolve(value("--repository") ?? root);
 const previousPath = value("--previous");
 const outputRoot = path.resolve(root, value("--output-root") ?? "docs/migrations/baselines");
 if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error("--sha must be a full lowercase Git SHA");
 
 async function git(...gitArgs) {
-  return exec("git", gitArgs, { cwd: root, maxBuffer: 50 * 1024 * 1024, encoding: "utf8" });
+  return exec("git", gitArgs, { cwd: repository, maxBuffer: 50 * 1024 * 1024, encoding: "utf8" });
 }
 const tree = (await git("ls-tree", "-r", sha)).trim().split("\n").filter(Boolean).map(line => {
   const match = line.match(/^\d+ blob ([0-9a-f]+)\t(.+)$/);
@@ -53,6 +55,8 @@ function metadataFor(source) {
 }
 const knownTags = new Set(sourceTexts.flatMap(source => metadataFor(source).tags ?? []));
 const knownSlugs = new Set(inventory.map(source => source.slug));
+const sourcePaths = new Map(inventory.map(source => [source.slug, source.file]));
+const crossLinksBySource = [];
 const articles = [];
 for (const source of sourceTexts) {
   let article, addedAt;
@@ -64,18 +68,33 @@ for (const source of sourceTexts) {
     if (!addedAt) throw new Error(`${source.file}: Git history has no original addition date`);
   } else {
     const metadata = metadataFor(source);
-    const context = { sourcePath: source.file, rootPath: root, knownTags, knownSlugs,
-      assetExists: asset => treeByPath.has(asset) };
+    const crossLinks = [];
+    const context = { sourcePath: source.file, rootPath: repository, knownTags, knownSlugs,
+      sourcePaths, crossLinks, assetExists: asset => treeByPath.has(asset) };
     const compiled = source.extension === "json"
       ? fromLegacyArticle(metadata, context)
       : await compileMarkdownArticle({ source: source.text, ...context });
     if (compiled.metadata.slug !== source.slug) throw new Error(`${source.file}: slug does not match path`);
     article = { ...compiled.metadata, bodyHtml: compiled.slots.body };
+    crossLinksBySource.push({ file: source.file, crossLinks });
     const history = await git("log", "--reverse", "--diff-filter=A", "--format=%cI", sha, "--",
-      `content/articles/${source.slug}.json`, `content/articles/${source.slug}.md`);
+      `content/articles/${source.slug}.json`, `content/articles/${source.slug}.md`, `articles/${source.slug}/article.md`);
     addedAt = firstAdditionDate(history, source.slug);
   }
   articles.push({ article, file: source.file, addedAt, sourceBlob: treeByPath.get(source.file) });
+}
+const idsBySlug = new Map(articles.map(({ article }) => {
+  const ids = new Set();
+  const visit = node => {
+    for (const attr of node.attrs ?? []) if (attr.name === "id" || attr.name === "name") ids.add(attr.value);
+    for (const child of node.childNodes ?? []) visit(child);
+  };
+  visit(parseFragment(article.bodyHtml));
+  return [article.slug, ids];
+}));
+for (const { file, crossLinks } of crossLinksBySource) for (const { slug, fragment } of crossLinks) {
+  if (!idsBySlug.has(slug)) throw new Error(`${file}: unknown article target: ${slug}`);
+  if (fragment && !idsBySlug.get(slug).has(fragment)) throw new Error(`${file}: unknown fragment #${fragment} in article ${slug}`);
 }
 articles.sort((a, b) => b.article.publishedAt.localeCompare(a.article.publishedAt) || (Date.parse(b.addedAt) || 0) - (Date.parse(a.addedAt) || 0) || a.article.slug.localeCompare(b.article.slug));
 
@@ -136,7 +155,8 @@ const baseline = { schemaVersion: 3, sha, sourceCount: records.length,
         meaning: "historical inference-plan chunks only; not editorial sentence indices or measured MP3/chapter timing" } },
     runtime: { node: process.version, python: exec(python, ["-c", "import sys; print(sys.version.split()[0])"], { cwd: root, encoding: "utf8" }).trim().split(/\r?\n/).at(-1) }, sourceTools: speechToolSignatures,
   captureTools: await Promise.all(captureFiles.map(async file => ({ path: file, sha256: sha256((await readFile(path.join(root, file), "utf8")).replace(/\r\n/g, "\n")) }))) },
-  indexSourceCount: JSON.parse(await git("show", `${sha}:content/articles/index.json`)).length,
+  indexSourceCount: treeByPath.has("content/articles/index.json")
+    ? JSON.parse(await git("show", `${sha}:content/articles/index.json`)).length : records.length,
   articles: records };
 if (previousPath) {
   const resolvedPrevious = path.resolve(root, previousPath);

@@ -281,6 +281,21 @@ test("capture CLI compiles Markdown sources in a mixed historical tree", async (
   } finally { await rm(temp, { recursive: true, force: true }); }
 });
 
+test("capture CLI derives the index count from a Markdown-only revision without a legacy index", async () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const sha = "fe86752b9d23a9cb4d9137cc20cb6ffb7883a959";
+  const temp = await mkdtemp(path.join(os.tmpdir(), "migration-markdown-baseline-test-"));
+  try {
+    const result = spawnSync(process.execPath, [path.join(root, "scripts/capture-migration-baseline.mjs"),
+      "--sha", sha, "--output-root", temp], { cwd: root, encoding: "utf8", maxBuffer: 50 * 1024 * 1024 });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const baseline = JSON.parse(await readFile(path.join(temp, sha, "baseline.json"), "utf8"));
+    assert.equal(baseline.sourceCount, 18);
+    assert.equal(baseline.indexSourceCount, 18);
+    assert.ok(baseline.articles.every(article => article.source.endsWith(".md")));
+  } finally { await rm(temp, { recursive: true, force: true }); }
+});
+
 test("baseline validation rejects incomplete or duplicated records", () => {
   assert.match(validateBaseline({ sha: "bad", articles: [record, record] }).join("\n"), /full Git commit SHA/);
   assert.match(validateBaseline({ sha: "a".repeat(40), sourceCount: 2, capture: { sourceTools: [], captureTools: [] }, articles: [record, record] }).join("\n"), /unique/);

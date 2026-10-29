@@ -84,6 +84,48 @@ ${body}
   });
   assert.equal(first.buildId, second.buildId, "repeat builds of the same source should share an identity");
   assert.deepEqual(await snapshot(first), await snapshot(second), "repeat builds should be byte-identical");
+  // A mixed corpus publishes v2 assets at their historical public URLs while
+  // retaining the flat v1 article and keeping source Markdown private.
+  const v2Root = path.join(sourceRoot, "articles", "moderno");
+  await mkdir(path.join(v2Root, "figures"), { recursive: true });
+  await writeFile(path.join(v2Root, "cover.jpg"), "v2 cover");
+  await writeFile(path.join(v2Root, "figures", "diagram.jpg"), "v2 figure");
+  await writeFile(path.join(v2Root, "article.md"), `---
+formatVersion: 2
+publishedAt: '2026-10-28'
+category: Fundamentos
+tags: [seguranca]
+language: pt-BR
+date: 28 de outubro de 2026
+read: 5 min
+excerpt: Resumo do artigo moderno.
+---
+
+# Artigo moderno
+
+> Um subtítulo.
+
+![Capa](./cover.jpg)
+
+Abertura do artigo moderno.
+
+## Neste artigo
+
+- [Parte](#parte)
+
+## Parte
+
+[Artigo anterior](../../content/articles/preview.md)
+
+![Figura](./figures/diagram.jpg)
+`);
+  const mixed = await buildMarkdownPreview({ root: sourceRoot, sourceSha, destination: path.join(temporaryRoot, "mixed") });
+  assert.equal(await readFile(path.join(mixed.destination, "assets/moderno/moderno-cover.jpg"), "utf8"), "v2 cover");
+  assert.equal(await readFile(path.join(mixed.destination, "assets/moderno/figures/diagram.jpg"), "utf8"), "v2 figure");
+  assert(!mixed.files.some(file => file.startsWith("articles/")));
+  assert.match(await readFile(path.join(mixed.destination, "moderno/index.html"), "utf8"), /id="artigo-moderno"/);
+  assert.match(await readFile(path.join(mixed.destination, "content/articles/moderno.html"), "utf8"), /href="preview\/"/);
+  await rm(path.join(sourceRoot, "articles"), { recursive: true });
   const originalSnapshot = await snapshot(first);
   const rebuilt = await buildMarkdownPreview({
     root: sourceRoot, sourceSha, destination: first.destination,
@@ -101,6 +143,13 @@ ${body}
   assert.equal(catalog.buildId, first.buildId);
   assert.equal(catalog.articles.length, 1);
   assert.equal(catalog.articles[0].path, "content/articles/preview.html");
+  const route = await readFile(path.join(first.destination, "preview/index.html"), "utf8");
+  assert.match(route, /<title>.*Tech Topics<\/title>/);
+  assert.match(route, /rel="canonical" href="\.\.\/preview\/"/);
+  assert.match(route, /src="\.\.\/article\.js/);
+  assert.match(route, /data-article-slug="preview"/);
+  assert.doesNotMatch(route, /<base\b/i);
+
   assert.equal(catalog.articles[0].opening, opening);
   assert.deepEqual(catalog.articles[0].tags, ["seguranca"]);
   assert.deepEqual(catalog.articles[0].tagLabels, ["Segurança"]);

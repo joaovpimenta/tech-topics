@@ -42,8 +42,12 @@ const git = (...gitArgs) => execFileSync("git", gitArgs, { cwd: repository, enco
 git("cat-file", "-e", `${sha}^{commit}`);
 const treeLines = git("ls-tree", "-r", sha).split(/\r?\n/).filter(Boolean);
 const tree = new Map(treeLines.map(line => {
-  const match = line.match(/^\d+ blob ([0-9a-f]+)\t(.+)$/);
-  return match && [match[2], match[1]];
+  const match = line.match(/^(\d+) blob ([0-9a-f]+)\t(.+)$/);
+  if (match && match[1] !== "100644" && match[1] !== "100755"
+      && /^(?:articles|content\/articles)\//.test(match[3])) {
+    throw new Error(`${sha}: article source or asset is not a regular file: ${match[3]}`);
+  }
+  return match && [match[3], match[2]];
 }).filter(Boolean));
 const inventory = discoverArticleSources(tree.keys(), sha);
 if (inventoryOnly) {
