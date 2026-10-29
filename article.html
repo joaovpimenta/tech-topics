@@ -64,6 +64,7 @@
                 <span class="inline-recording-duration" id="inline-recording-duration">–:––</span>
               </div>
               <button type="button" class="inline-recording-rate" id="inline-recording-rate" title="Alterar velocidade" aria-label="Velocidade da narração: 1 vez">1×</button>
+              <span id="inline-recording-source" class="recording-source-label" hidden></span>
             </div>
           </div>
           <div class="article-social-actions">
@@ -105,6 +106,7 @@
       </div>
       <div class="recording-actions">
         <button id="recording-rate" class="recording-rate" type="button" aria-label="Velocidade da narração: 1 vez">1×</button>
+        <span id="recording-source" class="recording-source-label" hidden></span>
         <button id="recording-previous" class="recording-skip" type="button" aria-label="Frase anterior" title="Frase anterior" disabled>
           <svg aria-hidden="true" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"><path d="M19 5 10 12l9 7V5Z"/><path d="M6 5v14"/></svg>
         </button>
@@ -118,6 +120,7 @@
         <details class="recording-options">
           <summary aria-label="Outras opções de áudio" title="Outras opções de áudio">···</summary>
           <div class="recording-options-menu">
+            <p id="recording-source-menu" class="recording-source-current">Fonte atual: não iniciada</p>
             <button id="listen-article" type="button" aria-pressed="false">Usar voz do dispositivo</button>
             <label class="recording-follow"><input id="recording-follow" type="checkbox" checked /> Acompanhar frase</label>
           </div>
@@ -137,7 +140,7 @@
     <script src="mermaid-theme.js?v=20260920-mermaid"></script>
     <script>/* TECH_TOPICS_SPEECH_LEXICON */</script>
     <script src="speech.js?v=20261023-sentence-range"></script>
-    <script src="audio.js?v=20261023-player-fit-gesture"></script>
+    <script src="audio.js?v=20261029-source-indicator"></script>
     <script src="header.js?v=20261023-shared"></script>
     <script src="cards.js?v=20261029-pages-revision"></script>
     <script src="article.js?v=20261029-pages-revision"></script>
