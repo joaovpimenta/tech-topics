@@ -580,7 +580,7 @@ async function testOrdering() {
     localStorage: { getItem: key => stored.get(key) || null, setItem: (key, value) => stored.set(key, value) },
     fetch: async path => {
       calls.push(path);
-      if (path === "assets/articles-catalog.json") return { ok: true, json: async () => catalog };
+      if (/^assets\/articles-catalog\.json\?(?:transport=html-v1|revision=[a-f0-9]{40})$/.test(path)) return { ok: true, json: async () => catalog };
       return { ok: false, json: async () => ({}) };
     }
   };
