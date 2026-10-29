@@ -37,10 +37,17 @@ def main():
         built = subprocess.run(
             [node, str(ROOT / "scripts" / "build-markdown-browser-fixture.mjs"),
              "--destination", str(destination)],
-            cwd=ROOT, check=True, capture_output=True, text=True, encoding="utf-8",
+            cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
         )
+        if built.returncode:
+            raise RuntimeError(
+                f"Markdown browser fixture build failed (exit {built.returncode}).\n"
+                f"stdout:\n{built.stdout or '(empty)'}\n"
+                f"stderr:\n{built.stderr or '(empty)'}"
+            )
         identity = json.loads(built.stdout.strip().splitlines()[-1])
         assert identity["buildId"] and Path(identity["destination"]).is_dir()
+        assert (destination / "assets" / "preview" / "preview-cover.jpg").is_file()
 
         handler = functools.partial(BasePathHandler, directory=str(destination))
         server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
