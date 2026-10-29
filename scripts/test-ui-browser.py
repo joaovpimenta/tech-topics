@@ -347,6 +347,9 @@ def test_player(browser, base):
                 button.disabled = false;
               }
               document.getElementById('inline-recording-rate').textContent = '1.25×';
+              const source = document.getElementById('inline-recording-source');
+              source.textContent = 'Dispositivo';
+              source.hidden = false;
               document.getElementById('inline-recording-duration').textContent = '12:34:56';
               window.dispatchEvent(new Event('resize'));
             }""")
@@ -363,6 +366,8 @@ def test_player(browser, base):
                 previous:box('inline-recording-previous'),
                 next:box('inline-recording-next'),
                 rate:box('inline-recording-rate'),
+                source:box('inline-recording-source'),
+                sourceVisible:getComputedStyle(byId('inline-recording-source')).display !== 'none',
                 favorite:box('favorite-article'),
                 share:box('share-article'),
                 seek:box('inline-recording-seek'),
@@ -374,11 +379,33 @@ def test_player(browser, base):
             assert all(a["right"] <= b["left"] + 0.5 for a, b in zip(fixed, fixed[1:])), (width, "overlapping controls", measured)
             assert measured["rate"]["right"] + 1 <= measured["favorite"]["left"], (width, "speed under favorite", measured)
             assert measured["rate"]["right"] <= measured["player"]["right"] + 1, (width, "rate overflows player", measured)
+            if width <= 720:
+                assert not measured["sourceVisible"], (width, "mobile source pill must stay inside overflow menu")
+            else:
+                assert measured["sourceVisible"], (width, "desktop source pill is missing")
+                assert measured["rate"]["right"] <= measured["source"]["left"] + 0.5, (width, measured)
+                assert measured["source"]["right"] <= measured["player"]["right"] + 1, (width, "source pill overflows player", measured)
+                assert measured["source"]["right"] <= measured["favorite"]["left"], (width, "source pill overlaps favorite", measured)
             if measured["timelineHidden"]:
                 assert measured["seek"]["width"] == 0, (width, "timeline must fully disappear", measured)
             else:
                 assert measured["seek"]["width"] >= 30, (width, "timeline visible but unusable", measured)
-        print("PASS: Chromium player geometry at 280–1920px, chapter buttons and 1.25× speed")
+        page.evaluate("""() => {
+          document.getElementById('recording-source').hidden = false;
+          document.getElementById('recording-source').textContent = 'Dispositivo';
+          document.getElementById('recording-player').hidden = false;
+          document.getElementById('recording-source-menu').textContent = 'Fonte atual: voz do dispositivo';
+        }""")
+        for width in (320, 720, 900, 1280):
+            page.set_viewport_size({"width": width, "height": 800})
+            status = page.locator("#recording-source")
+            assert status.is_visible() == (width > 720), (width, "floating source display")
+            menu = page.locator(".recording-options")
+            menu.evaluate("(node) => node.hidden = false")
+            menu.locator("summary").click()
+            assert page.locator("#recording-source-menu").inner_text() == "Fonte atual: voz do dispositivo"
+            menu.locator("summary").click()
+        print("PASS: Chromium player and source indicator geometry at 280–1920px")
     finally:
         page.close()
 
