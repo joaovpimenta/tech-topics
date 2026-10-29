@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20261029-diagram-zoom" />
+    <link rel="stylesheet" href="styles.css?v=20261029-live-suggestions" />
   </head>
   <body class="article-page">
     <a class="skip-link" href="#article-root">Ir para o artigo</a>
@@ -28,6 +28,7 @@
           <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
           <label class="visually-hidden" for="article-search-input">Buscar artigo</label>
           <input id="article-search-input" name="q" type="search" placeholder="Buscar artigo" autocomplete="off" enterkeyhint="search" />
+          <div id="search-suggestions" class="search-suggestions" role="region" aria-label="Sugestões de artigos" hidden></div>
         </form>
         <div class="header-actions">
           <a class="github-stars" href="https://github.com/joaovpimenta/tech-topics" target="_blank" rel="noopener noreferrer" aria-label="Ver repositório Tech Topics no GitHub" title="Estrelas do repositório no GitHub">
@@ -143,7 +144,8 @@
     <script src="audio.js?v=20261029-source-indicator"></script>
     <script src="header.js?v=20261023-shared"></script>
     <script src="cards.js?v=20261029-pages-revision"></script>
-    <script src="article.js?v=20261029-pages-revision"></script>
+    <script src="search.js?v=20261029-live-suggestions"></script>
+    <script src="article.js?v=20261029-live-suggestions"></script>
     <script src="pwa.js"></script>
   </body>
 </html>
