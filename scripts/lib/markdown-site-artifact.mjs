@@ -385,6 +385,14 @@ async function buildFiles(root, sourceSha, { production = false } = {}) {
       const embedded = `window.TechTopicsSpeechLexicon=${JSON.stringify(lexicon).replace(/</g, "\\u003c")};`;
       content = Buffer.from(html.replace(speechLexiconMarker, () => embedded));
     }
+    if (file === "index.html" || file === "article.html") {
+      const html = content.toString("utf8");
+      if (!html.includes("</head>") || html.includes("TechTopicsPublicationSha")) {
+        throw new Error(`Cannot stamp publication revision in ${file}`);
+      }
+      content = Buffer.from(html.replace("</head>",
+        `<script>window.TechTopicsPublicationSha=${JSON.stringify(sourceSha)};</script>\n  </head>`));
+    }
     files.set(file, content);
   }
 

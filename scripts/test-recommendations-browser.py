@@ -50,7 +50,7 @@ try:
             boxes = [cards.nth(i).bounding_box() for i in range(3)]
             assert max(box['y'] for box in boxes) - min(box['y'] for box in boxes) < 1, boxes
             assert len([url for url in requests if '/assets/articles-catalog.json' in url]) == 1
-            assert len([url for url in requests if '/content/articles/' in url and url.endswith('.html')]) == 1
+            assert len([url for url in requests if '/content/articles/' in url and urlparse(url).path.endswith('.html')]) == 1
             main_favorite = page.locator('#favorite-article')
             main_favorite.click()
             cards.first.locator('.favorite-button').click()

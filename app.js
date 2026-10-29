@@ -1,4 +1,8 @@
 const articles = [];
+const publicationRevision = window.TechTopicsPublicationSha;
+const publicationQuery = /^[a-f0-9]{40}$/i.test(publicationRevision || "")
+  ? "?revision=" + encodeURIComponent(publicationRevision)
+  : "?transport=html-v1";
 const list = document.querySelector("#recent-list");
 const searchInput = document.querySelector("#search-input");
 const count = document.querySelector("#article-count");
@@ -42,7 +46,7 @@ function renderArchive() {
 
 async function loadArticles() {
   try {
-    const response = await fetch("assets/articles-catalog.json");
+    const response = await fetch("assets/articles-catalog.json" + publicationQuery, { cache: "no-store" });
     if (!response.ok) throw new Error("Catálogo indisponível");
     const catalog = await response.json();
     const records = articleCatalogEntries(catalog);

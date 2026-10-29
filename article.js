@@ -1,5 +1,11 @@
 const params = new URLSearchParams(window.location.search);
 const siteBase = window.TechTopicsSiteBase || "./";
+// The publication SHA is embedded in each built shell. A unique URL prevents a
+// previous Service Worker from returning a catalog/HTML envelope from another build.
+const publicationRevision = window.TechTopicsPublicationSha;
+const publicationQuery = /^[a-f0-9]{40}$/i.test(publicationRevision || "")
+  ? "?revision=" + encodeURIComponent(publicationRevision)
+  : "?transport=html-v1";
 const requestedSlug = document.body?.dataset?.articleSlug || params.get("slug");
 const markArticlePerf = name => { try { performance.mark(`tt:${name}`); } catch (_) {} };
 markArticlePerf("article-script-start");
@@ -434,7 +440,7 @@ function articleHtmlSlots(source, slug, transport) {
 async function loadCatalogHtml(slug, catalogArticle = null) {
   let article = catalogArticle;
   if (!article) {
-    const catalogResponse = await fetch(siteBase + "assets/articles-catalog.json", { cache: "no-store" });
+    const catalogResponse = await fetch(siteBase + "assets/articles-catalog.json" + publicationQuery, { cache: "no-store" });
     if (!catalogResponse.ok) throw new Error("Catálogo indisponível");
     article = articleCatalogEntries(await catalogResponse.json()).find(item => item?.slug === slug);
   }
@@ -456,7 +462,7 @@ async function loadCatalogHtml(slug, catalogArticle = null) {
     throw new Error("Metadados HTML inválidos");
   }
 
-  const htmlResponse = await fetch(siteBase + transport.path, { cache: "no-store" });
+  const htmlResponse = await fetch(siteBase + transport.path + publicationQuery, { cache: "no-store" });
   if (!htmlResponse.ok) throw new Error("Artigo HTML indisponível");
   const slots = articleHtmlSlots(await htmlResponse.text(), slug, transport);
   return { article, slots };
@@ -488,7 +494,7 @@ function articleCatalogEntries(catalog) {
 }
 
 async function loadHtmlFromCatalog(requestedArticleSlug) {
-  const catalogResponse = await fetch(siteBase + "assets/articles-catalog.json", { cache: "no-store" });
+  const catalogResponse = await fetch(siteBase + "assets/articles-catalog.json" + publicationQuery, { cache: "no-store" });
   if (!catalogResponse.ok) throw new Error("Catálogo indisponível");
   const catalog = articleCatalogEntries(await catalogResponse.json());
   const article = requestedArticleSlug
@@ -514,6 +520,7 @@ async function loadArticle() {
       }
     } catch (error) { /* Recommendations must not interrupt article reading. */ }
   } catch (error) {
+    console.error("Tech Topics: não foi possível carregar o artigo", error);
     document.querySelector("#article-category").textContent = "Arquivo";
     document.querySelector("#article-heading").textContent = "Artigo indisponível";
     document.querySelector(".article-hero").hidden = true;

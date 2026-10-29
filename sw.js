@@ -107,6 +107,11 @@ self.addEventListener("fetch", event => {
     : url.pathname === BASE_URL.pathname || url.pathname === homePath ? "index.html"
       : url.pathname === articlePath ? "article.html" : null;
   const relativePath = url.pathname.slice(BASE_URL.pathname.length);
+  const isArticleData = relativePath === "assets/articles-catalog.json"
+    || /^content\/articles\/[a-z0-9]+(?:-[a-z0-9]+)*\.html$/.test(relativePath);
+  // A reader explicitly asking for the published snapshot must not receive
+  // an older cached catalog/envelope just because a worker is still active.
+  const refreshArticleData = isArticleData && event.request.cache === "no-store";
   const cleanRoute = event.request.mode === "navigate" && /^[a-z0-9]+(?:-[a-z0-9]+)*\/(?:index\.html)?$/.test(relativePath)
     ? relativePath.replace(/index\.html$/, "") : null;
   const cacheKey = shellPath ? new URL(shellPath, BASE_URL).href
@@ -131,7 +136,7 @@ self.addEventListener("fetch", event => {
       }
       saved = await cache.match(requestCacheKey);
     } catch (error) { cache = null; }
-    if (saved) return saved;
+    if (saved && !refreshArticleData) return saved;
     try {
       const fresh = await fetch(event.request);
       if (fresh.ok && cache && cacheFreshResponse) {
@@ -139,6 +144,18 @@ self.addEventListener("fetch", event => {
       }
       return fresh;
     } catch (error) {
+      if (saved) return saved;
+      // The installed worker precaches the canonical catalog. It can serve an
+      // offline revisioned request only when the cached source SHA matches.
+      if (relativePath === "assets/articles-catalog.json" && cache) {
+        const revision = url.searchParams.get("revision");
+        if (revision) {
+          try {
+            const canonical = await cache.match(new URL("assets/articles-catalog.json", BASE_URL).href);
+            if (canonical && (await canonical.clone().json()).sourceSha === revision) return canonical;
+          } catch (cacheError) { /* Keep offline fallback safe. */ }
+        }
+      }
       if (shellPath && cache) {
         try {
           const page = await cache.match(cacheKey);
