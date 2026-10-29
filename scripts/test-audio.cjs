@@ -469,7 +469,14 @@ async function playerFixture({ readyState = 4, playbackTimeoutMs = 30, sourceSwi
 }
 
 test("active-source indicator tracks MP3, device voice, fallback and close", async () => {
-  const fixture = await playerFixture();
+  const fixture = await playerFixture({ fetchAudio: async () => ({
+    url: "https://example.org/bulkhead.mp3",
+    chapters: [
+      { start: 0, block_index: 0, sentence_index: 0 },
+      { start: 30, block_index: 1, sentence_index: 0 },
+      { start: 80, block_index: 2, sentence_index: 0 }
+    ]
+  }) });
   const { nodes, controller, audio, menu } = fixture;
   const inline = nodes["#inline-recording-source"];
   const dock = nodes["#recording-source"];
