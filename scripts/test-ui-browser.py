@@ -199,6 +199,80 @@ def test_diagrams_fit_viewport(browser, base):
         page.close()
 
 
+def test_diagram_zoom(browser, base):
+    page = browser.new_page(viewport={'width': 390, 'height': 844})
+    errors = []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    renderer = '''export default { initialize() {}, async render(id) {
+      return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 1000 500" style="max-width:1000px"><text x="20" y="40" style="font-size:16px">Pedido A — evento pendente</text></svg>`};
+    }};'''
+    def route(request):
+        if 'mermaid.esm.min.mjs' in request.request.url:
+            request.fulfill(status=200, content_type='application/javascript', body=renderer)
+        elif request.request.url.startswith(base + '/'):
+            request.continue_()
+        else:
+            request.abort()
+    page.route('**/*', route)
+    try:
+        page.goto(base + '/article.html?slug=transactional-outbox', wait_until='domcontentloaded')
+        first = page.locator('.mermaid-diagram').first
+        first.locator('.diagram-toolbar').wait_for(state='visible')
+        svg = first.locator('svg')
+        viewport = first.locator('.diagram-viewport')
+        def width():
+            return svg.bounding_box()['width']
+        page.wait_for_function("document.querySelector('.diagram-toolbar output').value !== ''")
+        text_size = svg.locator('text').evaluate("e => parseFloat(getComputedStyle(e).fontSize) * e.getScreenCTM().a")
+        assert text_size >= 13.9, ('unreadable initial label', text_size)
+        page.evaluate("document.documentElement.style.fontSize = '24px'")
+        page.wait_for_function("(() => { const text = document.querySelector('.diagram-viewport text'); return parseFloat(getComputedStyle(text).fontSize) * text.getScreenCTM().a >= 20.9; })()")
+        page.evaluate("document.documentElement.style.fontSize = '16px'")
+        page.wait_for_function("document.querySelector('.diagram-toolbar output').value === '88%'")
+        initial = width()
+        first.get_by_role('button', name='Ampliar diagrama', exact=True).click()
+        assert width() > initial
+        first.get_by_role('button', name='Reduzir diagrama', exact=True).click()
+        assert abs(width() - initial) < 1
+        for _ in range(10):
+            reduce = first.get_by_role('button', name='Reduzir diagrama', exact=True)
+            if reduce.is_disabled():
+                break
+            reduce.click()
+        assert width() <= viewport.evaluate('e => e.clientWidth') + 1
+        assert first.get_by_role('button', name='Reduzir diagrama', exact=True).is_disabled()
+        page.set_viewport_size({'width': 720, 'height': 844})
+        page.wait_for_function("Math.abs(document.querySelector('.diagram-viewport svg').getBoundingClientRect().width - document.querySelector('.diagram-viewport').clientWidth) < 1")
+        for _ in range(8):
+            zoom = first.get_by_role('button', name='Ampliar diagrama', exact=True)
+            if zoom.is_disabled():
+                break
+            zoom.click()
+        assert width() > 1000, 'Mermaid inline max-width must not prevent zoom'
+        assert page.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1')
+        viewport.focus()
+        page.keyboard.press('ArrowRight')
+        page.wait_for_function("document.querySelector('.diagram-viewport').scrollLeft > 0")
+        first.get_by_role('button', name='Abrir diagrama em tela cheia').click()
+        dialog = page.get_by_role('dialog', name='Diagrama em tela cheia')
+        dialog.wait_for(state='visible')
+        assert dialog.get_by_role('button', name='Sair da tela cheia').evaluate('e => e === document.activeElement')
+        assert dialog.locator('.diagram-viewport').bounding_box()['height'] > 400
+        page.keyboard.press('Escape')
+        page.locator('dialog').wait_for(state='detached')
+        assert page.locator('dialog').count() == 0
+        assert first.get_by_role('button', name='Abrir diagrama em tela cheia').evaluate('e => e === document.activeElement')
+        first.get_by_role('button', name='Abrir diagrama em tela cheia').click()
+        page.get_by_role('dialog').get_by_role('button', name='Sair da tela cheia').click()
+        page.locator('dialog').wait_for(state='detached')
+        assert page.locator('dialog').count() == 0
+        assert not errors, errors
+        assert first.locator('.diagram-toolbar').get_attribute('data-tts-ignore') == ''
+        print('PASS: diagram readable labels, ResizeObserver, zoom controls and keyboard scrolling')
+    finally:
+        page.close()
+
+
 def test_player(browser, base):
     page = browser.new_page(viewport={"width": 430, "height": 800})
     page.route("**/api.github.com/**", lambda route: route.abort())
@@ -405,6 +479,7 @@ if __name__ == "__main__":
                 test_archive_extremes(browser, base)
                 test_responsive_article_header(browser, base)
                 test_diagrams_fit_viewport(browser, base)
+                test_diagram_zoom(browser, base)
                 test_player(browser, base)
                 test_touch_buttons_do_not_keep_hover(browser, base)
                 test_press_drag(browser, base)

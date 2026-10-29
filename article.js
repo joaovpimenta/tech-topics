@@ -69,6 +69,110 @@ window.addEventListener("storage", event => {
 });
 
 
+function mountDiagramViewport(container, svg) {
+  const viewBox = svg.viewBox.baseVal;
+  if (!(viewBox.width > 0 && viewBox.height > 0)) return;
+  const viewport = document.createElement("div");
+  viewport.className = "diagram-viewport";
+  viewport.tabIndex = 0;
+  viewport.setAttribute("role", "region");
+  viewport.setAttribute("aria-label", svg.getAttribute("aria-label") + ". Use as setas para rolar o diagrama ampliado.");
+  const toolbar = document.createElement("div");
+  toolbar.className = "diagram-toolbar";
+  toolbar.setAttribute("data-tts-ignore", "");
+  toolbar.setAttribute("role", "group");
+  toolbar.setAttribute("aria-label", "Tamanho do diagrama");
+  function button(text, label, action) {
+    const control = document.createElement("button");
+    control.type = "button";
+    control.textContent = text;
+    control.setAttribute("aria-label", label);
+    control.title = label;
+    control.addEventListener("click", action);
+    toolbar.append(control);
+    return control;
+  }
+  let scale = 1;
+  let mode = "auto";
+  let fit = 1;
+  let maximum = 3;
+  const zoomIn = button("+", "Ampliar diagrama", () => zoom(scale * 1.25));
+  const zoomOut = button("−", "Reduzir diagrama", () => zoom(scale / 1.25));
+  let dialog = null;
+  const fullscreen = button("⛶", "Abrir diagrama em tela cheia", () => {
+    if (dialog) { dialog.close(); return; }
+    const readingPosition = { top: window.scrollY, left: window.scrollX, behavior: "instant" };
+    const placeholder = document.createComment("diagram-position");
+    container.before(placeholder);
+    dialog = document.createElement("dialog");
+    dialog.className = "diagram-dialog";
+    dialog.setAttribute("aria-label", "Diagrama em tela cheia");
+    document.body.append(dialog);
+    dialog.append(container);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    fullscreen.setAttribute("aria-label", "Sair da tela cheia");
+    fullscreen.title = "Sair da tela cheia";
+    dialog.addEventListener("close", () => {
+      placeholder.replaceWith(container);
+      dialog.remove();
+      dialog = null;
+      document.body.style.overflow = previousOverflow;
+      fullscreen.setAttribute("aria-label", "Abrir diagrama em tela cheia");
+      fullscreen.title = "Abrir diagrama em tela cheia";
+      update();
+      window.scrollTo(readingPosition);
+      fullscreen.focus({ preventScroll: true });
+    }, { once: true });
+    dialog.showModal();
+    fullscreen.focus();
+    update();
+  });
+  const status = document.createElement("output");
+  status.setAttribute("aria-live", "polite");
+  status.setAttribute("aria-label", "Ampliação do diagrama");
+  toolbar.append(status);
+  const hint = document.createElement("p");
+  hint.className = "diagram-hint";
+  hint.setAttribute("data-tts-ignore", "");
+  hint.textContent = "Deslize dentro do quadro para explorar o diagrama ampliado.";
+  viewport.append(svg);
+  svg.style.maxWidth = "none";
+  container.replaceChildren(toolbar, viewport, hint);
+  const fonts = [...svg.querySelectorAll("text, foreignObject span, foreignObject p")]
+    .filter(node => node.textContent.trim())
+    .map(node => parseFloat(getComputedStyle(node).fontSize)).filter(size => size > 0);
+  function update() {
+    const width = viewport.clientWidth;
+    if (!width) return;
+    const minimumFont = Math.max(14, parseFloat(getComputedStyle(document.documentElement).fontSize) * .875);
+    const readableScale = minimumFont / (fonts.length ? Math.min(...fonts) : 16);
+    fit = Math.min(1, width / viewBox.width);
+    maximum = Math.max(3, readableScale * 2);
+    if (mode === "auto") scale = Math.max(fit, readableScale);
+    else if (mode === "fit") scale = fit;
+    else scale = Math.max(fit, Math.min(maximum, scale));
+    svg.style.width = `${viewBox.width * scale}px`;
+    svg.style.height = `${viewBox.height * scale}px`;
+    zoomIn.disabled = scale >= maximum - .001;
+    zoomOut.disabled = scale <= fit + .001;
+    status.value = `${Math.round(scale * 100)}%`;
+    hint.hidden = viewport.scrollWidth <= viewport.clientWidth + 1 && viewport.scrollHeight <= viewport.clientHeight + 1;
+  }
+  function zoom(next) {
+    mode = next <= fit + .001 ? "fit" : "manual";
+    scale = Math.max(fit, Math.min(maximum, next));
+    update();
+  }
+  if (typeof ResizeObserver === "function") {
+    const observer = new ResizeObserver(update);
+    observer.observe(viewport);
+    observer.observe(toolbar);
+    observer.observe(container);
+  } else window.addEventListener("resize", update);
+  update();
+}
+
 async function renderMermaidDiagrams() {
   const containers = [...document.querySelectorAll('[data-mermaid="true"]')];
   if (!containers.length) return;
@@ -93,6 +197,7 @@ async function renderMermaidDiagrams() {
         svg.setAttribute("role", "img");
         svg.setAttribute("aria-label", container.dataset.mermaidLabel || "Diagrama técnico");
         container.replaceChildren(svg);
+        mountDiagramViewport(container, svg);
       } catch (error) {
         container.classList.add("mermaid-error");
         const message = document.createElement("p");
