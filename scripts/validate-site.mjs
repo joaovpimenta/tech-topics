@@ -15,6 +15,8 @@ const checks = [
   ["Build article manifest", ["scripts/build-articles.mjs"]],
   ["Lint article content", ["scripts/lint-articles.mjs"]],
   ["Check application syntax", ["--check", "app.js"]],
+  ["Check shared card syntax", ["--check", "cards.js"]],
+  ["Run recommendation selection tests", ["scripts/test-recommendations.cjs"]],
   ["Check shared header syntax", ["--check", "header.js"]],
   ["Check article syntax", ["--check", "article.js"]],
   ["Check speech syntax", ["--check", "speech.js"]],

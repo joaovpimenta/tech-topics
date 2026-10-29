@@ -65,6 +65,8 @@ Execute testes adicionais somente quando existirem ou quando a alteração afeta
 
 Para alterações no player, execute também `node scripts/test-speech-browser.cjs` com Playwright e Chromium disponíveis. O teste cobre a página real em desktop e celular e usa síntese simulada para navegação e sincronização; a qualidade da voz exige escuta real. `TECH_TOPICS_PLAYWRIGHT` aceita o caminho do módulo Playwright e `TECH_TOPICS_CHROMIUM` o executável do navegador. Sem Playwright, o comando informa explicitamente que pulou o teste.
 
+Para auditar a interface, instale o pacote Python `playwright==1.57.0` e o navegador (`python -m playwright install chromium`), gere `dist/` e execute `python scripts/test-ui-browser.py`. A suíte percorre larguras de 320 a 1920 px, verifica geometria e interações e inclui testes de toque. Defina `TECH_TOPICS_UI_SCREENSHOTS` como um diretório para guardar capturas. A CI anexa essas imagens ao job de navegador; a revisão visual continua necessária para avaliar legibilidade e estética.
+
 ## Inspeção da página
 
 Confira a página inicial e o novo artigo em:
