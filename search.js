@@ -117,8 +117,8 @@
   });
   panel.addEventListener("keydown", event => {
     if (event.key === "Escape") {
-      dismiss();
       input.focus();
+      dismiss();
       return;
     }
     if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
