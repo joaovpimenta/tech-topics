@@ -170,6 +170,18 @@ a:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid
   height: auto;
   margin: 0 auto;
 }
+.diagram-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; margin-bottom: 12px; font: .875rem var(--sans); }
+.diagram-toolbar button { min-width: 44px; min-height: 44px; padding: 4px 10px; border: 1px solid #277d69; border-radius: 6px; background: white; color: #173b32; font: 24px/1 var(--sans); cursor: pointer; }
+.diagram-toolbar button:disabled { opacity: .45; cursor: default; }
+.diagram-toolbar output { margin-left: auto; color: #173b32; }
+.diagram-viewport { width: 100%; min-width: 0; max-height: min(70svh, 650px); overflow: auto; overscroll-behavior: contain; }
+.diagram-viewport svg { max-width: none; margin: 0; }
+.article-body .diagram-hint { width: 100%; margin: 10px 0 0; font: .875rem/1.5 var(--sans); color: #173b32; }
+.diagram-toolbar button:focus-visible, .diagram-viewport:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.diagram-dialog { width: 100vw; max-width: none; height: 100dvh; max-height: none; margin: 0; padding: clamp(12px, 3vw, 24px); border: 0; background: var(--paper); overflow: hidden; }
+.diagram-dialog::backdrop { background: rgb(0 0 0 / .65); }
+.diagram-dialog .mermaid-diagram { height: 100%; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; }
+.diagram-dialog .diagram-viewport { height: 100%; max-height: none; }
 .mermaid-source {
   width: 100%;
   margin: 0;
