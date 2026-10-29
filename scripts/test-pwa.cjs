@@ -558,7 +558,7 @@ async function testOrdering() {
   const window = {
     innerWidth: 375, innerHeight: 750, location: { search: "", assign(path) { navigated.push(path); } }
   };
-  vm.runInNewContext(readFileSync("app.js", "utf8"), {
+  const cardContext = {
     document, window, navigator: mockNavigator,
     URL, URLSearchParams, Intl, Date, Math, setTimeout: setTimer, clearTimeout: id => timers.delete(id),
     localStorage: { getItem: key => stored.get(key) || null, setItem: (key, value) => stored.set(key, value) },
@@ -567,7 +567,9 @@ async function testOrdering() {
       if (path === "assets/articles-catalog.json") return { ok: true, json: async () => catalog };
       return { ok: false, json: async () => ({}) };
     }
-  });
+  };
+  vm.runInNewContext(readFileSync("cards.js", "utf8"), cardContext);
+  vm.runInNewContext(readFileSync("app.js", "utf8"), cardContext);
   await new Promise(setImmediate);
   const urls = () => nodes.get("#recent-list").children.map(card => card.children[0].href);
   assert.deepEqual(urls(), [

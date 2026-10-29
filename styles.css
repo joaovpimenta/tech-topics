@@ -99,6 +99,7 @@ a:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid
 .article-callout { border-left: 3px solid var(--accent); background: #f7f7f7; padding: 17px 21px; margin: 25px 0; }
 .article-callout p { margin: 0; }
 .article-back { display: inline-block; margin-top: 28px; color: var(--accent); font-family: var(--sans); font-size: 14px; }
+.recommendations-section { margin-top: clamp(40px, 6vw, 72px); }
 .fgs-guide .fgs-toc { background: var(--soft); padding: 22px 24px; font-family: var(--sans); font-size: 15px; border: 1px solid var(--line); border-radius: 6px; margin: 28px 0; }
 .fgs-guide .fgs-toc ul { columns: 2; margin: 10px 0 0; }
 .fgs-guide .fgs-toc li { break-inside: avoid; margin-bottom: 5px; }
@@ -387,7 +388,7 @@ a:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid
 /* Home: lightweight archive, sticky three-part search bar and local favorites. */
 .visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 body:not(.article-page) .site-header { position: sticky; top: 0; z-index: 15; background: var(--paper); }
-.home-header-inner { display: grid; grid-template-columns: minmax(max-content, 1fr) minmax(100px, 500px) minmax(max-content, 1fr); gap: 20px; }
+.home-header-inner { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: clamp(16px, 2.5vw, 32px); padding-block: 12px; }
 .home-header-inner .brand { white-space: nowrap; justify-self: start; }
 .home-header-inner .header-actions { justify-self: end; }
 .top-search { display: flex; align-items: center; min-width: 0; height: 46px; gap: 10px; padding: 0 16px; border-radius: 30px; background: #f2f4f4; color: #697273; border: 1px solid transparent; }
@@ -438,7 +439,7 @@ body:not(.article-page) .site-header { position: sticky; top: 0; z-index: 15; ba
 .quick-icon.is-targeted, .quick-read.is-targeted { outline: 3px solid #96cbbb; outline-offset: 2px; filter: brightness(.95); }
 @media (pointer: coarse) { .recent-item, .recent-item * { -webkit-touch-callout: none; } }
 @media (max-width: 720px) {
-  .home-header-inner { grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; min-height: 64px; }
+  .home-header-inner { grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; min-height: 64px; padding-block: 0; }
   .home-header-inner .brand { font-size: clamp(17px, 4vw, 22px); letter-spacing: -.6px; }
   .top-search { height: 42px; padding: 0 11px; gap: 7px; }
   .top-search input { font-size: 14px; }
@@ -613,9 +614,22 @@ body:not(.article-page) .page-shell { padding-top: 26px; padding-bottom: 50px; }
 
 /* Shared site chrome is identical on articles and the archive. */
 .site-header { position: sticky; top: 0; z-index: 15; background: var(--paper); }
-.article-page .home-header-inner { width: min(100% - 48px, 1020px); }
+.article-page .home-header-inner { width: min(100% - 48px, 1200px); }
 @media (max-width: 720px) {
   .article-page .home-header-inner { width: calc(100% - 32px); }
+}
+
+/* The archive uses the available width; article prose keeps its reading measure. */
+@media (min-width: 721px) {
+  .home-header-inner, body:not(.article-page) .page-shell { width: min(100% - 48px, 1200px); }
+  .home-header-inner { min-height: 0; }
+  .recent-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: clamp(20px, 2.5vw, 32px); }
+  .recent-item { min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: 14px; padding: 20px 0 14px; }
+  .recent-image { aspect-ratio: 16 / 9; display: grid; place-items: center; background: var(--soft); }
+  .recent-image img { width: 100%; height: 100%; object-fit: contain; }
+  .recent-copy { min-width: 0; display: flex; flex-direction: column; flex: 1; overflow-wrap: anywhere; }
+  .recent-copy .excerpt { display: block; overflow: visible; }
+  .recent-copy .post-meta { margin-top: auto; }
 }
 
 /* Editorial audio controls, no colored tray. The play circle supplies the accent. */

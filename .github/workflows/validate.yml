@@ -66,7 +66,18 @@ jobs:
           node scripts/build-site.mjs
       - name: Verify real Chromium geometry and touch input
         run: python scripts/test-ui-browser.py
+        env:
+          TECH_TOPICS_UI_SCREENSHOTS: test-results/responsive
+      - name: Save responsive screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: responsive-screenshots
+          path: test-results/responsive/
+          if-no-files-found: ignore
       - name: Open the staged Markdown package in real Chromium
         run: python scripts/test-markdown-preview-browser.py
       - name: Open every published article from dist in desktop and mobile Chromium
         run: python scripts/test-html-site-browser.py
+      - name: Verify article recommendations
+        run: python scripts/test-recommendations-browser.py

@@ -359,13 +359,24 @@ async function loadHtmlFromCatalog(requestedArticleSlug) {
     ? catalog.find(item => item?.slug === requestedArticleSlug)
     : catalog[0];
   if (!article) throw new Error("Artigo ausente no catálogo");
-  return loadCatalogHtml(article.slug, article);
+  return { ...(await loadCatalogHtml(article.slug, article)), catalog };
 }
 
 async function loadArticle() {
   try {
-    const { article, slots } = await loadHtmlFromCatalog(requestedSlug);
+    const { article, slots, catalog } = await loadHtmlFromCatalog(requestedSlug);
     await showArticle(article, slots);
+    try {
+      const suggestions = window.TechTopicsCards.recommendArticles(catalog, article);
+      if (suggestions.length) {
+        const cards = window.TechTopicsCards.createCards({
+          quickActions: document.querySelector("#article-quick-actions"),
+          shareStatus: document.querySelector("#share-status"), lazyImages: true
+        });
+        document.querySelector("#recommendations-list").replaceChildren(...suggestions.map((item, index) => cards.articleCard(item, index)));
+        document.querySelector("#recommendations").hidden = false;
+      }
+    } catch (error) { /* Recommendations must not interrupt article reading. */ }
   } catch (error) {
     document.querySelector("#article-category").textContent = "Arquivo";
     document.querySelector("#article-heading").textContent = "Artigo indisponível";

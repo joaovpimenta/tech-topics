@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20261023-drag-target-switch" />
+    <link rel="stylesheet" href="styles.css?v=20261029-responsive" />
   </head>
   <body class="article-page">
     <a class="skip-link" href="#article-root">Ir para o artigo</a>
@@ -83,6 +83,10 @@
       <div class="article-hero" hidden><img id="article-image" alt="" /></div>
       <article class="article-body" id="article-body"><p>Carregando o conteúdo…</p></article>
       <noscript><p>Ative o JavaScript para carregar o conteúdo deste artigo.</p></noscript>
+      <section class="recommendations-section" id="recommendations" aria-labelledby="recommendations-heading" hidden>
+        <h2 id="recommendations-heading">Continue explorando</h2>
+        <div class="recent-list" id="recommendations-list"></div>
+      </section>
     </main>
 
     <section class="recording-dock" id="recording-player" aria-label="Player do áudio gravado do artigo" hidden>
@@ -123,6 +127,7 @@
         </button>
       </div>
     </section>
+    <div class="article-quick-actions" id="article-quick-actions" role="dialog" aria-modal="false" aria-labelledby="quick-preview-title" hidden></div>
     <footer class="site-footer">
       <div class="footer-inner">
         <p>Tech Topics · Arquivo de arquitetura e engenharia de software</p>
@@ -134,7 +139,8 @@
     <script src="speech.js?v=20261023-sentence-range"></script>
     <script src="audio.js?v=20261023-player-fit-gesture"></script>
     <script src="header.js?v=20261023-shared"></script>
-    <script src="article.js?v=20261023-shared-header"></script>
+    <script src="cards.js?v=20261029-recommendations"></script>
+    <script src="article.js?v=20261029-recommendations"></script>
     <script src="pwa.js"></script>
   </body>
 </html>
