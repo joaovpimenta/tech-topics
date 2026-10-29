@@ -49,11 +49,18 @@ formatVersion: 2
 
 ${opening}
 
-[Baixar manual](../../assets/preview/manual.pdf?versao=1#guia)
+## Neste artigo
+
+- [Contrato](#contrato)
+- [Fontes](#fontes)
 
 ## Contrato
 
 A URL pública continua relativa ao shell do site.
+
+## Fontes
+
+[Baixar manual](../../assets/preview/manual.pdf?versao=1#guia)
 `, "utf8");
 
 const result = await buildMarkdownPreview({
