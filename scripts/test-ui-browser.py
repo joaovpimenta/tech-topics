@@ -154,6 +154,51 @@ def test_responsive_article_header(browser, base):
         page.close()
 
 
+def test_diagrams_fit_viewport(browser, base):
+    page = browser.new_page(viewport={'width': 390, 'height': 844})
+    page.route('**/*', lambda route: route.continue_()
+               if route.request.url.startswith(base + '/') else route.abort())
+    try:
+        page.goto(base + '/article.html?slug=transactional-outbox', wait_until='domcontentloaded')
+        page.locator('#article-actions').wait_for(state='visible', timeout=20000)
+        page.locator('.mermaid-error').first.wait_for(state='visible')
+        # Rendered SVG is the CSS boundary: cover Mermaid's flowchart and chart
+        # dimensions without depending on the availability of its external CDN.
+        page.locator('.mermaid-diagram').evaluate_all('''containers => {
+          containers.forEach((container, index) => {
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', index % 2 ? '0 0 700 500' : '-8 -8 1400 500');
+            svg.setAttribute('width', '100%');
+            svg.style.maxWidth = index % 2 ? '700px' : '1400px';
+            svg.setAttribute('role', 'img');
+            const rect = document.createElementNS(svg.namespaceURI, 'rect');
+            rect.setAttribute('width', '600'); rect.setAttribute('height', '400');
+            svg.append(rect);
+            container.classList.remove('mermaid-error');
+            container.replaceChildren(svg);
+          });
+        }''')
+        for width in (320, 360, 390, 430, 720, 1280):
+            page.set_viewport_size({'width': width, 'height': 844})
+            measured = page.locator('.mermaid-diagram').evaluate_all('''containers => containers.map(container => {
+              const svg = container.querySelector('svg');
+              const box = container.getBoundingClientRect(), diagram = svg.getBoundingClientRect();
+              return {left:box.left, right:box.right, width:box.width,
+                diagramLeft:diagram.left, diagramRight:diagram.right, diagramWidth:diagram.width,
+                scrollWidth:container.scrollWidth, clientWidth:container.clientWidth,
+                height:diagram.height, ratio:svg.viewBox.baseVal.width / svg.viewBox.baseVal.height};
+            })''')
+            assert measured, 'article has no rendered diagram fixtures'
+            for diagram in measured:
+                assert diagram['left'] >= 0 and diagram['right'] <= width + 1, (width, diagram)
+                assert diagram['diagramLeft'] >= diagram['left'] and diagram['diagramRight'] <= diagram['right'] + 1, ('diagram cut off', width, diagram)
+                assert diagram['scrollWidth'] <= diagram['clientWidth'] + 1, ('diagram requires horizontal scrolling', width, diagram)
+                assert abs(diagram['diagramWidth'] / diagram['height'] - diagram['ratio']) < .02, ('distorted diagram', width, diagram)
+        print('PASS: rendered flowcharts and charts fit 320–1280px without clipping, scrolling or distortion')
+    finally:
+        page.close()
+
+
 def test_player(browser, base):
     page = browser.new_page(viewport={"width": 430, "height": 800})
     page.route("**/api.github.com/**", lambda route: route.abort())
@@ -359,6 +404,7 @@ if __name__ == "__main__":
                 test_responsive_archive(browser, base)
                 test_archive_extremes(browser, base)
                 test_responsive_article_header(browser, base)
+                test_diagrams_fit_viewport(browser, base)
                 test_player(browser, base)
                 test_touch_buttons_do_not_keep_hover(browser, base)
                 test_press_drag(browser, base)
