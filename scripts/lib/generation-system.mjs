@@ -3,6 +3,11 @@ import path from "node:path";
 import { parseArticleFrontmatter, parseV2Article, validateArticleMetadata } from "./markdown-article.mjs";
 
 const ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+// Directory names are reserved for source, build, and published resources;
+// index and article are existing root pages and must not become article routes.
+const RESERVED_ARTICLE_SLUGS = new Set([
+  "articles", "assets", "content", "dist", "docs", "generation", "scripts", "tools", "index", "article"
+]);
 const HARD_LIMITS = Object.freeze({
   maxFrameworks: 5,
   maxModuleBytes: 16 * 1024,
@@ -297,6 +302,7 @@ export async function discoverArticleSources(root, { taxonomy } = {}) {
     const checked = parseMarkdownMetadata(raw, file);
     const parsed = v2 ? parseV2Article(raw, file) : checked;
     const article = { ...parsed.metadata };
+    assert(!RESERVED_ARTICLE_SLUGS.has(article.slug), `${file}: reserved article slug: ${article.slug}`);
     delete article.bodyHtml;
     metadataBySlug.set(article.slug, article);
     sources.push({ slug: article.slug, title: article.title, dek: article.dek, excerpt: article.excerpt || "", tags: article.tags ?? [], sourceType, file });

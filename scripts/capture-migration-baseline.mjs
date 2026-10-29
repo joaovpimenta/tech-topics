@@ -139,7 +139,16 @@ const records = articles.map(({ article, file, addedAt, sourceBlob }, index) => 
   const assets = [...extractedArticle.assets, { tag: "article", attribute: "image", value: article.image }].map(asset => {
     const raw = asset.value.split(/[?#]/, 1)[0];
     const normalized = raw.replace(/^\.\//, "");
-    return { ...asset, gitBlob: treeByPath.get(normalized) ?? null };
+    let sourceAsset = normalized;
+    if (file === `articles/${article.slug}/article.md`) {
+      const prefix = `assets/${article.slug}/`;
+      if (normalized === `${prefix}${article.slug}-cover.jpg`) sourceAsset = `articles/${article.slug}/cover.jpg`;
+      else if (normalized.startsWith(`${prefix}figures/`)) {
+        const localAsset = `articles/${article.slug}/${normalized.slice(prefix.length)}`;
+        if (treeByPath.has(localAsset)) sourceAsset = localAsset;
+      }
+    }
+    return { ...asset, gitBlob: treeByPath.get(sourceAsset) ?? null };
   });
   const details = articleSignatures(article, extractedArticle, assets);
   return { slug: article.slug, source: file, sourceBlob, addedAt, publishedAt: article.publishedAt,

@@ -56,6 +56,7 @@ const { mkdtemp, mkdir, writeFile, cp, rm, symlink } = await import('node:fs/pro
 const { tmpdir } = await import('node:os');
 const path = await import('node:path');
 const { compileArticleCorpus } = await import('./lib/article-corpus.mjs');
+const { discoverArticleSources } = await import('./lib/generation-system.mjs');
 const root = await mkdtemp(path.join(tmpdir(), 'article-v2-'));
 try {
   await mkdir(path.join(root, 'content/articles'), {recursive:true});
@@ -70,6 +71,19 @@ try {
   await writeFile(path.join(root, 'assets/plano/plano-cover.jpg'), 'fixture');
   const flat = source.replace('formatVersion: 2', 'slug: plano\ntitle: Plano\ndek: Dek plano.\nimage: assets/plano/plano-cover.jpg\nalt: Capa plana').replace(/# Título\n\n> Dek do artigo\.\n\n!\[Capa ilustrada\]\(\.\/cover\.jpg\)\n\n/, '');
   await writeFile(path.join(root, 'content/articles/plano.md'), flat);
+  await writeFile(path.join(root, 'articles/teste/article.md'), source);
+  await writeFile(path.join(root, 'articles/outro/article.md'), source.replace('# Título', '# Outro título'));
+  for (const slug of ['assets', 'content', 'docs', 'articles', 'scripts', 'generation', 'tools', 'index', 'article', 'dist']) {
+    const flatPath = path.join(root, 'content/articles', `${slug}.md`);
+    await writeFile(flatPath, flat.replaceAll('plano', slug));
+    await assert.rejects(() => discoverArticleSources(root), /reserved.*slug|slug.*reserved/i);
+    await rm(flatPath);
+    const nestedDir = path.join(root, 'articles', slug);
+    await mkdir(nestedDir, {recursive:true});
+    await writeFile(path.join(nestedDir, 'article.md'), source);
+    await assert.rejects(() => discoverArticleSources(root), /reserved.*slug|slug.*reserved/i);
+    await rm(nestedDir, {recursive:true, force:true});
+  }
   await writeFile(path.join(root, 'articles/teste/article.md'), source.replace('Texto.', 'Veja [Outro](../outro/article.md#alias) e [Plano](../../content/articles/plano.md#alias).'));
   await writeFile(path.join(root, 'articles/outro/article.md'), source.replace('# Título', '# Outro título'));
   const corpus = await compileArticleCorpus(root);
