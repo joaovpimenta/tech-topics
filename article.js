@@ -507,6 +507,7 @@ async function loadHtmlFromCatalog(requestedArticleSlug) {
 async function loadArticle() {
   try {
     const { article, slots, catalog } = await loadHtmlFromCatalog(requestedSlug);
+    window.TechTopicsSearch?.setArticles(catalog);
     await showArticle(article, slots);
     try {
       const suggestions = window.TechTopicsCards.recommendArticles(catalog, article);
