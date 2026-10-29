@@ -118,6 +118,7 @@
     const inlineElapsed = document.querySelector("#inline-recording-elapsed");
     const inlineDuration = document.querySelector("#inline-recording-duration");
     const inlineRate = document.querySelector("#inline-recording-rate");
+    const inlineSource = document.querySelector("#inline-recording-source");
     const inlinePrevious = document.querySelector("#inline-recording-previous");
     const inlineNext = document.querySelector("#inline-recording-next");
     const dock = document.querySelector("#recording-player");
@@ -134,6 +135,8 @@
     const elapsed = document.querySelector("#recording-elapsed");
     const duration = document.querySelector("#recording-duration");
     const rate = document.querySelector("#recording-rate");
+    const dockSource = document.querySelector("#recording-source");
+    const menuSource = document.querySelector("#recording-source-menu");
     const status = document.querySelector("#recording-status");
     const session = navigator.mediaSession;
     const deviceSwitch = document.querySelector("#listen-article");
@@ -613,6 +616,16 @@
       }
       subtitle.textContent = native ? "Tech Topics · Voz do dispositivo" : "Tech Topics · Narração";
       if (native && deviceState.count) subtitle.textContent += ` · ${devicePositionLabel}`;
+      const sourceName = !open || !mode ? null : native ? "Dispositivo" : "MP3";
+      const sourceDescription = !sourceName ? "não iniciada"
+        : native ? "voz do dispositivo" : "MP3 do Kokoro";
+      for (const label of [inlineSource, dockSource]) {
+        if (!label) continue;
+        label.hidden = !sourceName;
+        label.textContent = sourceName || "";
+        label.title = sourceName ? `Fonte atual: ${sourceDescription}` : "";
+      }
+      if (menuSource) menuSource.textContent = `Fonte atual: ${sourceDescription}`;
       const count = native ? deviceState.count : chapters.length;
       previousButton.hidden = skip.hidden = count < 2;
       previousButton.disabled = native ? deviceState.blockIndex <= 0 : count < 2 || current < 0.7;
@@ -637,7 +650,8 @@
         deviceSwitch.textContent = native ? "Usar áudio gravado" : "Usar voz do dispositivo";
         deviceSwitch.hidden = native ? !discovered : !devicePlayer;
       }
-      if (sourceMenu) sourceMenu.hidden = !discovered || !devicePlayer;
+      // Keep the mobile source indicator available even when only device TTS exists.
+      if (sourceMenu) sourceMenu.hidden = !open && (!discovered || !devicePlayer);
       updateInlineTimeline();
       followChapter();
       updateDockVisibility();
